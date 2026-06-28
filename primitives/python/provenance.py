@@ -37,21 +37,25 @@ def weakest_confidence(*levels):
     return CONFIDENCE[min_idx]
 
 def taints(meta):
+    if not meta:
+        return False
     return bool(meta.get('derived_from_mock')) or meta.get('source') == 'mock'
 
 def combine_provenance(*metas):
     derived_from_mock = any(taints(m) for m in metas)
-    confidence = weakest_confidence(*[m.get('confidence') for m in metas])
+    confidence = weakest_confidence(*[(m or {}).get('confidence') for m in metas])
     prior = []
     for m in metas:
+        if not m:
+            continue
         lin = m.get('lineage')
         if isinstance(lin, list):
             prior.extend(lin)
     input_steps = [{
         'id': _next_step_id(),
         'of': 'input',
-        'source': m.get('source'),
-        'confidence': m.get('confidence'),
+        'source': (m or {}).get('source'),
+        'confidence': (m or {}).get('confidence'),
         'derived_from_mock': taints(m),
     } for m in metas]
     return make_meta(source='derived', confidence=confidence,

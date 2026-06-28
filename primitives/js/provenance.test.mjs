@@ -174,4 +174,9 @@ describe("combineProvenance — the law", () => {
     expect(out.derivedFromMock).toBe(false);
     expect(out.lineage).toHaveLength(1);
   });
+  it("tolerates a meta missing keys ({})", () => {
+    const out = combineProvenance({});
+    expect(out.source).toBe("derived");
+    expect(out.derivedFromMock).toBe(false);
+  });
 });

@@ -40,4 +40,10 @@ describe("derive", () => {
     expect(out.source).toBe("real");
     expect(out.derivedFromMock).toBe(true);
   });
+  it("lineage key in metaOverride is ignored; computed lineage is used", () => {
+    const a = mark(1, { source: "real", confidence: "high" });
+    const b = mark(2, { source: "semiReal", confidence: "medium" });
+    const out = derive([a, b], (x, y) => x + y, { lineage: [] });
+    expect(metaOf(out).lineage.length).toBeGreaterThan(0);
+  });
 });

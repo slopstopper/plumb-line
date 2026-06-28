@@ -34,3 +34,9 @@ def test_source_override_cannot_clear_taint():
     out = m.derive([clean, dirty], lambda a, b: a + b, source='real')
     assert out['meta']['source'] == 'real'
     assert out['meta']['derived_from_mock'] is True
+
+def test_derive_lineage_override_is_ignored():
+    a = m.mark(1, source='real', confidence='high')
+    b = m.mark(2, source='semiReal', confidence='medium')
+    out = m.derive([a, b], lambda x, y: x + y, lineage=[])
+    assert len(m.meta_of(out)['lineage']) > 0

@@ -24,7 +24,7 @@ export function makeMeta({
       derivedFromMock === undefined
         ? source === "mock"
         : Boolean(derivedFromMock),
-    lineage: Array.isArray(lineage) ? lineage : [],
+    lineage: Array.isArray(lineage) ? [...lineage] : [],
   };
   if (basis !== undefined) meta.basis = basis;
   if (adapter !== undefined) meta.adapter = adapter;

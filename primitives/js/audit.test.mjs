@@ -59,4 +59,19 @@ describe("auditMeta", () => {
     const out = derive([a, b], (x, y) => x + y);
     expect(auditMeta(metaOf(out))).toEqual([]);
   });
+
+  it("does not throw for an invalid top-level confidence, returns an array", () => {
+    const result = auditMeta({
+      source: "derived",
+      confidence: "invalid",
+      lineage: [{ confidence: "low", derivedFromMock: false }],
+    });
+    expect(Array.isArray(result)).toBe(true);
+  });
+  it("returns [] for an empty meta object", () => {
+    expect(auditMeta({})).toEqual([]);
+  });
+  it("returns ['missing meta'] for null", () => {
+    expect(auditMeta(null)).toEqual(["missing meta"]);
+  });
 });

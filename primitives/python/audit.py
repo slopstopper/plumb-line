@@ -4,7 +4,7 @@ from provenance import CONFIDENCE, weakest_confidence
 CLEAN_SOURCES = ['real', 'semiReal', 'fallback']
 
 def audit_meta(meta):
-    if not meta:
+    if meta is None:
         return ['missing meta']
     issues = []
     lineage = meta.get('lineage') if isinstance(meta.get('lineage'), list) else []
@@ -15,8 +15,10 @@ def audit_meta(meta):
     lineage_confidences = [s.get('confidence') for s in lineage if s.get('confidence') in CONFIDENCE]
     if lineage_confidences:
         weakest = weakest_confidence(*lineage_confidences)
-        if CONFIDENCE.index(meta.get('confidence')) > CONFIDENCE.index(weakest):
-            issues.append(f"over-claiming: confidence '{meta.get('confidence')}' exceeds weakest lineage confidence '{weakest}'")
+        c = meta.get('confidence')
+        top_idx = CONFIDENCE.index(c) if c in CONFIDENCE else -1
+        if top_idx > CONFIDENCE.index(weakest):
+            issues.append(f"over-claiming: confidence '{c}' exceeds weakest lineage confidence '{weakest}'")
 
     lineage_tainted = any(bool(s.get('derived_from_mock')) or s.get('source') == 'mock' for s in lineage)
     if lineage_tainted and meta.get('derived_from_mock') is False:

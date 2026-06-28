@@ -33,3 +33,14 @@ def test_silent_on_derive_output():
     bad = m.mark(2, source='mock', confidence='low')
     out = m.derive([base, bad], lambda x, y: x + y)
     assert a.audit_meta(m.meta_of(out)) == []
+
+def test_no_throw_on_invalid_top_confidence():
+    result = a.audit_meta({'source': 'derived', 'confidence': None,
+                           'lineage': [{'confidence': 'low', 'derivedFromMock': False}]})
+    assert isinstance(result, list)
+
+def test_empty_meta_returns_empty_list():
+    assert a.audit_meta({}) == []
+
+def test_none_meta_returns_missing_meta():
+    assert a.audit_meta(None) == ['missing meta']

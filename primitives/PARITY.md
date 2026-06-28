@@ -5,20 +5,31 @@ The provenance/lineage primitive ships in JavaScript (`primitives/js/`) and Pyth
 must behave identically in both. This file records the shared case table verified
 against both implementations.
 
-Suites: JS `npx vitest run` → 34/34; Python `python3 -m pytest` → 25/25.
+Suites: JS `npx vitest run` → 39/39; Python `python3 -m pytest` → 31/31.
 
-| Case | derivedFromMock | confidence | source | JS | Python |
-|------|-----------------|------------|--------|----|--------|
-| `real + mock` (combine) | true | low | derived | ✓ | ✓ |
-| `real + semiReal` (combine) | false | medium | derived | ✓ | ✓ |
-| `derive` with source override `real` over a mock input | true | — | real (label) | ✓ | ✓ |
-| `auditMeta` / `audit_meta` on `derive` output | — | — | — | `[]` | `[]` |
+| Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
+| ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |
+| `real + mock` (combine)                                | true            | low        | derived      | ✓    | ✓      |
+| `real + semiReal` (combine)                            | false           | medium     | derived      | ✓    | ✓      |
+| `derive` with source override `real` over a mock input | true            | —          | real (label) | ✓    | ✓      |
+| `auditMeta` / `audit_meta` on `derive` output          | —               | —          | —            | `[]` | `[]`   |
 
 Notes:
+
 - The source-override case proves the escape hatch cannot clear the taint: the
   label becomes `real` but `derivedFromMock` stays `true`, and the checker flags
   that combination as laundering.
 - `derive` output is always consistent (the checker returns no issues), because
   `derive` delegates to the single law implementation rather than re-deriving it.
 
-No divergence found between the two languages.
+## Previously-divergent cases — now resolved
+
+The following two cases were identified as divergences between the JS and Python
+implementations and have been corrected (fix-wave prov-fixwave, 2026-06-28):
+
+| Case                                                                   | JS behaviour                                                                                     | Python behaviour (before)                                           | Python behaviour (after)                                                                                       |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Invalid / missing top-level `confidence` in `auditMeta` / `audit_meta` | `CONFIDENCE.indexOf(c)` returns `-1`; `-1 > weakest_idx` is always false; no throw; returns list | `CONFIDENCE.index(c)` raised `ValueError`                           | `c = meta.get('confidence'); top_idx = CONFIDENCE.index(c) if c in CONFIDENCE else -1`; no throw; returns list |
+| Empty dict `{}` passed to `auditMeta` / `audit_meta`                   | `if (!meta)` is falsy only for `null`/`undefined`; `{}` proceeds and returns `[]`                | `if not meta:` treated `{}` as missing; returned `['missing meta']` | `if meta is None:` only catches `None`; `{}` proceeds and returns `[]`                                         |
+
+Both cases now match. No divergence found between the two languages.

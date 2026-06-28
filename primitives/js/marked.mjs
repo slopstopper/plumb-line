@@ -10,6 +10,11 @@ const META_KEYS = [
   "adapter",
 ];
 
+// Only these keys may be supplied as overrides to derive(). lineage always
+// comes from the computed combineProvenance result; derivedFromMock taint
+// cannot be cleared through an override.
+const OVERRIDE_KEYS = ["source", "confidence", "basis", "adapter"];
+
 export function mark(value, metaInput = {}) {
   return { value, ...makeMeta(metaInput) };
 }
@@ -28,9 +33,13 @@ export function metaOf(marked) {
 export function derive(inputs, fn, metaOverride = {}) {
   const value = fn(...inputs.map(unwrap));
   const combined = combineProvenance(...inputs.map(metaOf));
+  const safeOverride = {};
+  for (const key of OVERRIDE_KEYS) {
+    if (key in metaOverride) safeOverride[key] = metaOverride[key];
+  }
   const merged = {
     ...combined,
-    ...metaOverride,
+    ...safeOverride,
     derivedFromMock:
       combined.derivedFromMock || Boolean(metaOverride.derivedFromMock),
   };

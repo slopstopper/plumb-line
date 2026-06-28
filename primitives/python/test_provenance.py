@@ -74,3 +74,12 @@ def test_combine_accumulates_prior_lineage():
     with_history = dict(REAL); with_history['lineage'] = [{'id':'old','of':'prior'}]
     out = p.combine_provenance(with_history, SEMI)
     assert any(s['id'] == 'old' for s in out['lineage'])
+
+def test_combine_tolerates_empty_dict_member():
+    out = p.combine_provenance({})
+    assert out['source'] == 'derived'
+    assert out['derived_from_mock'] is False
+
+def test_combine_tolerates_none_member():
+    out = p.combine_provenance(None, REAL)
+    assert out['source'] == 'derived'
