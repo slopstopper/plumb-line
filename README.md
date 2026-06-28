@@ -10,13 +10,13 @@ plumb-line is for builders whose outputs are claims — research and scientific 
 
 ## Two halves: review-time and run-time
 
-plumb-line enforces the same discipline at two moments. The **skills** apply it at review time, by loading the principles, generating a ruleset, and auditing a diff before it lands. The **provenance primitive** applies it at run time, through a small library that makes uncertainty propagate across your actual calculations, so a tainted value can't quietly become a clean one. Use either half alone; together they keep code honest both when it is reviewed and when it runs.
+plumb-line enforces the same discipline at two moments. The **skills** apply it at review time, by loading the principles, generating a ruleset, and auditing a diff before it lands. The **provenance primitive** applies it at run time, through a small library that makes uncertainty propagate across your actual calculations, so a tainted value can't quietly become a clean one. Use either half alone, or both.
 
 ## The skills (review-time)
 
 **plumb-line-method** — loads the [portable principles](reference/portable-principles.md): thesis, nine principles, maturity vocabulary, and the one-line test. Pure knowledge; takes no actions.
 
-**plumb-line-bootstrap** — interviews your builder, generates a filled, domain-neutral ruleset, and installs enforcement adapters tailored to your project structure and language.
+**plumb-line-bootstrap** — interviews the builder, generates a domain-neutral ruleset, and installs enforcement adapters tailored to your project's structure and language.
 
 **plumb-line-audit** — audits your diff or repository against the principles, surfacing laundered uncertainty, boundary leaks, hardcoded priors, overstated maturity, and outputs lacking recorded lineage.
 
@@ -33,7 +33,7 @@ total.derivedFromMock; // true   inherited from rate, and impossible to clear
 total.confidence;      // 'low'  only as certain as the weakest input
 ```
 
-Laundering tainted data becomes structurally impossible rather than merely discouraged, and a runtime checker (`auditMeta` / `audit_meta`) flags laundering, over-claiming, dropped taint, and unreproducible outputs. See [`primitives/README.md`](primitives/README.md) for the model, the law, and worked examples.
+A runtime checker (`auditMeta` / `audit_meta`) flags laundering, over-claiming, dropped taint, and unreproducible outputs. See [`primitives/README.md`](primitives/README.md) for the model, the law, and worked examples.
 
 ## Repository layout
 
