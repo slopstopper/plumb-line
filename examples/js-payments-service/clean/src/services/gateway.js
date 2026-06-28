@@ -16,6 +16,7 @@ import { calculateTotal } from "../engine/pricing.js";
  * @property {string} provenance - describes the source of chargedAmount
  * @property {number} confidence - 0–1; <1.0 when amount is simulated
  * @property {string} dataStatus - "simulated" | "live"
+ * @property {string} weightsVersion - version of the priors that produced the charge
  */
 
 /**
@@ -42,5 +43,6 @@ export function submitPayment(subtotal, currency, config) {
     provenance: `stub: chargedAmount derived from engine/pricing.calculateTotal (${priced.provenance})`,
     confidence: 0.0, // stub — no real gateway confirmation
     dataStatus: "simulated",
+    weightsVersion: priced.weightsVersion, // propagate the priors version (lineage) the engine recorded
   };
 }
