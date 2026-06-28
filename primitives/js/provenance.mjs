@@ -30,3 +30,17 @@ export function makeMeta({
   if (adapter !== undefined) meta.adapter = adapter;
   return meta;
 }
+
+export function weakestConfidence(...levels) {
+  if (levels.length === 0) return "none";
+  let minIdx = CONFIDENCE.length - 1;
+  for (const level of levels) {
+    const idx = CONFIDENCE.indexOf(level);
+    minIdx = Math.min(minIdx, idx === -1 ? 0 : idx);
+  }
+  return CONFIDENCE[minIdx];
+}
+
+export function taints(meta) {
+  return Boolean(meta?.derivedFromMock) || meta?.source === "mock";
+}
