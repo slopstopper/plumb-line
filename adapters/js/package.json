@@ -1,0 +1,11 @@
+{
+  "name": "plumb-line-js-adapter",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0"
+  }
+}
