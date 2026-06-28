@@ -1,6 +1,6 @@
 # plumb-line
 
-Epistemic honesty, including the honesty of a null result, enforced by tooling and preserved across time rather than left to vibes. A plumb line finds true vertical by gravity alone. It asserts nothing; it measures. This collection helps a builder give any repository the same property: a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and rules enforced by machines rather than goodwill.
+A plumb line measures true vertical by gravity alone; plumb-line does the same for a codebase, keeping it epistemically honest (including about what it doesn't know) through tooling rather than good intentions. It gives a repository a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and boundaries checked by machines, not trusted to hold.
 
 Concretely, plumb-line is a Claude Code plugin (three skills) paired with a small, standalone provenance library for JavaScript and Python. The skills enforce the discipline when you review code; the library enforces it while the code runs.
 
@@ -10,7 +10,7 @@ plumb-line is for builders whose outputs are claims, where being confidently wro
 
 ## Two halves: review-time and run-time
 
-plumb-line enforces the same discipline at two moments. The **skills** apply it at review time, by loading the principles, generating a ruleset, and auditing a diff before it lands. The **provenance primitive** applies it at run time, through a small library that makes uncertainty propagate across your actual calculations, so a tainted value can't quietly become a clean one. Use either half alone; together they close the gap between "the review said it was honest" and "the code stays honest while it runs."
+plumb-line enforces the same discipline at two moments. The **skills** apply it at review time, by loading the principles, generating a ruleset, and auditing a diff before it lands. The **provenance primitive** applies it at run time, through a small library that makes uncertainty propagate across your actual calculations, so a tainted value can't quietly become a clean one. Use either half alone; together they keep code honest both when it is reviewed and when it runs.
 
 ## The skills (review-time)
 
