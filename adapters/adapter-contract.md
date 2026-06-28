@@ -7,9 +7,9 @@ and parameterizes these files into the target repo.
 ## 1. Boundary check
 
 - Purpose: enforce one-way layering (Principle 2).
-- Provides: a config template with {{LAYERS}} / {{DIRECTION}} placeholders.
-- JS: `eslint-boundary.template.cjs` (import/no-restricted-paths).
-- Python: `importlinter-boundary.template.ini` (import-linter contracts).
+- Provides: a config template with layer placeholders that bootstrap fills with the project's layers/direction.
+- JS: `eslint-boundary.template.cjs` (import/no-restricted-paths) — placeholder `__ZONES__`.
+- Python: `importlinter-boundary.template.ini` (import-linter contracts) — placeholders `{{ROOT_PACKAGE}}`, `{{LAYERS_TOP_TO_BOTTOM}}`. (import-linter's `layers` contract is inherently one-way, so the direction is implicit in layer order rather than a separate placeholder.)
 
 ## 2. Test gate
 
