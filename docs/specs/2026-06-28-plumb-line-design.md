@@ -224,8 +224,20 @@ A skill collection's "tests" are dogfooding + trigger checks:
 - **Trigger accuracy:** validate skill descriptions with skill-creator eval tooling
   if rigor is wanted.
 
+## Resolved decisions
+
+- **Principles set:** keep all 9; the spine (null results valid) and the one-line
+  test remain framing, not numbered principles.
+- **Worked examples:** 2, each doubling as a language dogfood fixture — a JS
+  decision/payments-style service and a Python data/ML-pipeline. The AI/agent
+  persona is illustrated inline rather than as a third example. A third example is
+  **planned**, not v1.
+- **Phasing:** P1 Foundation (scaffold + principles + ruleset template + method
+  skill) -> P2 Adapters (contract + JS + Python) -> P3 Bootstrap -> P4 Audit ->
+  P5 Examples + dogfood validation.
+
 ## Open questions / future
 
-- Worked-examples count (2 vs 3) and which domains.
 - Whether `plumb-line-audit` should optionally emit machine-readable findings.
 - Additional adapters (Go, Rust) — explicitly **planned**, not v1.
+- A third worked example (AI/agent domain) — **planned**, not v1.
