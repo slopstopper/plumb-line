@@ -16,7 +16,7 @@ REQUIRED READING FIRST: `reference/portable-principles.md` and
 
 ## Step 2 — Interview (one question at a time)
 
-Ask the find-your-version prompts from the principles, in this order. Do NOT
+Ask the find-your-version prompts from the principles, in this order (ask one, wait for the answer, then proceed). Do NOT
 supply defaults; these answers are the builder's, not yours:
 
 1. Layers, top to bottom, and the one-way direction.
@@ -42,9 +42,9 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
 
 - Copy the boundary config template, replacing layer placeholders with the
   builder's layers/direction. (JS: eslint zones; Python: import-linter layers.)
-- Copy the three guard hooks into the target repo's `.claude/guards/` (or hooks dir).
+- Copy the boundary config template and the two guard hook scripts (branch guard + pre-commit gate) into the target repo's `.claude/guards/` (or hooks dir).
 - Wire the pre-commit gate to the adapter's declared test command.
-- Tell the builder exactly what was written and how to enable the hooks.
+- Tell the builder exactly what was written and how to enable the hooks (register them in the target repo's `.claude/settings.json` as PreToolUse hooks, per the adapter contract's hook I/O convention).
 
 ## Step 5 — Report (audit format)
 
