@@ -1,0 +1,13 @@
+{
+  "name": "plumb-line-js-adapter",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.4",
+    "eslint-plugin-import": "^2.32.0",
+    "vitest": "^2.0.0"
+  }
+}
