@@ -42,9 +42,69 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
 
 - Copy the boundary config template, replacing layer placeholders with the
   builder's layers/direction. (JS: eslint zones; Python: import-linter layers.)
-- Copy the boundary config template and the two guard hook scripts (branch guard + pre-commit gate) into the target repo's `.claude/guards/` (or hooks dir).
+- Copy the two guard hook scripts (branch guard + pre-commit gate) into the
+  target repo's `.claude/guards/` (or hooks dir).
 - Wire the pre-commit gate to the adapter's declared test command.
-- Tell the builder exactly what was written and how to enable the hooks (register them in the target repo's `.claude/settings.json` as PreToolUse hooks, per the adapter contract's hook I/O convention).
+- Tell the builder exactly what was written and how to enable the hooks.
+- **Verify, don't assume.** After installing, plant a deliberate upward import
+  and confirm the boundary check errors; pipe a code path to the branch guard on
+  the protected branch and confirm it blocks. An installed-but-inert guard is the
+  failure mode to rule out.
+
+### JS boundary zones — get the direction right (easy to invert silently)
+
+In `import/no-restricted-paths`, each zone reads: **`target` = the layer doing
+the importing; `from` = the layer it must NOT import.** To forbid the bottom
+layer importing upward, list one entry per forbidden (lower imports higher) pair:
+
+```js
+zones: [
+  {
+    target: "./src/data",
+    from: "./src/ui",
+    message: "data must not import from ui",
+  },
+  {
+    target: "./src/data",
+    from: "./src/services",
+    message: "data must not import from services",
+  },
+  {
+    target: "./src/data",
+    from: "./src/engine",
+    message: "data must not import from engine",
+  },
+  // ...repeat for services (must not import ui), engine (must not import ui/services), etc.
+];
+```
+
+A reversed `{ target: "./src/ui", from: "./src/data" }` forbids the _opposite_
+(ui importing data) and leaves the real upward leak unguarded — and nothing
+errors, so the mistake is invisible. This is why the verify step above matters.
+
+ESLint v9 uses flat config (`eslint.config.mjs`); the template is a `.cjs`
+fragment. Load it from the flat config (import the fragment and spread its
+`rules`) rather than expecting a legacy `.eslintrc` to be read.
+
+### Branch-guard allowlist forms
+
+The docs allowlist matches an entry in exactly three forms — no other globbing:
+
+- exact file: `README.md`
+- directory (trailing slash): `docs/` — everything under it
+- extension glob: `*.md` — that extension at any depth
+
+Empty entries are rejected. (Earlier versions matched files exactly only; a bare
+`*.md` silently matched nothing — fixed, but still: prefer these three forms.)
+
+### Hook I/O contract (for wiring)
+
+Each guard is a stdin/exit-code CLI: it reads `{ "filePath": "..." }` on stdin,
+the branch from `PLUMBLINE_BRANCH`, and config from `PLUMBLINE_CFG` (JSON), and
+exits non-zero to block (per `adapter-contract.md`). It works directly as a git
+hook. To wire it as a Claude Code PreToolUse hook, map the host's tool payload's
+file path into the `{filePath}` stdin the guard expects — if the host payload
+shape differs, add a one-line shim rather than assuming it matches.
 
 ## Step 5 — Report (audit format)
 
