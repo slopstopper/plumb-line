@@ -6,7 +6,7 @@ Concretely, plumb-line is a Claude Code plugin (three skills) paired with a smal
 
 ## Who it's for
 
-plumb-line is for builders whose outputs are claims, where being confidently wrong is worse than being honestly uncertain: research and scientific software, data and ML, AI and agent systems, decision-support and analytics, and anyone inheriting or auditing a codebase. If you'd rather ship "we don't know yet" than a confident guess, you treat auditability as a feature, and you're suspicious of numbers without provenance, this is for you.
+plumb-line is for builders whose outputs are claims — research and scientific software, data and ML, AI agents, analytics, or any codebase you've inherited and must stand behind. It assumes that being confidently wrong is worse than being honestly uncertain, that "we don't know yet" is a shippable answer, and that a number without provenance is a liability.
 
 ## Two halves: review-time and run-time
 
