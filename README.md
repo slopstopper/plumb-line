@@ -19,11 +19,11 @@ plumb-line is for builders whose outputs are claims — where being confidently 
 Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/plumb-line.git
+git clone https://github.com/<your-remote>/plumb-line.git
 ```
 
 Add plumb-line to Claude Code by pointing it at the plugin directory, or configure it in your `.claude/settings.json`.
 
 ## Status
 
-v1 delivers working enforcement adapters for JavaScript/TypeScript and Python. Go and Rust adapters are planned for future releases.
+v1 delivers current enforcement adapters for JavaScript/TypeScript and Python. Go and Rust adapters are planned for future releases.
