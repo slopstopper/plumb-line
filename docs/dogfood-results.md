@@ -68,3 +68,22 @@ Comparison to `VIOLATIONS.md` answer key: **exact match** — all 3 planted viol
 | Audit quiet on clean fixture         | YES             | YES             |
 
 No misses. No false positives. No follow-ups required.
+
+
+## Shipped boundary enforcement — proven separately
+
+The boundary checks above exercise the adapters' `decide()` reference
+implementation. The enforcement that bootstrap actually installs into a target
+repo is the lint config the adapters template out — ESLint
+`import/no-restricted-paths` (JS) and `import-linter` layers (Python). Those
+shipped mechanisms are proven directly against these same fixtures by
+integration tests that run the real linters:
+
+- JS: `adapters/js/hooks/__tests__/boundary-lint.integration.test.mjs` — real
+  ESLint flags the `broken/` upward import and passes `clean/`.
+- Python: `examples/python-data-pipeline/test_boundary_lint.py` — real
+  import-linter fails the `broken/` layers contract and passes `clean/`.
+
+Declared layer order for both fixtures: `ui → services → engine → data`
+(the service layer uses the pure engine, which uses static data; `data` is the
+bottom layer, so the planted `data → ui` import is an upward violation).
