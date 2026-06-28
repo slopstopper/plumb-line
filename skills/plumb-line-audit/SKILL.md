@@ -19,6 +19,8 @@ sweeps, dispatch read-only subagents and keep only their findings.
 5. Missing lineage (P8) — an output stored without the inputs needed to reproduce it.
 6. Unexplained drift (P9) — a changed golden-baseline value with no recorded reason.
 7. Suppressed null result (spine) — a code path that cannot express "no structure/no effect/inconclusive".
+8. Escaped fakery (P4) — mock/approximate/fallback/cached data that left its container: not labelled (e.g. missing a derivedFromMock-style marker), or flowing into an export/output path that should exclude it unless explicitly opted in.
+9. Uncontracted output (P7) — a public output shape with no versioned, validated contract: missing a validator, a version constant, or a canonical key list.
 
 ## Method
 
