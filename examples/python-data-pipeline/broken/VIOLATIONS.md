@@ -8,7 +8,7 @@ This file is the answer key for the audit of `broken/`. There are exactly three 
 
 **File:** `src/data/schema.py`
 
-**What is wrong:** The `data` layer imports from `src.ui.report`. Data is the bottom layer; it must not import anything from a layer above it. Imports must flow one way only: `ui → engine → services → data`.
+**What is wrong:** The `data` layer imports from `src.ui.report`. Data is the bottom layer; it must not import anything from a layer above it. Imports must flow one way only: `ui → services → engine → data`.
 
 ---
 

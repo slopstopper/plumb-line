@@ -18,16 +18,16 @@ dependencies beyond the Python standard library. It is a minimal shape-demonstra
 Both variants share the same four-layer structure with one-way imports:
 
 ```
-ui → engine → services → data
+ui → services → engine → data
 ```
 
-| Layer      | File                      | Role                                                                          |
-| ---------- | ------------------------- | ----------------------------------------------------------------------------- |
-| `ui`       | `src/ui/report.py`        | Display only; imports engine, never services or data                          |
-| `engine`   | `src/engine/aggregate.py` | Pure aggregation; reads threshold prior from injected config                  |
-| `services` | `src/services/source.py`  | Fetch/persist boundary; returns values with provenance + confidence + lineage |
-| `data`     | `src/data/schema.py`      | Static field mappings; imports nothing                                        |
-| config     | `config/priors.toml`      | Versioned priors injected into engine                                         |
+| Layer      | File                      | Role                                                                                          |
+| ---------- | ------------------------- | --------------------------------------------------------------------------------------------- |
+| `ui`       | `src/ui/report.py`        | Display only; imports engine (downward skip past services)                                    |
+| `services` | `src/services/source.py`  | Fetch/persist boundary; imports engine; returns values with provenance + confidence + lineage |
+| `engine`   | `src/engine/aggregate.py` | Pure aggregation; imports data; reads threshold prior from injected config                    |
+| `data`     | `src/data/schema.py`      | Static field mappings; imports nothing                                                        |
+| config     | `config/priors.toml`      | Versioned priors injected into engine                                                         |
 
 ---
 

@@ -17,16 +17,16 @@ calls, and no external dependencies. It is a minimal shape-demonstrator.
 Both variants share the same four-layer structure with one-way imports:
 
 ```
-ui → engine → services → data
+ui → services → engine → data
 ```
 
-| Layer      | File                      | Role                                                                |
-| ---------- | ------------------------- | ------------------------------------------------------------------- |
-| `ui`       | `src/ui/checkout.js`      | Display only; imports engine, never services or data                |
-| `engine`   | `src/engine/pricing.js`   | Pure calculation; reads priors from injected config                 |
-| `services` | `src/services/gateway.js` | Fetch/persist boundary; returns values with provenance + confidence |
-| `data`     | `src/data/rates.js`       | Static mappings; imports nothing                                    |
-| config     | `config/priors.json`      | Versioned priors injected into engine                               |
+| Layer      | File                      | Role                                                                                |
+| ---------- | ------------------------- | ----------------------------------------------------------------------------------- |
+| `ui`       | `src/ui/checkout.js`      | Display only; imports engine (downward skip past services)                          |
+| `services` | `src/services/gateway.js` | Fetch/persist boundary; imports engine; returns values with provenance + confidence |
+| `engine`   | `src/engine/pricing.js`   | Pure calculation; imports data; reads priors from injected config                   |
+| `data`     | `src/data/rates.js`       | Static mappings; imports nothing                                                    |
+| config     | `config/priors.json`      | Versioned priors injected into engine                                               |
 
 ---
 
