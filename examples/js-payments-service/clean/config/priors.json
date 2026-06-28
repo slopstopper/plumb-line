@@ -1,0 +1,5 @@
+{
+  "version": "1.0.0",
+  "processingFeeRate": 0.029,
+  "description": "Injected priors for the pricing engine. All weights are explicit config, not hardcoded constants."
+}
