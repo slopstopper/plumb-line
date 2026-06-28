@@ -57,3 +57,34 @@ def test_boundary_allows_downward_import():
 def test_pre_commit_blocks_on_failure():
     r = pre_commit_gate.decide(runners=[("tests", lambda: False)])
     assert r["allow"] is False
+
+def test_boundary_allows_same_layer_import():
+    # importPath resolves to the same layer as filePath — exercises the src == dst branch.
+    r = boundary_guard.decide(
+        file_path="src/engine/a.py",
+        import_path="src/engine/b.py",
+        **LAYERS,
+    )
+    assert r["allow"] is True
+    assert r["reason"] == "same or unscoped layer"
+
+def test_boundary_layer_metachar_matched_literally():
+    # Layer "a.b" must match only literal "a.b" path segments, not "axb".
+    meta_layers = {"layers": ["a.b", "engine"], "direction": "downward"}
+    no_match = boundary_guard.decide(
+        file_path="src/axb/thing.py",
+        import_path="src/engine/calc.py",
+        **meta_layers,
+    )
+    # "axb" does not contain the literal layer "a.b" → filePath is unscoped → allow
+    assert no_match["allow"] is True
+    assert no_match["reason"] == "same or unscoped layer"
+
+    exact_match = boundary_guard.decide(
+        file_path="src/a.b/thing.py",
+        import_path="src/engine/calc.py",
+        **meta_layers,
+    )
+    # "a.b" is index 0, "engine" is index 1 → downward → allow
+    assert exact_match["allow"] is True
+    assert "respects downward" in exact_match["reason"]

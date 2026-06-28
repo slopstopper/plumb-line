@@ -49,7 +49,7 @@ export function calculateTotal(subtotal, currency, config) {
     fee,
     total,
     currency,
-    provenance: `subtotal=${subtotal} + fee=(subtotal * config.processingFeeRate=${config.processingFeeRate})`,
+    provenance: `subtotal=${subtotal} + fee=(subtotal * FEE=${FEE})`,
     confidence: 1.0,
     weightsVersion: config.version,
   };
