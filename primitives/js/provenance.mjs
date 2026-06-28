@@ -65,7 +65,7 @@ export function combineProvenance(...metas) {
     of: "input",
     source: m?.source,
     confidence: m?.confidence,
-    derivedFromMock: Boolean(m?.derivedFromMock) || m?.source === "mock",
+    derivedFromMock: taints(m),
   }));
   return makeMeta({
     source: "derived",

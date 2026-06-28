@@ -126,4 +126,52 @@ describe("combineProvenance — the law", () => {
     const out = combineProvenance(withHistory, semi);
     expect(out.lineage.some((s) => s.id === "old")).toBe(true);
   });
+  it("taints from a mock source even when the input flag is false", () => {
+    const sneaky = {
+      source: "mock",
+      confidence: "low",
+      derivedFromMock: false,
+      lineage: [],
+    };
+    const clean = {
+      source: "real",
+      confidence: "high",
+      derivedFromMock: false,
+      lineage: [],
+    };
+    expect(combineProvenance(clean, sneaky).derivedFromMock).toBe(true);
+  });
+  it("ORs taint across three or more inputs", () => {
+    const clean = {
+      source: "real",
+      confidence: "high",
+      derivedFromMock: false,
+      lineage: [],
+    };
+    const mock = {
+      source: "mock",
+      confidence: "low",
+      derivedFromMock: true,
+      lineage: [],
+    };
+    expect(combineProvenance(clean, clean, mock).derivedFromMock).toBe(true);
+  });
+  it("returns a sane clean meta for zero inputs", () => {
+    const out = combineProvenance();
+    expect(out.derivedFromMock).toBe(false);
+    expect(out.confidence).toBe("none");
+    expect(out.source).toBe("derived");
+    expect(out.lineage).toEqual([]);
+  });
+  it("handles a single input", () => {
+    const real = {
+      source: "real",
+      confidence: "high",
+      derivedFromMock: false,
+      lineage: [],
+    };
+    const out = combineProvenance(real);
+    expect(out.derivedFromMock).toBe(false);
+    expect(out.lineage).toHaveLength(1);
+  });
 });
