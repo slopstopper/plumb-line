@@ -1,7 +1,9 @@
-# Dogfood results — plumb-line generalization check
+# Validation results
+
+An independent check that plumb-line's enforcement catches what it claims to, run against the worked fixtures in `examples/`. Every result below is reproducible from this repository.
 
 Date: 2026-06-28  
-Branch: feature/initial-build  
+Version: v0.1.0  
 Fixtures: `examples/js-payments-service/` and `examples/python-data-pipeline/`
 
 ---
