@@ -1,7 +1,22 @@
+# Dependencies
 node_modules/
+
+# Python caches & build artifacts
 __pycache__/
 *.pyc
-.DS_Store
 .venv/
+.pytest_cache/
+.import_linter_cache/
+*.egg-info/
+
+# OS cruft
+.DS_Store
+
+# Local tooling state (not for publication)
 .claude/
 .superpowers/
+.remember/
+
+# Internal build docs — kept private, not published
+docs/plans/
+docs/specs/
