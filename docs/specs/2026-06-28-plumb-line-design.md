@@ -27,6 +27,48 @@ insight is not the domain — it is the **way of building**: keep layers separat
 keep uncertainty visible, never launder approximate data into clean truth, and make
 those guarantees enforced rather than advisory.
 
+## Who plumb-line is for
+
+plumb-line is for builders whose **outputs are claims** — where being confidently
+wrong is worse than being honestly uncertain. If a number, score, or finding your
+code emits becomes someone's decision, this discipline is for you.
+
+Concretely, it fits:
+
+- **Research & scientific-software builders** — anyone whose code produces findings
+  others will trust, and for whom *"no effect found"* must be a valid, expressible
+  result.
+- **Data & ML practitioners** — pipelines that mix measured data with
+  imputed/synthetic/mock values, model outputs that carry confidence, results that
+  must be reproducible from recorded inputs.
+- **AI & agent builders** — LLM and agent systems where hallucinated confidence and
+  unprovenanced output are the core risk. plumb-line's insistence on provenance,
+  quarantined fakery, and expressible uncertainty maps directly onto keeping a
+  generated answer honest about where it came from and how sure it is.
+- **Decision-support / analytics / dashboard builders** — where a value on a screen
+  quietly becomes an action, and provenance is the difference between insight and
+  rumor.
+- **Domain experts encoding a methodology into software** — you already hold a
+  discipline in your head; plumb-line makes the code enforce it instead of relying
+  on your vigilance.
+- **Solo builders & small teams without a formal review process** — who want the
+  discipline baked into hooks and lint, not dependent on remembering.
+- **Anyone inheriting or auditing a codebase** — who needs to know, fast, what's
+  real vs mock vs assumed.
+
+**The disposition it rewards:** you'd rather ship *"we don't know yet"* than a
+confident guess; you treat auditability as a feature; you're suspicious of numbers
+without provenance.
+
+**Strongest fit vs lighter fit.** plumb-line earns its keep in proportion to a
+project's epistemic risk — how much it matters that an output is honest about its
+own certainty and origin. Strongest fit: projects whose outputs are trusted claims
+(research, data/ML, AI/agents, decision-support). Lighter fit: throwaway spikes
+where speed beats honesty and nothing downstream trusts the output; projects with
+little notion of truth or uncertainty (a purely aesthetic site, a game with no data
+claims); teams already saturated with formal verification. plumb-line adds
+discipline — where epistemic risk is low, apply it lightly or not at all.
+
 ## Goals
 
 - Let any builder, in any repo and (v1) any of two languages, adopt this discipline.
