@@ -4,7 +4,10 @@ This directory is a **domain-neutral fixture** that demonstrates the plumb-line
 layering discipline applied to a data-pipeline-style service, in Python. It
 contains two variants:
 
-- `clean/` — follows the principles correctly; an audit should find zero violations.
+- `clean/` — follows the principles it adopts; a calibrated audit finds **zero
+  violations** (it may note as an advisory that output contracts (P7) and a
+  golden baseline (P9) are not adopted — an adoption gap, not a violation; see
+  **Scope** below).
 - `broken/` — identical structure with exactly **three planted violations**; an
   audit should find exactly the three findings listed in `broken/VIOLATIONS.md`.
 
@@ -38,6 +41,28 @@ ui → services → engine → data
 - **Priors are injected config, not hardcoded constants:** the signal threshold lives in `config/priors.toml` and is passed into the engine — never declared as a constant inside a function or module body.
 - **Lineage is recorded:** the service layer records the inputs used to produce a result (source name, record count, field names, config version) so any output can be traced back to the conditions that produced it.
 - **Null results are expressible:** when no signal is detected (mean below threshold), the engine returns `result: None` and `signal_detected: False`. A null outcome is a valid, first-class result — not a failure.
+
+---
+
+## Scope — what this fixture adopts
+
+This is a minimal **shape-demonstrator**, not a full application. It adopts only
+the principles it teaches: **P2** one-way layering, **P3** provenance +
+confidence on outputs, **P5** injectable priors, **P8** recorded lineage, and
+the **null-result spine**.
+
+The **service layer is the lineage-bearing output**: `services/source.py` records
+the full lineage (source, record count, field names, config version). The
+`ui → engine` import is an intentional downward skip past `services` (a layer
+below is still one-way, documented in `src/ui/report.py`); the report is a thin
+display of engine output and defers the lineage chain to the service result.
+
+It deliberately does **not** adopt **P7** (a versioned, validated output contract
+module) or **P9** (a pinned golden baseline) — both would bloat a small demo
+without teaching anything new. A calibrated `plumb-line-audit` reports their
+absence at most **once, as an advisory adoption gap** (a P6 maturity note), never
+as a per-output violation. "Clean audits to zero violations" means zero
+violations of the adopted principles above.
 
 ---
 

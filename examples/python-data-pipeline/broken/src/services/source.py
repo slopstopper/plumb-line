@@ -39,7 +39,7 @@ def load_and_aggregate(config):
         "signal_detected": aggregated["signal_detected"],
         "mean": aggregated["mean"],
         "provenance": f"stub source: {aggregated['provenance']}",
-        "confidence": 0.8,
+        "confidence": config["stub_confidence"],
         "data_status": "simulated",
         "weights_version": aggregated["weights_version"],
     }

@@ -54,7 +54,7 @@ def load_and_aggregate(config):
         "signal_detected": aggregated["signal_detected"],
         "mean": aggregated["mean"],
         "provenance": f"stub source: {aggregated['provenance']}",
-        "confidence": 0.8,  # stub — not a real fetch
+        "confidence": config["stub_confidence"],  # injected prior — trust level for stub data
         "data_status": "simulated",
         "lineage": lineage,
         "weights_version": aggregated["weights_version"],

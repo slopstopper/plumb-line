@@ -14,6 +14,7 @@ import { calculateTotal } from "../engine/pricing.js";
  * @property {string} currency
  * @property {string} provenance - passed through from engine for display/diagnostics
  * @property {number} confidence - passed through from engine
+ * @property {string} weightsVersion - priors version, passed through from engine
  */
 
 /**
@@ -34,5 +35,6 @@ export function buildCheckoutDisplay(subtotal, currency, config) {
     currency: result.currency,
     provenance: result.provenance,
     confidence: result.confidence,
+    weightsVersion: result.weightsVersion, // propagate the priors version (lineage) the engine recorded
   };
 }
