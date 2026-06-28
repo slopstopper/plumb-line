@@ -35,6 +35,17 @@ def test_branch_blocks_file_with_allowlist_entry_as_prefix():
     )
     assert r["allow"] is False
 
+def test_branch_allows_extension_glob_at_any_depth():
+    glob_cfg = {"protected_branches": ["main"], "docs_allowlist": ["*.md"]}
+    assert branch_guard.decide(file_path="README.md", branch="main", **glob_cfg)["allow"] is True
+    assert branch_guard.decide(file_path="docs/guide/intro.md", branch="main", **glob_cfg)["allow"] is True
+
+def test_branch_blocks_non_matching_extension_glob():
+    glob_cfg = {"protected_branches": ["main"], "docs_allowlist": ["*.md"]}
+    assert branch_guard.decide(file_path="src/app.py", branch="main", **glob_cfg)["allow"] is False
+    # Name contains the extension chars but does not end in ".md".
+    assert branch_guard.decide(file_path="src/amd.py", branch="main", **glob_cfg)["allow"] is False
+
 def test_branch_raises_on_empty_allowlist_entry():
     with pytest.raises(ValueError, match="docs_allowlist must not contain empty entries"):
         branch_guard.decide(

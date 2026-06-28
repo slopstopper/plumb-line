@@ -1,5 +1,9 @@
 """branch_guard — block the first code edit on a protected branch."""
 import os
+import re
+
+# A bare "*.ext" extension glob (no path separators).
+_EXTENSION_GLOB = re.compile(r"^\*\.[A-Za-z0-9.]+$")
 
 
 def _normalize_path(p):
@@ -11,6 +15,10 @@ def _matches_allowlist_entry(normalized_candidate, entry):
     """Return True if normalized_candidate matches a single allowlist entry."""
     if entry == "":
         raise ValueError("docs_allowlist must not contain empty entries")
+    if _EXTENSION_GLOB.match(entry):
+        # Extension glob: "*.md" matches any file ending in ".md", at any depth.
+        # The candidate is already guaranteed not to escape upward (see decide).
+        return normalized_candidate.endswith(entry[1:])
     normalized_entry = _normalize_path(entry)
     if entry.endswith("/"):
         # Directory entry: candidate must equal the dir or be inside it at a segment boundary.

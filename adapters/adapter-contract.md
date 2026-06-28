@@ -26,9 +26,12 @@ and parameterizes these files into the target repo.
 - Purpose: block the first code edit on a protected branch.
 - Provides: a hook script. JS `hooks/branch-guard.mjs`; Python `hooks/branch_guard.py`.
 - Parameterized by: PROTECTED_BRANCHES (default: main), and a docs-allowlist (paths that may be edited on a protected branch).
+- Allowlist entry forms (exactly three; empty entries are rejected): exact file (`README.md`), directory with trailing slash (`docs/`, matches everything under it), and extension glob (`*.md`, matches that extension at any depth). No other globbing is supported — paths are normalized and a candidate that escapes upward (`..`) never matches.
 
 ## Hook I/O convention (shared)
 
 - Each guard reads JSON on stdin: `{ "filePath": "...", "command": "..." }`.
+- The branch from `PLUMBLINE_BRANCH` and config from `PLUMBLINE_CFG` (JSON) are read from the environment.
 - Exit 0 = allow. Exit non-zero with a message on stderr = block.
-- This matches Claude Code PreToolUse hook semantics so the same scripts work as git hooks and as Claude hooks.
+- The scripts work directly as git hooks. When wiring as a Claude Code PreToolUse hook, map the host tool payload's file path into the `{filePath}` the guard reads — add a one-line shim if the host payload shape differs rather than assuming it matches.
+- A script's CLI entry point resolves symlinks before deciding whether it is the process entry (so it still runs when invoked via a symlinked path, e.g. macOS `/tmp`).
