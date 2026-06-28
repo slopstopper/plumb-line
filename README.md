@@ -19,7 +19,7 @@ plumb-line is for builders whose outputs are claims — where being confidently 
 Clone the repository:
 
 ```bash
-git clone https://github.com/<your-remote>/plumb-line.git
+git clone https://github.com/effythealien/plumb-line.git
 ```
 
 Add plumb-line to Claude Code by pointing it at the plugin directory, or configure it in your `.claude/settings.json`.
@@ -27,3 +27,7 @@ Add plumb-line to Claude Code by pointing it at the plugin directory, or configu
 ## Status
 
 v1 delivers current enforcement adapters for JavaScript/TypeScript and Python. Go and Rust adapters are planned for future releases.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
