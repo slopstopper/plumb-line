@@ -13,10 +13,12 @@ sweeps, dispatch read-only subagents and keep only their findings.
 ## Check catalogue (each finding cites the principle it violates)
 
 1. Laundered uncertainty (P3) — a value that lost its confidence/provenance as it flowed downstream; a mock/approximate value treated as clean truth.
+   - If the project uses the plumb-line provenance primitive: flag code that hand-builds provenance metadata bypassing combineProvenance/derive, and any value given a clean source while derived from a tainted input. Runtime complement: auditMeta().
 2. Boundary leak (P2) — an import or call crossing layers against the declared direction; symbolic/derived/mock logic inside the source-truth layer (P1).
 3. Hardcoded prior (P5) — a magic number encoding a judgment call, not injected/versioned config.
 4. Overstated maturity (P6) — code or docs claiming current/done for something partial/mock/planned.
 5. Missing lineage (P8) — an output stored without the inputs needed to reproduce it.
+   - If the project uses the provenance primitive: flag derived values that are never marked or carry no lineage; recommend asserting auditMeta(metaOf(value)) === [] in tests.
 6. Unexplained drift (P9) — a changed golden-baseline value with no recorded reason.
 7. Suppressed null result (spine) — a code path that cannot express "no structure/no effect/inconclusive".
 8. Escaped fakery (P4) — mock/approximate/fallback/cached data that left its container: not labelled (e.g. missing a derivedFromMock-style marker), or flowing into an export/output path that should exclude it unless explicitly opted in.
