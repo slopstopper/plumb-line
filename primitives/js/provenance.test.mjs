@@ -65,3 +65,65 @@ describe("taints", () => {
     expect(taints({ source: "real", derivedFromMock: false })).toBe(false);
   });
 });
+
+import { combineProvenance, __resetStepCounter } from "./provenance.mjs";
+import { beforeEach } from "vitest";
+
+beforeEach(() => __resetStepCounter());
+
+const real = {
+  source: "real",
+  confidence: "high",
+  derivedFromMock: false,
+  lineage: [],
+};
+const mock = {
+  source: "mock",
+  confidence: "low",
+  derivedFromMock: true,
+  lineage: [],
+};
+const semi = {
+  source: "semiReal",
+  confidence: "medium",
+  derivedFromMock: false,
+  lineage: [],
+};
+
+describe("combineProvenance — the law", () => {
+  it("taints when any input is mock (OR)", () => {
+    expect(combineProvenance(real, mock).derivedFromMock).toBe(true);
+  });
+  it("stays clean when all inputs are clean", () => {
+    expect(combineProvenance(real, semi).derivedFromMock).toBe(false);
+  });
+  it("degrades confidence to the weakest input", () => {
+    expect(combineProvenance(real, semi).confidence).toBe("medium");
+    expect(combineProvenance(real, mock).confidence).toBe("low");
+  });
+  it("labels the result source as derived", () => {
+    expect(combineProvenance(real, semi).source).toBe("derived");
+  });
+  it("is order-independent for taint and confidence", () => {
+    const a = combineProvenance(real, mock);
+    __resetStepCounter();
+    const b = combineProvenance(mock, real);
+    expect(a.derivedFromMock).toBe(b.derivedFromMock);
+    expect(a.confidence).toBe(b.confidence);
+  });
+  it("records a lineage step per input capturing its trust", () => {
+    const out = combineProvenance(real, mock);
+    expect(out.lineage).toHaveLength(2);
+    expect(out.lineage[1]).toMatchObject({
+      source: "mock",
+      confidence: "low",
+      derivedFromMock: true,
+    });
+    expect(out.lineage[0].id).toBe("step-1");
+  });
+  it("accumulates prior lineage from inputs", () => {
+    const withHistory = { ...real, lineage: [{ id: "old", of: "prior" }] };
+    const out = combineProvenance(withHistory, semi);
+    expect(out.lineage.some((s) => s.id === "old")).toBe(true);
+  });
+});

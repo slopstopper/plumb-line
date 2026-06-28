@@ -44,3 +44,33 @@ export function weakestConfidence(...levels) {
 export function taints(meta) {
   return Boolean(meta?.derivedFromMock) || meta?.source === "mock";
 }
+
+let __stepCounter = 0;
+export function __resetStepCounter() {
+  __stepCounter = 0;
+}
+function nextStepId() {
+  __stepCounter += 1;
+  return `step-${__stepCounter}`;
+}
+
+export function combineProvenance(...metas) {
+  const derivedFromMock = metas.some((m) => taints(m));
+  const confidence = weakestConfidence(...metas.map((m) => m?.confidence));
+  const priorLineage = metas.flatMap((m) =>
+    Array.isArray(m?.lineage) ? m.lineage : [],
+  );
+  const inputSteps = metas.map((m) => ({
+    id: nextStepId(),
+    of: "input",
+    source: m?.source,
+    confidence: m?.confidence,
+    derivedFromMock: Boolean(m?.derivedFromMock) || m?.source === "mock",
+  }));
+  return makeMeta({
+    source: "derived",
+    confidence,
+    derivedFromMock,
+    lineage: [...priorLineage, ...inputSteps],
+  });
+}
