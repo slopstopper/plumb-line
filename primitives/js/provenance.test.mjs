@@ -39,3 +39,29 @@ describe("makeMeta", () => {
     expect("adapter" in m).toBe(false);
   });
 });
+
+import { weakestConfidence, taints } from "./provenance.mjs";
+
+describe("weakestConfidence", () => {
+  it("returns the weakest level", () => {
+    expect(weakestConfidence("high", "low", "medium")).toBe("low");
+  });
+  it("returns none for no args", () => {
+    expect(weakestConfidence()).toBe("none");
+  });
+  it("treats an unknown level as none", () => {
+    expect(weakestConfidence("high", "bogus")).toBe("none");
+  });
+});
+
+describe("taints", () => {
+  it("is true for a mock source", () => {
+    expect(taints({ source: "mock", derivedFromMock: false })).toBe(true);
+  });
+  it("is true when derivedFromMock is set", () => {
+    expect(taints({ source: "real", derivedFromMock: true })).toBe(true);
+  });
+  it("is false for a clean meta", () => {
+    expect(taints({ source: "real", derivedFromMock: false })).toBe(false);
+  });
+});
