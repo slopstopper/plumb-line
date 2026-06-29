@@ -9,7 +9,30 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **Conformance coverage** for two checker conditions previously defined only in
+  SPEC prose: *dropped taint* (§5 condition 5) and *unreproducible* (§5
+  condition 6), plus null-envelope and empty-envelope cases. A new-language port
+  can no longer pass the full suite while omitting these conditions.
+- Skill **stop-and-report guards**: `plumb-line-audit`, `plumb-line-bootstrap`,
+  and `plumb-line-method` now halt instead of falling back to training-data
+  recollection when `reference/portable-principles.md` is unreadable.
+
+### Changed
+- **Python lint adapter `check()` is now self-describing** — every issue dict
+  (including parse errors) carries `filename`, and `check()` accepts a
+  `clean_sources` override mirroring the JS rule's `opts.sources`. **Breaking
+  for the Python adapter:** callers doing exact-dict equality on `check()`
+  output must account for the new `filename` key.
+- `primitives/SPEC.md` status `stable` → `current` (P6 vocabulary); the
+  schema-version stability claim is now a parenthetical.
+- `reset_step_counter` removed from `primitives/python` `__all__` (still
+  importable directly for test suites); marked test-only in JS and Python.
+
+### Notes
+- Source: the **v0.2.0 self-audit** (dogfooding pass, see `docs/dogfooding.md`).
+  Eight findings fixed there; seven deferred and tracked as issues
+  [#23](https://github.com/effythealien/plumb-line/issues/23)–[#29](https://github.com/effythealien/plumb-line/issues/29).
 
 ## [0.2.0] — 2026-06-29
 
