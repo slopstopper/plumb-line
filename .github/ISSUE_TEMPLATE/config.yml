@@ -1,8 +1,5 @@
 blank_issues_enabled: true
-# Private feedback channel (Formspree) — uncomment and replace the URL once your
-# form exists, so the chooser links to it. Left commented to avoid shipping a
-# dead link; until then only the structured "Feedback / use case" form shows.
-# contact_links:
-#   - name: "🔒 Private feedback (sensitive / internal codebases)"
-#     url: "FORMSPREE_FORM_URL"
-#     about: "Testing on a private codebase? Send use-case feedback privately instead of a public issue."
+contact_links:
+  - name: "🔒 Private feedback (sensitive / internal codebases)"
+    url: "https://formspree.io/f/mwvdqwpe"
+    about: "Testing on a private codebase? Send use-case feedback privately instead of a public issue."

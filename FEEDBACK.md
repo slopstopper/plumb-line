@@ -10,7 +10,7 @@ Open the **[Feedback / use case](https://github.com/effythealien/plumb-line/issu
 
 Testing on a private codebase you can't describe in a public issue? Send it privately instead:
 
-**Private feedback form: FORMSPREE_FORM_URL**
+**Private feedback form: [https://formspree.io/f/mwvdqwpe](https://formspree.io/f/mwvdqwpe)**
 
 This is for the most valuable kind of feedback — a concrete "it caught something we'd otherwise have shipped" from a real, confidential codebase. It goes only to the maintainer.
 
