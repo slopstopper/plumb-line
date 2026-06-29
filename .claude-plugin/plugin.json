@@ -5,7 +5,7 @@
   "author": { "name": "Aoife Okonedo Martin" },
   "homepage": "https://github.com/effythealien/plumb-line",
   "repository": "https://github.com/effythealien/plumb-line",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "epistemic-honesty",
     "provenance",

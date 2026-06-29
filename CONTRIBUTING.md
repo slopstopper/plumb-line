@@ -40,3 +40,9 @@ v0.1 ships JavaScript/TypeScript and Python; Go and Rust are planned. Parity
 across languages matters more than breadth, so a new adapter should match the
 existing [adapter contract](adapters/adapter-contract.md) rather than invent its
 own shape.
+
+## License of contributions
+
+The project is licensed under [Apache-2.0](LICENSE). Unless you state otherwise,
+any contribution you intentionally submit for inclusion is provided under the
+same license, per Section 5 of Apache-2.0 — no separate agreement required.

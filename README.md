@@ -75,4 +75,4 @@ v0.1 ships the three skills, enforcement adapters for JavaScript/TypeScript and 
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
