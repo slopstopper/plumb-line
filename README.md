@@ -71,7 +71,7 @@ The durable architecture choices behind plumb-line are recorded as ADRs in [`doc
 
 ## Status
 
-v0.1 ships the three skills, enforcement adapters for JavaScript/TypeScript and Python, and a run-time provenance primitive with JS/Python parity. Both adapters are validated against the worked fixtures in `examples/`, catching every planted violation with no false positives; see the [validation results](docs/validation-results.md). Planned: an AST-level static lint rule for the primitive, bootstrap wiring so host projects adopt it automatically, and Go and Rust adapters.
+v0.1 ships the three skills, enforcement adapters for JavaScript/TypeScript and Python, and a run-time provenance primitive with JS/Python parity. Both adapters are validated against the worked fixtures in `examples/`, catching every planted violation with no false positives; see the [validation results](docs/validation-results.md). plumb-line is held to its own principles, too — its auditor sniffs out its own smells; the [dogfooding report](docs/dogfooding.md) records what it found and fixed. Planned: an AST-level static lint rule for the primitive, bootstrap wiring so host projects adopt it automatically, and Go and Rust adapters.
 
 ## License
 

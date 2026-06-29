@@ -30,7 +30,11 @@ and parameterizes these files into the target repo.
 
 ## Hook I/O convention (shared)
 
-- Each guard reads JSON on stdin: `{ "filePath": "...", "command": "..." }`.
+- Contract version: 1.
+- Input is per guard, read as JSON on stdin (the pre-commit gate takes no stdin):
+  - `boundary-guard`: `{ "filePath": "...", "importPath": "..." }`
+  - `branch-guard`: `{ "filePath": "..." }`
+  - `pre-commit-gate`: no stdin; reads the test command from `PLUMBLINE_TEST_CMD`.
 - The branch from `PLUMBLINE_BRANCH` and config from `PLUMBLINE_CFG` (JSON) are read from the environment.
 - Exit 0 = allow. Exit non-zero with a message on stderr = block.
 - The scripts work directly as git hooks. When wiring as a Claude Code PreToolUse hook, map the host tool payload's file path into the `{filePath}` the guard reads — add a one-line shim if the host payload shape differs rather than assuming it matches.

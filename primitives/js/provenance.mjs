@@ -1,4 +1,10 @@
 // provenance.mjs — the provenance/lineage law (single source).
+
+// Schema version of the provenance metadata envelope (Principle 7). Declared so
+// consumers can pin to a shape; embedding it per-meta and validating against it
+// is planned.
+export const PROVENANCE_VERSION = 1;
+
 export const STATUS = [
   "unavailable",
   "mock",
