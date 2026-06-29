@@ -5,15 +5,17 @@ name: Release
 # The packages publish at whatever version is in the manifests at the tagged
 # commit — so tag the commit AFTER the version-bump PR is merged.
 #
-# Required repository secrets (Settings → Secrets and variables → Actions):
-#   NPM_TOKEN        — an npm automation token with publish rights
-#   PYPI_API_TOKEN   — a PyPI API token scoped to the plumb-line-provenance project
+# Auth is OIDC trusted publishing — no stored tokens. One-time, register a
+# GitHub Actions trusted publisher for this repo + this workflow on each registry
+# (npm: package settings → Trusted Publisher; PyPI: project → Publishing →
+# Trusted Publishers).
 on:
   push:
     tags: ["v*"]
 
 permissions:
-  contents: write   # needed to create the GitHub release
+  contents: write   # create the GitHub release
+  id-token: write   # mint the OIDC token for trusted publishing
 
 jobs:
   release:
@@ -36,14 +38,15 @@ jobs:
         working-directory: primitives/python
         run: python -m pip install --upgrade pip pytest && python -m pytest -q
 
-      # --- publish npm (prepublishOnly re-runs the JS suite as a second gate) ---
+      # --- publish npm via OIDC trusted publishing (requires npm >= 11.5.1;
+      #     publishes provenance attestations by default) ---
+      - name: Update npm (trusted publishing needs >= 11.5.1)
+        run: npm install -g npm@latest
       - name: Publish to npm
         working-directory: primitives/js
         run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # --- publish PyPI ---
+      # --- publish PyPI via OIDC trusted publishing (no password input) ---
       - name: Build Python package
         working-directory: primitives/python
         run: python -m pip install --upgrade build && python -m build
@@ -51,7 +54,6 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: primitives/python/dist
-          password: ${{ secrets.PYPI_API_TOKEN }}
 
       # --- GitHub release with auto-generated notes ---
       - name: Create GitHub release
