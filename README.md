@@ -1,5 +1,10 @@
 # plumb-line
 
+[![npm](https://img.shields.io/npm/v/plumb-line-provenance?logo=npm)](https://www.npmjs.com/package/plumb-line-provenance)
+[![PyPI](https://img.shields.io/pypi/v/plumb-line-provenance?logo=pypi&logoColor=white)](https://pypi.org/project/plumb-line-provenance/)
+[![CI](https://github.com/effythealien/plumb-line/actions/workflows/ci.yml/badge.svg)](https://github.com/effythealien/plumb-line/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
 A plumb line measures true vertical by gravity alone; plumb-line does the same for a codebase, keeping it epistemically honest (including about what it doesn't know) through tooling rather than good intentions. It gives a repository a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and boundaries checked by machines, not trusted to hold.
 
 Concretely, plumb-line is a small, standalone provenance library for JavaScript and Python, paired with a Claude Code plugin (three skills). The library enforces the discipline while your code runs; the skills enforce it when you review code.
