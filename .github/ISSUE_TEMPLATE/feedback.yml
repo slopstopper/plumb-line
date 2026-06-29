@@ -8,7 +8,7 @@ body:
       value: |
         Thanks for trying plumb-line! **Raw output and one concrete example beat polished prose** — paste logs, don't summarize.
 
-        ⚠️ **This creates a public issue.** Testing on a private or internal codebase and can't describe it publicly? Use the private feedback form instead — see [FEEDBACK.md](https://github.com/effythealien/plumb-line/blob/main/FEEDBACK.md).
+        ⚠️ **This creates a public issue.** Testing on a private or internal codebase and can't describe it publicly? Use the [private feedback form](https://effythealien.github.io/plumb-line/feedback.html) instead.
   - type: checkboxes
     id: parts
     attributes:
