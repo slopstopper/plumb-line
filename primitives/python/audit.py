@@ -11,6 +11,11 @@ def audit_meta(meta):
         return ['missing meta']
     issues = []
     lineage = meta.get('lineage') if isinstance(meta.get('lineage'), list) else []
+    # Per-step field reads use this dict-only view so a malformed step (None, a
+    # bare string) reads as "no signal" instead of raising — mirroring the JS
+    # `s?.field`. The raw `lineage` is kept for the length check below, exactly as
+    # JS counts `lineage.length`, so audit stays total (never throws). (G3)
+    steps = [s for s in lineage if isinstance(s, dict)]
 
     if meta.get('source') in CLEAN_SOURCES and meta.get('derived_from_mock') is True:
         issues.append(f"laundering: clean source '{meta.get('source')}' but derived_from_mock is true")
@@ -21,7 +26,7 @@ def audit_meta(meta):
     # absence is genuinely unrankable and must not manufacture a false over-claim.
     lineage_confidences = [
         c if c in CONFIDENCE else 'none'
-        for c in (s.get('confidence') for s in lineage)
+        for c in (s.get('confidence') for s in steps)
         if c is not None
     ]
     if lineage_confidences:
@@ -33,7 +38,7 @@ def audit_meta(meta):
 
     # Numeric over-claiming — the higher-resolution analog of the ordinal check.
     if is_score(meta.get('confidence_score')):
-        lineage_scores = [s.get('confidence_score') for s in lineage if is_score(s.get('confidence_score'))]
+        lineage_scores = [s.get('confidence_score') for s in steps if is_score(s.get('confidence_score'))]
         if lineage_scores:
             weakest = min(lineage_scores)
             if meta['confidence_score'] > weakest:
@@ -41,11 +46,11 @@ def audit_meta(meta):
 
     # Source over-claim — weakest_source cannot look cleaner than the lineage proves.
     if meta.get('weakest_source') in STATUS:
-        actual = weakest_source(*[s.get('source') for s in lineage])
+        actual = weakest_source(*[s.get('source') for s in steps])
         if actual is not None and STATUS.index(meta['weakest_source']) > STATUS.index(actual):
             issues.append(f"source over-claim: weakestSource '{meta['weakest_source']}' is cleaner than lineage's '{actual}'")
 
-    lineage_tainted = any(bool(s.get('derived_from_mock')) or s.get('source') == 'mock' for s in lineage)
+    lineage_tainted = any(bool(s.get('derived_from_mock')) or s.get('source') == 'mock' for s in steps)
     if lineage_tainted and meta.get('derived_from_mock') is False:
         issues.append('taint dropped: lineage contains a tainted step but derived_from_mock is false')
 
