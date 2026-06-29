@@ -153,7 +153,37 @@ return a single "missing meta" issue. An empty envelope `{}` MUST return `[]`.
 
 ---
 
-## 6. Conformance
+## 6. Static enforcement (review-time)
+
+The audit (§5) checks an envelope that already exists, at run time. A **static
+lint** catches the source-code patterns that *produce* inconsistent envelopes —
+bypassing the combination law (§3) or laundering taint by hand — before the code
+runs. It is keyed to the primitive's own functions (`mark`, `derive`,
+`makeMeta`/`make_meta`, `unwrap`) and is the review-time complement to the audit.
+
+A conforming static lint SHOULD flag the following four patterns. Each fires only
+at a **resolved primitive call site** (the function is import-bound to the
+primitive) and only on **literal** field values — a dynamic value cannot be
+proven a violation and MUST NOT be flagged (under-claim over false positives).
+The fields are an object literal in JS (`mark(v, {…})`) and keyword arguments in
+Python (`mark(v, source=…)`); the rules are otherwise identical.
+
+| ID  | Pattern                                                                                              | Run-time analog (§5) |
+| --- | ---------------------------------------------------------------------------------------------------- | -------------------- |
+| PB1 | a clean `source` (`real`/`semiReal`/`fallback`) asserted together with `derivedFromMock` literal `true` | laundering (#1) |
+| PB2 | `derivedFromMock` literal `false` passed to `mark`/`derive`/`makeMeta` (a no-op the law ignores; signals laundering intent) | — |
+| PB3 | a clean `source` passed as a `derive` override (relabeling a derived value)                           | laundering (#1) |
+| PB4 | `mark()` of an unwrapped value — `mark(unwrap(x), …)` / `mark(x.value, …)` — dropping its lineage     | unreproducible (#6) |
+
+Reference implementations: `adapters/js/provenance-lint/` (an ESLint rule,
+`no-provenance-bypass`) and `adapters/python/provenance_lint.py` (a stdlib-`ast`
+checker). Both flag PB1–PB4 and stay silent on honest usage and on dynamic
+values. The catalogue is intentionally syntactic; whole-program dataflow is out
+of scope for envelope schema version 1.
+
+---
+
+## 7. Conformance
 
 An implementation **conforms to envelope schema version 1** if, for every case in
 `conformance/cases.json`:
@@ -169,7 +199,7 @@ the report tool documented there. New behavior MUST be added to `cases.json`
 
 ---
 
-## 7. Reference
+## 8. Reference
 
 - Model, law, worked examples (prose): [`primitives/README.md`](README.md)
 - Cross-language parity table: [`primitives/PARITY.md`](PARITY.md)

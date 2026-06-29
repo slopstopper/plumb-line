@@ -28,6 +28,21 @@ and parameterizes these files into the target repo.
 - Parameterized by: PROTECTED_BRANCHES (default: main), and a docs-allowlist (paths that may be edited on a protected branch).
 - Allowlist entry forms (exactly three; empty entries are rejected): exact file (`README.md`), directory with trailing slash (`docs/`, matches everything under it), and extension glob (`*.md`, matches that extension at any depth). No other globbing is supported — paths are normalized and a candidate that escapes upward (`..`) never matches.
 
+## 5. Provenance-bypass lint
+
+- Purpose: statically flag source-code patterns that bypass the provenance
+  combination law or launder taint by hand (SPEC PB1–PB4) — the review-time
+  complement to the runtime `auditMeta` / `audit_meta`. Applies only to projects
+  using the provenance primitive.
+- JS: `provenance-lint/no-provenance-bypass.cjs` (an ESLint rule) + the
+  `eslint-provenance.template.cjs` config (placeholder `__GLOBS__`).
+- Python: `provenance_lint.py` — a stdlib-`ast` checker exposing
+  `check(source, filename) -> [issue]` and a CLI (`file:line: RULE message`,
+  non-zero exit on any issue).
+- Note: unlike capabilities 1–4 this rule is *library-coupled* (it knows the
+  primitive's API), not domain-neutral. It is grouped with the adapters as
+  enforcement for now and may move under `primitives/` in a future version.
+
 ## Hook I/O convention (shared)
 
 - Contract version: 1.
