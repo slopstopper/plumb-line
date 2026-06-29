@@ -30,7 +30,11 @@ def make_meta(source='derived', confidence='none', confidence_score=None,
         'source': source,
         'confidence': confidence,
         'derived_from_mock': (source == 'mock') if derived_from_mock is None else bool(derived_from_mock),
-        'lineage': list(lineage) if isinstance(lineage, list) else [],
+        # Each meta owns its own copy of every lineage step (dicts are cloned),
+        # so mutating one envelope's history can't rewrite a sibling that shares
+        # ancestry. Python has no cheap deep-freeze, so this isolates ownership
+        # rather than enforcing the true immutability the JS Object.freeze gives.
+        'lineage': [dict(s) if isinstance(s, dict) else s for s in lineage] if isinstance(lineage, list) else [],
     }
     # Optional numeric confidence — a finer-grained companion to the ordinal
     # `confidence`, never a replacement. Stored only when it is a valid score.

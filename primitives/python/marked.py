@@ -21,9 +21,13 @@ def meta_of(marked):
 def derive(inputs, fn, **meta_override):
     value = fn(*[unwrap(i) for i in inputs])
     combined = combine_provenance(*[meta_of(i) for i in inputs])
-    merged = dict(combined)
+    overridden = dict(combined)
     for key in _OVERRIDE_KEYS:
         if key in meta_override:
-            merged[key] = meta_override[key]
-    merged['derived_from_mock'] = combined['derived_from_mock'] or bool(meta_override.get('derived_from_mock'))
-    return {'value': value, 'meta': merged}
+            overridden[key] = meta_override[key]
+    overridden['derived_from_mock'] = combined['derived_from_mock'] or bool(meta_override.get('derived_from_mock'))
+    # Route the override through make_meta so derive is never weaker than the
+    # constructor: an out-of-range confidence_score override is dropped by the
+    # same validation, not stored raw. derived_from_mock is force-OR'd above, so
+    # taint still cannot be cleared (the one law).
+    return {'value': value, 'meta': make_meta(**overridden)}

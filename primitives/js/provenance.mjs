@@ -36,7 +36,15 @@ export function makeMeta({
       derivedFromMock === undefined
         ? source === "mock"
         : Boolean(derivedFromMock),
-    lineage: Array.isArray(lineage) ? [...lineage] : [],
+    // Each meta owns a *frozen copy* of its lineage. Steps are cloned then
+    // frozen so (a) an envelope's recorded history can't be rewritten in place,
+    // and (b) a step shared across parent/child metas can't leak a mutation from
+    // one into the other — the audit trail an auditMeta() trusts stays intact.
+    lineage: Object.freeze(
+      (Array.isArray(lineage) ? lineage : []).map((s) =>
+        s && typeof s === "object" ? Object.freeze({ ...s }) : s,
+      ),
+    ),
   };
   // Optional numeric confidence — a finer-grained companion to the ordinal
   // `confidence`, never a replacement. Stored only when it is a valid score.
@@ -46,7 +54,7 @@ export function makeMeta({
   if (STATUS.includes(weakestSource)) meta.weakestSource = weakestSource;
   if (basis !== undefined) meta.basis = basis;
   if (adapter !== undefined) meta.adapter = adapter;
-  return meta;
+  return Object.freeze(meta);
 }
 
 export function weakestConfidence(...levels) {

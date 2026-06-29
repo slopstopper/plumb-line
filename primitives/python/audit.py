@@ -15,7 +15,15 @@ def audit_meta(meta):
     if meta.get('source') in CLEAN_SOURCES and meta.get('derived_from_mock') is True:
         issues.append(f"laundering: clean source '{meta.get('source')}' but derived_from_mock is true")
 
-    lineage_confidences = [s.get('confidence') for s in lineage if s.get('confidence') in CONFIDENCE]
+    # An unknown confidence on a step is laundering, not "no signal": treat it as
+    # the 'none' floor (mirroring weakest_confidence), so audit is never laxer than
+    # the combination law. A step that records *no* confidence is still skipped —
+    # absence is genuinely unrankable and must not manufacture a false over-claim.
+    lineage_confidences = [
+        c if c in CONFIDENCE else 'none'
+        for c in (s.get('confidence') for s in lineage)
+        if c is not None
+    ]
     if lineage_confidences:
         weakest = weakest_confidence(*lineage_confidences)
         c = meta.get('confidence')

@@ -19,6 +19,18 @@ def test_flags_over_claiming():
             'lineage':[{'id':'s1','confidence':'low','derived_from_mock':False}]}
     assert any('over-claiming' in i for i in a.audit_meta(meta))
 
+# F1: audit must be no laxer than the combination law. An out-of-enum confidence
+# on a step is laundering, not a free pass — treat it as the floor.
+def test_flags_over_claim_out_of_enum_confidence():
+    meta = {'source':'derived','confidence':'high','derived_from_mock':False,
+            'lineage':[{'id':'s1','confidence':'huge','derived_from_mock':False}]}
+    assert any('over-claiming' in i for i in a.audit_meta(meta))
+
+def test_no_false_positive_when_step_has_no_confidence():
+    meta = {'source':'derived','confidence':'high','derived_from_mock':False,
+            'lineage':[{'id':'s1','derived_from_mock':False}]}
+    assert not any('over-claiming' in i for i in a.audit_meta(meta))
+
 def test_flags_taint_dropped():
     meta = {'source':'derived','confidence':'low','derived_from_mock':False,
             'lineage':[{'id':'s1','confidence':'low','derived_from_mock':True}]}

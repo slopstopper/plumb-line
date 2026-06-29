@@ -105,4 +105,25 @@ describe("auditMeta", () => {
     };
     expect(auditMeta(meta).join(" ")).toMatch(/source over-claim/);
   });
+
+  // F1: audit must be no laxer than the combination law. An out-of-enum
+  // confidence on a step is laundering, not a free pass — treat it as the floor.
+  it("flags over-claim when a lineage step's confidence is out of enum (F1)", () => {
+    const meta = {
+      source: "derived",
+      confidence: "high",
+      derivedFromMock: false,
+      lineage: [{ id: "s1", confidence: "huge", derivedFromMock: false }],
+    };
+    expect(auditMeta(meta).join(" ")).toMatch(/over-claiming/);
+  });
+  it("does not flag when a lineage step records no confidence (F1: no false positive)", () => {
+    const meta = {
+      source: "derived",
+      confidence: "high",
+      derivedFromMock: false,
+      lineage: [{ id: "s1", derivedFromMock: false }],
+    };
+    expect(auditMeta(meta).join(" ")).not.toMatch(/over-claiming/);
+  });
 });

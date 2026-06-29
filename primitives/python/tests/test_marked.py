@@ -40,3 +40,24 @@ def test_derive_lineage_override_is_ignored():
     b = m.mark(2, source='semiReal', confidence='medium')
     out = m.derive([a, b], lambda x, y: x + y, lineage=[])
     assert len(m.meta_of(out)['lineage']) > 0
+
+# F2: derive must be no weaker than make_meta — an out-of-range confidence_score
+# override is dropped by the same validation, not stored raw.
+def test_derive_drops_out_of_range_score_override():
+    base = m.mark(100, source='real', confidence='high', confidence_score=0.9)
+    out = m.derive([base], lambda b: b, confidence_score=2)
+    assert 'confidence_score' not in out['meta']
+
+def test_derive_keeps_valid_score_override():
+    base = m.mark(100, source='real', confidence='high', confidence_score=0.9)
+    out = m.derive([base], lambda b: b, confidence_score=0.5)
+    assert out['meta']['confidence_score'] == 0.5
+
+# F3: a child derive owns a copy of its parent's lineage steps, so mutating one
+# envelope's history can't rewrite a sibling that shares ancestry.
+def test_child_derive_owns_copy_of_parent_lineage_steps():
+    base = m.mark(100, source='mock', confidence='low')
+    d1 = m.derive([base], lambda b: b)
+    d2 = m.derive([d1], lambda b: b)
+    assert d2['meta']['lineage'][0] is not d1['meta']['lineage'][0]
+    assert d2['meta']['lineage'][0]['id'] == d1['meta']['lineage'][0]['id']

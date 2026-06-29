@@ -46,4 +46,36 @@ describe("derive", () => {
     const out = derive([a, b], (x, y) => x + y, { lineage: [] });
     expect(metaOf(out).lineage.length).toBeGreaterThan(0);
   });
+
+  // F2: derive must be no weaker than makeMeta — an out-of-range confidenceScore
+  // override is dropped by the same validation, not stored raw.
+  it("drops an out-of-range confidenceScore override (F2)", () => {
+    const base = mark(100, { source: "real", confidence: "high", confidenceScore: 0.9 });
+    const out = derive([base], (b) => b, { confidenceScore: 2 });
+    expect("confidenceScore" in out).toBe(false);
+  });
+  it("keeps a valid confidenceScore override (F2 control)", () => {
+    const base = mark(100, { source: "real", confidence: "high", confidenceScore: 0.9 });
+    const out = derive([base], (b) => b, { confidenceScore: 0.5 });
+    expect(out.confidenceScore).toBe(0.5);
+  });
+});
+
+describe("envelope immutability (F3)", () => {
+  it("freezes lineage steps so recorded history can't be rewritten", () => {
+    const base = mark(100, { source: "mock", confidence: "low" });
+    const out = derive([base], (b) => b);
+    expect(Object.isFrozen(out.lineage[0])).toBe(true);
+    expect(() => {
+      out.lineage[0].derivedFromMock = false;
+    }).toThrow();
+    expect(out.lineage[0].derivedFromMock).toBe(true);
+  });
+  it("a child derive owns a copy of its parent's lineage steps, not a shared ref", () => {
+    const base = mark(100, { source: "mock", confidence: "low" });
+    const d1 = derive([base], (b) => b);
+    const d2 = derive([d1], (b) => b);
+    expect(d2.lineage[0]).not.toBe(d1.lineage[0]); // distinct object
+    expect(d2.lineage[0].id).toBe(d1.lineage[0].id); // same recorded identity
+  });
 });
