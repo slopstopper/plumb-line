@@ -246,4 +246,13 @@ describe("combineProvenance — new fields", () => {
   it("omits weakestSource for zero inputs", () => {
     expect("weakestSource" in combineProvenance()).toBe(false);
   });
+  it("records confidenceScore on a lineage step when the input has one", () => {
+    const out = combineProvenance(realScored, mockScored);
+    expect(out.lineage[0].confidenceScore).toBe(0.9);
+    expect(out.lineage[1].confidenceScore).toBe(0.2);
+  });
+  it("omits confidenceScore from a step whose input lacks one", () => {
+    const out = combineProvenance(realScored, { source: "real", confidence: "high" });
+    expect("confidenceScore" in out.lineage[1]).toBe(false);
+  });
 });

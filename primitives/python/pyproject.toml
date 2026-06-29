@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plumb-line-provenance"
+version = "0.1.0"
+description = "Conservative provenance/confidence/lineage envelope with a taint-propagation combination law. Mock or low-confidence data cannot launder itself clean."
+readme = "README.md"
+requires-python = ">=3.8"
+license = "Apache-2.0"
+authors = [{ name = "Aoife Okonedo Martin" }]
+keywords = ["provenance", "lineage", "confidence", "epistemic-honesty", "reproducibility", "data-quality"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Software Development :: Quality Assurance",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://github.com/effythealien/plumb-line"
+Repository = "https://github.com/effythealien/plumb-line"
+Specification = "https://github.com/effythealien/plumb-line/blob/main/primitives/SPEC.md"
+
+# Flat layout: the three source modules live in this directory and are packaged
+# under the import name `plumb_line_provenance`. Tests are excluded from the dist.
+[tool.setuptools]
+packages = ["plumb_line_provenance"]
+
+[tool.setuptools.package-dir]
+plumb_line_provenance = "."

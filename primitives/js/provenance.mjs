@@ -100,13 +100,19 @@ export function combineProvenance(...metas) {
   const priorLineage = metas.flatMap((m) =>
     Array.isArray(m?.lineage) ? m.lineage : [],
   );
-  const inputSteps = metas.map((m) => ({
-    id: nextStepId(),
-    of: "input",
-    source: m?.source,
-    confidence: m?.confidence,
-    derivedFromMock: taints(m),
-  }));
+  const inputSteps = metas.map((m) => {
+    const step = {
+      id: nextStepId(),
+      of: "input",
+      source: m?.source,
+      confidence: m?.confidence,
+      derivedFromMock: taints(m),
+    };
+    // Record the numeric score too when the input carries one, so the numeric
+    // over-claim audit works on real derive output, not just hand-built metas.
+    if (isScore(m?.confidenceScore)) step.confidenceScore = m.confidenceScore;
+    return step;
+  });
   const lineage = [...priorLineage, ...inputSteps];
   return makeMeta({
     source: "derived",

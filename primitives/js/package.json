@@ -1,9 +1,40 @@
 {
   "name": "plumb-line-provenance",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Conservative provenance/confidence/lineage envelope with a taint-propagation combination law. Mock or low-confidence data cannot launder itself clean.",
   "type": "module",
+  "main": "./index.mjs",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "provenance.mjs",
+    "marked.mjs",
+    "audit.mjs",
+    "README.md"
+  ],
   "scripts": {
     "test": "vitest run"
+  },
+  "keywords": [
+    "provenance",
+    "lineage",
+    "confidence",
+    "epistemic-honesty",
+    "reproducibility",
+    "data-quality"
+  ],
+  "author": "Aoife Okonedo Martin",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/effythealien/plumb-line/tree/main/primitives",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/effythealien/plumb-line.git",
+    "directory": "primitives/js"
+  },
+  "engines": {
+    "node": ">=16"
   },
   "devDependencies": {
     "vitest": "^2.0.0"

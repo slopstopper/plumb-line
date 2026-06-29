@@ -9,6 +9,10 @@ from it inherits that taint automatically — there is no escape hatch, no
 override that silently clears the flag. The result is a system where uncertainty
 propagates honestly whether or not the developer thinks about it.
 
+The envelope and law are formally specified — see [`SPEC.md`](SPEC.md) (envelope
+schema version 1), pinned by the cross-language [conformance suite](conformance/).
+Each language is also packaged as `plumb-line-provenance` (npm / PyPI).
+
 ---
 
 **New code → use the wrapper (`mark`/`derive`); existing structures → use the combinators (`combineProvenance`).**

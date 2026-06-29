@@ -8,6 +8,8 @@ __pycache__/
 .pytest_cache/
 .import_linter_cache/
 *.egg-info/
+build/
+dist/
 
 # OS cruft
 .DS_Store

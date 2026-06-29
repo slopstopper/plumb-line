@@ -1,5 +1,5 @@
 import os, sys
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import provenance as p
 
 def setup_function():
@@ -120,3 +120,12 @@ def test_combine_records_weakest_source():
 
 def test_combine_omits_weakest_source_for_zero_inputs():
     assert 'weakest_source' not in p.combine_provenance()
+
+def test_combine_records_score_on_lineage_step():
+    out = p.combine_provenance(REAL_SCORED, MOCK_SCORED)
+    assert out['lineage'][0]['confidence_score'] == 0.9
+    assert out['lineage'][1]['confidence_score'] == 0.2
+
+def test_combine_omits_score_on_step_without_one():
+    out = p.combine_provenance(REAL_SCORED, {'source':'real','confidence':'high'})
+    assert 'confidence_score' not in out['lineage'][1]

@@ -1,5 +1,8 @@
 """audit — runtime consistency checker for provenance metadata. Mirror of audit.mjs."""
-from provenance import CONFIDENCE, STATUS, weakest_confidence, weakest_source, is_score
+try:  # installed as a package (plumb_line_provenance)
+    from .provenance import CONFIDENCE, STATUS, weakest_confidence, weakest_source, is_score
+except ImportError:  # flat / copy-paste usage (modules on sys.path)
+    from provenance import CONFIDENCE, STATUS, weakest_confidence, weakest_source, is_score
 
 CLEAN_SOURCES = ['real', 'semiReal', 'fallback']
 

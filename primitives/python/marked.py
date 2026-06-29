@@ -1,5 +1,8 @@
 """marked — thin wrapper sugar over the provenance law. The law lives in provenance.py."""
-from provenance import combine_provenance, make_meta
+try:  # installed as a package (plumb_line_provenance)
+    from .provenance import combine_provenance, make_meta
+except ImportError:  # flat / copy-paste usage (modules on sys.path)
+    from provenance import combine_provenance, make_meta
 
 # Only these keys may be supplied as overrides to derive(). lineage and
 # weakest_source always come from the computed combine_provenance result;

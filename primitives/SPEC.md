@@ -1,0 +1,177 @@
+# plumb-line Provenance Envelope — Specification
+
+**Status:** stable · **Envelope schema version:** 1 · **SPEC revision:** 1.0
+
+This is the normative, language-neutral definition of the provenance envelope,
+the conservative-combination law, and the consistency checks. Any implementation
+that conforms to this document interoperates with any other, regardless of
+language. The reference implementations (`primitives/js/`, `primitives/python/`)
+conform; the executable definition of conformance is
+[`conformance/cases.json`](conformance/cases.json), exercised in both languages
+(`js/conformance.test.mjs`, `python/test_conformance.py`).
+
+The key words MUST, MUST NOT, SHOULD, MAY are used as in RFC 2119.
+
+---
+
+## 1. The envelope
+
+A **provenance envelope** is a record describing the trust state of a value. It
+has four required fields and several optional ones.
+
+| Field             | Req | Type            | Meaning                                                              |
+| ----------------- | --- | --------------- | ------------------------------------------------------------------- |
+| `source`          | yes | enum (§2)       | Where the value came from, on the status ladder.                    |
+| `confidence`      | yes | enum (§2)       | How certain, on the four-level ordinal ladder.                      |
+| `derivedFromMock` | yes | boolean         | `true` if this value or any ancestor was mock-sourced.              |
+| `lineage`         | yes | array of step   | One step per input captured at each combination (§4).               |
+| `confidenceScore` | no  | number `[0,1]`  | Higher-resolution companion to `confidence` (§3).                   |
+| `weakestSource`   | no  | enum (§2)       | Least-trustworthy `source` in the ancestry; computed only (§4).     |
+| `basis`           | no  | any             | Free-form note on what the value is based on.                       |
+| `adapter`         | no  | any             | Free-form enforcement-adapter annotation.                           |
+
+Field names are given here in `camelCase` (the canonical/JSON form). A
+`snake_case` binding (`derived_from_mock`, `confidence_score`, `weakest_source`)
+is permitted and is what the Python implementation uses; the two are the same
+envelope under a naming convention, and `conformance/cases.json` is authored in
+`camelCase` with bindings translating as needed.
+
+Optional fields MUST be **absent** when they have no value — an implementation
+MUST NOT emit `confidenceScore: null` or `weakestSource: undefined`. Absence is
+meaningful: it denotes "unknown", which is distinct from any present value.
+
+### Envelope versioning
+
+The envelope schema carries a version constant (`PROVENANCE_VERSION`, currently
+`1`). Adding a new **optional** field is backward-compatible and MUST NOT bump
+the version (`confidenceScore` and `weakestSource` were added under v1). Removing
+or renaming a field, changing a field's type, or changing the combination law's
+result for an existing case is a breaking change and MUST bump the version.
+
+---
+
+## 2. Ordered vocabularies
+
+Two fields draw from ordered enumerations. Order is significant: "weakest" and
+"cleaner/dirtier" comparisons are defined by position.
+
+**`source`** — status ladder, least → most trustworthy:
+
+```
+unavailable  <  mock  <  fallback  <  semiReal  <  derived  <  real
+```
+
+**`confidence`** — certainty ladder, least → most certain:
+
+```
+none  <  low  <  medium  <  high
+```
+
+A value not present in a ladder is **unknown**. For `confidence`, an unknown
+input MUST be treated as the weakest (`none`) by the combination law (§3) and
+MUST be ignored by the audit's over-claim comparison (§5). For `source`, unknown
+values are ignored when computing `weakestSource` (§4).
+
+---
+
+## 3. The combination law
+
+When N input envelopes are combined into one output envelope, the output MUST be
+computed as follows. The law is **conservative**: the result is never more
+trustworthy than its inputs, and taint can never be cleared.
+
+1. **`derivedFromMock`** = logical OR over all inputs. An input taints if its
+   `derivedFromMock` is `true` OR its `source` is `mock`. Once `true`, no
+   downstream combination may set it back to `false`.
+2. **`confidence`** = the weakest (lowest-ranked) `confidence` among the inputs.
+3. **`confidenceScore`** = the minimum across inputs **iff every input carries a
+   valid score**; otherwise the field is omitted. A missing score is "unknown"
+   and MUST NOT be dropped from the minimum — any gap omits the result.
+   - This is the higher-resolution analog of rule 2, **not** error propagation.
+     Narrowing uncertainty through combination requires an independence
+     assumption a domain-neutral law MUST NOT bake in. The law stays at `min`.
+4. **`source`** = the literal `"derived"`. Combined outputs MUST NOT be promoted
+   to `real` (or any clean status) by the law itself.
+5. **`lineage`** = every input's prior lineage steps, concatenated, followed by
+   one new step per input (§4).
+6. **`weakestSource`** = the weakest `source` across the entire resulting
+   `lineage` (§4). Omitted when the lineage is empty.
+
+The law MUST be **order-independent** for fields 1–4 and 6: permuting the inputs
+MUST NOT change the result except for the order of lineage steps.
+
+### Combining zero inputs
+
+Combining zero inputs MUST yield a clean, empty envelope:
+`source = "derived"`, `confidence = "none"`, `derivedFromMock = false`,
+`lineage = []`, with `confidenceScore` and `weakestSource` absent.
+
+---
+
+## 4. Lineage steps
+
+A **lineage step** records one input's trust state at the moment of combination.
+Each new step MUST contain:
+
+| Field             | Type    | Meaning                                          |
+| ----------------- | ------- | ------------------------------------------------ |
+| `id`              | string  | Unique-within-output identifier.                 |
+| `of`              | string  | `"input"` for steps minted by the law.           |
+| `source`          | enum    | The input's `source` at combination time.        |
+| `confidence`      | enum    | The input's `confidence` at combination time.    |
+| `derivedFromMock` | boolean | Whether the input tainted (flag OR mock source). |
+| `confidenceScore` | number  | Present **iff** the input carried a valid score. |
+
+`weakestSource` is **computed only**: it is derived from the lineage and MUST NOT
+be settable as a combination override. An implementation MUST NOT let a caller
+hand-set `weakestSource` to a value cleaner than the lineage proves (the audit in
+§5 catches violations).
+
+An output whose `source` is `"derived"` MUST have a non-empty `lineage`; a
+derived value with no lineage is unreproducible (§5).
+
+---
+
+## 5. Consistency checks (the audit)
+
+An implementation MUST provide a checker (`auditMeta` / `audit_meta`) that takes
+one envelope and returns a list of issue strings — empty meaning consistent. The
+checker MUST detect each of the following:
+
+| # | Issue                  | Condition                                                                                  |
+| - | ---------------------- | ------------------------------------------------------------------------------------------ |
+| 1 | Laundering             | a clean `source` (`real`, `semiReal`, `fallback`) with `derivedFromMock: true`.            |
+| 2 | Over-claiming          | `confidence` ranked higher than the weakest `confidence` in the lineage.                   |
+| 3 | Numeric over-claiming  | `confidenceScore` greater than the weakest `confidenceScore` in the lineage.               |
+| 4 | Source over-claim      | `weakestSource` cleaner (higher-ranked) than the weakest `source` present in the lineage.  |
+| 5 | Dropped taint          | a tainted lineage step exists but `derivedFromMock` is `false`.                            |
+| 6 | Unreproducible         | `source` is `"derived"` but `lineage` is empty.                                            |
+
+The checker MUST be total: a missing or malformed field MUST yield a result list
+(possibly noting the problem), never an exception. A `null`/`None` envelope MUST
+return a single "missing meta" issue. An empty envelope `{}` MUST return `[]`.
+
+---
+
+## 6. Conformance
+
+An implementation **conforms to envelope schema version 1** if, for every case in
+`conformance/cases.json`:
+
+- each `combine` case's output matches the expected fields and respects the
+  declared `absent` fields, and
+- each `audit` case's issue list contains the expected substrings (or is empty
+  when none are expected).
+
+Conformance is verifiable mechanically — see [`conformance/`](conformance/) and
+the report tool documented there. New behavior MUST be added to `cases.json`
+(covering all languages at once) before or alongside the implementation change.
+
+---
+
+## 7. Reference
+
+- Model, law, worked examples (prose): [`primitives/README.md`](README.md)
+- Cross-language parity table: [`primitives/PARITY.md`](PARITY.md)
+- The discipline this primitive operationalizes (Principles 3, 4, 8):
+  [`reference/portable-principles.md`](../reference/portable-principles.md)

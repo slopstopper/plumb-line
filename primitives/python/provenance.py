@@ -85,13 +85,21 @@ def combine_provenance(*metas):
         lin = m.get('lineage')
         if isinstance(lin, list):
             prior.extend(lin)
-    input_steps = [{
-        'id': _next_step_id(),
-        'of': 'input',
-        'source': (m or {}).get('source'),
-        'confidence': (m or {}).get('confidence'),
-        'derived_from_mock': taints(m),
-    } for m in metas]
+    input_steps = []
+    for m in metas:
+        step = {
+            'id': _next_step_id(),
+            'of': 'input',
+            'source': (m or {}).get('source'),
+            'confidence': (m or {}).get('confidence'),
+            'derived_from_mock': taints(m),
+        }
+        # Record the numeric score too when the input carries one, so the numeric
+        # over-claim audit works on real derive output, not just hand-built metas.
+        score = (m or {}).get('confidence_score')
+        if is_score(score):
+            step['confidence_score'] = score
+        input_steps.append(step)
     lineage = prior + input_steps
     return make_meta(source='derived', confidence=confidence,
                      confidence_score=confidence_score,
