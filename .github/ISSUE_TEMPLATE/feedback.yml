@@ -1,0 +1,68 @@
+name: Feedback / use case
+description: Share how plumb-line worked on your code — bugs, false positives, what it caught, or a use case.
+title: "[feedback]: "
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying plumb-line! **Raw output and one concrete example beat polished prose** — paste logs, don't summarize.
+
+        ⚠️ **This creates a public issue.** Testing on a private or internal codebase and can't describe it publicly? Use the private feedback form instead — see [FEEDBACK.md](https://github.com/effythealien/plumb-line/blob/main/FEEDBACK.md).
+  - type: checkboxes
+    id: parts
+    attributes:
+      label: Which parts did you use?
+      options:
+        - label: Provenance library (mark / derive / auditMeta)
+        - label: no-provenance-bypass lint
+        - label: audit skill
+        - label: boundary adapter
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language
+      options:
+        - JavaScript / TypeScript
+        - Python
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: context
+    attributes:
+      label: Domain & rough size
+      description: 'e.g. "data/ML pipeline, ~20k LoC" — tells me which kind of project this validates.'
+  - type: input
+    id: version
+    attributes:
+      label: Version tested
+      description: package version (e.g. 0.2.0) or git tag / SHA
+  - type: textarea
+    id: caught
+    attributes:
+      label: What did it catch?
+      description: A value/output that was un-provenanced, mock-leaked, or confidently wrong that plumb-line surfaced — ideally before → after. This is the most useful answer.
+  - type: textarea
+    id: lint
+    attributes:
+      label: Lint output — false positives or missed cases
+      description: Paste the no-provenance-bypass / provenance_lint output. For each flag, was it correct or noise? Did it miss a bypass you know exists?
+      render: text
+  - type: textarea
+    id: friction
+    attributes:
+      label: Friction
+      description: Where did you get stuck — install, imports, wiring the lint, the API? Anything in the docs that was wrong or confusing?
+  - type: textarea
+    id: bugs
+    attributes:
+      label: Bugs / errors
+      description: Stack traces or surprising behavior, with a minimal repro if you can.
+      render: shell
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Attribution
+      options:
+        - label: You may quote this feedback / name me as an early user.
