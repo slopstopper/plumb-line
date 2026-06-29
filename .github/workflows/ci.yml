@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  javascript:
+    name: JavaScript (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["20"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: primitives/js — provenance primitive
+        working-directory: primitives/js
+        run: npm install && npm test
+      - name: adapters/js — enforcement adapters
+        working-directory: adapters/js
+        run: npm install && npm test
+      - name: conformance report (envelope schema)
+        run: node primitives/conformance/report.mjs
+
+  python:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      # pytest runs the suites; import-linter (lint-imports) is exercised by the
+      # examples boundary integration test.
+      - name: install test deps
+        run: python -m pip install --upgrade pip pytest import-linter
+      - name: primitives/python — provenance primitive
+        working-directory: primitives/python
+        run: python -m pytest -q
+      - name: adapters/python — enforcement adapters
+        working-directory: adapters/python
+        run: python -m pytest -q
+      - name: examples — fixtures + real import-linter boundary
+        run: python -m pytest -q examples
