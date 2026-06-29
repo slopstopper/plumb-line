@@ -50,12 +50,14 @@ The envelope and the law are a **specification, not just an implementation**: [`
 
 ## Install
 
-**The provenance primitive** is a standalone library, independent of the plugin. Copy `primitives/js/` or `primitives/python/` into your project and import from it directly — both styles below work, and the modules carry a dual-import shim. Each language is also packaged as `plumb-line-provenance` for npm and PyPI (registry publication pending), so once published:
+**The provenance primitive** is a standalone library, independent of the plugin. Install it as `plumb-line-provenance` from npm or PyPI:
 
 ```bash
-npm install plumb-line-provenance      # JavaScript  (publication pending)
-pip install plumb-line-provenance      # Python      (publication pending)
+npm install plumb-line-provenance      # JavaScript
+pip install plumb-line-provenance      # Python
 ```
+
+Or copy `primitives/js/` or `primitives/python/` into your project and import from it directly — the modules carry a dual-import shim, so both styles work.
 
 **As a Claude Code plugin (recommended for the skills).** The repository is its own plugin marketplace. From inside Claude Code:
 
@@ -76,7 +78,7 @@ The durable architecture choices behind plumb-line are recorded as ADRs in [`doc
 
 ## Status
 
-v0.1 ships the run-time provenance primitive with JS/Python parity, the three skills, and enforcement adapters for JavaScript/TypeScript and Python. The primitive's envelope and law are pinned by a versioned [specification](primitives/SPEC.md) (envelope schema version 1) and a cross-language [conformance suite](primitives/conformance/); both languages are packaged for npm and PyPI (registry publication pending). Both adapters are validated against the worked fixtures in `examples/`, catching every planted violation with no false positives; see the [validation results](docs/validation-results.md). A static lint rule (`no-provenance-bypass`, JS + Python) catches provenance-bypass patterns at review time — the source-code complement to the runtime checker. plumb-line is held to its own principles, too — its auditor sniffs out its own smells; the [dogfooding report](docs/dogfooding.md) records what it found and fixed. Planned: bootstrap wiring so host projects adopt the primitive automatically, and Go and Rust adapters.
+v0.1 ships the run-time provenance primitive with JS/Python parity, the three skills, and enforcement adapters for JavaScript/TypeScript and Python. The primitive's envelope and law are pinned by a versioned [specification](primitives/SPEC.md) (envelope schema version 1) and a cross-language [conformance suite](primitives/conformance/); both languages are published to npm and PyPI as `plumb-line-provenance`. Both adapters are validated against the worked fixtures in `examples/`, catching every planted violation with no false positives; see the [validation results](docs/validation-results.md). A static lint rule (`no-provenance-bypass`, JS + Python) catches provenance-bypass patterns at review time — the source-code complement to the runtime checker. plumb-line is held to its own principles, too — its auditor sniffs out its own smells; the [dogfooding report](docs/dogfooding.md) records what it found and fixed. Planned: bootstrap wiring so host projects adopt the primitive automatically, and Go and Rust adapters.
 
 ## License
 
