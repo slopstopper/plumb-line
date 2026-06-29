@@ -36,6 +36,6 @@ Generate it (and verify you actually pass before claiming it) with
 ## Certifying another implementation
 
 A new-language port conforms to **envelope schema version 1** when it produces
-the expected result for every case in `cases.json` — see [SPEC §6](../SPEC.md).
+the expected result for every case in `cases.json` — see [SPEC §7](../SPEC.md).
 Mirror the runner pattern: load `cases.json`, translate the camelCase field
 names to your language's binding, run `combine`/`audit`, and assert.

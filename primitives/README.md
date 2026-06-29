@@ -190,5 +190,5 @@ assert issues == [], f"provenance inconsistency: {issues}"
 | Python primitives (`primitives/python/`)                | current |
 | Optional numeric confidence + weakest-source resolution | current |
 | Cross-language conformance suite (`conformance/`)       | current |
-| AST-level static lint rule                              | planned |
+| AST-level static lint rule (`adapters/*/provenance-lint`) | current |
 | Bootstrap / ruleset wiring for host projects            | planned |

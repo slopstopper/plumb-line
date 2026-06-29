@@ -89,3 +89,25 @@ integration tests that run the real linters:
 Declared layer order for both fixtures: `ui → services → engine → data`
 (the service layer uses the pure engine, which uses static data; `data` is the
 bottom layer, so the planted `data → ui` import is an upward violation).
+
+
+## Static provenance-bypass lint — PB1–PB4
+
+The static lint (SPEC §6) is the review-time complement to the runtime checker.
+It is proven against planted violations in both languages, the same way the
+boundary and audit checks are.
+
+| Check                                          | JS                | Python            |
+| ---------------------------------------------- | ----------------- | ----------------- |
+| Rule/checker tests                             | PASS (16/16)      | PASS (21/21)      |
+| PB1 laundered meta caught                      | YES               | YES               |
+| PB2 manual taint clear caught                  | YES               | YES               |
+| PB3 clean source-override on derive caught     | YES               | YES               |
+| PB4 re-mark of an unwrapped value caught       | YES               | YES               |
+| Quiet on honest usage + dynamic values         | YES               | YES               |
+| Quiet on the same shapes imported from elsewhere | YES (not the primitive) | YES (not the primitive) |
+
+Reproduce: JS `cd adapters/js && npm test` (ESLint `RuleTester` exercises the
+`no-provenance-bypass` rule); Python `cd adapters/python && python3 -m pytest`
+(`provenance_lint.check()` over planted-violation and clean snippets). No misses,
+no false positives.

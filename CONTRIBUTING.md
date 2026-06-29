@@ -25,9 +25,9 @@ Enforcement is covered by real tests, not by assertions of correctness:
 cd primitives/js && npm install && npm test
 cd primitives/python && python3 -m pytest
 
-# Enforcement adapters
+# Enforcement adapters (boundary hooks + provenance-bypass lint)
 cd adapters/js && npm install && npm test
-cd adapters/python/hooks && python3 -m pytest
+cd adapters/python && python3 -m pytest
 ```
 
 New behaviour needs a test that fails without it. The
