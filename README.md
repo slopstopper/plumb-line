@@ -81,6 +81,10 @@ git clone https://github.com/effythealien/plumb-line.git
 
 The durable architecture choices behind plumb-line are recorded as ADRs in [`docs/adr/`](docs/adr/).
 
+## Security
+
+The provenance envelope is a trust claim, so plumb-line states plainly what it guarantees and what it does not. The [trust & threat model](docs/threat-model.md) defines the property worth defending (taint cannot be laundered through the public API), the actors it serves, and its honest non-guarantees — Python envelopes are tamper-*evident*, not tamper-*proof*. To report a vulnerability, see [`SECURITY.md`](SECURITY.md).
+
 ## Status
 
 v0.1 ships the run-time provenance primitive with JS/Python parity, the three skills, and enforcement adapters for JavaScript/TypeScript and Python. The primitive's envelope and law are pinned by a versioned [specification](primitives/SPEC.md) (envelope schema version 1) and a cross-language [conformance suite](primitives/conformance/); both languages are published to npm and PyPI as `plumb-line-provenance`. Both adapters are validated against the worked fixtures in `examples/`, catching every planted violation with no false positives; see the [validation results](docs/validation-results.md). A static lint rule (`no-provenance-bypass`, JS + Python) catches provenance-bypass patterns at review time — the source-code complement to the runtime checker. plumb-line is held to its own principles, too — its auditor sniffs out its own smells; the [dogfooding report](docs/dogfooding.md) records what it found and fixed. Planned: bootstrap wiring so host projects adopt the primitive automatically, and Go and Rust adapters.

@@ -20,9 +20,14 @@ export function auditMeta(meta) {
     );
   }
 
+  // An unknown confidence on a step is laundering, not "no signal": treat it as
+  // the `none` floor (mirroring weakestConfidence), so audit is never laxer than
+  // the combination law. A step that records *no* confidence is still skipped —
+  // absence is genuinely unrankable and must not manufacture a false over-claim.
   const lineageConfidences = lineage
     .map((s) => s?.confidence)
-    .filter((c) => CONFIDENCE.includes(c));
+    .filter((c) => c != null)
+    .map((c) => (CONFIDENCE.includes(c) ? c : "none"));
   if (lineageConfidences.length > 0) {
     const weakest = weakestConfidence(...lineageConfidences);
     if (CONFIDENCE.indexOf(meta.confidence) > CONFIDENCE.indexOf(weakest)) {

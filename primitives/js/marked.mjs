@@ -18,7 +18,7 @@ const META_KEYS = [
 const OVERRIDE_KEYS = ["source", "confidence", "confidenceScore", "basis", "adapter"];
 
 export function mark(value, metaInput = {}) {
-  return { value, ...makeMeta(metaInput) };
+  return Object.freeze({ value, ...makeMeta(metaInput) });
 }
 
 export function unwrap(marked) {
@@ -39,11 +39,15 @@ export function derive(inputs, fn, metaOverride = {}) {
   for (const key of OVERRIDE_KEYS) {
     if (key in metaOverride) safeOverride[key] = metaOverride[key];
   }
-  const merged = {
+  // Route the override through makeMeta so derive is never weaker than the
+  // constructor: an out-of-range confidenceScore (or unrankable weakestSource)
+  // is dropped by the same validation, not stored raw. derivedFromMock is
+  // force-OR'd *before* the call, so taint still cannot be cleared (the one law).
+  const merged = makeMeta({
     ...combined,
     ...safeOverride,
     derivedFromMock:
       combined.derivedFromMock || Boolean(metaOverride.derivedFromMock),
-  };
-  return { value, ...merged };
+  });
+  return Object.freeze({ value, ...merged });
 }
