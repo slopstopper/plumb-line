@@ -15,7 +15,8 @@
     "README.md"
   ],
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "vitest run"
   },
   "keywords": [
     "provenance",
