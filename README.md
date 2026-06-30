@@ -1,11 +1,10 @@
-<p align="center">
+<h1 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
-    <img src="docs/logo.svg" alt="plumb-line" width="58">
+    <img src="docs/logo.svg" alt="" height="42" align="middle">
   </picture>
-</p>
-
-# plumb-line
+  &nbsp;plumb-line
+</h1>
 
 [![npm](https://img.shields.io/npm/v/plumb-line-provenance?logo=npm)](https://www.npmjs.com/package/plumb-line-provenance)
 [![PyPI](https://img.shields.io/pypi/v/plumb-line-provenance?logo=pypi&logoColor=white)](https://pypi.org/project/plumb-line-provenance/)
