@@ -21,8 +21,12 @@ changes.
    auditor cannot infer a project's own rules): one-way direction
    `ui → services → engine → data` (non-adjacent downward skips allowed);
    priors come from `config/`; **the service layer is the lineage-bearing
-   output**; outputs carry provenance + confidence and propagate the priors
-   version.
+   output** — its result records a `lineage` of the inputs needed to reproduce
+   it (source identity, record count, field names, config/version); outputs also
+   carry provenance + confidence and propagate the priors version. (Naming the
+   lineage contract is declaring the architecture, not coaching toward a
+   specific finding — the auditor still has to notice whether each output
+   honours it.)
 4. Use an identical, plain prompt for every variant — do not coach the auditor
    toward the expected findings. The skill must perform on a plain invocation.
 

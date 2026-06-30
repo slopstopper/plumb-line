@@ -37,21 +37,31 @@ report on a keyword match alone.
 
 **Omission pass — things wrongly absent.** A good thing is MISSING, and an
 absence has no smell to grep. Enumerate instead — and put the enumeration in your
-report as a table, one row per output-producing function / public output shape,
-one column per required field. This table is a REQUIRED artifact: the dropped
-field is invisible unless you walk every output, and skipping the table is how
-the omission gets missed. For each output ask —
+report as a table, one row per output-producing function / public output shape.
+Give each question below its OWN column — do not collapse them. This table is a
+REQUIRED artifact: the dropped field is invisible unless you walk every output,
+and skipping the table is how the omission gets missed. For each output ask —
 
-- does it carry confidence + provenance where it influences a decision? (P3)
-- does it record the lineage needed to reproduce it? (P8)
+- does it carry **provenance** (where the value came from) where it influences a decision? (P3)
+- does it carry **confidence** where it influences a decision? (P3)
+- does it record **lineage** — the inputs needed to *reproduce* it (source, record/row count, field names, config/version used)? (P8)
 - does it have a versioned, validated contract? (P7)
 - can it express a null / "no effect" / rejection outcome? (spine)
 - is there a golden baseline pinning it? (P9)
 
+Provenance and lineage are SEPARATE columns and a present provenance string does
+NOT satisfy lineage: a free-text `provenance` ("stub source: …") or a
+`weights_version` answers *where from / which config*, but lineage answers *can I
+regenerate this exact output* — which usually needs the record count, the field
+names, and the source identity that a provenance string omits. If the
+lineage-bearing layer's output has provenance but no field recording those
+reproduction inputs, that is a missing-lineage (P8) violation, not a pass.
+
 The failure this pass exists to prevent is a `lineage`, `confidence`, or
 `provenance` field silently dropped from ONE output while a declared rule (or a
 sibling output) says it should be there — invisible to grep, caught only by the
-table.
+table. The most common miss is treating provenance-present as lineage-present;
+the dedicated lineage column is what forces the check.
 
 **Calibrate to adopted principles (governs the omission pass).** A principle is
 _adopted_ when EITHER the project's declared ruleset/architecture requires it

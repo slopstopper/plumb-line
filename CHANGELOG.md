@@ -29,9 +29,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 - `reset_step_counter` removed from `primitives/python` `__all__` (still
   importable directly for test suites); marked test-only in JS and Python.
 
+### Fixed
+- **`plumb-line-audit` omission pass** now reliably catches missing-lineage (P8):
+  the required table must give `lineage` its own column, distinct from
+  `provenance`/`confidence`, and a present provenance string no longer counts as
+  satisfying lineage. The `AUDIT-EXPECTATIONS.md` protocol brief now names the
+  lineage contract. Found by the v0.2.0 validation re-run (3/3 blind runs missed
+  the planted P8 before; 2/2 catch it after). [#31](https://github.com/effythealien/plumb-line/issues/31)
+
 ### Notes
-- Source: the **v0.2.0 self-audit** (dogfooding pass, see `docs/dogfooding.md`).
-  Eight findings fixed there; seven deferred and tracked as issues
+- Source: the **v0.2.0 self-audit** (dogfooding pass, see `docs/dogfood.md`) and
+  the **v0.2.0 validation re-run** (see `docs/validation-results.md`).
+  Eight self-audit findings fixed there; seven deferred and tracked as issues
   [#23](https://github.com/effythealien/plumb-line/issues/23)–[#29](https://github.com/effythealien/plumb-line/issues/29).
 
 ## [0.2.0] — 2026-06-29
