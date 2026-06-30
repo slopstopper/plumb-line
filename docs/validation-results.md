@@ -111,3 +111,91 @@ Reproduce: JS `cd adapters/js && npm test` (ESLint `RuleTester` exercises the
 `no-provenance-bypass` rule); Python `cd adapters/python && python3 -m pytest`
 (`provenance_lint.check()` over planted-violation and clean snippets). No misses,
 no false positives.
+
+---
+
+## v0.2.0 validation
+
+Date: 2026-06-30 · Version: v0.2.0 · Base commit: cbe8715
+Re-run of the enforcement validation against the same `examples/` fixtures on the
+v0.2.0 surface (numeric confidence + weakest-source resolution, the conformance
+suite, the PB1–PB4 lint adapters). The fixtures themselves are unchanged; this
+re-runs the harness to confirm nothing regressed — and one thing had.
+
+### Automated enforcement — deterministic, reproducible
+
+| Check                                  | JS              | Python          |
+| -------------------------------------- | --------------- | --------------- |
+| Adapter test suite                     | PASS (32/32)    | PASS (34/34)    |
+| Example boundary + fixture-integrity   | PASS (10/10, run from repo root) ||
+| Cross-language conformance parity gate | `node primitives/conformance/report.mjs` → exit 0 (no divergence) ||
+
+Reproduce: `cd adapters/js && npm test`; `cd adapters/python && python3 -m pytest -q`;
+`python3 -m pytest -q examples`; `node primitives/conformance/report.mjs`.
+
+### Blind audit re-run — and a regression it caught
+
+The audit skill is an LLM behavior, scored by the blind protocol in
+[`examples/AUDIT-EXPECTATIONS.md`](../examples/AUDIT-EXPECTATIONS.md): one
+read-only auditor per fixture variant, answer keys withheld, identical plain
+prompt. This time we ran **multiple independent auditors per fixture** rather
+than a single pass — more samples surface more of the skill's true behavior,
+including its noise.
+
+**A real regression was found and fixed.** On the first pass the auditor **missed
+the planted P8 (missing lineage)** in `python-data-pipeline/broken/` — across
+**3 of 3** independent runs. Every run caught the P2 and P5 planted violations
+but treated the service output's free-text `provenance` string as satisfying the
+lineage requirement, never noticing that the structured `lineage` field (source
+identity, record count, field names) was entirely absent. P8 is exactly the
+omission `AUDIT-EXPECTATIONS.md` calls "the regression this harness exists to
+guard," so this scored **FAIL**. Recorded as [issue #31](https://github.com/effythealien/plumb-line/issues/31).
+
+Root cause was a conflation of two distinct fields: a present `provenance`/
+`weights_version` answers *where from / which config*, but lineage answers *can I
+regenerate this exact output*. The fix:
+
+- **`skills/plumb-line-audit/SKILL.md`** — the omission-pass table now requires a
+  **distinct `lineage` column**, separate from `provenance`/`confidence`, and
+  states that a present provenance string does not satisfy lineage.
+- **`examples/AUDIT-EXPECTATIONS.md`** — the declared-architecture brief now names
+  the lineage contract (source, record count, field names, config version) so a
+  faithful run supplies the full contract without coaching toward the finding.
+
+**After the fix:** **2 of 2** independent re-runs caught the planted P8 as a
+confirmed violation, each with the dedicated lineage column flagging the dropped
+field. All three planted violations now caught on every run.
+
+| Fixture (variant)            | Planted set         | Caught (after fix) | Verdict |
+| ---------------------------- | ------------------- | ------------------ | ------- |
+| js-payments-service/broken   | P2, P5, P3          | 3/3                | PASS    |
+| js-payments-service/clean    | none (0 violations) | 0 violations; P7/P9 as advisory gaps, spine as needs-review | PASS |
+| python-data-pipeline/broken  | P2, P5, **P8**      | 3/3 (P8 was 0/3 before fix) | PASS (after fix) |
+| python-data-pipeline/clean   | none (0 violations) | 0 violations; P7/P9 as advisory gaps | PASS |
+
+### Calibration note — the auditor is noisier than v0.1.0's single pass suggested
+
+Running several blind auditors (not one) shows the skill reliably catches the
+**planted set** but also emits additional findings of varying quality:
+
+- **Genuine extras.** On `python-data-pipeline/broken/`, auditors also flagged
+  `data/schema.py`'s `validate_and_display` as a P1 violation (derived/display
+  logic in the source-truth layer) — a real second facet of the same defect that
+  forces the planted P2 upward import.
+- **A false positive.** Auditors flagged `services/source.py:42` (`confidence` set
+  from `config["stub_confidence"]`) as P3 laundered confidence. This is **noise**:
+  the *clean* fixture does the identical thing on purpose (`stub_confidence` is the
+  declared injected trust-level for stub data, `clean/.../source.py:57`), and the
+  clean-fixture auditor correctly left it alone. Recorded here rather than
+  papered over — the honest picture is that an LLM audit catches the planted
+  violations but carries a non-zero false-positive rate, so its output is a
+  review aid, not a gate.
+
+### Summary
+
+| Check                                  | Result |
+| -------------------------------------- | ------ |
+| Automated adapters + examples + parity | all green |
+| Planted violations caught (all 4 fixtures, post-fix) | YES (incl. the P8 that regressed) |
+| Regression found + fixed in this pass  | P8 omission (issue #31) — skill + protocol brief |
+| Known residual                         | ~1 false positive per broken-fixture audit (stub-confidence overwrite) |
