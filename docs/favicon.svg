@@ -1,12 +1,20 @@
 <svg viewBox="22 8 56 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="plumb-line">
   <!-- Simplified mark for small sizes: one clean (green) source bead
-       on the line, terminating in a faceted, taint-amber plumb bob. -->
-  <line x1="50" y1="14" x2="50" y2="34" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round"/>
-  <circle cx="50" cy="22" r="7" fill="#2da44e" stroke="#15803d" stroke-width="0.8"/>
-  <ellipse cx="47.6" cy="19.5" rx="2.4" ry="1.6" fill="#fff" opacity="0.55"/>
-  <polygon points="50,46 32,72 50,72" fill="#fcd34d"/>
-  <polygon points="50,46 50,72 68,72" fill="#f59e0b"/>
-  <polygon points="32,72 50,98 50,72" fill="#b45309"/>
-  <polygon points="50,72 50,98 68,72" fill="#7c2d12"/>
-  <polygon points="50,46 45,68 50,72" fill="#fff" opacity="0.32"/>
+       on the line, terminating in a real lathe-turned plumb bob. -->
+  <defs>
+    <linearGradient id="cyl" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#7c2d12"/><stop offset="22%" stop-color="#b45309"/>
+      <stop offset="50%" stop-color="#fcd34d"/><stop offset="78%" stop-color="#c2620a"/><stop offset="100%" stop-color="#5c2310"/>
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="55%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#3a1503" stop-opacity="0.45"/>
+    </linearGradient>
+  </defs>
+  <line x1="50" y1="14" x2="50" y2="34" stroke="#94a3b8" stroke-width="2.6" stroke-linecap="round"/>
+  <circle cx="50" cy="22" r="7.5" fill="#2da44e" stroke="#15803d" stroke-width="0.9"/>
+  <ellipse cx="47.4" cy="19.4" rx="2.6" ry="1.7" fill="#fff" opacity="0.55"/>
+  <rect x="47" y="38" width="6" height="5" rx="1.5" fill="#b45309"/>
+  <path d="M 50,42 C 61,42 65,53 65,63 C 65,79 57,92 50,104 C 43,92 35,79 35,63 C 35,53 39,42 50,42 Z" fill="url(#cyl)"/>
+  <path d="M 50,42 C 61,42 65,53 65,63 C 65,79 57,92 50,104 C 43,92 35,79 35,63 C 35,53 39,42 50,42 Z" fill="url(#shade)"/>
+  <path d="M 46,46 C 41,54 41,74 45,88" fill="none" stroke="#fff" stroke-opacity="0.35" stroke-width="3" stroke-linecap="round"/>
 </svg>
