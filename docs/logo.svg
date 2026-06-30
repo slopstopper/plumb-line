@@ -1,0 +1,28 @@
+<svg viewBox="0 0 185 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="plumb-line logo">
+  <!-- P: vertical stem -->
+  <line x1="22" y1="20" x2="22" y2="168"
+        stroke="#1d4ed8" stroke-width="14" stroke-linecap="round"/>
+  <!-- P: bowl arc (single cubic bezier, open curve — stem provides the straight left edge) -->
+  <path d="M 22,22 C 92,22 92,90 22,90"
+        fill="none" stroke="#1d4ed8" stroke-width="14" stroke-linecap="butt"/>
+
+  <!-- Pivot point where string hangs -->
+  <circle cx="112" cy="56" r="3.5" fill="#64748b"/>
+
+  <!-- Plumb string (L vertical stroke) -->
+  <line x1="112" y1="56" x2="112" y2="148"
+        stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Provenance chain: three nodes threaded on the string -->
+  <circle cx="112" cy="80"  r="7" fill="none" stroke="#3b82f6" stroke-width="2.5"/>
+  <circle cx="112" cy="104" r="7" fill="none" stroke="#3b82f6" stroke-width="2.5"/>
+  <circle cx="112" cy="128" r="7" fill="none" stroke="#3b82f6" stroke-width="2.5"/>
+
+  <!-- Plumb bob weight (teardrop, pointing down) -->
+  <path d="M 112,148 C 130,148 131,165 112,175 C 93,165 94,148 112,148 Z"
+        fill="#d97706"/>
+
+  <!-- L: horizontal baseline foot -->
+  <line x1="105" y1="175" x2="168" y2="175"
+        stroke="#1d4ed8" stroke-width="14" stroke-linecap="round"/>
+</svg>
