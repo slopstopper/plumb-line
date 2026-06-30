@@ -14,13 +14,13 @@
 [![Issues](https://img.shields.io/github/issues/effythealien/plumb-line)](https://github.com/effythealien/plumb-line/issues)
 [![Socket](https://socket.dev/api/badge/npm/package/plumb-line-provenance)](https://socket.dev/npm/package/plumb-line-provenance)
 
-A plumb line measures true vertical by gravity alone; plumb-line does the same for a codebase, keeping it epistemically honest (including about what it doesn't know) through tooling rather than good intentions. It gives a repository a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and boundaries checked by machines, not trusted to hold.
+A plumb line measures true vertical by gravity alone; plumb-line does the same for a codebase, keeping it epistemically honest (including about what it doesn't know). It gives a repository a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and boundaries checked by machines (not *vibes*).
 
-Concretely, plumb-line is a small, standalone provenance library for JavaScript and Python, paired with a Claude Code plugin (three skills). The library enforces the discipline while your code runs; the skills enforce it when you review code.
+plumb-line is a small, standalone provenance library for JavaScript and Python, paired with a Claude Code plugin (three skills). The library enforces the discipline while your code runs; the skills enforce it when you review code.
 
 ## Who it's for
 
-plumb-line is for builders whose outputs are claims — research and scientific software, data and ML, AI agents, analytics, or any codebase you've inherited and must stand behind. It assumes that being confidently wrong is worse than being honestly uncertain, that "we don't know yet" is a shippable answer, and that a number without provenance is a liability.
+plumb-line is for builders whose outputs are claims, where a silent mistake can poison the whole stream — research and scientific software, data and ML, AI agents and analytics, or any codebase you've inherited and must now stand behind. It assumes that being confidently wrong is worse than being honestly uncertain, that "we don't know yet" is a shippable answer, and that a number without provenance is a liability.
 
 ## Two halves: run-time and review-time
 
