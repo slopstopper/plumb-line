@@ -6,17 +6,16 @@
   <title>plumb-line — keep a codebase epistemically honest</title>
   <meta name="description" content="A provenance library and Claude Code plugin that keeps a codebase epistemically honest: a clear source-truth layer, visible uncertainty, quarantined fakery, and boundaries checked by machines." />
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --blue: #3b82f6;
-      --blue-deep: #1e40af;
+      --ink: #1f2328;
+      --muted: #57606a;
       --green: #2da44e;
       --green-deep: #176f2c;
-      --amber: #f59e0b;
-      --ink: #1a1a1a;
-      --muted: #555;
       --bg: #ffffff;
-      --bg-soft: #f6f8fa;
       --card: #ffffff;
       --border: #e4e8ee;
       --code-bg: #f6f8fa;
@@ -24,15 +23,11 @@
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --blue: #60a5fa;
-        --blue-deep: #2563eb;
-        --green: #3fb950;
-        --green-deep: #238636;
-        --amber: #fbbf24;
         --ink: #e6edf3;
         --muted: #9aa7b4;
+        --green: #3fb950;
+        --green-deep: #238636;
         --bg: #0d1117;
-        --bg-soft: #11161d;
         --card: #161b22;
         --border: #232a33;
         --code-bg: #0b0f14;
@@ -48,12 +43,13 @@
       background: var(--bg);
       margin: 0;
     }
-    a { color: var(--blue); text-decoration: none; }
+    a { color: var(--green); text-decoration: none; }
     a:hover { text-decoration: underline; }
     code {
       font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
       font-size: .9em;
     }
+    h1, h2, h3, .btn { font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 
     .wrap { max-width: 720px; margin: 0 auto; padding: 0 1.25rem; }
 
@@ -64,23 +60,21 @@
       padding: 4rem 0 3rem;
       text-align: center;
       background:
-        radial-gradient(60rem 30rem at 70% -10%, color-mix(in srgb, var(--blue) 14%, transparent), transparent 60%),
-        radial-gradient(50rem 28rem at 10% 0%, color-mix(in srgb, var(--green) 12%, transparent), transparent 55%);
+        radial-gradient(58rem 30rem at 72% -12%, color-mix(in srgb, var(--green) 16%, transparent), transparent 60%),
+        radial-gradient(46rem 26rem at 8% 2%, color-mix(in srgb, var(--green) 9%, transparent), transparent 55%);
     }
     .logo {
-      width: 62px; height: auto;
+      width: 60px; height: auto;
       filter: drop-shadow(0 6px 14px rgba(0,0,0,.12));
-      margin-bottom: 1.25rem;
+      margin-bottom: 1.1rem;
     }
     h1 {
       font-size: clamp(2rem, 6vw, 2.9rem);
+      font-weight: 700;
       line-height: 1.05;
-      margin: 0 0 .35rem;
+      margin: 0 0 .4rem;
       letter-spacing: -.02em;
-      background: linear-gradient(120deg, var(--blue), var(--green) 85%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
+      color: var(--ink);
     }
     .tagline {
       font-size: 1.05rem;
@@ -88,33 +82,27 @@
       margin: 0 auto 1.75rem;
       max-width: 34rem;
     }
-    .cta {
-      display: inline-flex; flex-wrap: wrap; gap: .6rem; justify-content: center;
-    }
+    .cta { display: inline-flex; flex-wrap: wrap; gap: .6rem; justify-content: center; }
     .btn {
       display: inline-flex; align-items: center; gap: .45rem;
-      padding: .6rem 1.1rem; border-radius: .6rem;
+      padding: .58rem 1.1rem; border-radius: .6rem;
       font-weight: 600; font-size: .95rem;
       border: 1px solid var(--border);
     }
     .btn-primary {
-      background: linear-gradient(135deg, var(--blue), var(--blue-deep));
+      background: linear-gradient(135deg, var(--green), var(--green-deep));
       color: #fff; border-color: transparent;
-      box-shadow: 0 4px 12px color-mix(in srgb, var(--blue) 35%, transparent);
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--green) 32%, transparent);
     }
     .btn-primary:hover { text-decoration: none; filter: brightness(1.05); }
     .btn-ghost { background: var(--card); color: var(--ink); }
-    .btn-ghost:hover { text-decoration: none; border-color: var(--blue); }
+    .btn-ghost:hover { text-decoration: none; border-color: var(--green); }
 
     /* Sections */
     section { padding: 2.75rem 0; }
-    .lede {
-      font-size: 1.12rem; color: var(--ink); margin: 0;
-    }
+    .lede { font-size: 1.12rem; color: var(--ink); margin: 0; }
     .lede b { color: var(--green); font-weight: 600; }
-    h2 {
-      font-size: 1.3rem; margin: 0 0 1rem; letter-spacing: -.01em;
-    }
+    h2 { font-size: 1.3rem; margin: 0 0 1rem; letter-spacing: -.01em; }
 
     .cards { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
     @media (max-width: 560px) { .cards { grid-template-columns: 1fr; } }
@@ -129,8 +117,8 @@
       content: ""; position: absolute; left: 0; top: 1.25rem; bottom: 1.25rem;
       width: 3px; border-radius: 3px;
     }
-    .card.run::before  { background: linear-gradient(var(--blue), var(--blue-deep)); }
-    .card.review::before { background: linear-gradient(var(--green), var(--green-deep)); }
+    .card.run::before    { background: linear-gradient(var(--green), var(--green-deep)); }
+    .card.review::before { background: linear-gradient(var(--ink), var(--muted)); }
     .card h3 { margin: 0 0 .35rem; font-size: 1.05rem; }
     .card .kicker {
       font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
@@ -148,7 +136,7 @@
       font-size: .88rem; line-height: 1.6;
     }
     pre .c { color: var(--green); }
-    pre .k { color: var(--blue); }
+    pre .k { color: var(--ink); font-weight: 600; }
 
     .links { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; padding: 0; list-style: none; margin: 0; }
     .links li { margin: 0; }
@@ -167,7 +155,7 @@
     <div class="wrap">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="./logo-dark.svg">
-        <img class="logo" src="./logo.svg" alt="plumb-line logo" width="62" height="124">
+        <img class="logo" src="./logo.svg" alt="plumb-line logo" width="60" height="94">
       </picture>
       <h1>plumb-line</h1>
       <p class="tagline">

@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
-    <img src="docs/logo.svg" alt="plumb-line" width="52">
+    <img src="docs/logo.svg" alt="plumb-line" width="58">
   </picture>
 </p>
 
