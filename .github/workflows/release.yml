@@ -74,7 +74,7 @@ jobs:
         run: npm install -g npm@latest
       - name: Publish to npm
         working-directory: primitives/js
-        run: npm publish
+        run: npm publish --provenance
 
       # --- publish PyPI via OIDC trusted publishing (no password input) ---
       - name: Build Python package

@@ -28,6 +28,9 @@
   ],
   "author": "Aoife Okonedo Martin",
   "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/effythealien/plumb-line/issues"
+  },
   "homepage": "https://github.com/effythealien/plumb-line/tree/main/primitives",
   "repository": {
     "type": "git",
