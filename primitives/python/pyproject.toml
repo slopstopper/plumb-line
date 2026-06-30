@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "plumb-line-provenance"
-version = "0.2.0"
+version = "0.3.0"
 description = "Conservative provenance/confidence/lineage envelope with a taint-propagation combination law. Mock or low-confidence data cannot launder itself clean."
 readme = "README.md"
 requires-python = ">=3.8"

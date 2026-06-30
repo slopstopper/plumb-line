@@ -199,3 +199,32 @@ Running several blind auditors (not one) shows the skill reliably catches the
 | Planted violations caught (all 4 fixtures, post-fix) | YES (incl. the P8 that regressed) |
 | Regression found + fixed in this pass  | P8 omission (issue #31) — skill + protocol brief |
 | Known residual                         | ~1 false positive per broken-fixture audit (stub-confidence overwrite) |
+
+---
+
+## 0.3.0 release-harness record
+
+Date: 2026-06-30 · Version: v0.3.0 · Base commit: e04ca93
+First release run through [`release-harness.md`](release-harness.md). 0.3.0 is a
+method-surface release (diff since v0.2.0 touches `skills/`, `primitives/`,
+`adapters/`), so the harness applies.
+
+**Deterministic layer (re-run fresh on the 0.3.0 tree):** all green —
+primitives **73 JS / 51 Py**, adapters **32 JS / 34 Py**, examples **10/10**,
+conformance parity `exit 0`.
+
+**Blind validation layer:** the release-blocking blind audit for this cycle is
+the **v0.2.0 validation re-run above** — it found the audit skill missed the
+planted P8 (3/3), fixed it, and confirmed **2/2** catch it after. The
+`plumb-line-audit` skill and the `examples/` fixtures are byte-identical between
+that run and this tree (no method-surface change to either since), so that result
+stands as 0.3.0's blind-validation record. **No FAIL outstanding** → not
+release-blocking.
+
+**Dogfood self-audit:** covered by the v0.2.0 self-audit ([`dogfood.md`](dogfood.md));
+its eight fixes and the audit-skill P8 fix are what 0.3.0 ships. Deferred items
+remain tracked (issues #23–#29, #31).
+
+Per the runbook, a fresh standalone blind re-run can be dispatched if a future
+release needs a 0.3.0-only record; here it would re-test byte-identical inputs,
+so the same-cycle run is cited rather than duplicated.

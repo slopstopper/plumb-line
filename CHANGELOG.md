@@ -9,6 +9,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.3.0] — 2026-06-30
+
 ### Added
 - **Conformance coverage** for two checker conditions previously defined only in
   SPEC prose: *dropped taint* (§5 condition 5) and *unreproducible* (§5
@@ -73,6 +77,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/effythealien/plumb-line/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/effythealien/plumb-line/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/effythealien/plumb-line/releases/tag/v0.1.0
