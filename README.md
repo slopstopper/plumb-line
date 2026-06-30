@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo.svg" alt="plumb-line" width="120">
+  <img src="docs/logo.svg" alt="plumb-line" width="70">
 </p>
 
 # plumb-line
