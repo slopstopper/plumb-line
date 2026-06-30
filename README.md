@@ -4,6 +4,8 @@
 [![PyPI](https://img.shields.io/pypi/v/plumb-line-provenance?logo=pypi&logoColor=white)](https://pypi.org/project/plumb-line-provenance/)
 [![CI](https://github.com/effythealien/plumb-line/actions/workflows/ci.yml/badge.svg)](https://github.com/effythealien/plumb-line/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![Python](https://img.shields.io/pypi/pyversions/plumb-line-provenance?logo=python&logoColor=white)](https://pypi.org/project/plumb-line-provenance/)
+[![Issues](https://img.shields.io/github/issues/effythealien/plumb-line)](https://github.com/effythealien/plumb-line/issues)
 
 A plumb line measures true vertical by gravity alone; plumb-line does the same for a codebase, keeping it epistemically honest (including about what it doesn't know) through tooling rather than good intentions. It gives a repository a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and boundaries checked by machines, not trusted to hold.
 
