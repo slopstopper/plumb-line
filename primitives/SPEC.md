@@ -1,6 +1,6 @@
 # plumb-line Provenance Envelope — Specification
 
-**Status:** current · **Envelope schema version:** 1 (stable — no breaking changes planned) · **SPEC revision:** 1.0
+**Status:** current · **Envelope schema version:** 1 · **SPEC revision:** 1.1
 
 This is the normative, language-neutral definition of the provenance envelope,
 the conservative-combination law, and the consistency checks. Any implementation
@@ -46,7 +46,13 @@ The envelope schema carries a version constant (`PROVENANCE_VERSION`, currently
 `1`). Adding a new **optional** field is backward-compatible and MUST NOT bump
 the version (`confidenceScore` and `weakestSource` were added under v1). Removing
 or renaming a field, changing a field's type, or changing the combination law's
-result for an existing case is a breaking change and MUST bump the version.
+result for an existing case is a breaking change and MUST bump the version —
+**except** when the prior result violated another normative section of this SPEC
+(e.g. an output that §5 flags as inconsistent). Correcting a self-contradiction
+to a result no conformant consumer could have relied on is a conformance fix,
+not a breaking change, and MUST NOT bump the version; such fixes MUST be recorded
+(CHANGELOG + an ADR) and pinned by a conformance case. The zero-input combine
+correction (§3, `source` `"derived"` → `"unavailable"`) is the first such fix.
 
 ---
 

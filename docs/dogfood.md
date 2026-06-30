@@ -121,3 +121,31 @@ Confirmed by reading, not keyword matches:
 - **P6** — all new code in `primitives/README.md` and the conformance suite uses P6 vocabulary correctly; the adapters' "may move to primitives/ in a future version" note is an advisory (not a P6-term violation) at the advisory level.
 - **P9** — `conformance/cases.json` is a genuine golden baseline for `combineProvenance` and `auditMeta`; the new cases add to it rather than changing it.
 - **Spine** — all scalar utility functions (`weakestSource`, `combineConfidenceScore`, `weakestConfidence`) correctly return `undefined`/`None` for genuinely absent results rather than collapsing to a default.
+
+---
+
+## v0.3.1 dogfood self-audit
+
+Date: 2026-07-01 · Diff: `v0.3.0..main` method surface (the zero-input
+`source:"unavailable"` fix, per-combine lineage renumbering, ESLint dep swap).
+Run as Part 2 of the `docs/release-harness.md` cycle.
+
+**Code changes audited as honest improvements, not violations:**
+- **P3 (laundered uncertainty) — improved.** Zero-input previously returned
+  `source:"derived"` with empty lineage, an envelope that *fails its own §5
+  audit*; the new `"unavailable"` audits clean.
+- **P8 (lineage) — strengthened.** Per-combine renumbering makes step IDs
+  unique-within-output (§4) and a pure function of structure; the old global
+  counter could mint duplicate IDs across two independently-built envelopes.
+- **P9 (baseline drift) — explained.** The changed golden value in `cases.json`
+  ships with the SPEC §3 rewrite, a new audit case, and a CHANGELOG entry.
+- **P5/P6** clean — `step-${i+1}` is an identifier scheme, not a tunable prior;
+  the deprecated reset no-ops are honestly labelled.
+
+**One finding, resolved in place (not deferred):**
+
+| # | Location | Principle | Finding | Resolution |
+| - | -------- | --------- | ------- | ---------- |
+| G1 | `primitives/SPEC.md` §1 + zero-input fix | P6 / governance | By the letter of SPEC §1, changing the combination law's result for an existing case MUST bump `PROVENANCE_VERSION`; the zero-input fix does exactly that while staying at v1. The SPEC asserted a rule the diff appeared to violate (and the header still claimed "stable — no breaking changes planned"). | **Fixed in place.** Amended SPEC §1 with a narrow carve-out: correcting a result another normative section already flags as inconsistent is a *conformance fix*, not breaking, and MUST NOT bump the version (guarded by mandatory CHANGELOG + ADR + conformance case). Recorded in [ADR-0008](adr/0008-zero-input-conformance-fix-no-wire-bump.md). Dropped the header maturity over-claim. `PROVENANCE_VERSION` stays `1`; v0.3.1 stays a patch. |
+
+No deferrals this cycle.

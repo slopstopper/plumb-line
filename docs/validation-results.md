@@ -228,3 +228,46 @@ remain tracked (issues #23–#29, #31).
 Per the runbook, a fresh standalone blind re-run can be dispatched if a future
 release needs a 0.3.0-only record; here it would re-test byte-identical inputs,
 so the same-cycle run is cited rather than duplicated.
+
+---
+
+## 0.3.1 release-harness record
+
+Date: 2026-07-01 · Version: v0.3.1 · Base commit: post-#51 `main`
+Method-surface release (diff since v0.3.0 touches `primitives/` and `adapters/js`),
+so the harness applies. Run via `docs/release-harness.md`.
+
+**Deterministic layer (re-run fresh on the 0.3.1 tree):** all green — primitives
+**76 JS / 53 Py**, examples **10/10**, conformance parity `exit 0`.
+
+**Blind validation layer (fresh run, not cited):** dispatched independent
+read-only auditors per the blind protocol — ≥2 per `broken/`, 1 per `clean/`.
+
+| Fixture | Runs | Result |
+| ------- | ---- | ------ |
+| `js-payments-service/broken`  | 2 | **PASS** — both runs flagged all three planted (P2 `rates.js` upward import, P5 `pricing.js` hardcoded `FEE`, P3 `gateway.js` missing provenance/confidence) |
+| `python-data-pipeline/broken` | 2 | **PASS** — both runs flagged all three planted (P2 `schema.py` upward import, P5 `aggregate.py` hardcoded `SIGNAL_THRESHOLD`, P8 `source.py` missing lineage) |
+| `python-data-pipeline/clean`  | 1 | **PASS** — zero confirmed violations |
+| `js-payments-service/clean`   | 1 → 2 | **FAIL → PASS** (see below) |
+
+**js-clean FAIL, fixed, re-validated.** The first `js-payments-service/clean` run
+flagged a **confirmed P8**: the service output (`gateway.js`) carried only
+`weightsVersion`, not the structured `lineage` field its declared architecture
+requires — while `python-data-pipeline/clean` carries the full field. This was a
+genuine fixture asymmetry (the JS clean fixture only ever got version
+propagation, never a real lineage field), not auditor over-claim: the skill is
+specifically calibrated to reject "which-config" as a substitute for "can-I-
+reproduce." **Fix:** added `lineage{source, recordCount, fieldNames,
+configVersion}` to the clean `gateway.js`, mirroring the Python clean fixture.
+**Re-validation: 2/2 fresh auditors → zero confirmed violations**, P8 explicitly
+satisfied. No FAIL outstanding → not release-blocking.
+
+**Calibration notes (honest false-positive accounting):**
+- Both `clean/` variants reliably raise **P7 (no output contract)** and **P9 (no
+  golden baseline)** as *advisory adoption gaps* (reported once, never per-output)
+  and a **spine stub-`accepted:true`** *needs-review* — all expected and allowed.
+- The js-clean P8 was a true positive against a real fixture gap, not a
+  calibration false positive. It is the second time the harness has caught a
+  latent lineage gap the previous cycle missed (cf. the v0.2.0 Python P8); the
+  0.3.0 record cited a byte-identical run rather than running `clean/` fresh,
+  which is why this surfaced now.

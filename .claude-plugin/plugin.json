@@ -1,7 +1,7 @@
 {
   "name": "plumb-line",
   "description": "Give any repository the discipline of epistemic honesty enforced by tooling: a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and rules enforced by machines rather than goodwill.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": { "name": "Aoife Okonedo Martin" },
   "homepage": "https://github.com/effythealien/plumb-line",
   "repository": "https://github.com/effythealien/plumb-line",

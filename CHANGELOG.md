@@ -9,6 +9,21 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.3.1] — 2026-07-01
+
+### Changed
+- **SPEC §1 versioning gains a self-contradiction carve-out.** Correcting a
+  combination result that another normative section of the SPEC already flags as
+  inconsistent (the zero-input case below: §3 said `derived`, §5 said that's
+  unreproducible) is now defined as a *conformance fix*, not a breaking change,
+  and MUST NOT bump `PROVENANCE_VERSION` — provided it's recorded (CHANGELOG +
+  ADR) and pinned by a conformance case. `PROVENANCE_VERSION` stays `1`. See
+  [ADR-0008](docs/adr/0008-zero-input-conformance-fix-no-wire-bump.md). The SPEC
+  header also drops the "(stable — no breaking changes planned)" parenthetical (a
+  P6 maturity over-claim).
+
 ### Fixed
 - **Zero-input `combineProvenance()` no longer contradicts the audit** (P8). A
   value combined from no inputs now reports `source: "unavailable"` instead of
@@ -93,7 +108,8 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/effythealien/plumb-line/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/effythealien/plumb-line/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/effythealien/plumb-line/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/effythealien/plumb-line/releases/tag/v0.1.0
