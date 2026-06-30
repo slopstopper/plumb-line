@@ -1,9 +1,12 @@
 name: Release
 
-# Fires when you push a version tag (e.g. v0.3.0). Runs the test suites as a
-# gate, then publishes the npm + PyPI packages and creates the GitHub release.
+# Fires when you push a version tag (e.g. v0.3.0). Guards that the tag matches
+# the manifests and the CHANGELOG, runs the FULL test suite as a gate, then
+# publishes the npm + PyPI packages and creates the GitHub release.
+#
 # The packages publish at whatever version is in the manifests at the tagged
-# commit — so tag the commit AFTER the version-bump PR is merged.
+# commit — so tag the commit AFTER the version-bump PR is merged. The guard below
+# makes a premature or mismatched tag fail instead of publishing the wrong thing.
 #
 # Auth is OIDC trusted publishing — no stored tokens. One-time, register a
 # GitHub Actions trusted publisher for this repo + this workflow on each registry
@@ -23,20 +26,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # --- gate: tests must pass before anything is published ---
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
-      - name: JS tests
+
+      # --- guard: the tag must match all three manifests AND have CHANGELOG notes.
+      #     Runs first so a mis-tag fails fast, before any test or publish. ---
+      - name: Guard — tag matches manifests and CHANGELOG
+        run: |
+          node scripts/check-versions.mjs "$GITHUB_REF_NAME"
+          VER="${GITHUB_REF_NAME#v}"
+          if ! grep -q "^## \[$VER\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [$VER]' section — promote [Unreleased] before tagging."
+            exit 1
+          fi
+          echo "✓ CHANGELOG has a [$VER] section"
+
+      # --- gate: the FULL suite must pass before anything is published
+      #     (mirrors ci.yml — a release must not pass a narrower gate than a PR) ---
+      - name: primitives/js — provenance primitive
         working-directory: primitives/js
         run: npm install && npm test
+      - name: adapters/js — enforcement adapters
+        working-directory: adapters/js
+        run: npm install && npm test
+      - name: conformance report (envelope schema)
+        run: node primitives/conformance/report.mjs
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Python tests
+      - name: install test deps
+        run: python -m pip install --upgrade pip pytest import-linter build
+      - name: primitives/python — provenance primitive
         working-directory: primitives/python
-        run: python -m pip install --upgrade pip pytest && python -m pytest -q
+        run: python -m pytest -q
+      - name: adapters/python — enforcement adapters
+        working-directory: adapters/python
+        run: python -m pytest -q
+      - name: examples — fixtures + real import-linter boundary
+        run: python -m pytest -q examples
 
       # --- publish npm via OIDC trusted publishing (requires npm >= 11.5.1;
       #     publishes provenance attestations by default) ---
@@ -49,7 +79,7 @@ jobs:
       # --- publish PyPI via OIDC trusted publishing (no password input) ---
       - name: Build Python package
         working-directory: primitives/python
-        run: python -m pip install --upgrade build && python -m build
+        run: python -m build
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
