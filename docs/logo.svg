@@ -1,41 +1,53 @@
-<svg viewBox="14 12 84 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="plumb-line logo">
+<svg viewBox="14 10 82 133" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="plumb-line logo">
   <defs>
-    <radialGradient id="g" cx="38%" cy="32%" r="65%">
+    <!-- P + L foot: blue gradient top-to-bottom for depth -->
+    <linearGradient id="pg" x1="25" y1="18" x2="25" y2="82" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <!-- L foot: same hue, right-to-left so the bright end is near the bob -->
+    <linearGradient id="lg" x1="78" y1="130" x2="57" y2="130" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <!-- Plumb bob: warm amber radial gradient -->
+    <radialGradient id="bg" cx="38%" cy="32%" r="65%">
       <stop offset="0%"   stop-color="#fde68a"/>
       <stop offset="45%"  stop-color="#f59e0b"/>
       <stop offset="100%" stop-color="#92400e"/>
     </radialGradient>
-    <filter id="s" x="-50%" y="-20%" width="200%" height="160%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" result="blur"/>
+    <!-- Drop shadow under the bob -->
+    <filter id="bs" x="-50%" y="-20%" width="200%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.2" result="blur"/>
       <feOffset in="blur" dx="1" dy="2" result="o"/>
-      <feFlood flood-color="#451a03" flood-opacity="0.22" result="c"/>
+      <feFlood flood-color="#451a03" flood-opacity="0.25" result="c"/>
       <feComposite in="c" in2="o" operator="in" result="sh"/>
       <feMerge><feMergeNode in="sh"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
-  <!-- String first so P overlaps it cleanly at the bowl junction -->
-  <line x1="78" y1="46" x2="78" y2="185"
-        stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Plumb string: perfectly vertical, drawn under P so P covers the junction -->
+  <line x1="78" y1="42" x2="78" y2="110"
+        stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/>
 
-  <!-- P: stem + bowl arc as a single refined open path, SW=8 for elegance -->
-  <path d="M 25,100 L 25,20 C 95,20 95,72 25,72"
-        fill="none" stroke="#1e293b" stroke-width="8"
+  <!-- P: stem + bowl arc, gradient stroke for depth -->
+  <path d="M 25,82 L 25,18 C 93,18 93,66 25,66"
+        fill="none" stroke="url(#pg)" stroke-width="8"
         stroke-linecap="round" stroke-linejoin="round"/>
 
-  <!-- Pin at bowl tip, where the plumb string is attached -->
-  <circle cx="78" cy="46" r="3" fill="#475569"/>
+  <!-- Pin at bowl tip: anchors the string visually -->
+  <circle cx="78" cy="42" r="3" fill="#2563eb"/>
 
-  <!-- Provenance chain: three nodes on the vertical string -->
-  <circle cx="78" cy="106" r="4" fill="#3b82f6"/>
-  <circle cx="78" cy="132" r="4" fill="#3b82f6"/>
-  <circle cx="78" cy="158" r="4" fill="#3b82f6"/>
+  <!-- Provenance chain: three nodes on the string -->
+  <circle cx="78" cy="76"  r="3.5" fill="#3b82f6"/>
+  <circle cx="78" cy="90"  r="3.5" fill="#3b82f6"/>
+  <circle cx="78" cy="104" r="3.5" fill="#3b82f6"/>
 
-  <!-- Plumb bob: amber teardrop with gradient depth and drop shadow -->
-  <path d="M 78,185 C 93,185 94,200 78,207 C 62,200 63,185 78,185 Z"
-        fill="url(#g)" filter="url(#s)"/>
+  <!-- Plumb bob weight: amber teardrop -->
+  <path d="M 78,110 C 90,110 91,121 78,126 C 65,121 66,110 78,110 Z"
+        fill="url(#bg)" filter="url(#bs)"/>
 
-  <!-- Reversed L foot: short, tight baseline extending left from bob -->
-  <line x1="78" y1="211" x2="48" y2="211"
-        stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
+  <!-- Reversed L foot: gradient stroke, extends left from bob -->
+  <line x1="78" y1="130" x2="57" y2="130"
+        stroke="url(#lg)" stroke-width="8" stroke-linecap="round"/>
 </svg>
