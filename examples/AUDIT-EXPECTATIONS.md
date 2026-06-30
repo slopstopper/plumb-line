@@ -10,6 +10,10 @@ themselves so the answer keys below stay true to the code. Run both: the pytest
 file on every change, this protocol whenever `skills/plumb-line-audit/SKILL.md`
 changes.
 
+This protocol is also a release gate: [`../docs/release-harness.md`](../docs/release-harness.md)
+runs it before tagging any release that touches the method surface, and a missed
+planted violation blocks the release.
+
 ## Protocol (run one auditor per variant)
 
 1. The auditor reads ONLY `skills/plumb-line-audit/SKILL.md` and

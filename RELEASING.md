@@ -20,7 +20,13 @@ Two independent version numbers:
 
 1. **Decide the number** (SemVer; pre-1.0, a breaking change bumps the minor).
    Check what's unreleased: `git log --oneline "$(git describe --tags --abbrev=0)"..main`.
-2. **Bump + promote notes in one step:**
+2. **Run the release harness if the method surface changed.** If the unreleased
+   diff touches `skills/`, `reference/portable-principles.md`, `primitives/`, or
+   `adapters/`, follow [`docs/release-harness.md`](docs/release-harness.md): a
+   blind validation run (release-blocking — a missed planted violation stops the
+   tag until fixed or waived in writing) plus a dogfood self-audit, both recorded
+   as dated sections. Docs/chore-only releases skip this.
+3. **Bump + promote notes in one step:**
    ```
    node scripts/bump-version.mjs 0.3.0
    ```
@@ -28,16 +34,16 @@ Two independent version numbers:
    `## [Unreleased]` block to `## [0.3.0] — <date>`, leaving a fresh empty
    Unreleased and rewriting the compare links. Review the CHANGELOG diff and
    tidy the notes.
-3. **Open it as a release PR**, let CI pass (the `Manifest versions agree` job
+4. **Open it as a release PR**, let CI pass (the `Manifest versions agree` job
    confirms the three manifests match), and **merge to `main`**.
-4. **Tag the merged commit** — the tag must equal the manifests, so tag *after*
+5. **Tag the merged commit** — the tag must equal the manifests, so tag *after*
    the bump PR is merged:
    ```
    git checkout main && git pull
    node scripts/check-versions.mjs v0.3.0   # local pre-flight: tag == manifests
    git tag v0.3.0 && git push origin v0.3.0
    ```
-5. **Watch the Release workflow.** Its first step re-runs the guard
+6. **Watch the Release workflow.** Its first step re-runs the guard
    (`check-versions.mjs <tag>` + a CHANGELOG `## [<version>]` check); if the tag
    doesn't match the manifests or the CHANGELOG has no section for it, the run
    fails *before* publishing. Then it runs the full suite and publishes.
