@@ -113,7 +113,7 @@ async function lintDir(srcDir) {
   // Use createRequire so Node resolves eslint-plugin-import via the normal
   // node_modules lookup chain from this file's location (adapters/js/node_modules/).
   const require = createRequire(import.meta.url);
-  const importPlugin = require("eslint-plugin-import");
+  const importPlugin = require("eslint-plugin-import-x");
 
   const zones = buildZones(srcDir);
   const derivedRuleConfig = deriveConfigFromTemplate(zones);
