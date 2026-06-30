@@ -42,6 +42,23 @@ Two independent version numbers:
    doesn't match the manifests or the CHANGELOG has no section for it, the run
    fails *before* publishing. Then it runs the full suite and publishes.
 
+## Releasing without a terminal
+
+Every step above can happen from a phone — Claude runs the parts that need a
+shell, the human taps the rest:
+
+- **Bump + release PR** — ask Claude; it runs `bump-version.mjs`, which sets the
+  manifests and promotes the CHANGELOG, and opens the PR.
+- **Merge PRs** — tap *Merge* in the GitHub mobile app / web.
+- **Tag + publish** — either: (a) tell Claude "publish" and it pushes the
+  `v<version>` tag, or (b) in the GitHub app, **Releases → Draft a new release →
+  create tag `v<version>` on `main` → Publish**. Both trigger the same workflow;
+  the GitHub-release step is idempotent, so route (b) does not collide with it.
+
+The tag push is the one irreversible, outward step (it publishes to npm + PyPI),
+so Claude treats it as requiring an explicit human go-ahead — it will not tag on
+its own.
+
 ## The guard that prevents drift
 
 `scripts/check-versions.mjs` is the single source of truth for "are we

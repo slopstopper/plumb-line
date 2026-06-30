@@ -85,8 +85,15 @@ jobs:
         with:
           packages-dir: primitives/python/dist
 
-      # --- GitHub release with auto-generated notes ---
+      # --- GitHub release with auto-generated notes. Idempotent: if the tag was
+      #     pushed by publishing a release in the GitHub UI (the no-terminal
+      #     route), the release already exists — don't fail, just leave it. ---
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --generate-notes --title "plumb-line $GITHUB_REF_NAME"
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists (created in the UI) — leaving it as-is."
+          else
+            gh release create "$GITHUB_REF_NAME" --generate-notes --title "plumb-line $GITHUB_REF_NAME"
+          fi
