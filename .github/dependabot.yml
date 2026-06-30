@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # Keep GitHub Actions pinned to current SHA digests
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+
+  # npm: published provenance primitive
+  - package-ecosystem: "npm"
+    directory: "/primitives/js"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+
+  # npm: JS enforcement adapters (private, dev-only)
+  - package-ecosystem: "npm"
+    directory: "/adapters/js"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
