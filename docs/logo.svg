@@ -1,44 +1,41 @@
-<svg viewBox="8 8 100 248" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="plumb-line logo">
+<svg viewBox="14 12 84 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="plumb-line logo">
   <defs>
-    <!-- amber gradient: gold highlight → warm orange → dark bronze -->
-    <radialGradient id="bob-g" cx="38%" cy="32%" r="65%">
+    <radialGradient id="g" cx="38%" cy="32%" r="65%">
       <stop offset="0%"   stop-color="#fde68a"/>
       <stop offset="45%"  stop-color="#f59e0b"/>
       <stop offset="100%" stop-color="#92400e"/>
     </radialGradient>
-    <!-- subtle shadow under the bob so it reads as a hanging weight -->
-    <filter id="bob-shadow" x="-40%" y="-20%" width="180%" height="160%">
+    <filter id="s" x="-50%" y="-20%" width="200%" height="160%">
       <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" result="blur"/>
-      <feOffset in="blur" dx="1" dy="2.5" result="shifted"/>
-      <feFlood flood-color="#451a03" flood-opacity="0.22" result="clr"/>
-      <feComposite in="clr" in2="shifted" operator="in" result="shadow"/>
-      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
+      <feOffset in="blur" dx="1" dy="2" result="o"/>
+      <feFlood flood-color="#451a03" flood-opacity="0.22" result="c"/>
+      <feComposite in="c" in2="o" operator="in" result="sh"/>
+      <feMerge><feMergeNode in="sh"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
-  <!-- P: single open path — stem, then bowl arc back to mid-stem.
-       Dark charcoal so blue stays on the data chain, not the structure. -->
-  <path d="M 25,148 L 25,20 C 108,20 108,90 25,90"
-        fill="none" stroke="#1e293b" stroke-width="11"
+  <!-- String first so P overlaps it cleanly at the bowl junction -->
+  <line x1="78" y1="46" x2="78" y2="185"
+        stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- P: stem + bowl arc as a single refined open path, SW=8 for elegance -->
+  <path d="M 25,100 L 25,20 C 95,20 95,72 25,72"
+        fill="none" stroke="#1e293b" stroke-width="8"
         stroke-linecap="round" stroke-linejoin="round"/>
 
-  <!-- Pivot: small pin at the outer tip of the P bowl where the string hangs -->
-  <circle cx="93" cy="55" r="3" fill="#475569"/>
+  <!-- Pin at bowl tip, where the plumb string is attached -->
+  <circle cx="78" cy="46" r="3" fill="#475569"/>
 
-  <!-- Plumb string: drifts gently leftward as it falls — reversed-L geometry -->
-  <path d="M 93,55 C 93,118 85,173 80,213"
-        fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/>
-
-  <!-- Provenance chain: three nodes (blue, distinct from the dark P) -->
-  <circle cx="91" cy="109" r="4.5" fill="#3b82f6"/>
-  <circle cx="88" cy="144" r="4.5" fill="#3b82f6"/>
-  <circle cx="85" cy="177" r="4.5" fill="#3b82f6"/>
+  <!-- Provenance chain: three nodes on the vertical string -->
+  <circle cx="78" cy="106" r="4" fill="#3b82f6"/>
+  <circle cx="78" cy="132" r="4" fill="#3b82f6"/>
+  <circle cx="78" cy="158" r="4" fill="#3b82f6"/>
 
   <!-- Plumb bob: amber teardrop with gradient depth and drop shadow -->
-  <path d="M 80,213 C 97,213 98,229 80,239 C 62,229 63,213 80,213 Z"
-        fill="url(#bob-g)" filter="url(#bob-shadow)"/>
+  <path d="M 78,185 C 93,185 94,200 78,207 C 62,200 63,185 78,185 Z"
+        fill="url(#g)" filter="url(#s)"/>
 
-  <!-- Reversed L foot: extends LEFT from the bob base back toward the P stem -->
-  <line x1="80" y1="239" x2="25" y2="239"
-        stroke="#1e293b" stroke-width="11" stroke-linecap="round"/>
+  <!-- Reversed L foot: short, tight baseline extending left from bob -->
+  <line x1="78" y1="211" x2="48" y2="211"
+        stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
 </svg>

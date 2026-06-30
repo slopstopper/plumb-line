@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="docs/logo.svg" alt="plumb-line" width="70">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
+    <img src="docs/logo.svg" alt="plumb-line" width="65">
+  </picture>
 </p>
 
 # plumb-line
