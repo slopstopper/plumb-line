@@ -1,10 +1,10 @@
-<svg viewBox="14 10 82 133" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="plumb-line logo">
+<svg viewBox="14 10 82 126" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="plumb-line logo">
   <defs>
     <linearGradient id="pg" x1="25" y1="18" x2="25" y2="82" gradientUnits="userSpaceOnUse">
       <stop offset="0%"   stop-color="#93c5fd"/>
       <stop offset="100%" stop-color="#3b82f6"/>
     </linearGradient>
-    <linearGradient id="lg" x1="78" y1="130" x2="57" y2="130" gradientUnits="userSpaceOnUse">
+    <linearGradient id="lg" x1="78" y1="126" x2="36" y2="126" gradientUnits="userSpaceOnUse">
       <stop offset="0%"   stop-color="#93c5fd"/>
       <stop offset="100%" stop-color="#3b82f6"/>
     </linearGradient>
@@ -22,7 +22,7 @@
     </filter>
   </defs>
 
-  <line x1="78" y1="42" x2="78" y2="110"
+  <line x1="78" y1="42" x2="78" y2="106"
         stroke="#475569" stroke-width="1.5" stroke-linecap="round"/>
 
   <path d="M 25,82 L 25,18 C 93,18 93,66 25,66"
@@ -31,13 +31,13 @@
 
   <circle cx="78" cy="42" r="3" fill="#93c5fd"/>
 
-  <circle cx="78" cy="76"  r="3.5" fill="#60a5fa"/>
-  <circle cx="78" cy="90"  r="3.5" fill="#60a5fa"/>
-  <circle cx="78" cy="104" r="3.5" fill="#60a5fa"/>
+  <circle cx="78" cy="75"  r="3.5" fill="#60a5fa"/>
+  <circle cx="78" cy="88"  r="3.5" fill="#60a5fa"/>
+  <circle cx="78" cy="101" r="3.5" fill="#60a5fa"/>
 
-  <path d="M 78,110 C 90,110 91,121 78,126 C 65,121 66,110 78,110 Z"
+  <path d="M 78,106 C 90,106 91,117 78,122 C 65,117 66,106 78,106 Z"
         fill="url(#bg)" filter="url(#bs)"/>
 
-  <line x1="78" y1="130" x2="57" y2="130"
+  <line x1="78" y1="126" x2="36" y2="126"
         stroke="url(#lg)" stroke-width="8" stroke-linecap="round"/>
 </svg>
