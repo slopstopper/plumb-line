@@ -3,35 +3,243 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>plumb-line</title>
+  <title>plumb-line — keep a codebase epistemically honest</title>
+  <meta name="description" content="A provenance library and Claude Code plugin that keeps a codebase epistemically honest: a clear source-truth layer, visible uncertainty, quarantined fakery, and boundaries checked by machines." />
   <style>
-    body {
-      font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: #1a1a1a; max-width: 640px; margin: 0 auto; padding: 3rem 1.25rem;
+    :root {
+      --blue: #3b82f6;
+      --blue-deep: #1e40af;
+      --green: #2da44e;
+      --green-deep: #176f2c;
+      --amber: #f59e0b;
+      --ink: #1a1a1a;
+      --muted: #555;
+      --bg: #ffffff;
+      --bg-soft: #f6f8fa;
+      --card: #ffffff;
+      --border: #e4e8ee;
+      --code-bg: #f6f8fa;
+      --code-ink: #1f2328;
     }
-    h1 { font-size: 1.6rem; margin: 0 0 .5rem; }
-    p { color: #444; }
-    ul { padding-left: 1.1rem; }
-    li { margin: .3rem 0; }
-    a { color: #3b82f6; }
-    footer { margin-top: 2.5rem; color: #888; font-size: .9rem; }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --blue: #60a5fa;
+        --blue-deep: #2563eb;
+        --green: #3fb950;
+        --green-deep: #238636;
+        --amber: #fbbf24;
+        --ink: #e6edf3;
+        --muted: #9aa7b4;
+        --bg: #0d1117;
+        --bg-soft: #11161d;
+        --card: #161b22;
+        --border: #232a33;
+        --code-bg: #0b0f14;
+        --code-ink: #c9d1d9;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      margin: 0;
+    }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: .9em;
+    }
+
+    .wrap { max-width: 720px; margin: 0 auto; padding: 0 1.25rem; }
+
+    /* Hero */
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 4rem 0 3rem;
+      text-align: center;
+      background:
+        radial-gradient(60rem 30rem at 70% -10%, color-mix(in srgb, var(--blue) 14%, transparent), transparent 60%),
+        radial-gradient(50rem 28rem at 10% 0%, color-mix(in srgb, var(--green) 12%, transparent), transparent 55%);
+    }
+    .logo {
+      width: 76px; height: auto;
+      filter: drop-shadow(0 6px 14px rgba(0,0,0,.12));
+      margin-bottom: 1.25rem;
+    }
+    h1 {
+      font-size: clamp(2rem, 6vw, 2.9rem);
+      line-height: 1.05;
+      margin: 0 0 .35rem;
+      letter-spacing: -.02em;
+      background: linear-gradient(120deg, var(--blue), var(--green) 85%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .tagline {
+      font-size: 1.05rem;
+      color: var(--muted);
+      margin: 0 auto 1.75rem;
+      max-width: 34rem;
+    }
+    .cta {
+      display: inline-flex; flex-wrap: wrap; gap: .6rem; justify-content: center;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: .45rem;
+      padding: .6rem 1.1rem; border-radius: .6rem;
+      font-weight: 600; font-size: .95rem;
+      border: 1px solid var(--border);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--blue), var(--blue-deep));
+      color: #fff; border-color: transparent;
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--blue) 35%, transparent);
+    }
+    .btn-primary:hover { text-decoration: none; filter: brightness(1.05); }
+    .btn-ghost { background: var(--card); color: var(--ink); }
+    .btn-ghost:hover { text-decoration: none; border-color: var(--blue); }
+
+    /* Sections */
+    section { padding: 2.75rem 0; }
+    .lede {
+      font-size: 1.12rem; color: var(--ink); margin: 0;
+    }
+    .lede b { color: var(--green); font-weight: 600; }
+    h2 {
+      font-size: 1.3rem; margin: 0 0 1rem; letter-spacing: -.01em;
+    }
+
+    .cards { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 560px) { .cards { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: .85rem;
+      padding: 1.25rem 1.25rem 1.35rem;
+      position: relative;
+    }
+    .card::before {
+      content: ""; position: absolute; left: 0; top: 1.25rem; bottom: 1.25rem;
+      width: 3px; border-radius: 3px;
+    }
+    .card.run::before  { background: linear-gradient(var(--blue), var(--blue-deep)); }
+    .card.review::before { background: linear-gradient(var(--green), var(--green-deep)); }
+    .card h3 { margin: 0 0 .35rem; font-size: 1.05rem; }
+    .card .kicker {
+      font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--muted); display: block; margin-bottom: .3rem;
+    }
+    .card p { margin: 0; color: var(--muted); font-size: .95rem; }
+
+    pre {
+      background: var(--code-bg);
+      color: var(--code-ink);
+      border: 1px solid var(--border);
+      border-radius: .75rem;
+      padding: 1.1rem 1.2rem;
+      overflow-x: auto;
+      font-size: .88rem; line-height: 1.6;
+    }
+    pre .c { color: var(--green); }
+    pre .k { color: var(--blue); }
+
+    .links { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; padding: 0; list-style: none; margin: 0; }
+    .links li { margin: 0; }
+
+    footer {
+      border-top: 1px solid var(--border);
+      margin-top: 1rem; padding: 2rem 0 3rem;
+      color: var(--muted); font-size: .9rem;
+      text-align: center;
+    }
+    .divider { height: 1px; background: var(--border); border: 0; margin: 0; }
   </style>
 </head>
 <body>
-  <h1>plumb-line</h1>
-  <p>
-    A provenance library and Claude Code plugin that keeps a codebase epistemically
-    honest — a clear source-truth layer, visible uncertainty, quarantined fakery, and
-    boundaries checked by machines rather than good intentions.
-  </p>
-  <ul>
-    <li><a href="https://github.com/effythealien/plumb-line">Source &amp; documentation on GitHub</a></li>
-    <li><a href="./feedback.html">Private feedback form</a></li>
-    <li>
-      <a href="https://www.npmjs.com/package/plumb-line-provenance">npm</a> ·
-      <a href="https://pypi.org/project/plumb-line-provenance/">PyPI</a> — <code>plumb-line-provenance</code>
-    </li>
-  </ul>
-  <footer>Apache-2.0</footer>
+  <header class="hero">
+    <div class="wrap">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./logo-dark.svg">
+        <img class="logo" src="./logo.svg" alt="plumb-line logo" width="76" height="117">
+      </picture>
+      <h1>plumb-line</h1>
+      <p class="tagline">
+        Keep a codebase epistemically honest — through tooling, not good intentions.
+      </p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/effythealien/plumb-line">View on GitHub</a>
+        <a class="btn btn-ghost" href="https://www.npmjs.com/package/plumb-line-provenance">npm</a>
+        <a class="btn btn-ghost" href="https://pypi.org/project/plumb-line-provenance/">PyPI</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section>
+      <p class="lede">
+        A plumb line measures true vertical by gravity alone. plumb-line does the same for a
+        codebase: a clear <b>source-truth layer</b>, <b>visible uncertainty</b>, <b>quarantined
+        fakery</b>, reproducible outputs, and boundaries checked by machines — not trusted to hold.
+      </p>
+    </section>
+
+    <hr class="divider">
+
+    <section>
+      <h2>Two halves: run-time and review-time</h2>
+      <div class="cards">
+        <div class="card run">
+          <span class="kicker">Run-time</span>
+          <h3>The provenance primitive</h3>
+          <p>
+            A small JS &amp; Python library that wraps every value in a metadata envelope. Touch a
+            value with mock or low-confidence data and every value derived from it inherits the taint
+            automatically — with no escape hatch that silently clears the flag.
+          </p>
+        </div>
+        <div class="card review">
+          <span class="kicker">Review-time</span>
+          <h3>The skills</h3>
+          <p>
+            A Claude Code plugin with three skills — method, bootstrap, audit. They load the
+            principles, generate a domain-neutral ruleset, and audit a diff before it lands:
+            laundered uncertainty, boundary leaks, overstated maturity, missing lineage.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Taint that can&rsquo;t be laundered</h2>
+      <pre><code><span class="k">const</span> base  = mark(1000, { source: <span class="c">"real"</span>, confidence: <span class="c">"high"</span> });
+<span class="k">const</span> rate  = mark(1.25, { source: <span class="c">"mock"</span>, confidence: <span class="c">"low"</span> });
+<span class="k">const</span> total = derive([base, rate], (a, r) =&gt; a * r);
+
+total.derivedFromMock; <span class="c">// true   inherited from rate, impossible to clear</span>
+total.confidence;      <span class="c">// 'low'  only as certain as the weakest input</span></code></pre>
+    </section>
+
+    <hr class="divider">
+
+    <section>
+      <h2>Get started</h2>
+      <ul class="links">
+        <li><a href="https://github.com/effythealien/plumb-line">Source &amp; documentation</a></li>
+        <li><a href="https://www.npmjs.com/package/plumb-line-provenance">npm — plumb-line-provenance</a></li>
+        <li><a href="https://pypi.org/project/plumb-line-provenance/">PyPI — plumb-line-provenance</a></li>
+        <li><a href="./feedback.html">Private feedback form</a></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">Apache-2.0 &middot; plumb-line</div>
+  </footer>
 </body>
 </html>
