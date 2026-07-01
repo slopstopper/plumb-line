@@ -14,6 +14,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/plumb-line-provenance?logo=python&logoColor=white)](https://pypi.org/project/plumb-line-provenance/)
 [![node: >=16](https://img.shields.io/node/v/plumb-line-provenance?logo=node.js&logoColor=white&label=node)](https://www.npmjs.com/package/plumb-line-provenance)
+[![JS + Python](https://img.shields.io/badge/language-JS%20%2B%20Python-informational)](https://github.com/effythealien/plumb-line)
 [![zero deps](https://img.shields.io/badge/deps-0-brightgreen)](https://www.npmjs.com/package/plumb-line-provenance?activeTab=dependencies)
 [![minzipped](https://img.shields.io/bundlephobia/minzip/plumb-line-provenance?label=minzipped&color=brightgreen)](https://bundlephobia.com/package/plumb-line-provenance)
 [![Socket](https://socket.dev/api/badge/npm/package/plumb-line-provenance)](https://socket.dev/npm/package/plumb-line-provenance)
