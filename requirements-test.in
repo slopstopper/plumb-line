@@ -5,5 +5,5 @@
 #   uv pip compile requirements-test.in --generate-hashes --universal \
 #       --python-version 3.9 -o requirements-test.txt
 pytest==8.4.2
-import-linter==2.5.2
+import-linter==2.12
 build==1.4.4
