@@ -18,12 +18,12 @@ const CLEAN_SOURCES = ["real", "semiReal", "fallback"];
  * - `"source over-claim:"` — weakestSource cleaner than lineage proves
  * - `"taint dropped:"` — a tainted lineage step but derivedFromMock is false
  * - `"unreproducible:"` — source is "derived" but lineage is empty
- * - `"missing meta"` — null/undefined input
+ * - `"missing meta"` — input is not a plain object (null, undefined, or a non-object)
  * @param {object|null|undefined} meta - Envelope to audit
  * @returns {string[]} List of issue descriptions; empty means consistent
  */
 export function auditMeta(meta) {
-  if (!meta) return ["missing meta"];
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return ["missing meta"];
   const issues = [];
   const lineage = Array.isArray(meta.lineage) ? meta.lineage : [];
 

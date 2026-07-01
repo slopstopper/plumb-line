@@ -116,6 +116,16 @@
       "name": "non-dict meta (falsy scalar) — missing meta (totality, SPEC §5)",
       "meta": 0,
       "expectContains": ["missing meta"]
+    },
+    {
+      "name": "truthy non-dict meta (string) — missing meta (parity, not an envelope)",
+      "meta": "not-an-envelope",
+      "expectContains": ["missing meta"]
+    },
+    {
+      "name": "truthy non-dict meta (array) — missing meta (parity)",
+      "meta": [1, 2, 3],
+      "expectContains": ["missing meta"]
     }
   ],
   "validate": [
