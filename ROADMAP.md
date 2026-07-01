@@ -6,6 +6,30 @@ issue numbers.
 
 ---
 
+## Milestones
+
+Version themes for the near-term releases. Each groups the numbered items below;
+GitHub milestones track the issue-level detail.
+
+- **v0.4.0 — Contracted, verifiable outputs.** Additive; `PROVENANCE_VERSION`
+  stays 1. `validateEnvelope` (#4, GH #27), reproducible report header +
+  `report-format: v1` (#9, GH #28), document the `basis` convention (GH #26).
+- **v0.5.0 — Wire v2: durable identifiers.** Breaking envelope format;
+  `PROVENANCE_VERSION` → 2. Stable/content-addressed lineage step IDs (GH #52),
+  per-envelope version embedding + read-side validation (#5 — rides this bump),
+  plus part-2 cleanup (GH #29 lint injection path, #24 dual-import hardening).
+- **v0.6.0 — Apply the discipline.** Close the two-halves gap: bootstrap
+  scaffolds the primitive and method names it (#6, extended), the primitive
+  source is bundled in the plugin so there is no second install, and a new
+  `plumb-line-remediate` skill fixes audit findings (#11). Depends on
+  `report-format: v1` (#9 / GH #28).
+- **Portable beyond Claude** (parallel track, version TBD). Agent-neutral method
+  core + agent-adapter contract (#12), an MCP server exposing the three skills
+  (#13), and per-host rule-file packs (#14). Orthogonal to the wire track — can
+  run alongside the releases above.
+
+---
+
 ## Planned
 
 ### 1. Static lint for untagged output-producing functions
@@ -94,7 +118,10 @@ Status table entry in `primitives/README.md` is already marked **planned**.
 
 ### 5. `PROVENANCE_VERSION` per-envelope embedding and validation
 
-**Priority: medium**
+**Priority: medium** · Milestone: v0.5.0
+
+This is a wire-format change, so it rides the v0.5.0 v2 bump alongside GH #52
+(durable step IDs) rather than shipping on its own.
 
 `PROVENANCE_VERSION` is exported from both `primitives/js/provenance.mjs` and
 `primitives/python/provenance.py` but is not embedded in individual envelopes
@@ -109,20 +136,31 @@ are allowed through with a warning; unknown past versions are flagged.
 
 ---
 
-### 6. Bootstrap wiring for the provenance primitive
+### 6. Adopt the primitive from the skills (bootstrap + method)
 
-**Priority: medium**
+**Priority: medium** · Milestone: v0.6.0
 
 The `plumb-line-bootstrap` skill generates an `AGENTS.md` ruleset and installs
 enforcement adapters, but it does not wire the provenance primitive into the
-host project. After bootstrap runs, nothing prevents a developer from ignoring
-`mark`/`derive` entirely.
+host project, and `plumb-line-method` teaches the confidence/provenance and
+lineage principles without naming the library that implements them. A
+less-technical user who installs only the plugin never learns there is a runtime
+primitive to adopt — the two halves stay decoupled and the value is left on the
+table.
 
-Wire the primitive into bootstrap's output:
-- Add a step that installs `plumb-line-provenance` as a dependency
-- Generate example instrumentation for the detected language and project shape
-- Hook `validateEnvelope` into the pre-commit gate so unmarked returns are
-  caught before they reach review
+Close the gap from the skill side:
+- **Bootstrap:** after the interview, offer to scaffold `mark`/`derive` at the
+  exact call sites the answers surfaced (Q4 downstream values, Q8 lineage-bearing
+  outputs). Opt-in prompt, not silent wiring. Hook `validateEnvelope` into the
+  pre-commit gate so unmarked returns are caught before they reach review.
+- **Method:** when teaching P3 (confidence + provenance) or P8 (lineage), name
+  the runtime library as the concrete implementation, with the three-line
+  `mark`/`derive` example. A bounded softening of method's "takes no actions"
+  stance — mention, don't install.
+- **Bundle the primitive source in the plugin** so adoption needs no separate
+  `npm`/`pip` step. The modules are zero-dependency and copy-pasteable (dual-import
+  shim), so bootstrap can drop them in directly. Soft-depends on v0.5.0: bundle
+  once the schema has settled at v2, to avoid vendoring v1 and re-vendoring.
 
 Tracked as a consequence of ADR-0005; the integration was deliberately deferred
 to keep that decision scoped to the primitive itself.
@@ -184,6 +222,72 @@ get no lint coverage without patching the source.
 Add an injection path (ESLint rule option / Python checker argument) so callers
 can extend the tracked module and function lists. This also makes the linter
 reusable for third-party primitives that follow the same envelope contract.
+
+---
+
+### 11. `plumb-line-remediate` skill — apply audit findings
+
+**Priority: high** · Milestone: v0.6.0 · depends on #9 (GH #28)
+
+The skills teach (method), set up (bootstrap), and find (audit) — but nothing
+applies a fix. `plumb-line-audit` is deliberately read-only, so after it reports
+"P3 laundered uncertainty at `foo.ts:42`" the builder is on their own. Keeping the
+auditor read-only is worth preserving — review you can trust does not mutate — so
+remediation belongs in a separate skill, not folded into audit.
+
+`plumb-line-remediate` consumes a machine-readable audit report (the
+`report-format: v1` from #9) and applies the mechanical fixes: wrap an untagged
+return in `mark`/`derive`, lift a magic number to injected config (P5), add a
+validator + version to an uncontracted output (P7), add lineage recording (P8),
+relabel overstated maturity (P6). It shows diffs and never silently edits.
+
+HONESTY GUARDRAIL: a remediation may never resolve a finding by making the code
+*less* honest — clearing a taint flag, deleting a null-result branch, or dropping
+a confidence field to make a check pass. That is the laundering the whole project
+exists to stop; the fixer needs the same honesty constraint bootstrap has ("if
+you cannot name a source-truth layer, that absence is the finding").
+
+---
+
+### 12. Agent-neutral method core + agent-adapter contract
+
+**Priority: high** · Milestone: Portable beyond Claude
+
+The discipline is already portable in substance — `reference/portable-principles.md`
+is referenced, not restated; bootstrap emits `AGENTS.md` (not `CLAUDE.md`); and the
+guard hooks are agent-neutral stdin/exit-code CLIs. Only the packaging and
+invocation layer is Claude-specific.
+
+Factor the three skills' instructions (the audit check catalogue, the bootstrap
+interview, the method walk) into host-agnostic modules stripped of "Claude" /
+"skill" / "PreToolUse" wording, and define an `agent-adapter-contract.md` — the
+capabilities any host must provide (load principles, run interview, run audit,
+wire hooks, invoke on a diff). This mirrors the existing language
+`adapters/adapter-contract.md` one level up: Claude Code becomes one adapter
+among several rather than the substrate.
+
+---
+
+### 13. MCP server exposing method/bootstrap/audit
+
+**Priority: high** · Milestone: Portable beyond Claude
+
+An MCP server that exposes the three skills as tools lets any MCP-capable agent
+(Codex, Cursor, Qwen, Continue) run them with zero rewrite — the highest-leverage
+step toward "transferable to any agentic coder." Depends on the agent-neutral
+core (#12) for the underlying instruction modules. Success test: run the audit
+unmodified from a non-Claude host against the worked fixtures in `examples/`.
+
+---
+
+### 14. Per-host rule-file packs
+
+**Priority: medium** · Milestone: Portable beyond Claude
+
+Beyond `AGENTS.md`, generate the host-specific rule file for whichever agent the
+builder uses — `.cursor/rules`, `.github/copilot-instructions.md`, `CLAUDE.md`,
+`AGENTS.md`. Bootstrap already writes `AGENTS.md`; generalize that step into
+"emit the rule file for the detected host."
 
 ---
 
