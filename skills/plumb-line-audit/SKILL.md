@@ -124,14 +124,15 @@ finding, columns in this exact order:
 - **Function** — enclosing function/symbol, or `—`.
 - **Issue** — one-line description.
 - **Suggested Fix** — a direction, not a patch.
-- **Principle** — the inline-named principle (`P#  — <name>`).
+- **Principle** — the inline-named principle (`P# — <name>`).
 
 End with a one-line summary count (e.g. `4 findings: 2 violations, 2 needs-review`).
 A clean repo still emits the header, an empty/omitted glossary, and an explicit
 `No findings.` line in place of table rows — a clean result is a valid result.
 
-The omission-pass enumeration table (in the Method section) is a separate
-artifact and keeps its own columns; its `P#` references also render inline-named.
+The omission-pass enumeration table (defined in the Method section) is a separate
+report artifact with its own columns; when the auditor emits it, its principle
+references are inline-named too, exactly like the findings table above.
 
 **Report file — always offer, never auto-write.** Print the full report
 (header + glossary + table + summary) to the conversation every run. Then, and
