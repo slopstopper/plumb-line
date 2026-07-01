@@ -1,32 +1,53 @@
 # Roadmap
 
-Planned features for future versions, roughly ordered by adoption impact.
-Deferred known issues are tracked separately at the bottom with their GitHub
-issue numbers.
+Planned features for future versions. The **Milestones** section below is the
+authoritative version→work index; the **Planned** section holds the detail for
+each numbered item (item IDs are stable — GitHub issues reference them as
+"ROADMAP #N"). GitHub milestones track issue-level status.
 
 ---
 
 ## Milestones
 
-Version themes for the near-term releases. Each groups the numbered items below;
-GitHub milestones track the issue-level detail.
+Version themes for the near-term releases, and the GitHub issues under each.
 
-- **v0.4.0 — Contracted, verifiable outputs.** Additive; `PROVENANCE_VERSION`
-  stays 1. `validateEnvelope` (#4, GH #27), reproducible report header +
-  `report-format: v1` (#9, GH #28), document the `basis` convention (GH #26).
-- **v0.5.0 — Wire v2: durable identifiers.** Breaking envelope format;
-  `PROVENANCE_VERSION` → 2. Stable/content-addressed lineage step IDs (GH #52),
-  per-envelope version embedding + read-side validation (#5 — rides this bump),
-  plus part-2 cleanup (GH #29 lint injection path, #24 dual-import hardening).
-- **v0.6.0 — Apply the discipline.** Close the two-halves gap: bootstrap
-  scaffolds the primitive and method names it (#6, extended), the primitive
-  source is bundled in the plugin so there is no second install, and a new
-  `plumb-line-remediate` skill fixes audit findings (#11). Depends on
-  `report-format: v1` (#9 / GH #28).
+- **v0.4.0 — Contracted, verifiable outputs** · *shipped 2026-06-30.*
+  `validateEnvelope` (#4 / GH #27), reproducible report header + `report-format:
+  v1` (#9 / GH #28), documented `basis` convention (GH #26). Additive;
+  `PROVENANCE_VERSION` stayed 1.
+
+- **v0.4.1 — Legible audit** (patch). First-tester UX pass on `plumb-line-audit`:
+  principle glossary + inline names (#15 / GH #83), canonical report format —
+  always a table, Path/Line/Function split, Suggested Fix column (#16 / GH #84),
+  report-file determinism (#17 / GH #85), README marketplace-install-first
+  (#18 / GH #86), plus the `audit_meta` totality parity bug (GH #80). Method-
+  surface → runs the release harness.
+
+- **v0.5.0 — Audit you can trust and act on.** The two heavier audit themes:
+  coverage honesty — up-front traversal plan + read/partial/not-read coverage
+  map + honest denominator (#19 / GH #87); lightweight remediation handoff to
+  `writing-plans` / bootstrap (#20 / GH #88); onboarding polish — bootstrap
+  suggested from method (#21 / GH #89). Method-surface → runs the release harness.
+
+- **v0.6.0 — Apply the discipline.** Close the two-halves gap: bootstrap scaffolds
+  the primitive and method names it (#6), and a new `plumb-line-remediate` skill
+  applies audit findings (#11 / GH #57). Depends on `report-format: v1` (GH #28,
+  shipped).
+
+- **v0.7.0 — Lower the on-ramp** (runtime + wire v2). Static lint for untagged
+  outputs (#1 / GH #91), ecosystem adapters (#2 / GH #92), `PROVENANCE_VERSION`
+  per-envelope embedding (#5 / GH #93), durable/stable lineage step IDs — the
+  wire-format break, `PROVENANCE_VERSION` → 2 (GH #52), lint injection path
+  (#10 / GH #29), dual-import hardening (GH #24). The wire-v2 break lives here.
+
 - **Portable beyond Claude** (parallel track, version TBD). Agent-neutral method
-  core + agent-adapter contract (#12), an MCP server exposing the three skills
-  (#13), and per-host rule-file packs (#14). Orthogonal to the wire track — can
-  run alongside the releases above.
+  core + agent-adapter contract (#12 / GH #58), MCP server exposing the three
+  skills (#13 / GH #59, deps #12), per-host rule-file packs (#14 / GH #60).
+  Orthogonal to the release train — can run alongside the versions above.
+
+- **Backlog** (unversioned). Guaranteed total-sweep audit via subagent fan-out,
+  with a token-cost warning (#22 / GH #90); IDE integration (#3); Go and Rust
+  ports (#7); relocate `provenance-lint` to `primitives/` (#8).
 
 ---
 
@@ -34,7 +55,7 @@ GitHub milestones track the issue-level detail.
 
 ### 1. Static lint for untagged output-producing functions
 
-**Priority: high**
+**Priority: high** · Milestone: v0.7.0 · GitHub: #91
 
 The provenance primitive is fully opt-in: a developer can write
 `const result = a.value + b.value` and bypass taint propagation entirely. The
@@ -58,7 +79,7 @@ Scope:
 
 ### 2. Ecosystem adapters for common data sources
 
-**Priority: high**
+**Priority: high** · Milestone: v0.7.0 · GitHub: #92
 
 Taint propagation in security tools works because common sources (HTTP
 requests, user input, env vars) are pre-tagged — developers don't mark every
@@ -82,7 +103,7 @@ dependency core is not affected.
 
 ### 3. IDE integration
 
-**Priority: medium**
+**Priority: medium** · Milestone: Backlog
 
 Real-time provenance feedback at development time would change the adoption
 curve. Right now enforcement is at commit time (git hooks) or review time
@@ -100,28 +121,22 @@ curve. Right now enforcement is at commit time (git hooks) or review time
 
 ### 4. `validateEnvelope` structural field-presence checker
 
-**Priority: medium** · GitHub: #27
+**Priority: medium** · GitHub: #27 · **Shipped in v0.4.0**
 
-`auditMeta({})` currently returns `[]` for an empty envelope — it passes
-silently even though required fields (`source`, `confidence`, `lineage`,
-`derivedFromMock`) are absent. The audit logic assumes a structurally valid
-envelope exists; it does not verify that assumption.
-
-Add a companion `validateEnvelope(meta)` function to the primitive that checks
-for required field presence and correct types before any combination or audit
-logic runs. Both JS and Python implementations required; add to the
-conformance suite and update `auditMeta` to call it as a pre-check.
-
-Status table entry in `primitives/README.md` is already marked **planned**.
+`auditMeta({})` returned `[]` for an empty envelope — it passed silently even
+though required fields (`source`, `confidence`, `lineage`, `derivedFromMock`)
+were absent. `validateEnvelope(meta)` now checks required field presence and
+correct types before any combination or audit logic runs, in both JS and Python,
+with conformance coverage.
 
 ---
 
 ### 5. `PROVENANCE_VERSION` per-envelope embedding and validation
 
-**Priority: medium** · Milestone: v0.5.0
+**Priority: medium** · Milestone: v0.7.0 · GitHub: #93
 
-This is a wire-format change, so it rides the v0.5.0 v2 bump alongside GH #52
-(durable step IDs) rather than shipping on its own.
+This is a wire-format change, so it rides the v0.7.0 wire-v2 bump alongside GH
+#52 (durable step IDs) rather than shipping on its own.
 
 `PROVENANCE_VERSION` is exported from both `primitives/js/provenance.mjs` and
 `primitives/python/provenance.py` but is not embedded in individual envelopes
@@ -129,10 +144,10 @@ at creation time and is not validated on read. Consumers cannot tell which
 schema version produced an envelope they receive.
 
 Embed `PROVENANCE_VERSION` in every envelope produced by `makeMeta` /
-`combine`. Add validation in `auditMeta` (or `validateEnvelope` once #4
-ships) that the version field is present and matches the running library
-version. Document the forward-compatibility policy: unknown future versions
-are allowed through with a warning; unknown past versions are flagged.
+`combine`. Add validation in `auditMeta` (or `validateEnvelope`) that the
+version field is present and matches the running library version. Document the
+forward-compatibility policy: unknown future versions are allowed through with a
+warning; unknown past versions are flagged.
 
 ---
 
@@ -159,8 +174,9 @@ Close the gap from the skill side:
   stance — mention, don't install.
 - **Bundle the primitive source in the plugin** so adoption needs no separate
   `npm`/`pip` step. The modules are zero-dependency and copy-pasteable (dual-import
-  shim), so bootstrap can drop them in directly. Soft-depends on v0.5.0: bundle
-  once the schema has settled at v2, to avoid vendoring v1 and re-vendoring.
+  shim), so bootstrap can drop them in directly. Soft-depends on the wire-v2
+  release (v0.7.0): bundle once the schema has settled at v2, to avoid vendoring
+  v1 and re-vendoring.
 
 Tracked as a consequence of ADR-0005; the integration was deliberately deferred
 to keep that decision scoped to the primitive itself.
@@ -169,7 +185,7 @@ to keep that decision scoped to the primitive itself.
 
 ### 7. Go and Rust adapters
 
-**Priority: low**
+**Priority: low** · Milestone: Backlog
 
 JS and Python ship at v0.1; Go and Rust are the next planned ports. Each new
 language adapter must:
@@ -184,7 +200,7 @@ language adapter must:
 
 ### 8. Move `provenance-lint` from `adapters/` to `primitives/`
 
-**Priority: low**
+**Priority: low** · Milestone: Backlog
 
 The provenance-bypass lint rules (`adapters/js/provenance-lint/` and
 `adapters/python/provenance_lint.py`) check correct *use* of the primitive
@@ -199,20 +215,17 @@ this move as a future possibility.
 
 ### 9. Audit report header block
 
-**Priority: low** · GitHub: #28
+**Priority: low** · GitHub: #28 · **Shipped in v0.4.0**
 
-The output of `plumb-line-audit` lacks a header recording scope, principles
-version, date, and git SHA. Without this, a saved audit report cannot be
-re-verified or reproduced — it is a snapshot with no provenance of its own.
-
-Add a required header block to the audit report format and introduce
-`report-format: v1` versioning so downstream tooling can parse it reliably.
+The output of `plumb-line-audit` lacked a header recording scope, principles
+version, date, and git SHA. A required header block plus `report-format: v1`
+versioning now let a saved audit report be re-verified and parsed reliably.
 
 ---
 
 ### 10. Configurable primitive module/function names in provenance lint
 
-**Priority: low** · GitHub: #29
+**Priority: low** · Milestone: v0.7.0 · GitHub: #29
 
 `PRIMITIVE_MODULES` and `TRACKED` function lists in both the JS ESLint rule
 and the Python AST checker are hardcoded. Projects that re-export the
@@ -227,7 +240,7 @@ reusable for third-party primitives that follow the same envelope contract.
 
 ### 11. `plumb-line-remediate` skill — apply audit findings
 
-**Priority: high** · Milestone: v0.6.0 · depends on #9 (GH #28)
+**Priority: high** · Milestone: v0.6.0 · GitHub: #57 · depends on #9 (GH #28)
 
 The skills teach (method), set up (bootstrap), and find (audit) — but nothing
 applies a fix. `plumb-line-audit` is deliberately read-only, so after it reports
@@ -239,7 +252,8 @@ remediation belongs in a separate skill, not folded into audit.
 `report-format: v1` from #9) and applies the mechanical fixes: wrap an untagged
 return in `mark`/`derive`, lift a magic number to injected config (P5), add a
 validator + version to an uncontracted output (P7), add lineage recording (P8),
-relabel overstated maturity (P6). It shows diffs and never silently edits.
+relabel overstated maturity (P6). It shows diffs and never silently edits. The
+lightweight handoff shipped in v0.5.0 (#20) is the on-ramp to this full skill.
 
 HONESTY GUARDRAIL: a remediation may never resolve a finding by making the code
 *less* honest — clearing a taint flag, deleting a null-result branch, or dropping
@@ -251,7 +265,7 @@ you cannot name a source-truth layer, that absence is the finding").
 
 ### 12. Agent-neutral method core + agent-adapter contract
 
-**Priority: high** · Milestone: Portable beyond Claude
+**Priority: high** · Milestone: Portable beyond Claude · GitHub: #58
 
 The discipline is already portable in substance — `reference/portable-principles.md`
 is referenced, not restated; bootstrap emits `AGENTS.md` (not `CLAUDE.md`); and the
@@ -270,7 +284,7 @@ among several rather than the substrate.
 
 ### 13. MCP server exposing method/bootstrap/audit
 
-**Priority: high** · Milestone: Portable beyond Claude
+**Priority: high** · Milestone: Portable beyond Claude · GitHub: #59 · depends on #12
 
 An MCP server that exposes the three skills as tools lets any MCP-capable agent
 (Codex, Cursor, Qwen, Continue) run them with zero rewrite — the highest-leverage
@@ -282,26 +296,119 @@ unmodified from a non-Claude host against the worked fixtures in `examples/`.
 
 ### 14. Per-host rule-file packs
 
-**Priority: medium** · Milestone: Portable beyond Claude
+**Priority: medium** · Milestone: Portable beyond Claude · GitHub: #60
 
 Beyond `AGENTS.md`, generate the host-specific rule file for whichever agent the
 builder uses — `.cursor/rules`, `.github/copilot-instructions.md`, `CLAUDE.md`,
 `AGENTS.md`. Bootstrap already writes `AGENTS.md`; generalize that step into
-"emit the rule file for the detected host."
+"emit the rule file for the detected host." Pairs with the agent-adapter contract
+(#12).
+
+---
+
+### 15. Audit: principle legibility — glossary + inline names
+
+**Priority: high** · Milestone: v0.4.1 · GitHub: #83
+
+From first-tester feedback: `P1/P2/...` codes are opaque to infrequent users, and
+principles get explained mid-report rather than up front, leaving the reader
+dangling. Open every audit with a one-line-per-principle glossary and render each
+`P#` reference with its name inline (`P3 — visible uncertainty`), before use.
+
+---
+
+### 16. Audit report format — canonical structure
+
+**Priority: high** · Milestone: v0.4.1 · GitHub: #84
+
+The report shape varies run to run — sometimes a structured table, sometimes
+blocks of prose — a non-deterministic artifact that cannot be reliably diffed or
+parsed (the same reproducibility property the skill demands of reviewed code).
+Pin one canonical structure: the findings section is **always** a table; replace
+the ambiguous `Site` column with **Path / Line / Function**; add a **Suggested
+Fix** column after **Issue**.
+
+---
+
+### 17. Audit report-file determinism
+
+**Priority: medium** · Milestone: v0.4.1 · GitHub: #85
+
+The skill sometimes writes `plumb-line-audit.md` and sometimes does not. Pick one
+contract (always write, or always offer) and make it deterministic — the
+coin-flip is itself a small honesty violation.
+
+---
+
+### 18. README — marketplace install first
+
+**Priority: medium** · Milestone: v0.4.1 · GitHub: #86
+
+Promote the marketplace install path to the top of the install section as the
+least-friction on-ramp (first-tester note); keep manual/dev install below.
+
+---
+
+### 19. Audit coverage honesty — traversal plan + coverage map
+
+**Priority: high** · Milestone: v0.5.0 · GitHub: #87
+
+The auditor "confidently acts like it found everything," but on a large repo it
+does not — the skill overstating its own coverage is the exact laundered-
+uncertainty / overstated-maturity failure it exists to catch (P8 + the honest-
+denominator spine). Emit an up-front **traversal plan**; include a **coverage
+map** in the report (file tree marked read / partial / not-read); report an honest
+**denominator** and caveat instead of implying completeness. "Plan + map" depth;
+the guaranteed sweep is #22.
+
+---
+
+### 20. Audit — lightweight remediation handoff
+
+**Priority: medium** · Milestone: v0.5.0 · GitHub: #88
+
+At the end of a run, offer to hand findings to superpowers `writing-plans` / plan
+mode for a fix-plan markdown, and — when provenance gaps appear — suggest
+`plumb-line-bootstrap` (principles into the host rule file + git hooks). The
+auditor stays read-only; this is an offer, not an apply. Bridges to the full
+`plumb-line-remediate` skill (#11).
+
+---
+
+### 21. Onboarding — suggest bootstrap from method
+
+**Priority: medium** · Milestone: v0.5.0 · GitHub: #89
+
+Suggest `plumb-line-bootstrap` from inside `plumb-line-method` and cross-link
+method ↔ audit ↔ bootstrap so first-time users find the next step. Includes a
+research task: whether a marketplace plugin can auto-run `/method` on install
+(likely not — plugins don't auto-execute skills); if infeasible, document the
+intended first-run flow instead of promising auto-run.
+
+---
+
+### 22. Audit — guaranteed total sweep (subagent fan-out)
+
+**Priority: low** · Milestone: Backlog · GitHub: #90
+
+Fan out subagents to chunk the whole tree so large repos are genuinely fully read,
+not sampled. **Must ship a token-consumption warning** — this is expensive.
+Deliberately deferred beyond v0.5.0; #19's plan + map is the honest-floor version.
 
 ---
 
 ## Deferred — Known Issues
 
-These are confirmed issues from dogfooding (#23–#26), deferred because fixing
-them requires API or spec changes. Tracked on GitHub.
+The v0.2.0 / v0.3.0 dogfood deferrals #23, #25, and #26 have shipped — see
+[CHANGELOG.md](CHANGELOG.md). One remains open and is folded into the runtime
+milestone:
 
-| # | Summary | File | Notes |
-|---|---------|------|-------|
-| #23 | Step-counter collisions in concurrent runtimes (Node workers, Python async, parallel test runners) | `primitives/*/provenance.{mjs,py}` | Needs context-local counter or per-combine UUID; API change |
-| #24 | Dual-import shim can be displaced by a top-level `provenance.py` in consumer project | `primitives/python/provenance.py` | Needs import path review |
-| #25 | `combineProvenance()` with zero inputs yields `{source:"derived", lineage:[]}` but `auditMeta` flags it as unreproducible — SPEC §3 vs §5 contradiction | `primitives/*/provenance.{mjs,py}` | Needs spec clarification |
-| #26 | `derive()` records input provenance but not the transformation function; two identical inputs with different `fn`s produce identical lineage | `primitives/*/marked.{mjs,py}` | `basis` override is undocumented workaround |
+| # | Summary | File | Milestone |
+|---|---------|------|-----------|
+| #24 | Dual-import shim can be displaced by a top-level `provenance.py` in a consumer project | `primitives/python/{marked,audit}.py` | v0.7.0 |
+
+A separate totality-parity bug (`audit_meta` throws on falsy-but-not-`None`
+input; GH #80) is scheduled for v0.4.1.
 
 ---
 
