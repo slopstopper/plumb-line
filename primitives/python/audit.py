@@ -17,7 +17,7 @@ def audit_meta(meta):
     - ``"source over-claim:"`` — weakest_source cleaner than lineage proves
     - ``"taint dropped:"`` — a tainted lineage step but derived_from_mock is False
     - ``"unreproducible:"`` — source is ``"derived"`` but lineage is empty
-    - ``"missing meta"`` — None input
+    - ``"missing meta"`` — meta is None or not a dict
 
     Args:
         meta: Provenance metadata dict to audit, or None.
@@ -25,7 +25,7 @@ def audit_meta(meta):
     Returns:
         list[str]: Issue descriptions; empty means consistent.
     """
-    if meta is None:
+    if not isinstance(meta, dict):
         return ['missing meta']
     issues = []
     lineage = meta.get('lineage') if isinstance(meta.get('lineage'), list) else []

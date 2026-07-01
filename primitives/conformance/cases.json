@@ -111,6 +111,11 @@
       "name": "empty envelope — no issues",
       "meta": {},
       "expectContains": []
+    },
+    {
+      "name": "non-dict meta (falsy scalar) — missing meta (totality, SPEC §5)",
+      "meta": 0,
+      "expectContains": ["missing meta"]
     }
   ],
   "validate": [
