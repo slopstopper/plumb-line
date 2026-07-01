@@ -9,8 +9,13 @@
 [![npm](https://img.shields.io/npm/v/plumb-line-provenance?logo=npm)](https://www.npmjs.com/package/plumb-line-provenance)
 [![PyPI](https://img.shields.io/pypi/v/plumb-line-provenance?logo=pypi&logoColor=white)](https://pypi.org/project/plumb-line-provenance/)
 [![CI](https://github.com/effythealien/plumb-line/actions/workflows/ci.yml/badge.svg)](https://github.com/effythealien/plumb-line/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/effythealien/plumb-line/badge)](https://scorecard.dev/viewer/?uri=github.com/effythealien/plumb-line)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/plumb-line-provenance?logo=python&logoColor=white)](https://pypi.org/project/plumb-line-provenance/)
+[![node: >=16](https://img.shields.io/node/v/plumb-line-provenance?logo=node.js&logoColor=white&label=node)](https://www.npmjs.com/package/plumb-line-provenance)
+[![JS + Python](https://img.shields.io/badge/language-JS%20%2B%20Python-informational)](https://github.com/effythealien/plumb-line)
+[![zero deps](https://img.shields.io/badge/deps-0-brightgreen)](https://www.npmjs.com/package/plumb-line-provenance?activeTab=dependencies)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/plumb-line-provenance?label=minzipped&color=brightgreen)](https://bundlephobia.com/package/plumb-line-provenance)
 [![Issues](https://img.shields.io/github/issues/effythealien/plumb-line)](https://github.com/effythealien/plumb-line/issues)
 [![Socket](https://socket.dev/api/badge/npm/package/plumb-line-provenance)](https://socket.dev/npm/package/plumb-line-provenance)
 
