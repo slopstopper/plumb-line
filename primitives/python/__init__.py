@@ -12,7 +12,7 @@ try:  # installed as a package
         reset_step_counter,
     )
     from .marked import mark, unwrap, meta_of, derive
-    from .audit import audit_meta
+    from .audit import audit_meta, validate_envelope
 except ImportError:  # flat usage (modules on sys.path)
     from provenance import (
         PROVENANCE_VERSION, STATUS, CONFIDENCE,
@@ -21,13 +21,13 @@ except ImportError:  # flat usage (modules on sys.path)
         reset_step_counter,
     )
     from marked import mark, unwrap, meta_of, derive
-    from audit import audit_meta
+    from audit import audit_meta, validate_envelope
 
 __all__ = [
     'PROVENANCE_VERSION', 'STATUS', 'CONFIDENCE',
     'make_meta', 'weakest_confidence', 'weakest_source',
     'is_score', 'combine_confidence_score', 'taints', 'combine_provenance',
-    'mark', 'unwrap', 'meta_of', 'derive', 'audit_meta',
+    'mark', 'unwrap', 'meta_of', 'derive', 'audit_meta', 'validate_envelope',
 ]
 # reset_step_counter is intentionally excluded from __all__: it is test-only
 # infrastructure. Import it directly from .provenance when needed in test suites.

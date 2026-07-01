@@ -5,14 +5,20 @@ The provenance/lineage primitive ships in JavaScript (`primitives/js/`) and Pyth
 must behave identically in both. This file records the shared case table verified
 against both implementations.
 
-Suites: JS `npx vitest run` → 63/63; Python `python3 -m pytest` → 45/45.
+Suites: JS `npx vitest run` → 89/89; Python `python3 -m pytest` → 59/59.
 
 **Parity is enforced by data, not prose.** `primitives/conformance/cases.json` is
 a single language-neutral case table; `primitives/js/conformance.test.mjs` and
 `primitives/python/tests/test_conformance.py` both load it and assert identical
-combine/audit results. Adding a row covers both languages at once, and a
+combine/audit/validate results. Adding a row covers both languages at once, and a
 divergence fails one suite. The table below is the human-readable summary; the
 JSON is the contract.
+
+The table has three case kinds: `combine` (the law), `audit` (logical
+consistency), and `validate` (structural field-presence — the `validateEnvelope`
+/ `validate_envelope` checker added in v0.4.0). Both checkers report the four
+required fields by their canonical camelCase names in both languages, so the
+conformance needles match verbatim.
 
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |

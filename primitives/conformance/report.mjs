@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import {
   combineProvenance,
   auditMeta,
+  validateEnvelope,
   __resetStepCounter,
   PROVENANCE_VERSION,
 } from "../js/index.mjs";
@@ -35,8 +36,9 @@ function runCombine(c) {
   return null;
 }
 
-function runAudit(c) {
-  const issues = auditMeta(c.meta);
+// Shared by audit and validate: both return an issue-string list and assert on
+// substring presence (or emptiness).
+function runIssueList(issues, c) {
   if (c.expectContains.length === 0) {
     if (issues.length !== 0) return `expected no issues, got ${JSON.stringify(issues)}`;
   } else {
@@ -50,7 +52,8 @@ function runAudit(c) {
 
 const results = [
   ...cases.combine.map((c) => ({ kind: "combine", name: c.name, error: runCombine(c) })),
-  ...cases.audit.map((c) => ({ kind: "audit", name: c.name, error: runAudit(c) })),
+  ...cases.audit.map((c) => ({ kind: "audit", name: c.name, error: runIssueList(auditMeta(c.meta), c) })),
+  ...cases.validate.map((c) => ({ kind: "validate", name: c.name, error: runIssueList(validateEnvelope(c.meta), c) })),
 ];
 
 const failed = results.filter((r) => r.error);

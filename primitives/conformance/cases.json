@@ -112,5 +112,56 @@
       "meta": {},
       "expectContains": []
     }
+  ],
+  "validate": [
+    {
+      "name": "complete envelope — all four required fields present and well-typed",
+      "meta": { "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "expectContains": []
+    },
+    {
+      "name": "complete envelope with optional fields and populated lineage — valid",
+      "meta": {
+        "source": "derived", "confidence": "low", "derivedFromMock": true,
+        "confidenceScore": 0.2, "weakestSource": "mock",
+        "lineage": [ { "id": "s1", "of": "input", "source": "mock", "confidence": "low", "derivedFromMock": true } ]
+      },
+      "expectContains": []
+    },
+    {
+      "name": "empty envelope — all four required fields missing",
+      "meta": {},
+      "expectContains": [
+        "required field: source",
+        "required field: confidence",
+        "required field: derivedFromMock",
+        "required field: lineage"
+      ]
+    },
+    {
+      "name": "missing one field — lineage absent",
+      "meta": { "source": "real", "confidence": "high", "derivedFromMock": false },
+      "expectContains": ["required field: lineage"]
+    },
+    {
+      "name": "wrong type — lineage is not an array",
+      "meta": { "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": "nope" },
+      "expectContains": ["field 'lineage' must be"]
+    },
+    {
+      "name": "wrong type — derivedFromMock is not a boolean",
+      "meta": { "source": "real", "confidence": "high", "derivedFromMock": "false", "lineage": [] },
+      "expectContains": ["field 'derivedFromMock' must be"]
+    },
+    {
+      "name": "null envelope — missing meta",
+      "meta": null,
+      "expectContains": ["missing meta"]
+    },
+    {
+      "name": "non-object envelope — not an envelope at all",
+      "meta": "not an envelope",
+      "expectContains": ["not an envelope object"]
+    }
   ]
 }

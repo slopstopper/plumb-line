@@ -9,7 +9,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **`validateEnvelope` / `validate_envelope` — a structural field-presence
+  checker** (P7), the complement to `auditMeta`. The audit checks logical
+  consistency among *present* fields and tolerates absence as "unknown" (SPEC
+  §2), so a structurally empty `{}` audits clean; the new validator checks that
+  the four required fields (`source`, `confidence`, `derivedFromMock`, `lineage`)
+  are present and well-typed. Same list-of-issue-strings shape, equally total
+  (`null`/non-object yield a list, never throw). Specified in SPEC §5a; pinned by
+  a `validate` case kind in the conformance suite (now run by `report.mjs` too)
+  and verified in both languages. The envelope wire format is unchanged —
+  `PROVENANCE_VERSION` stays `1`. Promotes the README maturity row `planned` →
+  `current`. [#27](https://github.com/effythealien/plumb-line/issues/27)
 
 ## [0.3.1] — 2026-07-01
 

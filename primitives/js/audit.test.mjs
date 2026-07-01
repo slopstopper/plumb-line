@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { auditMeta } from "./audit.mjs";
+import { auditMeta, validateEnvelope } from "./audit.mjs";
 import { mark, derive, metaOf } from "./marked.mjs";
 import { __resetStepCounter } from "./provenance.mjs";
 
@@ -125,5 +125,54 @@ describe("auditMeta", () => {
       lineage: [{ id: "s1", derivedFromMock: false }],
     };
     expect(auditMeta(meta).join(" ")).not.toMatch(/over-claiming/);
+  });
+});
+
+describe("validateEnvelope", () => {
+  const VALID = {
+    source: "real",
+    confidence: "high",
+    derivedFromMock: false,
+    lineage: [],
+  };
+
+  it("is silent on a complete, well-typed envelope", () => {
+    expect(validateEnvelope(VALID)).toEqual([]);
+  });
+
+  it("is the structural complement to auditMeta: flags {} that auditMeta passes", () => {
+    // auditMeta({}) is [] (no claims to contradict); validateEnvelope reports
+    // all four required fields missing. The two checkers are complementary.
+    expect(auditMeta({})).toEqual([]);
+    const issues = validateEnvelope({});
+    expect(issues).toHaveLength(4);
+    for (const f of ["source", "confidence", "derivedFromMock", "lineage"]) {
+      expect(issues.join(" ")).toContain(`required field: ${f}`);
+    }
+  });
+
+  it("flags a single missing required field", () => {
+    const { lineage, ...noLineage } = VALID;
+    expect(validateEnvelope(noLineage).join(" ")).toContain(
+      "required field: lineage",
+    );
+  });
+
+  it("flags a present-but-wrong-type field", () => {
+    expect(validateEnvelope({ ...VALID, lineage: "nope" }).join(" ")).toContain(
+      "field 'lineage' must be",
+    );
+    expect(
+      validateEnvelope({ ...VALID, derivedFromMock: "false" }).join(" "),
+    ).toContain("field 'derivedFromMock' must be");
+  });
+
+  it("is total: returns a list (never throws) for null, undefined, and non-objects", () => {
+    expect(validateEnvelope(null)).toEqual(["missing meta"]);
+    expect(validateEnvelope(undefined)).toEqual(["missing meta"]);
+    expect(validateEnvelope("nope").join(" ")).toContain(
+      "not an envelope object",
+    );
+    expect(validateEnvelope([]).join(" ")).toContain("not an envelope object");
   });
 });

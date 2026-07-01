@@ -180,6 +180,27 @@ issues = audit_meta(meta_of(total))
 assert issues == [], f"provenance inconsistency: {issues}"
 ```
 
+### Structural validation — the complement
+
+`auditMeta` checks the *logic* among the fields that are present, and treats an
+absent field as "unknown" (SPEC §2). That is deliberate, but it means a
+structurally empty envelope `{}` passes the audit — there are no claims to
+contradict. `validateEnvelope(meta)` (JS) / `validate_envelope(meta)` (Python) is
+the structural complement: it checks that the four **required** fields (`source`,
+`confidence`, `derivedFromMock`, `lineage`) are present and well-typed, returning
+the same list-of-issue-strings shape (empty = structurally valid). Like the
+audit, it is total — `null`/`None` and non-objects yield a list, never an
+exception. Run `validateEnvelope` at trust boundaries (deserialized input,
+cross-service envelopes); run `auditMeta` to check the claims once the shape is
+known good.
+
+```js
+import { validateEnvelope } from "./primitives/js/index.mjs";
+
+const structural = validateEnvelope(incoming); // [] if all required fields present
+if (structural.length) throw new Error(`malformed envelope: ${structural}`);
+```
+
 ---
 
 ## Status
@@ -191,6 +212,6 @@ assert issues == [], f"provenance inconsistency: {issues}"
 | Optional numeric confidence + weakest-source resolution | current |
 | Cross-language conformance suite (`conformance/`)       | current |
 | AST-level static lint rule (`adapters/*/provenance-lint`) | current |
+| `validateEnvelope` structural field-presence checker    | current |
 | Per-output `PROVENANCE_VERSION` embedding in envelopes  | planned |
-| `validateEnvelope` structural field-presence checker    | planned |
 | Bootstrap / ruleset wiring for host projects            | planned |

@@ -77,3 +77,34 @@ export function auditMeta(meta) {
 
   return issues;
 }
+
+// The four required fields (SPEC §1) and their type predicates, in the order
+// they appear in the envelope table.
+const REQUIRED_FIELDS = [
+  ["source", (v) => typeof v === "string", "a string"],
+  ["confidence", (v) => typeof v === "string", "a string"],
+  ["derivedFromMock", (v) => typeof v === "boolean", "a boolean"],
+  ["lineage", (v) => Array.isArray(v), "an array"],
+];
+
+// validateEnvelope — the *structural* checker, complementary to auditMeta.
+// auditMeta verifies logical consistency among the fields that ARE present and
+// tolerates absence as "unknown" (SPEC §2); it therefore passes a structurally
+// empty `{}`. validateEnvelope verifies the four required fields (SPEC §1) are
+// present and well-typed. Like auditMeta it is total: it returns a list of issue
+// strings (empty = structurally valid) and never throws.
+export function validateEnvelope(meta) {
+  if (meta === null || meta === undefined) return ["missing meta"];
+  if (typeof meta !== "object" || Array.isArray(meta)) {
+    return ["not an envelope object"];
+  }
+  const issues = [];
+  for (const [name, ok, typeLabel] of REQUIRED_FIELDS) {
+    if (!(name in meta)) {
+      issues.push(`missing required field: ${name}`);
+    } else if (!ok(meta[name])) {
+      issues.push(`field '${name}' must be ${typeLabel}`);
+    }
+  }
+  return issues;
+}

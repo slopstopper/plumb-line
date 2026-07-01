@@ -1,6 +1,6 @@
 # plumb-line Provenance Envelope — Specification
 
-**Status:** current · **Envelope schema version:** 1 · **SPEC revision:** 1.1
+**Status:** current · **Envelope schema version:** 1 · **SPEC revision:** 1.2
 
 This is the normative, language-neutral definition of the provenance envelope,
 the conservative-combination law, and the consistency checks. Any implementation
@@ -160,6 +160,30 @@ The checker MUST be total: a missing or malformed field MUST yield a result list
 (possibly noting the problem), never an exception. A `null`/`None` envelope MUST
 return a single "missing meta" issue. An empty envelope `{}` MUST return `[]`.
 
+### 5a. Structural validation
+
+The audit above checks the *logic* of the claims an envelope makes and treats an
+absent field as "unknown" (§2) — so a structurally empty `{}` audits clean
+(`[]`), because it asserts nothing to contradict. The audit therefore does **not**
+verify that the four required fields (§1) are present.
+
+An implementation MUST also provide a structural validator
+(`validateEnvelope` / `validate_envelope`) that takes one envelope and returns a
+list of issue strings — empty meaning structurally valid. It MUST detect:
+
+- each of the four required fields (`source`, `confidence`, `derivedFromMock`,
+  `lineage`) that is **absent**; and
+- each required field that is **present but of the wrong type** (`source` and
+  `confidence` MUST be strings, `derivedFromMock` a boolean, `lineage` an array).
+
+Like the audit, the validator MUST be total: a `null`/`None` envelope MUST return
+a single `"missing meta"` issue, and a non-object (string, number, array) MUST
+return a single `"not an envelope object"` issue, never an exception. The
+validator MUST NOT check enum membership of `source`/`confidence` (that is the
+audit's tolerant-of-unknown domain, §2) — its sole concern is required-field
+presence and type. The two checkers are complementary and independent: an
+envelope MAY pass one and fail the other.
+
 ---
 
 ## 6. Static enforcement (review-time)
@@ -202,8 +226,10 @@ An implementation **conforms to envelope schema version 1** if, for every case i
 `conformance/cases.json`:
 
 - each `combine` case's output matches the expected fields and respects the
-  declared `absent` fields, and
+  declared `absent` fields,
 - each `audit` case's issue list contains the expected substrings (or is empty
+  when none are expected), and
+- each `validate` case's issue list contains the expected substrings (or is empty
   when none are expected).
 
 Conformance is verifiable mechanically — see [`conformance/`](conformance/) and

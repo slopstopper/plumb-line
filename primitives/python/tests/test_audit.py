@@ -80,3 +80,32 @@ def test_flags_source_over_claim():
     meta = {'source':'derived','confidence':'low','derived_from_mock':True,'weakest_source':'real',
             'lineage':[{'id':'s1','source':'mock','confidence':'low','derived_from_mock':True}]}
     assert any('source over-claim' in i for i in a.audit_meta(meta))
+
+VALID = {'source':'real','confidence':'high','derived_from_mock':False,'lineage':[]}
+
+def test_validate_silent_on_complete_envelope():
+    assert a.validate_envelope(VALID) == []
+
+def test_validate_is_structural_complement_to_audit():
+    # audit_meta({}) is [] (no claims to contradict); validate_envelope reports
+    # all four required fields missing. The two checkers are complementary.
+    assert a.audit_meta({}) == []
+    issues = a.validate_envelope({})
+    assert len(issues) == 4
+    for f in ('source', 'confidence', 'derivedFromMock', 'lineage'):
+        assert any(f'required field: {f}' in i for i in issues)
+
+def test_validate_flags_single_missing_field():
+    no_lineage = {k: v for k, v in VALID.items() if k != 'lineage'}
+    assert any('required field: lineage' in i for i in a.validate_envelope(no_lineage))
+
+def test_validate_flags_wrong_type():
+    assert any("field 'lineage' must be" in i
+               for i in a.validate_envelope({**VALID, 'lineage': 'nope'}))
+    assert any("field 'derivedFromMock' must be" in i
+               for i in a.validate_envelope({**VALID, 'derived_from_mock': 'false'}))
+
+def test_validate_is_total():
+    assert a.validate_envelope(None) == ['missing meta']
+    assert any('not an envelope object' in i for i in a.validate_envelope('nope'))
+    assert any('not an envelope object' in i for i in a.validate_envelope([]))

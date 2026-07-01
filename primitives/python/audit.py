@@ -58,3 +58,40 @@ def audit_meta(meta):
         issues.append('unreproducible: derived value has no lineage')
 
     return issues
+
+
+# The four required fields (SPEC §1) and their type predicates. Keys are the
+# Python (snake_case) envelope keys; the label is the canonical camelCase name
+# used in messages so conformance needles match JS verbatim (parity is the data
+# contract, not a prose promise).
+_REQUIRED_FIELDS = [
+    ('source', lambda v: isinstance(v, str), 'a string'),
+    ('confidence', lambda v: isinstance(v, str), 'a string'),
+    ('derived_from_mock', lambda v: isinstance(v, bool), 'a boolean'),
+    ('lineage', lambda v: isinstance(v, list), 'an array'),
+]
+_FIELD_LABEL = {'derived_from_mock': 'derivedFromMock'}
+
+
+def validate_envelope(meta):
+    """The *structural* checker, complementary to audit_meta. Mirror of
+    validateEnvelope in audit.mjs.
+
+    audit_meta verifies logical consistency among the fields that ARE present
+    and tolerates absence as "unknown" (SPEC §2); it therefore passes a
+    structurally empty ``{}``. validate_envelope verifies the four required
+    fields (SPEC §1) are present and well-typed. Like audit_meta it is total: it
+    returns a list of issue strings (empty = structurally valid), never raises.
+    """
+    if meta is None:
+        return ['missing meta']
+    if not isinstance(meta, dict):
+        return ['not an envelope object']
+    issues = []
+    for key, ok, type_label in _REQUIRED_FIELDS:
+        label = _FIELD_LABEL.get(key, key)
+        if key not in meta:
+            issues.append(f'missing required field: {label}')
+        elif not ok(meta[key]):
+            issues.append(f"field '{label}' must be {type_label}")
+    return issues

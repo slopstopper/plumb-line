@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { combineProvenance, __resetStepCounter } from "./provenance.mjs";
-import { auditMeta } from "./audit.mjs";
+import { auditMeta, validateEnvelope } from "./audit.mjs";
 
 const cases = JSON.parse(
   readFileSync(
@@ -34,6 +34,21 @@ describe("conformance — audit", () => {
   for (const c of cases.audit) {
     it(c.name, () => {
       const issues = auditMeta(c.meta);
+      if (c.expectContains.length === 0) {
+        expect(issues).toEqual([]);
+      } else {
+        for (const needle of c.expectContains) {
+          expect(issues.some((i) => i.includes(needle))).toBe(true);
+        }
+      }
+    });
+  }
+});
+
+describe("conformance — validate", () => {
+  for (const c of cases.validate) {
+    it(c.name, () => {
+      const issues = validateEnvelope(c.meta);
       if (c.expectContains.length === 0) {
         expect(issues).toEqual([]);
       } else {
