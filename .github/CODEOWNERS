@@ -1,0 +1,24 @@
+# Code owners for plumb-line.
+# Every PR requests review from the owner(s) below for the paths they match.
+# Last match wins, so more specific rules go further down.
+#
+# Note: with a single maintainer, CODEOWNERS documents ownership and satisfies
+# OpenSSF Scorecard's Branch-Protection / Code-Review signals; it does not (and
+# cannot) force a second human reviewer on a solo repo.
+
+# Default owner for everything in the repo.
+*                           @effythealien
+
+# The published product — provenance library + its formal contract.
+/primitives/                @effythealien
+/adapters/                  @effythealien
+
+# Review-time skills and the principles they enforce.
+/skills/                    @effythealien
+/reference/                 @effythealien
+
+# Supply-chain surface: CI, release, and Scorecard workflows.
+/.github/                   @effythealien
+
+# Durable decisions — append-only, extra scrutiny.
+/docs/adr/                  @effythealien
