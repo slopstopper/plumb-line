@@ -5,6 +5,14 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Bundle all action bumps into one PR. codeql-action's init/analyze steps
+    # must move in lockstep (analyze rejects a config written by a different
+    # init version); ungrouped, Dependabot split them into two PRs that each
+    # failed with a version mismatch. Grouping keeps coupled actions together.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   # npm: published provenance primitive
   - package-ecosystem: "npm"
