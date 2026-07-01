@@ -59,7 +59,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: install test deps
-        run: pip install -r requirements-test.txt
+        # --require-hashes: every dep (incl. transitive) must match a hash in
+        # the lock, so a compromised index cannot swap in a tampered wheel.
+        run: pip install --require-hashes -r requirements-test.txt
       - name: primitives/python — provenance primitive
         working-directory: primitives/python
         run: python -m pytest -q
@@ -72,7 +74,9 @@ jobs:
       # --- publish npm via OIDC trusted publishing (requires npm >= 11.5.1;
       #     publishes provenance attestations by default) ---
       - name: Update npm (trusted publishing needs >= 11.5.1)
-        run: npm install -g npm@latest
+        # Pinned (not @latest) so the release toolchain is deterministic; bump
+        # deliberately. 11.18.0 satisfies the >= 11.5.1 trusted-publishing floor.
+        run: npm install -g npm@11.18.0
       - name: Publish to npm
         working-directory: primitives/js
         run: npm publish --provenance
