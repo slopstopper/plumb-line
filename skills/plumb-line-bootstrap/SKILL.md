@@ -110,7 +110,7 @@ shape differs, add a one-line shim rather than assuming it matches.
 ## Step 5 — Report (audit format)
 
 Open with the same **required header block** as the audit format (`report-format:
-v1`, `scope`, `principles-revision`, `date`, `commit` — see
+v2`, `scope`, `principles-revision`, `date`, `commit` — see
 `skills/plumb-line-audit/SKILL.md`). For a bootstrap run `scope` is the project
 being wired, and add one line — `adapter: <name>` — recording the adapter used.
 

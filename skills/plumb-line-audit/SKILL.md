@@ -80,21 +80,61 @@ honest on small or early repos while still catching the dropped-field regression
 - Default to under-claiming: if unsure a finding is real, mark it "needs review",
   not "violation".
 
-## Report (audit format)
+## Report (audit format) — report-format v2
 
-Open every report with the **required header block** below, verbatim keys, so a
-stored report is reproducible — a reader (or a re-run) knows exactly what was
-audited, against which rules, at which commit:
+Every report has three parts in this order: **header**, **glossary**, **findings
+table**. The shape is fixed — same input, same shape, every run (the audit owes
+its own output the reproducibility it demands of the code it reviews).
+
+**1. Header block** — verbatim keys, so a stored report is reproducible:
 
 ```
-report-format: v1
+report-format: v2
 scope:               <path, diff range, or "repository">
 principles-revision: <the "Principles revision" from reference/portable-principles.md>
 date:                <YYYY-MM-DD>
 commit:              <git SHA of the audited tree, or "working tree (uncommitted)">
 ```
 
-Then, for each finding: file:line, the principle (Pn), one-line description, and
-a suggested direction (not a patch). End with a one-line summary count. If the
-repo is clean, say so plainly — a clean result is a valid result (the header is
-still required).
+**2. Principle glossary** — one line per principle *referenced anywhere in this
+report*, emitted before the findings, so a reader never meets a bare code
+(explain before use). Names come from `reference/portable-principles.md` — do not
+paraphrase. Omit principles this report does not cite; on a clean run the glossary
+may be empty. Example (include only the rows you cite):
+
+```
+P1 — Source-truth layer      P4 — Quarantined fakery   P7 — Contracted outputs
+P2 — One-way layering        P5 — Injectable priors    P8 — State-first lineage
+P3 — Confidence + provenance P6 — Maturity vocabulary  P9 — Golden baseline + explain-the-drift
+spine — null-result expressibility
+```
+
+Every `P#` reference elsewhere in the report renders with its name inline
+(`P3 — Confidence + provenance`), never a bare `P3`.
+
+**3. Findings table** — ALWAYS this table, never freeform prose. One row per
+finding, columns in this exact order:
+
+| Path | Line | Function | Issue | Suggested Fix | Principle |
+| ---- | ---- | -------- | ----- | ------------- | --------- |
+| `src/foo.py` | 42 | `load_scores` | mock value given a `real` source | tag via `derive`, keep `derivedFromMock` | P3 — Confidence + provenance |
+
+- **Path** — repo-relative (never a bare basename; large repos have same-named files).
+- **Line** — line or range; `—` if not line-anchored.
+- **Function** — enclosing function/symbol, or `—`.
+- **Issue** — one-line description.
+- **Suggested Fix** — a direction, not a patch.
+- **Principle** — the inline-named principle (`P#  — <name>`).
+
+End with a one-line summary count (e.g. `4 findings: 2 violations, 2 needs-review`).
+A clean repo still emits the header, an empty/omitted glossary, and an explicit
+`No findings.` line in place of table rows — a clean result is a valid result.
+
+The omission-pass enumeration table (in the Method section) is a separate
+artifact and keeps its own columns; its `P#` references also render inline-named.
+
+**Report file — always offer, never auto-write.** Print the full report
+(header + glossary + table + summary) to the conversation every run. Then, and
+only then, ask whether to save it to `plumb-line-audit.md`; write the file solely
+on an explicit yes. Never write it without asking — repeated runs on the same
+input MUST produce the same file-write behavior.
