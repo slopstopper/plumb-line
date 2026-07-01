@@ -28,11 +28,31 @@ body:
         - Both
     validations:
       required: true
-  - type: input
-    id: context
+  - type: dropdown
+    id: domain
     attributes:
-      label: Domain & rough size
-      description: 'e.g. "data/ML pipeline, ~20k LoC" — tells me which kind of project this validates.'
+      label: Domain
+      description: Roughly what kind of project is this? Tells me which use case plumb-line validates. Pick "Other" and fill in the next field if none fit.
+      options:
+        - Web app / API backend
+        - Data / ML pipeline
+        - Data engineering / ETL
+        - CLI tool / developer tooling
+        - Library / SDK
+        - Scientific / research computing
+        - Finance / analytics
+        - Infrastructure / DevOps
+        - Other
+  - type: input
+    id: domain_other
+    attributes:
+      label: Domain — if "Other"
+      description: Only if you picked "Other" above.
+  - type: input
+    id: loc
+    attributes:
+      label: Approximate lines of code
+      description: 'Rough order of magnitude is fine — e.g. "~20k".'
   - type: input
     id: version
     attributes:
@@ -60,6 +80,11 @@ body:
       label: Bugs / errors
       description: Stack traces or surprising behavior, with a minimal repro if you can.
       render: shell
+  - type: textarea
+    id: anything_else
+    attributes:
+      label: Anything else?
+      description: Any other feedback, ideas, or context that didn't fit above.
   - type: checkboxes
     id: consent
     attributes:
