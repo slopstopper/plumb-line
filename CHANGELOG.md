@@ -22,6 +22,17 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
   `PROVENANCE_VERSION` stays `1`. Promotes the README maturity row `planned` →
   `current`. [#27](https://github.com/effythealien/plumb-line/issues/27)
 
+### Changed
+- **Audit and bootstrap reports now carry a reproducible header** (P7 + P8). Both
+  `plumb-line-audit` and `plumb-line-bootstrap` reports MUST open with a
+  `report-format: v1` header block — `scope`, `principles-revision`, `date`, and
+  `commit` — so a stored report names exactly what was audited, against which
+  rules, at which commit. `reference/portable-principles.md` gains a
+  **Principles revision** stamp (starting at `1`) for the header to cite, and the
+  audit harness protocol (`examples/AUDIT-EXPECTATIONS.md`) now scores a
+  missing/malformed header as a format failure independent of finding accuracy.
+  [#28](https://github.com/effythealien/plumb-line/issues/28)
+
 ## [0.3.1] — 2026-07-01
 
 ### Changed

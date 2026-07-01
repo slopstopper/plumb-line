@@ -109,5 +109,10 @@ shape differs, add a one-line shim rather than assuming it matches.
 
 ## Step 5 — Report (audit format)
 
-List every file created/modified, the adapter used, and any unanswered prompt
-left as a TODO for the builder. Label anything not done as `planned`.
+Open with the same **required header block** as the audit format (`report-format:
+v1`, `scope`, `principles-revision`, `date`, `commit` — see
+`skills/plumb-line-audit/SKILL.md`). For a bootstrap run `scope` is the project
+being wired, and add one line — `adapter: <name>` — recording the adapter used.
+
+Then list every file created/modified, the adapter used, and any unanswered
+prompt left as a TODO for the builder. Label anything not done as `planned`.

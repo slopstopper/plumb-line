@@ -82,6 +82,19 @@ honest on small or early repos while still catching the dropped-field regression
 
 ## Report (audit format)
 
-For each finding: file:line, the principle (Pn), one-line description, and a
-suggested direction (not a patch). End with a one-line summary count. If the
-repo is clean, say so plainly — a clean result is a valid result.
+Open every report with the **required header block** below, verbatim keys, so a
+stored report is reproducible — a reader (or a re-run) knows exactly what was
+audited, against which rules, at which commit:
+
+```
+report-format: v1
+scope:               <path, diff range, or "repository">
+principles-revision: <the "Principles revision" from reference/portable-principles.md>
+date:                <YYYY-MM-DD>
+commit:              <git SHA of the audited tree, or "working tree (uncommitted)">
+```
+
+Then, for each finding: file:line, the principle (Pn), one-line description, and
+a suggested direction (not a patch). End with a one-line summary count. If the
+repo is clean, say so plainly — a clean result is a valid result (the header is
+still required).
