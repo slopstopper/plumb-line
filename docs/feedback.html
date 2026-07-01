@@ -63,8 +63,25 @@
       <option>Both</option>
     </select>
 
-    <label for="context">Domain &amp; rough size <span class="hint">e.g. "data/ML pipeline, ~20k LoC"</span></label>
-    <input type="text" id="context" name="context" />
+    <label for="domain">Domain <span class="hint">roughly what kind of project — pick "Other" to type your own</span></label>
+    <select id="domain" name="domain">
+      <option value="" disabled selected>Select one…</option>
+      <option>Web app / API backend</option>
+      <option>Data / ML pipeline</option>
+      <option>Data engineering / ETL</option>
+      <option>CLI tool / developer tooling</option>
+      <option>Library / SDK</option>
+      <option>Scientific / research computing</option>
+      <option>Finance / analytics</option>
+      <option>Infrastructure / DevOps</option>
+      <option value="Other">Other</option>
+    </select>
+
+    <label for="domain_other">Domain — other <span class="hint">if you picked "Other" above, or nothing fits, type it here</span></label>
+    <input type="text" id="domain_other" name="domain_other" />
+
+    <label for="loc">Approximate lines of code <span class="hint">rough order of magnitude — e.g. "~20k"</span></label>
+    <input type="text" id="loc" name="loc" />
 
     <label for="version">Version tested <span class="hint">package version, or git tag / SHA</span></label>
     <input type="text" id="version" name="version" />
@@ -80,6 +97,9 @@
 
     <label for="bugs">Bugs / errors <span class="hint">stack traces or surprising behavior, with a minimal repro</span></label>
     <textarea id="bugs" name="bugs" class="code"></textarea>
+
+    <label for="anything_else">Anything else? <span class="hint">any other feedback, ideas, or context that didn't fit above</span></label>
+    <textarea id="anything_else" name="anything_else"></textarea>
 
     <div class="checks">
       <label><input type="checkbox" name="may_quote" value="yes" /> You may quote this feedback / name me as an early user.</label>
