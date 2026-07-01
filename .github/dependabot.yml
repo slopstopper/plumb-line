@@ -17,3 +17,9 @@ updates:
     directory: "/adapters/js"
     schedule:
       interval: "weekly"
+
+  # pip: pinned test/release dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
