@@ -149,3 +149,26 @@ Run as Part 2 of the `docs/release-harness.md` cycle.
 | G1 | `primitives/SPEC.md` §1 + zero-input fix | P6 / governance | By the letter of SPEC §1, changing the combination law's result for an existing case MUST bump `PROVENANCE_VERSION`; the zero-input fix does exactly that while staying at v1. The SPEC asserted a rule the diff appeared to violate (and the header still claimed "stable — no breaking changes planned"). | **Fixed in place.** Amended SPEC §1 with a narrow carve-out: correcting a result another normative section already flags as inconsistent is a *conformance fix*, not breaking, and MUST NOT bump the version (guarded by mandatory CHANGELOG + ADR + conformance case). Recorded in [ADR-0008](adr/0008-zero-input-conformance-fix-no-wire-bump.md). Dropped the header maturity over-claim. `PROVENANCE_VERSION` stays `1`; v0.3.1 stays a patch. |
 
 No deferrals this cycle.
+
+## v0.4.0 dogfood self-audit
+
+Date: 2026-07-01 · Version: v0.4.0 · Diff: `v0.3.1..HEAD` (`881f3fd`)
+Applied `plumb-line-audit` to the v0.4.0 method-surface diff (the new
+`validateEnvelope`/`validate_envelope` checker + conformance `validate` kind, the
+`report-format: v1` header, the `basis` convention docs, and the SPEC changes).
+Non-blocking per `docs/release-harness.md`.
+
+**Verified clean (no finding):** `validateEnvelope`/`validate_envelope` are at
+full parity — identical messages, canonical camelCase field labels in both
+languages, both total; conformance report 23/23. SPEC §5a and §4 are internally
+coherent with the implementations (validator checks presence + type only, not
+enum membership; `basis` is advisory everywhere it appears). The `report-format:
+v1` header block is consistent across both skills and cites the new
+`Principles revision: 1` stamp. README maturity flip `planned → current` is
+earned, not an over-claim (P6).
+
+| # | Location | Principle | Finding | Resolution |
+| - | -------- | --------- | ------- | ---------- |
+| G1 | `primitives/PARITY.md:8` | P8 / P9 | Pinned suite count read `JS 89/89`, but the true figure is **98/98** — v0.4.0 adds the fast-check `property.test.mjs` (9 tests). The `89` was measured without `fast-check` installed, so that suite silently failed to import while vitest still printed "89 passed" — the number both undercounted and masked a non-running suite. | **Fixed in place.** Verified `npm ci && npx vitest run` → 98/98; corrected the count, added a reproduce-don't-hand-type note, and documented the fast-check dependency. |
+| G2 | `primitives/PARITY.md` / `property.test.mjs` | P6 / parity | Property tests (fast-check) are JS-only; Python has no `hypothesis` mirror, widening the JS/Python suite gap (98 vs 59). | **Fixed in place (documented).** Added a PARITY note that property tests are JS-only and sit *outside* the `cases.json` conformance contract — law/checker parity is still data-enforced. A Python hypothesis mirror is possible future work. |
+| G3 | `primitives/python/audit.py` | Spine (totality) | Pre-existing, **out of v0.4.0 scope**: `audit_meta` guards `if meta is None`, so a falsy-but-not-None input (`0`, `''`, `False`) falls through and raises `AttributeError`, whereas JS `auditMeta` guards `if (!meta)` and returns `["missing meta"]`. SPEC §5 requires the checker be total. The new `validate_envelope` does **not** share this gap. | **Deferred → [#80](https://github.com/effythealien/plumb-line/issues/80)** (`audit-deferral`). Not introduced by this release; tracked for a totality-parity fix + conformance case. |

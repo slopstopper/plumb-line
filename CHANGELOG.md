@@ -9,6 +9,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.4.0] — 2026-07-01
+
 ### Added
 - **`validateEnvelope` / `validate_envelope` — a structural field-presence
   checker** (P7), the complement to `auditMeta`. The audit checks logical
@@ -141,7 +145,8 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/effythealien/plumb-line/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/effythealien/plumb-line/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/effythealien/plumb-line/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/effythealien/plumb-line/compare/v0.1.0...v0.2.0

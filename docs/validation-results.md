@@ -271,3 +271,44 @@ satisfied. No FAIL outstanding → not release-blocking.
   latent lineage gap the previous cycle missed (cf. the v0.2.0 Python P8); the
   0.3.0 record cited a byte-identical run rather than running `clean/` fresh,
   which is why this surfaced now.
+
+## 0.4.0 release-harness record
+
+Date: 2026-07-01 · Version: v0.4.0 · Base commit: post-#79 `main` (`881f3fd`)
+Method-surface release (diff since v0.3.1 touches `skills/`,
+`reference/portable-principles.md`, and `primitives/`), so the harness applies.
+Run via `docs/release-harness.md`.
+
+**Deterministic layer (re-run fresh on the 0.4.0 tree):** all green — primitives
+**98 JS / 59 Py**, conformance parity **23/23** (`report.mjs` exit 0), fixture
+integrity **7/7**. Note: the JS count is **98**, not the `89` a partial run
+reports — the fast-check `property.test.mjs` suite (9 tests) only runs after
+`npm ci` installs the dev-dependency; without it vitest fails that file's import
+and exits non-zero while still printing "89 passed". Reproduce JS counts from a
+clean `npm ci && npx vitest run`. (Dogfood finding 1, fixed in `PARITY.md`.)
+
+**Blind validation layer (fresh run, not cited):** dispatched 6 independent
+read-only auditors per the blind protocol — 2 per `broken/`, 1 per `clean/`.
+
+| Fixture | Runs | Result |
+| ------- | ---- | ------ |
+| `js-payments-service/broken`  | 2 | **PASS** — both flagged all three planted (P2 `rates.js` upward import, P5 `pricing.js` hardcoded `FEE`, P3/P8 `gateway.js` missing provenance + lineage) |
+| `python-data-pipeline/broken` | 2 | **PASS** — both flagged all three planted (P2 `schema.py` upward import, P5 `aggregate.py` hardcoded `SIGNAL_THRESHOLD`, P8 `source.py` missing lineage) |
+| `js-payments-service/clean`   | 1 | **PASS** — zero confirmed violations |
+| `python-data-pipeline/clean`  | 1 | **PASS** — zero confirmed violations; lineage-bearing output correctly carries full `lineage` |
+
+**No FAIL — no waiver needed.** All four `broken/` auditors independently caught
+every planted violation, including the P8 lineage-omission regression the harness
+exists to guard. Both `clean/` auditors reported zero confirmed violations. This
+is the first clean sweep with the js-clean fixture already carrying full lineage
+(the 0.3.1 gap fixed in that cycle held).
+
+**Calibration notes (honest false-positive accounting):**
+- Both `clean/` variants raised **P7 (no output contract)** and **P9 (no golden
+  baseline)** as *advisory adoption gaps* (reported once, never per-output), plus
+  minor **needs-review** notes (a spine `accepted:true`/binary-confidence surface,
+  a P6 "simulated" vs `mock` vocabulary nit). All expected and allowed — no
+  confirmed violation on either clean tree.
+- **Live confirmation of the #28 change:** every one of the 6 auditors emitted a
+  well-formed `report-format: v1` header (scope, `principles-revision: 1`, date,
+  commit) — the new report format is followable in practice, not just on paper.
