@@ -1,0 +1,9 @@
+# Direct test/build dependencies for plumb-line CI.
+# pytest is pinned to 8.4.2 deliberately: pytest >=9 requires Python >=3.10 and
+# would drop our supported Python 3.9 runtime. Do not bump past 8.x.
+# Compile the hashed lock with:
+#   uv pip compile requirements-test.in --generate-hashes --universal \
+#       --python-version 3.9 -o requirements-test.txt
+pytest==8.4.2
+import-linter==2.5.2
+build==1.4.4

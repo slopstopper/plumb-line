@@ -63,7 +63,9 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install test deps
-        run: pip install -r requirements-test.txt
+        # --require-hashes: every dep (incl. transitive) must match a hash in
+        # the lock, so a compromised index cannot swap in a tampered wheel.
+        run: pip install --require-hashes -r requirements-test.txt
       - name: primitives/python — provenance primitive
         working-directory: primitives/python
         run: python -m pytest -q
