@@ -312,3 +312,38 @@ is the first clean sweep with the js-clean fixture already carrying full lineage
 - **Live confirmation of the #28 change:** every one of the 6 auditors emitted a
   well-formed `report-format: v1` header (scope, `principles-revision: 1`, date,
   commit) — the new report format is followable in practice, not just on paper.
+
+## 0.4.1 release-harness record
+
+Date: 2026-07-02 · Version: v0.4.1 · Base: `cb86e06` (main after #97/#100) ·
+Method-surface diff since `v0.4.0`: `primitives/` (auditMeta/audit_meta totality
++ parity, #80), `skills/` (report-format v1→v2: glossary + canonical table +
+always-offer, #83/#84/#85), `reference/portable-principles.md`,
+`examples/AUDIT-EXPECTATIONS.md`.
+
+**Blind validation layer.** Dispatched independent read-only auditors per the
+blind protocol — 2 per `broken/`, and (after a FAIL signal) 3 on `js/clean`.
+
+| Fixture | Runs | Result |
+| ------- | ---- | ------ |
+| `js-payments-service/broken`  | 2 | **PASS** — both flagged all three planted (P2 `rates.js` upward import, P5 `pricing.js` hardcoded `FEE`, P3 `gateway.js` missing provenance/confidence; both also caught P8 lineage as an extra) |
+| `python-data-pipeline/broken` | 2 | **PASS** — both flagged all three planted (P2 `schema.py` upward import, P5 `aggregate.py` hardcoded `SIGNAL_THRESHOLD`, P8 `source.py` missing lineage) |
+| `python-data-pipeline/clean`  | 1 | **PASS** — zero confirmed violations; lineage-bearing output carries full `lineage` |
+| `js-payments-service/clean`   | 3 | **FAIL** — 2/3 runs over-claimed the stub's `submitPayment` `accepted:true` as a *confirmed* spine violation; 1/3 correctly kept it needs-review |
+
+**WAIVER (maintainer-recorded).** The `js/clean` FAIL is a spine calibration
+over-claim, not a v0.4.1 regression: the v0.4.0→HEAD skill diff changed only the
+report *format*, not the "default to under-claiming → needs-review" calibration
+(`SKILL.md:80`) or the spine handling. The v0.4.0 harness run landed the same
+surface as an allowed needs-review; the behaviour is non-deterministic
+calibration variance that predates this release. v0.4.1's own changes all
+validated (both `broken/` fixtures 2/2, `python/clean` clean, and every auditor
+emitted a well-formed `report-format: v2` header — live confirmation the new
+format is followable). Shipping 0.4.1; the calibration fix is tracked as
+[#101](https://github.com/effythealien/plumb-line/issues/101) (`audit-deferral`,
+milestone v0.5.0).
+
+**Live confirmation of the v0.4.1 change:** all 8 auditors emitted the
+`report-format: v2` header, the principle glossary, and the canonical findings
+table (`Path | Line | Function | Issue | Suggested Fix | Principle`) — the new
+report contract works in practice, not just on paper.

@@ -9,6 +9,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.4.1] — 2026-07-02
+
 ### Changed
 - **Audit report is now legible and deterministic** (`report-format: v1 → v2`):
   a principle glossary + inline principle names (no bare `P#`) opens every report
@@ -166,7 +170,8 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/effythealien/plumb-line/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/effythealien/plumb-line/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/effythealien/plumb-line/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/effythealien/plumb-line/compare/v0.2.0...v0.3.0

@@ -172,3 +172,25 @@ earned, not an over-claim (P6).
 | G1 | `primitives/PARITY.md:8` | P8 / P9 | Pinned suite count read `JS 89/89`, but the true figure is **98/98** — v0.4.0 adds the fast-check `property.test.mjs` (9 tests). The `89` was measured without `fast-check` installed, so that suite silently failed to import while vitest still printed "89 passed" — the number both undercounted and masked a non-running suite. | **Fixed in place.** Verified `npm ci && npx vitest run` → 98/98; corrected the count, added a reproduce-don't-hand-type note, and documented the fast-check dependency. |
 | G2 | `primitives/PARITY.md` / `property.test.mjs` | P6 / parity | Property tests (fast-check) are JS-only; Python has no `hypothesis` mirror, widening the JS/Python suite gap (98 vs 59). | **Fixed in place (documented).** Added a PARITY note that property tests are JS-only and sit *outside* the `cases.json` conformance contract — law/checker parity is still data-enforced. A Python hypothesis mirror is possible future work. |
 | G3 | `primitives/python/audit.py` | Spine (totality) | Pre-existing, **out of v0.4.0 scope**: `audit_meta` guards `if meta is None`, so a falsy-but-not-None input (`0`, `''`, `False`) falls through and raises `AttributeError`, whereas JS `auditMeta` guards `if (!meta)` and returns `["missing meta"]`. SPEC §5 requires the checker be total. The new `validate_envelope` does **not** share this gap. | **Deferred → [#80](https://github.com/effythealien/plumb-line/issues/80)** (`audit-deferral`). Not introduced by this release; tracked for a totality-parity fix + conformance case. |
+
+## v0.4.1 dogfood self-audit
+
+Date: 2026-07-02 · Version: v0.4.1 · Commit: `6adb54b` ·
+Scope: the method-surface diff `v0.4.0..HEAD` (`primitives/`, `skills/`,
+`reference/portable-principles.md`, `examples/AUDIT-EXPECTATIONS.md`, CHANGELOG,
+ADR-0009).
+
+**Result: clean — 0 violations, 2 needs-review (both benign on inspection).**
+
+| # | Location | Principle | Finding | Resolution |
+| - | -------- | --------- | ------- | ---------- |
+| H1 | `docs/adr/0009-…` (Consequences) | (process) | The residual JS `Map`/`Date`/class-instance divergence is explicitly named, filed as [#96](https://github.com/effythealien/plumb-line/issues/96) (`audit-deferral`), and reasoned as unencodable in `cases.json`. Not a finding — the deferral discipline worked as intended. | No action. |
+| H2 | `reference/portable-principles.md:11` | P9 (needs-review) | `principles-revision` stays `1` while report-format moves v1→v2. Defensible: the file scopes revision bumps to a principle's meaning/scope/vocabulary, and no principle wording changed; all surfaces moved to v2 in lockstep (no drift). | No change; judgment recorded here. |
+
+**Clean:** no laundered uncertainty (P3), boundary leaks (P2), hardcoded priors
+(P5), overstated maturity (P6 — CHANGELOG/ADR language is precise), missing
+lineage (P8 — no new outputs), or escaped fakery (P4). The auditor re-verified
+the parity gate live (`report.mjs` → 26/26, CONFORMANT).
+
+**Closure:** the v0.4.0 dogfood deferral **G3 → [#80](https://github.com/effythealien/plumb-line/issues/80)**
+(the `audit_meta` totality/parity gap) is the bug **fixed** in this release.
