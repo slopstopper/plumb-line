@@ -153,11 +153,16 @@ warning; unknown past versions are flagged.
 
 ### 6. Adopt the primitive from the skills (bootstrap + method)
 
-**Priority: medium** · Split into two tracked issues: the *offer* slice
-([#98](https://github.com/effythealien/plumb-line/issues/98), pulled earlier to
-**v0.5.0** — no schema dependency) and the *bundle* slice
+**Priority: medium** · Tracked as three issues across a skill-scoped split. The
+*offer* slice (**v0.5.0**, no schema dependency) is two issues by responsibility —
+**method** introduces the primitive + suggests getting it
+([#106](https://github.com/effythealien/plumb-line/issues/106)), **bootstrap**
+teaches how to use it in the user's codebase
+([#107](https://github.com/effythealien/plumb-line/issues/107)); the onboarding
+handoff between them is [#89](https://github.com/effythealien/plumb-line/issues/89).
+The *bundle* slice
 ([#99](https://github.com/effythealien/plumb-line/issues/99), **v0.6.0**, gated on
-the wire-v2 release).
+the wire-v2 release) makes that download frictionless.
 
 The `plumb-line-bootstrap` skill generates an `AGENTS.md` ruleset and installs
 enforcement adapters, but it does not wire the provenance primitive into the
@@ -168,18 +173,20 @@ primitive to adopt — the two halves stay decoupled and the value is left on th
 table.
 
 Close the gap from the skill side. The first two bullets are the *offer* slice
-([#98](https://github.com/effythealien/plumb-line/issues/98), v0.5.0 — no schema
-dependency, shippable now); the third is the *bundle* slice
+(v0.5.0 — no schema dependency, shippable now), split by skill responsibility;
+the third is the *bundle* slice
 ([#99](https://github.com/effythealien/plumb-line/issues/99), v0.6.0, gated on
 wire v2):
-- **Bootstrap:** after the interview, offer to scaffold `mark`/`derive` at the
-  exact call sites the answers surfaced (Q4 downstream values, Q8 lineage-bearing
-  outputs). Opt-in prompt, not silent wiring. Hook `validateEnvelope` into the
-  pre-commit gate so unmarked returns are caught before they reach review. (#98)
-- **Method:** when teaching P3 (confidence + provenance) or P8 (lineage), name
-  the runtime library as the concrete implementation, with the three-line
-  `mark`/`derive` example. A bounded softening of method's "takes no actions"
-  stance — mention, don't install. (#98)
+- **Method — introduce + suggest download:** when teaching P3 (confidence +
+  provenance) or P8 (lineage), name the runtime library as the concrete
+  implementation, with the three-line `mark`/`derive` example, and suggest how to
+  get it. A bounded softening of method's "takes no actions" stance — mention and
+  suggest, don't install. ([#106](https://github.com/effythealien/plumb-line/issues/106))
+- **Bootstrap — teach usage in the codebase:** after the interview, offer to
+  scaffold `mark`/`derive` at the exact call sites the answers surfaced (Q4
+  downstream values, Q8 lineage-bearing outputs) and teach the usage pattern.
+  Opt-in prompt, not silent wiring. Hook `validateEnvelope` into the pre-commit
+  gate so unmarked returns are caught before they reach review. ([#107](https://github.com/effythealien/plumb-line/issues/107))
 - **Bundle the primitive source in the plugin** so adoption needs no separate
   `npm`/`pip` step. The modules are zero-dependency and copy-pasteable (dual-import
   shim), so bootstrap can drop them in directly. Soft-depends on the wire-v2
