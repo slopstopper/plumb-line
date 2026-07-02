@@ -1,0 +1,31 @@
+#!/bin/sh
+# prepare-commit-msg — automatically add a DCO Signed-off-by trailer.
+#
+# Enable once per clone:
+#     git config core.hooksPath .githooks
+#
+# After that, every commit is signed off for you (equivalent to `git commit -s`),
+# so each contribution carries the Developer Certificate of Origin attestation
+# (see ./DCO and CONTRIBUTING.md). It does nothing if a matching sign-off is
+# already present, and skips merge commits.
+msg_file="$1"
+src="$2"
+
+# Leave merge-commit messages alone (the DCO CI check exempts merges too).
+[ "$src" = "merge" ] && exit 0
+
+name="$(git config user.name)"
+email="$(git config user.email)"
+
+# Without an identity we can't build a valid trailer; let the commit proceed and
+# the CI check (or `git commit -s`) surface the problem.
+if [ -z "$name" ] || [ -z "$email" ]; then
+  exit 0
+fi
+
+sob="Signed-off-by: $name <$email>"
+
+# Add it only if that exact line isn't already there (e.g. from `-s`).
+if ! grep -qiF -- "$sob" "$msg_file"; then
+  git interpret-trailers --in-place --trailer "$sob" "$msg_file"
+fi

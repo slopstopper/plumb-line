@@ -25,7 +25,8 @@ Every PR should:
 
 - be focused on a single change,
 - include a test that fails without the change (see [Running the tests](#running-the-tests)),
-- pass the full CI suite locally before submission, and
+- pass the full CI suite locally before submission,
+- have every commit signed off (DCO — see [Signing off your commits](#signing-off-your-commits-dco)), and
 - update [CHANGELOG.md](CHANGELOG.md) under `[Unreleased]` if it affects behaviour.
 
 ## Principles come first
@@ -98,8 +99,43 @@ Merging to `main` doesn't publish anything; releases are cut deliberately from
 version tags via the [release workflow](.github/workflows/release.yml). Shipped
 changes are recorded in [CHANGELOG.md](CHANGELOG.md).
 
+## Signing off your commits (DCO)
+
+Contributions are certified under the [Developer Certificate of Origin](DCO)
+(DCO 1.1) — the same lightweight mechanism the Linux kernel uses. You certify
+the DCO by adding a `Signed-off-by` trailer to each commit:
+
+```
+Signed-off-by: Your Name <your.email@example.com>
+```
+
+This is **not** a cryptographic signature and needs no keys — it is a plain text
+line asserting you have the right to submit the change under the project's
+[Apache-2.0](LICENSE) license. Git adds it for you with the `-s` flag:
+
+```bash
+git commit -s -m "fix: ..."
+```
+
+**Automatic sign-off (recommended).** Enable the bundled hook once per clone and
+every commit is signed off for you — no need to remember `-s`:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The name and email come from your `git config user.name` / `user.email`, so make
+sure those are set. CI enforces this: the **DCO** check
+([`.github/workflows/dco.yml`](.github/workflows/dco.yml)) fails a PR if any
+commit is missing a sign-off matching its author. To fix existing commits:
+
+```bash
+git rebase --signoff <base>..HEAD && git push --force-with-lease
+```
+
 ## License of contributions
 
 The project is licensed under [Apache-2.0](LICENSE). Unless you state otherwise,
 any contribution you intentionally submit for inclusion is provided under the
-same license, per Section 5 of Apache-2.0 — no separate agreement required.
+same license, per Section 5 of Apache-2.0 — no separate agreement required. The
+[DCO sign-off](#signing-off-your-commits-dco) records that agreement per commit.

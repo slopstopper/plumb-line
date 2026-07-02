@@ -31,8 +31,9 @@ Three deliverables landed on branch `claude/ossf-silver-badge-gaps-66wk27`:
 3. **Enforced lint** — an ESLint + Ruff CI job (`.github/workflows/ci.yml`).
    Closes `coding_standards_enforced` and `warnings_strict`.
 
-Remaining open items are all SHOULD/SUGGESTED (optional at Silver): `dco`,
-`bus_factor`, `version_tags_signed`.
+A follow-up change also adopts the **DCO** (sign-off + CI check + auto hook) —
+closes `dco`. Remaining open items are SHOULD/SUGGESTED: `bus_factor`,
+`version_tags_signed`.
 
 ---
 
@@ -40,7 +41,7 @@ Remaining open items are all SHOULD/SUGGESTED (optional at Silver): `dco`,
 
 | Area | State |
 | --- | --- |
-| Basics / oversight | ✅ governance, roles, continuity documented; ⚠️ `dco`, `bus_factor` optional & open |
+| Basics / oversight | ✅ governance, roles, continuity, DCO; ⚠️ `bus_factor` optional & open |
 | Documentation | ✅ all met |
 | Change control / reporting | ✅ all met |
 | Quality | ✅ coverage ≥80% gated, lint enforced, integration tests |
@@ -55,7 +56,7 @@ Remaining open items are all SHOULD/SUGGESTED (optional at Silver): `dco`,
 | --- | --- | --- |
 | `achieve_passing` | ✅ | Passing badge earned (#13453). |
 | `contribution_requirements` | ✅ | `CONTRIBUTING.md`: single-change focus, failing test required, CI + lint must pass, CHANGELOG update, coding-style + lint sections. |
-| `dco` | ⚠️ | No DCO sign-off. `CONTRIBUTING.md` § *License of contributions* relies on Apache-2.0 §5 (inbound = outbound) — a valid alternative; DCO is optional at Silver. |
+| `dco` | ✅ | DCO 1.1 adopted (`DCO` file); `Signed-off-by` required and enforced by `.github/workflows/dco.yml`; auto sign-off via `.githooks/prepare-commit-msg`. Documented in `CONTRIBUTING.md`. |
 | `governance` | ✅ | `GOVERNANCE.md` § *How decisions are made*. |
 | `code_of_conduct` | ✅ | `CODE_OF_CONDUCT.md` (Contributor Covenant), linked from CONTRIBUTING + GOVERNANCE. |
 | `roles_responsibilities` | ✅ | `GOVERNANCE.md` § *Roles and responsibilities* + `.github/CODEOWNERS`. |
@@ -156,9 +157,6 @@ Remaining open items are all SHOULD/SUGGESTED (optional at Silver): `dco`,
 
 ## Remaining optional items (allowed unmet at Silver)
 
-- **`dco` (SHOULD)** — to satisfy explicitly, enable the DCO GitHub App /
-  require `Signed-off-by`. Otherwise keep the Apache-§5 statement and answer
-  "Met" citing it, or "Unmet" with that justification.
 - **`bus_factor` (SHOULD)** — raise to ≥2 by adding a second maintainer; until
   then answer honestly (documented in `GOVERNANCE.md`).
 - **`version_tags_signed` (SUGGESTED)** — sign `v*` tags (GPG or Sigstore) in
@@ -175,7 +173,7 @@ leave unchecked (allowed for SHOULD/SUGGESTED).
 ### Basics
 - **achieve_passing** — Met. Passing badge earned.
 - **contribution_requirements** — Met. `CONTRIBUTING.md` states requirements for acceptable contributions (single focused change; a test that fails without it; CI + lint green; CHANGELOG update) and the coding style/lint rules.
-- **dco** — Unmet (optional). No DCO; contributions are Apache-2.0 inbound = outbound per `CONTRIBUTING.md` § License of contributions. (Or enable the DCO app to mark Met.)
+- **dco** — Met. DCO 1.1 adopted (`DCO` file); every commit requires a `Signed-off-by` trailer, enforced by the DCO CI check (`.github/workflows/dco.yml`) and added automatically by `.githooks/prepare-commit-msg`. Met-URL: link to `CONTRIBUTING.md` § Signing off your commits (DCO) or the DCO workflow.
 - **governance** — Met. `GOVERNANCE.md` documents the benevolent-maintainer model and how everyday, design, and architectural decisions are made (issues → PRs → ADRs).
 - **code_of_conduct** — Met. Contributor Covenant in `CODE_OF_CONDUCT.md`.
 - **roles_responsibilities** — Met. `GOVERNANCE.md` § Roles and responsibilities; ownership in `.github/CODEOWNERS`; path to becoming a maintainer documented.
