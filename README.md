@@ -31,6 +31,30 @@ plumb-line is for builders whose outputs are claims, where a silent mistake can 
 
 plumb-line enforces the same discipline at two moments. The **provenance primitive** applies it at run time, through a small library that makes uncertainty propagate across your actual calculations, so a tainted value can't quietly become a clean one. The **skills** apply it at review time, by loading the principles, generating a ruleset, and auditing a diff before it lands. Use either half alone, or both.
 
+## Install
+
+**As a Claude Code plugin (recommended).** The repository is its own plugin marketplace — this is the least-friction way in. From inside Claude Code:
+
+```
+/plugin marketplace add effythealien/plumb-line
+/plugin install plumb-line@plumb-line
+```
+
+The first command registers the repo as a marketplace; the second installs the three skills. Updates come through `/plugin`. To install manually instead, clone the repository and point Claude Code at the plugin directory, or add it under `plugins` in your `.claude/settings.json`:
+
+```bash
+git clone https://github.com/effythealien/plumb-line.git
+```
+
+**The provenance primitive** is a standalone library, independent of the plugin. Install it as `plumb-line-provenance` from npm or PyPI:
+
+```bash
+npm install plumb-line-provenance      # JavaScript
+pip install plumb-line-provenance      # Python
+```
+
+Or copy `primitives/js/` or `primitives/python/` into your project and import from it directly — the modules carry a dual-import shim, so both styles work.
+
 ## The provenance primitive (run-time)
 
 A JavaScript and Python library (`primitives/`) that wraps every value in a metadata envelope and combines values under a conservative-combination law: once any input is touched by mock or low-confidence data, every value derived from it inherits that taint automatically, with no escape hatch that silently clears the flag.
@@ -66,30 +90,6 @@ The envelope and the law are a **specification, not just an implementation**: [`
 | `reference/`  | Portable principles and the ruleset template                      |
 | `examples/`   | Worked clean / broken fixtures for JavaScript and Python          |
 | `docs/adr/`   | Architecture decision records                                     |
-
-## Install
-
-**As a Claude Code plugin (recommended).** The repository is its own plugin marketplace — this is the least-friction way in. From inside Claude Code:
-
-```
-/plugin marketplace add effythealien/plumb-line
-/plugin install plumb-line@plumb-line
-```
-
-The first command registers the repo as a marketplace; the second installs the three skills. Updates come through `/plugin`. To install manually instead, clone the repository and point Claude Code at the plugin directory, or add it under `plugins` in your `.claude/settings.json`:
-
-```bash
-git clone https://github.com/effythealien/plumb-line.git
-```
-
-**The provenance primitive** is a standalone library, independent of the plugin. Install it as `plumb-line-provenance` from npm or PyPI:
-
-```bash
-npm install plumb-line-provenance      # JavaScript
-pip install plumb-line-provenance      # Python
-```
-
-Or copy `primitives/js/` or `primitives/python/` into your project and import from it directly — the modules carry a dual-import shim, so both styles work.
 
 ## Design decisions
 
