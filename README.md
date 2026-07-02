@@ -33,7 +33,7 @@ plumb-line enforces the same discipline at two moments. The **provenance primiti
 
 ## Install
 
-**As a Claude Code plugin (recommended).** The repository is its own plugin marketplace — this is the least-friction way in. From inside Claude Code:
+**As a Claude Code plugin (recommended).** The repository is its own plugin marketplace from inside Claude Code:
 
 ```
 /plugin marketplace add effythealien/plumb-line
