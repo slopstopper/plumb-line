@@ -19,6 +19,9 @@ dist/
 .superpowers/
 .remember/
 
-# Internal build docs — kept private, not published
+# Internal build docs — kept private, not published.
+# Only ADRs (docs/adr/) are the durable planning artifact in the repo;
+# brainstorm specs and implementation plans stay local.
 docs/plans/
 docs/specs/
+docs/superpowers/
