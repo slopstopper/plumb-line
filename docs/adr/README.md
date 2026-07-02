@@ -30,3 +30,5 @@ record is append-only.
 | [0005](0005-provenance-primitive-one-law-two-layers.md) | Provenance primitive: one law, two layers                 | Accepted |
 | [0006](0006-build-docs-strategy.md)                     | Build docs stay private; decisions are published          | Accepted |
 | [0007](0007-branch-guard-hardening.md)                  | Branch-guard allowlist hardening                          | Accepted |
+| [0008](0008-zero-input-conformance-fix-no-wire-bump.md) | Self-contradiction fix is conformance, not a wire bump    | Accepted |
+| [0009](0009-checker-totality-non-object-parity.md)      | Checker totality on non-object input, parity, no wire bump | Accepted |
