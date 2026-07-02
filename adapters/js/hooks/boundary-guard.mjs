@@ -33,6 +33,9 @@ export function decide({
 }
 
 // CLI wrapper: read {filePath, importPath} on stdin, config from env JSON.
+// Process-entry glue (argv/stdin/exit); exercised via the shipped ESLint
+// boundary template's integration test, not in-process. Excluded from coverage.
+/* v8 ignore start */
 if (import.meta.url === `file://${process.argv[1]}`) {
   let raw = "";
   process.stdin.on("data", (d) => (raw += d));
@@ -54,3 +57,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(0);
   });
 }
+/* v8 ignore stop */

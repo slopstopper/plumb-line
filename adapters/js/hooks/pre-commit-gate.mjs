@@ -9,6 +9,9 @@ export async function decide({ runners }) {
 }
 
 // CLI wrapper: reads PLUMBLINE_TEST_CMD from env; runs it via child_process.
+// Process-entry glue (env/spawn/exit); not exercised in-process. Excluded from
+// coverage — the pure decide() above is unit-tested.
+/* v8 ignore start */
 if (import.meta.url === `file://${process.argv[1]}`) {
   const { spawnSync } = await import("child_process");
   const cmd = process.env.PLUMBLINE_TEST_CMD;
@@ -31,3 +34,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
   process.exit(0);
 }
+/* v8 ignore stop */

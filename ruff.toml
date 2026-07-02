@@ -1,0 +1,21 @@
+# Ruff config for plumb-line's Python (primitives, adapters, scripts).
+# Enforces the PEP 8 baseline CONTRIBUTING.md asks for, as a CI gate
+# (OpenSSF Best Practices silver: coding_standards_enforced, warnings_strict).
+#
+# The published library supports Python 3.8+, so lint against that floor.
+target-version = "py38"
+
+# The examples/*/broken/ trees are intentionally-wrong fixtures for the audit
+# skill — their defects are provenance-principle violations, not Python-lint
+# ones, so keep Ruff off them. The clean/ fixtures and test harnesses stay in.
+extend-exclude = ["examples/*/broken"]
+
+# Ruff's default lint set — pyflakes (F) + a curated pycodestyle subset
+# (E4/E7/E9). Deliberately not enabling line-length (E501): the codebase has
+# intentional long lines and no formatter is enforced (see CONTRIBUTING).
+[lint]
+select = ["E4", "E7", "E9", "F"]
+
+[lint.per-file-ignores]
+# __init__.py re-exports the public API; imported-but-unused is the point.
+"__init__.py" = ["F401"]

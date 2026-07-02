@@ -79,12 +79,17 @@ function isMainModule() {
       fs.realpathSync(fileURLToPath(import.meta.url)) ===
       fs.realpathSync(process.argv[1])
     );
+    /* v8 ignore next 3 -- defensive fail-closed on realpath error; not reachable in-process */
   } catch {
     return false;
   }
 }
 
 // CLI wrapper: read {filePath} on stdin, branch from env, config from env JSON.
+// Exercised end-to-end by the spawn-based "branch-guard CLI" tests below; v8's
+// in-process instrumentation cannot see across the child process, so this glue
+// is excluded from coverage rather than left falsely "uncovered".
+/* v8 ignore start */
 if (isMainModule()) {
   let raw = "";
   process.stdin.on("data", (d) => (raw += d));
@@ -105,3 +110,4 @@ if (isMainModule()) {
     process.exit(0);
   });
 }
+/* v8 ignore stop */

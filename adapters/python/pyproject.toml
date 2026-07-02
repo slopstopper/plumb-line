@@ -1,0 +1,19 @@
+# Tooling config only — adapters/python is dev-time enforcement tooling, not a
+# published package, so there is no [build-system]/[project] table here.
+#
+# `pytest` measures statement coverage and fails under 80% (OpenSSF Best
+# Practices silver, test_statement_coverage80). Process-entry CLI blocks
+# (`if __name__ == "__main__":`) and the argv/print `main()` glue are excluded:
+# they are exercised via the shipped git-hook / lint entry points, not in
+# in-process unit tests. The decision logic they wrap is unit-tested.
+[tool.pytest.ini_options]
+addopts = "--cov=. --cov-report=term-missing --cov-fail-under=80"
+
+[tool.coverage.run]
+source = ["."]
+omit = ["test_*.py", "*/test_*.py"]
+
+[tool.coverage.report]
+exclude_also = [
+    'if __name__ == .__main__.:',
+]

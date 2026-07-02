@@ -1,6 +1,12 @@
 # Dependencies
 node_modules/
 
+# Test coverage output
+coverage/
+.coverage
+htmlcov/
+coverage.xml
+
 # Python caches & build artifacts
 __pycache__/
 *.pyc

@@ -9,7 +9,19 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **Project governance** — `GOVERNANCE.md` documents the decision-making model,
+  roles and responsibilities, and access/continuity (including the
+  no-stored-secrets, OIDC-based release design), toward the OpenSSF Best
+  Practices **silver** badge.
+- **Enforced lint** — ESLint (JS) and Ruff (Python) now run as a CI gate;
+  `npm run lint` in each JS package, `ruff check .` for Python.
+- **Coverage gate** — the test suites now measure statement coverage and fail
+  under 80% (currently ~96–99% on the primitives, ~96–99% on the adapters).
+  Process-entry CLI glue is excluded (it is exercised by the spawn-based hook
+  tests, not in-process).
+- **Silver-badge gap analysis** — `docs/ossf-silver-gap-analysis.md` maps the
+  project against every silver criterion with form-ready answers.
 
 ## [0.4.1] — 2026-07-02
 

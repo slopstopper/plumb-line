@@ -7,10 +7,8 @@ Layers (top to bottom): ui, services, engine, data
 - data is at the bottom; importing ui (the planted P2 violation) is forbidden.
 """
 
-import os
 import pathlib
 import subprocess
-import sys
 import tempfile
 
 import pytest
