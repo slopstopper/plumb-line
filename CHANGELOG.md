@@ -10,6 +10,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 ## [Unreleased]
 
 ### Added
+- **Developer Certificate of Origin** — contributions are now certified under
+  the [DCO](DCO) 1.1. A CI check (`.github/workflows/dco.yml`) requires a
+  `Signed-off-by` trailer on every commit, and a bundled `prepare-commit-msg`
+  hook (`git config core.hooksPath .githooks`) adds it automatically. Satisfies
+  the OpenSSF Best Practices **silver** `dco` criterion.
 - **Project governance** — `GOVERNANCE.md` documents the decision-making model,
   roles and responsibilities, and access/continuity (including the
   no-stored-secrets, OIDC-based release design), toward the OpenSSF Best
