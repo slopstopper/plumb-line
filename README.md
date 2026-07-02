@@ -69,16 +69,7 @@ The envelope and the law are a **specification, not just an implementation**: [`
 
 ## Install
 
-**The provenance primitive** is a standalone library, independent of the plugin. Install it as `plumb-line-provenance` from npm or PyPI:
-
-```bash
-npm install plumb-line-provenance      # JavaScript
-pip install plumb-line-provenance      # Python
-```
-
-Or copy `primitives/js/` or `primitives/python/` into your project and import from it directly — the modules carry a dual-import shim, so both styles work.
-
-**As a Claude Code plugin (recommended for the skills).** The repository is its own plugin marketplace. From inside Claude Code:
+**As a Claude Code plugin (recommended).** The repository is its own plugin marketplace — this is the least-friction way in. From inside Claude Code:
 
 ```
 /plugin marketplace add effythealien/plumb-line
@@ -90,6 +81,15 @@ The first command registers the repo as a marketplace; the second installs the t
 ```bash
 git clone https://github.com/effythealien/plumb-line.git
 ```
+
+**The provenance primitive** is a standalone library, independent of the plugin. Install it as `plumb-line-provenance` from npm or PyPI:
+
+```bash
+npm install plumb-line-provenance      # JavaScript
+pip install plumb-line-provenance      # Python
+```
+
+Or copy `primitives/js/` or `primitives/python/` into your project and import from it directly — the modules carry a dual-import shim, so both styles work.
 
 ## Design decisions
 

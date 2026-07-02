@@ -9,7 +9,28 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+- **Audit report is now legible and deterministic** (`report-format: v1 → v2`):
+  a principle glossary + inline principle names (no bare `P#`) opens every report
+  ([#83](https://github.com/effythealien/plumb-line/issues/83)); the findings
+  section is now a single canonical table with `Path`/`Line`/`Function` split out
+  and a `Suggested Fix` column, replacing the run-to-run prose/table variance
+  ([#84](https://github.com/effythealien/plumb-line/issues/84)); and the
+  `plumb-line-audit.md` artifact follows an **always-offer, never-auto-write**
+  contract — the report always prints to chat, the file is written only on an
+  explicit yes ([#85](https://github.com/effythealien/plumb-line/issues/85)). The
+  bootstrap report header moves to `v2` in lockstep.
+- **README** leads with the marketplace plugin install (least-friction on-ramp)
+  ([#86](https://github.com/effythealien/plumb-line/issues/86)).
+
+### Fixed
+- **`auditMeta` / `audit_meta` is total and parity-clean on non-object input.**
+  Python previously raised `AttributeError` on a falsy-but-not-`None` scalar
+  (`0`, `''`, `False`); both languages now return `["missing meta"]` for any
+  non-plain-object input (null/None, falsy scalars, strings, numbers, arrays)
+  while an empty object/dict still audits clean — restoring SPEC §5 totality and
+  cross-language parity. Pinned by new conformance cases.
+  ([#80](https://github.com/effythealien/plumb-line/issues/80))
 
 ## [0.4.0] — 2026-07-01
 
