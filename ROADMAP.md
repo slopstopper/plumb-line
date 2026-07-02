@@ -153,7 +153,11 @@ warning; unknown past versions are flagged.
 
 ### 6. Adopt the primitive from the skills (bootstrap + method)
 
-**Priority: medium** · Milestone: v0.6.0
+**Priority: medium** · Split into two tracked issues: the *offer* slice
+([#98](https://github.com/effythealien/plumb-line/issues/98), pulled earlier to
+**v0.5.0** — no schema dependency) and the *bundle* slice
+([#99](https://github.com/effythealien/plumb-line/issues/99), **v0.6.0**, gated on
+the wire-v2 release).
 
 The `plumb-line-bootstrap` skill generates an `AGENTS.md` ruleset and installs
 enforcement adapters, but it does not wire the provenance primitive into the
@@ -163,20 +167,24 @@ less-technical user who installs only the plugin never learns there is a runtime
 primitive to adopt — the two halves stay decoupled and the value is left on the
 table.
 
-Close the gap from the skill side:
+Close the gap from the skill side. The first two bullets are the *offer* slice
+([#98](https://github.com/effythealien/plumb-line/issues/98), v0.5.0 — no schema
+dependency, shippable now); the third is the *bundle* slice
+([#99](https://github.com/effythealien/plumb-line/issues/99), v0.6.0, gated on
+wire v2):
 - **Bootstrap:** after the interview, offer to scaffold `mark`/`derive` at the
   exact call sites the answers surfaced (Q4 downstream values, Q8 lineage-bearing
   outputs). Opt-in prompt, not silent wiring. Hook `validateEnvelope` into the
-  pre-commit gate so unmarked returns are caught before they reach review.
+  pre-commit gate so unmarked returns are caught before they reach review. (#98)
 - **Method:** when teaching P3 (confidence + provenance) or P8 (lineage), name
   the runtime library as the concrete implementation, with the three-line
   `mark`/`derive` example. A bounded softening of method's "takes no actions"
-  stance — mention, don't install.
+  stance — mention, don't install. (#98)
 - **Bundle the primitive source in the plugin** so adoption needs no separate
   `npm`/`pip` step. The modules are zero-dependency and copy-pasteable (dual-import
   shim), so bootstrap can drop them in directly. Soft-depends on the wire-v2
-  release (v0.7.0): bundle once the schema has settled at v2, to avoid vendoring
-  v1 and re-vendoring.
+  release: bundle once the schema has settled at v2, to avoid vendoring
+  v1 and re-vendoring. (#99)
 
 Tracked as a consequence of ADR-0005; the integration was deliberately deferred
 to keep that decision scoped to the primitive itself.
