@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import provenance as p
 
@@ -96,7 +97,8 @@ def test_combine_records_lineage_step_per_input():
 def test_combine_accumulates_prior_lineage():
     # Inherited steps are carried into the output (identified by content, not by
     # their original id — the output renumbers every step for §4 uniqueness).
-    with_history = dict(REAL); with_history['lineage'] = [{'id':'old','of':'prior'}]
+    with_history = dict(REAL)
+    with_history['lineage'] = [{'id':'old','of':'prior'}]
     out = p.combine_provenance(with_history, SEMI)
     assert any(s.get('of') == 'prior' for s in out['lineage'])
 

@@ -4,7 +4,8 @@ plumb-line keeps codebases epistemically honest, and it tries to hold itself to
 the same standard. A few things worth knowing before you open a pull request.
 
 This project follows a [Code of Conduct](CODE_OF_CONDUCT.md). By participating
-you agree to abide by it.
+you agree to abide by it. How the project is run — decision-making, roles, and
+continuity — is described in [GOVERNANCE.md](GOVERNANCE.md).
 
 ## How to contribute
 
@@ -52,12 +53,15 @@ or adapters; type information lives in JSDoc where useful.
 for module-level constants. Type annotations are welcome but not required. No
 mutable default arguments.
 
-When in doubt, match the style of the surrounding code. There is no enforced
-formatter; keep diffs minimal.
+When in doubt, match the style of the surrounding code. **Lint is enforced in
+CI** — [ESLint](https://eslint.org) (recommended rules) for JavaScript and
+[Ruff](https://docs.astral.sh/ruff/) (pyflakes + a pycodestyle subset) for
+Python. There is no enforced auto-formatter, so keep diffs minimal.
 
 ## Running the tests
 
-Enforcement is covered by real tests, not by assertions of correctness:
+Enforcement is covered by real tests, not by assertions of correctness. Tests
+also gate **statement coverage at ≥80%** (it fails the build below that):
 
 ```bash
 # Provenance primitive
@@ -67,6 +71,14 @@ cd primitives/python && python3 -m pytest
 # Enforcement adapters (boundary hooks + provenance-bypass lint)
 cd adapters/js && npm ci && npm test
 cd adapters/python && python3 -m pytest
+```
+
+Lint the same way CI does:
+
+```bash
+cd primitives/js && npm run lint      # ESLint
+cd adapters/js   && npm run lint
+ruff check .                          # Python, from the repo root
 ```
 
 New behaviour needs a test that fails without it. The

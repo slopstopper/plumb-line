@@ -31,3 +31,19 @@ packages = ["plumb_line_provenance"]
 
 [tool.setuptools.package-dir]
 plumb_line_provenance = "."
+
+# --- Test + coverage config --------------------------------------------------
+# `pytest` measures statement coverage of the source modules and fails under
+# 80% (OpenSSF Best Practices silver, test_statement_coverage80). Tests are
+# excluded from the measured source so the number reflects product code.
+[tool.pytest.ini_options]
+addopts = "--cov=. --cov-report=term-missing --cov-fail-under=80"
+
+[tool.coverage.run]
+source = ["."]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+exclude_also = [
+    'if __name__ == .__main__.:',
+]

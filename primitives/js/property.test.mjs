@@ -84,13 +84,6 @@ describe("combination law properties", () => {
 });
 
 describe("derive law properties", () => {
-  const arbMarked = fc.record({
-    source: arbSource,
-    confidence: arbConfidence,
-    derivedFromMock: fc.boolean(),
-    lineage: fc.constant([]),
-  }).map((meta) => mark(meta.source, meta)); // mark with source as value for simplicity
-
   // Richer arbitrary: marked value with controlled taint.
   const arbMarkedValue = arbMeta.map((meta) =>
     mark(1, { source: meta.source, confidence: meta.confidence, derivedFromMock: meta.derivedFromMock }),

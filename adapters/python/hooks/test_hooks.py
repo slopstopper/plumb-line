@@ -1,6 +1,9 @@
-import os, sys
+import os
+import sys
 sys.path.insert(0, os.path.dirname(__file__))
-import branch_guard, boundary_guard, pre_commit_gate
+import branch_guard
+import boundary_guard
+import pre_commit_gate
 import pytest
 
 CFG = {"protected_branches": ["main"], "docs_allowlist": ["docs/", "README.md"]}
@@ -16,6 +19,11 @@ def test_branch_allows_docs_on_protected():
 def test_branch_allows_feature_branch():
     r = branch_guard.decide(file_path="src/app.py", branch="feature/x", **CFG)
     assert r["allow"] is True
+
+def test_branch_blocks_upward_escaping_path_on_protected():
+    r = branch_guard.decide(file_path="../secret.py", branch="main", **CFG)
+    assert r["allow"] is False
+    assert "protected branch" in r["reason"]
 
 def test_branch_blocks_path_traversal_through_docs_directory_entry():
     r = branch_guard.decide(
@@ -68,6 +76,11 @@ def test_boundary_allows_downward_import():
 def test_pre_commit_blocks_on_failure():
     r = pre_commit_gate.decide(runners=[("tests", lambda: False)])
     assert r["allow"] is False
+
+def test_pre_commit_allows_when_all_runners_pass():
+    r = pre_commit_gate.decide(runners=[("tests", lambda: True), ("lint", lambda: True)])
+    assert r["allow"] is True
+    assert r["reason"] == "all gates passed"
 
 def test_boundary_allows_same_layer_import():
     # importPath resolves to the same layer as filePath — exercises the src == dst branch.

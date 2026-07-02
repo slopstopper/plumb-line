@@ -25,6 +25,12 @@ describe("branch-guard decide", () => {
     expect(r.allow).toBe(true);
   });
 
+  it("blocks a path that escapes upward on a protected branch", () => {
+    const r = decide({ filePath: "../secret.js", branch: "main", ...cfg });
+    expect(r.allow).toBe(false);
+    expect(r.reason).toMatch(/protected branch/i);
+  });
+
   it("blocks path traversal through a docs directory entry", () => {
     const r = decide({
       filePath: "docs/../src/app.py",

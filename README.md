@@ -103,6 +103,13 @@ The provenance envelope is a trust claim, so plumb-line states plainly what it g
 
 plumb-line ships the run-time provenance primitive with JS/Python parity, the three skills, and enforcement adapters for JavaScript/TypeScript and Python — published to npm and PyPI as `plumb-line-provenance` (the badges above track the current version; the [changelog](CHANGELOG.md) has the per-release detail). The primitive's envelope and law are pinned by a versioned [specification](primitives/SPEC.md) (envelope schema version 1) and a cross-language [conformance suite](primitives/conformance/). The deterministic adapters — boundary checks and the `no-provenance-bypass` static lint (JS + Python) — are validated against the worked fixtures in `examples/`, catching every planted violation with no false positives; see the [validation results](docs/validation-results.md). plumb-line is held to its own principles, too: the auditor is run on plumb-line's own code before each method-surface release, and the [dogfooding report](docs/dogfood.md) and validation results record what it finds — including its own false-positive rate, since an LLM audit is a review aid, not a gate. Planned: bootstrap wiring so host projects adopt the primitive automatically, and Go and Rust adapters.
 
+## Contributing & governance
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for how to
+open an issue or PR, and [GOVERNANCE.md](GOVERNANCE.md) for how the project is
+run (decision-making, roles, and continuity). Participation is governed by the
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Feedback
 
 Tried it on a real codebase? Use-case feedback is welcome — bug reports and false positives especially help.

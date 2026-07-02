@@ -1,5 +1,4 @@
 """pre_commit_gate — block a commit if any runner fails."""
-import json
 import os
 import shlex
 import subprocess

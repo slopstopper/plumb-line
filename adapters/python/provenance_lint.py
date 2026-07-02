@@ -131,7 +131,7 @@ def check(source, filename='<unknown>', clean_sources=None):
     return [dict(i, filename=filename) for i in v.issues]
 
 
-def main(argv=None):
+def main(argv=None):  # pragma: no cover - CLI glue (argv/file/print); logic lives in check()
     argv = sys.argv[1:] if argv is None else argv
     total = 0
     for path in argv:
