@@ -23,11 +23,21 @@ Version themes for the near-term releases, and the GitHub issues under each.
   (#18 / GH #86), plus the `audit_meta` totality parity bug (GH #80). Method-
   surface → runs the release harness.
 
-- **v0.5.0 — Audit you can trust and act on.** The two heavier audit themes:
-  coverage honesty — up-front traversal plan + read/partial/not-read coverage
-  map + honest denominator (#19 / GH #87); lightweight remediation handoff to
-  `writing-plans` / bootstrap (#20 / GH #88); onboarding polish — bootstrap
-  suggested from method (#21 / GH #89). Method-surface → runs the release harness.
+- **v0.5.0 — Audit you can trust and act on** · *shipped 2026-07-03 (partial —
+  see note).* Coverage honesty — up-front traversal plan + read/partial/not-read
+  coverage map + honest denominator (#19 / GH #87) — plus the spine calibration
+  fix (GH #101, closing the v0.4.1 waiver); report-format v2→v3. **The other two
+  planned themes did NOT make 0.5.0** — remediation handoff (#20 / GH #88) and
+  onboarding (#21 / GH #89) moved to v0.5.1 below. Recorded as-shipped rather than
+  backfilled: 0.5.0 went out narrower than this milestone first scoped, so the
+  milestone is split honestly instead of the tracker pretending it was complete.
+
+- **v0.5.1 — Audit you can act on (completes 0.5.0's theme).** The two themes cut
+  from 0.5.0: lightweight remediation handoff — audit offers to hand findings to
+  `writing-plans` / plan mode and suggests bootstrap on a provenance gap (#20 /
+  GH #88); onboarding polish — bootstrap suggested from method, three-skill
+  cross-links, and a documented first-run flow (#21 / GH #89). Skill-surface →
+  runs the release harness.
 
 - **v0.6.0 — Apply the discipline.** Close the two-halves gap: bootstrap scaffolds
   the primitive and method names it (#6), and a new `plumb-line-remediate` skill
@@ -366,7 +376,7 @@ least-friction on-ramp (first-tester note); keep manual/dev install below.
 
 ### 19. Audit coverage honesty — traversal plan + coverage map
 
-**Priority: high** · Milestone: v0.5.0 · GitHub: #87
+**Priority: high** · GitHub: #87 · **Shipped in v0.5.0**
 
 The auditor "confidently acts like it found everything," but on a large repo it
 does not — the skill overstating its own coverage is the exact laundered-
@@ -380,7 +390,7 @@ the guaranteed sweep is #22.
 
 ### 20. Audit — lightweight remediation handoff
 
-**Priority: medium** · Milestone: v0.5.0 · GitHub: #88
+**Priority: medium** · Milestone: v0.5.1 · GitHub: #88
 
 At the end of a run, offer to hand findings to superpowers `writing-plans` / plan
 mode for a fix-plan markdown, and — when provenance gaps appear — suggest
@@ -392,7 +402,7 @@ auditor stays read-only; this is an offer, not an apply. Bridges to the full
 
 ### 21. Onboarding — suggest bootstrap from method
 
-**Priority: medium** · Milestone: v0.5.0 · GitHub: #89
+**Priority: medium** · Milestone: v0.5.1 · GitHub: #89
 
 Suggest `plumb-line-bootstrap` from inside `plumb-line-method` and cross-link
 method ↔ audit ↔ bootstrap so first-time users find the next step. Includes a

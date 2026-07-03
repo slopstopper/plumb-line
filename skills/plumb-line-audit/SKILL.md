@@ -178,3 +178,22 @@ references are inline-named too, exactly like the findings table above.
 only then, ask whether to save it to `plumb-line-audit.md`; write the file solely
 on an explicit yes. Never write it without asking — repeated runs on the same
 input MUST produce the same file-write behavior.
+
+## After the report — offer a handoff (read-only; never apply)
+
+The audit reports; it does not fix. After the report is printed and the file
+question is settled, OFFER — do not perform — a next step, then stop:
+
+- **Plan the fixes.** Offer to hand the findings to a planning skill (superpowers
+  `writing-plans`, or plan mode) to turn them into a fix-plan the builder can work
+  through. This produces a plan, not edits — the auditor stays read-only.
+- **Close a provenance/enforcement gap.** When the findings include missing
+  provenance or lineage, laundered taint, or a layer boundary that nothing
+  enforces (P3 — Confidence + provenance, P4 — Quarantined fakery, P8 —
+  State-first lineage, P2 — One-way layering), suggest `plumb-line-bootstrap` to
+  wire the discipline into the project (host rule file + git hooks). Offer this
+  only when such a gap actually appears, not on every run.
+
+Both are suggestions the builder accepts or declines; the auditor applies nothing
+itself. Mechanical fixing is a separate, opt-in skill (`plumb-line-remediate`,
+planned) — this handoff is the bridge to it, not a substitute.
