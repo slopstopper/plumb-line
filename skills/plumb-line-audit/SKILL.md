@@ -20,7 +20,7 @@ say so up front rather than at the end. Never state or imply full coverage unles
 every in-scope file is marked `read` — an unread file with no finding is *not* a
 clean file, and claiming otherwise is the laundered-uncertainty / overstated-
 maturity failure this audit exists to catch (P8 — State-first lineage, and the
-honest-denominator spine), turned on the audit itself.
+honest-denominator discipline), turned on the audit itself.
 
 ## Check catalogue (each finding cites the principle it violates)
 

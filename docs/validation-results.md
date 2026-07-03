@@ -347,3 +347,43 @@ milestone v0.5.0).
 `report-format: v2` header, the principle glossary, and the canonical findings
 table (`Path | Line | Function | Issue | Suggested Fix | Principle`) — the new
 report contract works in practice, not just on paper.
+
+## 0.5.0 release-harness record
+
+Date: 2026-07-03 · Version: v0.5.0 · Base: `85f5050` (main after #108), branch
+commit `4461f38` · Method-surface diff since `v0.4.1`: `skills/plumb-line-audit`
+(up-front traversal plan + required coverage map; spine calibration tightened),
+`skills/plumb-line-bootstrap`, `reference/portable-principles.md`,
+`examples/AUDIT-EXPECTATIONS.md` — all report-format v2→v3 in lockstep (#87, #101).
+
+**Deterministic layer.** `examples/test_fixture_integrity.py` 7/7;
+`primitives/python` suite 59/59 (coverage-gate flag aside — CI enforces coverage).
+The fixtures still encode the planted set the blind runs are scored against.
+
+**Blind validation layer.** Dispatched 8 independent read-only auditors per the
+blind protocol — 2 per fixture variant, answer keys withheld.
+
+| Fixture | Runs | Result |
+| ------- | ---- | ------ |
+| `js-payments-service/broken`  | 2 | **PASS** — both flagged all three planted (P2 upward import, P5 hardcoded `FEE`, P3 missing provenance/confidence; both also caught P8 lineage + P4 mock-escape as extras) |
+| `js-payments-service/clean`   | 2 | **PASS** — both reported **zero confirmed violations**; the `submitPayment` `accepted:true` stub correctly held as needs-review |
+| `python-data-pipeline/broken` | 2 | **PASS** — both flagged all three planted (P2 upward import, P5 `SIGNAL_THRESHOLD`, P8 missing lineage) |
+| `python-data-pipeline/clean`  | 2 | **PASS** — both reported zero confirmed violations (P7/P9 advisory, binary engine confidence needs-review) |
+
+**No FAIL — no waiver needed. This run CLOSES the v0.4.1 #101 waiver.** The spine
+calibration fix landed: the exact `js/clean` surface that FAILed 2/3 in the 0.4.1
+harness (over-claiming the always-`true` stub as a confirmed spine violation) now
+holds as needs-review in **2/2** independent blind runs — meeting
+[#101](https://github.com/effythealien/plumb-line/issues/101)'s acceptance (≥2
+blind runs report zero confirmed violations) with no regression on the `broken/`
+fixtures (planted sets caught 2/2 in both languages).
+
+**Calibration notes (honest accounting):**
+- Both `clean/` variants again raised P7 (no contract) and P9 (no baseline) as
+  advisory adoption gaps (once each, never per-output), plus minor needs-review
+  notes (spine stub, binary engine confidence, a P6 "simulated" vs `mock`
+  vocabulary nit) — all expected and allowed.
+- **Live confirmation of the #87 change:** all 8 auditors emitted a well-formed
+  `report-format: v3` header **and** a coverage map (100% denominators on these
+  small trees); two auditors additionally emitted the up-front traversal plan. No
+  format FAILs — the coverage-honesty artifact is followable in practice.
