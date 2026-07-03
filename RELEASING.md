@@ -18,8 +18,20 @@ Two independent version numbers:
 
 ## Steps
 
-1. **Decide the number** (SemVer; pre-1.0, a breaking change bumps the minor).
+1. **Decide the number and verify milestone closure** (SemVer; pre-1.0, a breaking change bumps the minor).
    Check what's unreleased: `git log --oneline "$(git describe --tags --abbrev=0)"..main`.
+   
+   **Crucial:** Before proceeding, verify the GitHub milestone for this version:
+   ```
+   gh api repos/effythealien/plumb-line/milestones -q '.[] | select(.title | contains("'$VERSION'")) | {title, open_issues, closed_issues}'
+   ```
+   
+   **All issues in the milestone must be either closed or explicitly reassigned to a later milestone.** An open issue in a closed milestone means planned work was deferred without being tracked. Open the milestone on GitHub and either:
+   - **Close the issue** if it shipped
+   - **Move it to the next version milestone** with a note if deferred (and file an `audit-deferral` issue if a finding)
+   - **Re-open it to clarify** if the status is unclear
+   
+   Do not close the version milestone with open issues remaining. This gate prevents the [plumb-line principle](reference/portable-principles.md) P6 (maturity vocabulary) violation of overstating completion.
 2. **Run the release harness if the method surface changed.** If the unreleased
    diff touches `skills/`, `reference/portable-principles.md`, `primitives/`, or
    `adapters/`, follow [`docs/release-harness.md`](docs/release-harness.md): a
