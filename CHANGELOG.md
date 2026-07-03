@@ -28,6 +28,25 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 - **Silver-badge gap analysis** — `docs/ossf-silver-gap-analysis.md` maps the
   project against every silver criterion with form-ready answers.
 
+### Changed
+- **Audit is now honest about its own coverage** (`report-format: v2 → v3`):
+  `plumb-line-audit` emits an up-front **traversal plan** and a required
+  **coverage map** — every in-scope file marked `read` / `partial` / `not-read`,
+  with a count and an explicit no-completeness caveat — so a report can no longer
+  imply it read the whole tree when it only sampled
+  ([#87](https://github.com/effythealien/plumb-line/issues/87)). The
+  `plumb-line-bootstrap` header moves to `v3` in lockstep; `principles-revision`
+  stays `1` (no principle's meaning, scope, or vocabulary changed).
+
+### Fixed
+- **Audit spine calibration no longer over-claims on a deliberate stub.** An
+  always-accept / always-success stub (e.g. a `submitPayment` that can only
+  return `accepted: true`) on a layer that neither declares nor practices
+  rejection is now reported as a `needs-review` advisory adoption gap, not a
+  confirmed spine violation — matching the clean-fixture handling of P7/P9 and
+  the `examples/AUDIT-EXPECTATIONS.md` answer key
+  ([#101](https://github.com/effythealien/plumb-line/issues/101)).
+
 ## [0.4.1] — 2026-07-02
 
 ### Changed

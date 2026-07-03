@@ -33,10 +33,13 @@ planted violation blocks the release.
    honours it.)
 4. Use an identical, plain prompt for every variant — do not coach the auditor
    toward the expected findings. The skill must perform on a plain invocation.
-5. The report MUST open with the `report-format: v2` header block (scope,
-   `principles-revision`, date, commit). A missing or malformed header is a
-   **format FAIL**, scored independently of finding accuracy — a report that
-   can't be reproduced fails even if every finding is correct.
+5. The report MUST open with the `report-format: v3` header block (scope,
+   `principles-revision`, date, commit) and MUST include the coverage map — every
+   in-scope file marked `read` / `partial` / `not-read`, with an honest
+   denominator. A missing or malformed header, or a report that claims or implies
+   full coverage without the map, is a **format FAIL**, scored independently of
+   finding accuracy — a report that can't be reproduced fails even if every
+   finding is correct.
 
 ## Expected findings
 
