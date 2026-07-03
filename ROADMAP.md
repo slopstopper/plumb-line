@@ -26,9 +26,11 @@ Version themes for the near-term releases, and the GitHub issues under each.
 - **v0.5.0 — Audit you can trust and act on** · *shipped 2026-07-03 (partial —
   see note).* Coverage honesty — up-front traversal plan + read/partial/not-read
   coverage map + honest denominator (#19 / GH #87) — plus the spine calibration
-  fix (GH #101, closing the v0.4.1 waiver); report-format v2→v3. **The other two
-  planned themes did NOT make 0.5.0** — remediation handoff (#20 / GH #88) and
-  onboarding (#21 / GH #89) moved to v0.5.1 below. Recorded as-shipped rather than
+  fix (GH #101, closing the v0.4.1 waiver); report-format v2→v3. **The rest of the
+  milestone's planned scope did NOT make 0.5.0** — remediation handoff (#20 / GH #88) and
+  onboarding (#21 / GH #89) moved to v0.5.1 below. The adopt-the-primitive offer
+  slice (method names it, GH #106; bootstrap teaches it, GH #107; from item #6)
+  moved to v0.6.0. Recorded as-shipped rather than
   backfilled: 0.5.0 went out narrower than this milestone first scoped, so the
   milestone is split honestly instead of the tracker pretending it was complete.
 
@@ -39,10 +41,12 @@ Version themes for the near-term releases, and the GitHub issues under each.
   cross-links, and a documented first-run flow (#21 / GH #89). Skill-surface →
   runs the release harness.
 
-- **v0.6.0 — Apply the discipline.** Close the two-halves gap: bootstrap scaffolds
-  the primitive and method names it (#6), and a new `plumb-line-remediate` skill
-  applies audit findings (#11 / GH #57). Depends on `report-format: v1` (GH #28,
-  shipped).
+- **v0.6.0 — Apply the discipline.** Close the two-halves gap: the adopt-the-
+  primitive offer slice — method names the primitive (GH #106) and bootstrap
+  teaches it (GH #107), **deferred here from v0.5.0** — plus the bundle slice
+  (GH #99, gated on wire v2), all from item #6; and a new `plumb-line-remediate`
+  skill applies audit findings (#11 / GH #57). Depends on `report-format: v1`
+  (GH #28, shipped).
 
 - **v0.7.0 — Lower the on-ramp** (runtime + wire v2). Static lint for untagged
   outputs (#1 / GH #91), ecosystem adapters (#2 / GH #92), `PROVENANCE_VERSION`
@@ -164,7 +168,8 @@ warning; unknown past versions are flagged.
 ### 6. Adopt the primitive from the skills (bootstrap + method)
 
 **Priority: medium** · Tracked as three issues across a skill-scoped split. The
-*offer* slice (**v0.5.0**, no schema dependency) is two issues by responsibility —
+*offer* slice (**v0.6.0** — originally scoped to v0.5.0, deferred when 0.5.0
+shipped narrower; no schema dependency) is two issues by responsibility —
 **method** introduces the primitive + suggests getting it
 ([#106](https://github.com/effythealien/plumb-line/issues/106)), **bootstrap**
 teaches how to use it in the user's codebase
@@ -183,7 +188,7 @@ primitive to adopt — the two halves stay decoupled and the value is left on th
 table.
 
 Close the gap from the skill side. The first two bullets are the *offer* slice
-(v0.5.0 — no schema dependency, shippable now), split by skill responsibility;
+(v0.6.0 — deferred from v0.5.0; no schema dependency), split by skill responsibility;
 the third is the *bundle* slice
 ([#99](https://github.com/effythealien/plumb-line/issues/99), v0.6.0, gated on
 wire v2):
@@ -425,15 +430,17 @@ Deliberately deferred beyond v0.5.0; #19's plan + map is the honest-floor versio
 ## Deferred — Known Issues
 
 The v0.2.0 / v0.3.0 dogfood deferrals #23, #25, and #26 have shipped — see
-[CHANGELOG.md](CHANGELOG.md). One remains open and is folded into the runtime
+[CHANGELOG.md](CHANGELOG.md). Two remain open, folded into the runtime
 milestone:
 
 | # | Summary | File | Milestone |
 |---|---------|------|-----------|
 | #24 | Dual-import shim can be displaced by a top-level `provenance.py` in a consumer project | `primitives/python/{marked,audit}.py` | v0.7.0 |
+| #96 | `auditMeta`/`audit_meta` non-plain-object (Map/Date/class-instance) parity + SPEC §5 totality wording | `primitives/js/audit.mjs`, `primitives/SPEC.md` | v0.7.0 |
 
-A separate totality-parity bug (`audit_meta` throws on falsy-but-not-`None`
-input; GH #80) is scheduled for v0.4.1.
+The related `audit_meta` totality bug on falsy-but-not-`None` input (GH #80)
+shipped in v0.4.1; #96 above tracks the non-plain-object parity edge that review
+surfaced next.
 
 ---
 
