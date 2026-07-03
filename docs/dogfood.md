@@ -192,5 +192,34 @@ ADR-0009).
 lineage (P8 — no new outputs), or escaped fakery (P4). The auditor re-verified
 the parity gate live (`report.mjs` → 26/26, CONFORMANT).
 
+## v0.5.0 dogfood self-audit
+
+Date: 2026-07-03 · Version: v0.5.0 · Commit: `4461f38` (+ dogfood polish) ·
+Scope: the method-surface diff `v0.4.1..HEAD` — the `plumb-line-audit`
+coverage-honesty + spine-calibration change (report-format v2→v3), the bootstrap
+header bump, `reference/portable-principles.md`, `examples/AUDIT-EXPECTATIONS.md`,
+and CHANGELOG (#87, #101). The range's other unreleased work is infra-only
+(OpenSSF-badge configs, coverage pragmas, lockfiles; no principle-bearing logic,
+`PROVENANCE_VERSION` unchanged) and out of dogfood scope.
+
+**Result: clean — 0 violations, 2 needs-review (both fixed in place).**
+
+Self-application angles verified: the coverage-map change genuinely *mandates* the
+new artifact (Report §4 + the format-FAIL gate), not merely describes it, and the
+"four parts ↔ §§1–4" skeleton is internally consistent — it closes the coverage
+overstatement it targets with no new contradiction. All four normative surfaces
+read `v3` in lockstep; residual `v1`/`v2` strings are legitimately historical. The
+spine block downgrades an always-accept stub to needs-review only where rejection
+is neither declared nor practiced, preserving the confirmed-violation path
+elsewhere — matching the `AUDIT-EXPECTATIONS.md` answer key.
+
+| # | Location | Principle | Finding | Resolution |
+| - | -------- | --------- | ------- | ---------- |
+| J1 | `skills/plumb-line-audit/SKILL.md` (coverage-honesty ¶) | P6 (needs-review) | The new paragraph wrote "honest-denominator **spine**", overloading the reserved term "spine" (elsewhere = null-result expressibility). | **Fixed in place** → "honest-denominator **discipline**"; "spine" reserved for the null-result concept. |
+| J2 | `skills/plumb-line-bootstrap/SKILL.md:110–120` | P7 (needs-review) | Bootstrap stamps `report-format: v3` but emits only the header, not the 4-part audit body; the shared version spanned two report shapes with no note. | **Fixed in place** — added a line stating bootstrap shares the v3 **header block** only; glossary/findings/coverage-map are audit-specific. |
+
+**principles-revision correctly stays `1`** (no principle meaning, scope, or
+vocabulary changed) — same judgment as H2, recorded in the CHANGELOG.
+
 **Closure:** the v0.4.0 dogfood deferral **G3 → [#80](https://github.com/effythealien/plumb-line/issues/80)**
 (the `audit_meta` totality/parity gap) is the bug **fixed** in this release.

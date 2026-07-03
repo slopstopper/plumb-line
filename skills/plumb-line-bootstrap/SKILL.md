@@ -110,9 +110,11 @@ shape differs, add a one-line shim rather than assuming it matches.
 ## Step 5 — Report (audit format)
 
 Open with the same **required header block** as the audit format (`report-format:
-v2`, `scope`, `principles-revision`, `date`, `commit` — see
+v3`, `scope`, `principles-revision`, `date`, `commit` — see
 `skills/plumb-line-audit/SKILL.md`). For a bootstrap run `scope` is the project
 being wired, and add one line — `adapter: <name>` — recording the adapter used.
+Bootstrap shares only the v3 **header block**; the glossary, findings table, and
+coverage map are audit-specific and are not part of a bootstrap report.
 
 Then list every file created/modified and any unanswered prompt left as a TODO
 for the builder. Label anything not done as `planned`. (The adapter is recorded

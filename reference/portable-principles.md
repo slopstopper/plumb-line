@@ -8,7 +8,7 @@ not restate it. Stable `##` headings allow direct linking by section name.
 
 This revision number identifies the ruleset an audit was run against. Bump it
 whenever a principle's meaning, scope, or the maturity vocabulary changes (not
-for typo fixes); audit and bootstrap reports cite it in their `report-format: v2`
+for typo fixes); audit and bootstrap reports cite it in their `report-format: v3`
 header so a stored report names the exact rules it was scored under.
 
 ---

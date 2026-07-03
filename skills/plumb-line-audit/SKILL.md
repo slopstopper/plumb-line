@@ -11,6 +11,17 @@ If this file cannot be read, stop immediately and report: "Cannot audit: `refere
 Scope the audit to the diff if one is given, else the whole repo. For broad
 sweeps, dispatch read-only subagents and keep only their findings.
 
+**Coverage honesty (emit a traversal plan first).** Before reading, list the
+in-scope files — the diff's touched files, or the repo's source tree — and state
+which you will read, sample, or skip. That list is the audit's **denominator**.
+Track `read` / `partial` / `not-read` as you go and report it in the coverage map
+(Report §4). On anything larger than a small diff you will NOT read every file;
+say so up front rather than at the end. Never state or imply full coverage unless
+every in-scope file is marked `read` — an unread file with no finding is *not* a
+clean file, and claiming otherwise is the laundered-uncertainty / overstated-
+maturity failure this audit exists to catch (P8 — State-first lineage, and the
+honest-denominator discipline), turned on the audit itself.
+
 ## Check catalogue (each finding cites the principle it violates)
 
 1. Laundered uncertainty (P3) — a value that lost its confidence/provenance as it flowed downstream; a mock/approximate value treated as clean truth.
@@ -21,7 +32,7 @@ sweeps, dispatch read-only subagents and keep only their findings.
 5. Missing lineage (P8) — an output stored without the inputs needed to reproduce it.
    - If the project uses the provenance primitive: flag derived values that are never marked or carry no lineage; recommend asserting auditMeta(metaOf(value)) === [] in tests.
 6. Unexplained drift (P9) — a changed golden-baseline value with no recorded reason.
-7. Suppressed null result (spine) — a code path that cannot express "no structure/no effect/inconclusive".
+7. Suppressed null result (spine) — a code path that cannot express "no structure/no effect/inconclusive". Confirmed only where rejection is a declared or practiced concern; where rejection is adopted nowhere, an always-accept/always-success stub is an advisory adoption gap, not a violation (see "Calibrate to adopted principles" below).
 8. Escaped fakery (P4) — mock/approximate/fallback/cached data that left its container: not labelled (e.g. missing a derivedFromMock-style marker), or flowing into an export/output path that should exclude it unless explicitly opted in.
 9. Uncontracted output (P7) — a public output shape with no versioned, validated contract: missing a validator, a version constant, or a canonical key list.
 
@@ -77,19 +88,30 @@ nowhere — do you refrain from flagging each output: report it ONCE as an advis
 adoption gap (a P6 maturity note), not as N violations. This keeps the audit
 honest on small or early repos while still catching the dropped-field regression.
 
+**The spine obeys this calibration too.** An always-`true` / always-success stub
+(e.g. a `submitPayment` that can only return `accepted: true`) suppresses the
+null/rejection outcome — but whether that is a **violation** or merely an
+**adoption gap** turns on the same test. If rejection is declared in the
+architecture or practiced by sibling code, the missing reject path is a confirmed
+spine violation. If rejection is adopted nowhere — neither declared nor practiced
+anywhere — a deliberate stub on a layer that never claims to reject is the
+under-claim case: report it once as a `needs-review` advisory adoption gap, never
+as a confirmed violation.
+
 - Default to under-claiming: if unsure a finding is real, mark it "needs review",
   not "violation".
 
-## Report (audit format) — report-format v2
+## Report (audit format) — report-format v3
 
-Every report has three parts in this order: **header**, **glossary**, **findings
-table**. The shape is fixed — same input, same shape, every run (the audit owes
-its own output the reproducibility it demands of the code it reviews).
+Every report has four parts in this order: **header**, **glossary**, **findings
+table**, **coverage map**. The shape is fixed — same input, same shape, every run
+(the audit owes its own output the reproducibility it demands of the code it
+reviews).
 
 **1. Header block** — verbatim keys, so a stored report is reproducible:
 
 ```
-report-format: v2
+report-format: v3
 scope:               <path, diff range, or "repository">
 principles-revision: <the "Principles revision" from reference/portable-principles.md>
 date:                <YYYY-MM-DD>
@@ -126,9 +148,26 @@ finding, columns in this exact order:
 - **Suggested Fix** — a direction, not a patch.
 - **Principle** — the inline-named principle (`P# — <name>`).
 
+**4. Coverage map** — the audit's honest denominator, so a reader can tell what
+was actually examined. List every in-scope file (or directory, for a large tree)
+marked `read` / `partial` / `not-read`, then state the count and an explicit
+no-completeness caveat:
+
+```
+coverage: 12/47 files read, 3 partial, 32 not-read (32%)
+scope note: findings are drawn from the read set only; a not-read file with no
+finding is not a clean file. This audit does not claim completeness.
+```
+
+For a diff-scoped run the denominator is the diff's touched files and coverage is
+normally 100% — say so explicitly rather than omitting the map. The map is
+REQUIRED on every run: it is the artifact that stops the audit from implying it
+found everything when it only sampled.
+
 End with a one-line summary count (e.g. `4 findings: 2 violations, 2 needs-review`).
-A clean repo still emits the header, an empty/omitted glossary, and an explicit
-`No findings.` line in place of table rows — a clean result is a valid result.
+A clean repo still emits the header, an empty/omitted glossary, an explicit
+`No findings.` line in place of table rows, and the coverage map — a clean result
+is a valid result, but only over the files the coverage map lists as `read`.
 
 The omission-pass enumeration table (defined in the Method section) is a separate
 report artifact with its own columns; when the auditor emits it, its principle
