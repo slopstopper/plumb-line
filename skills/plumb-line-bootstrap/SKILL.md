@@ -5,6 +5,9 @@ description: Use when setting up a project with the plumb-line discipline — in
 
 # Bootstrap a project with plumb-line
 
+Part of the three-skill flow: learn the discipline with `plumb-line-method`, set
+the project up here, then review changes with `plumb-line-audit`.
+
 REQUIRED READING FIRST: `reference/portable-principles.md` and
 `adapters/adapter-contract.md` (plugin root).
 If either file cannot be read, stop immediately and report which file is missing. Do not proceed from memory.

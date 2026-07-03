@@ -387,3 +387,36 @@ fixtures (planted sets caught 2/2 in both languages).
   `report-format: v3` header **and** a coverage map (100% denominators on these
   small trees); two auditors additionally emitted the up-front traversal plan. No
   format FAILs — the coverage-honesty artifact is followable in practice.
+
+## 0.5.1 release-harness record
+
+Date: 2026-07-03 · Version: v0.5.1 · Base: `0b02c59` (main after the v0.5.0
+release), branch commit `7bf38b9` · Method-surface diff since `v0.5.0`:
+`skills/plumb-line-audit` (end-of-run read-only handoff, #88),
+`skills/plumb-line-method` + `skills/plumb-line-bootstrap` (onboarding +
+three-skill cross-links + first-run flow, #89). No change to the presence/omission
+passes, calibration, or report format.
+
+**Deterministic layer.** `examples/test_fixture_integrity.py` 7/7.
+
+**Blind validation layer.** 8 independent read-only auditors, 2 per fixture
+variant, answer keys withheld.
+
+| Fixture | Runs | Result |
+| ------- | ---- | ------ |
+| `js-payments-service/broken`  | 2 | **PASS** — both confirmed all three planted (P2 upward import, P5 hardcoded `FEE`, P3 missing provenance/confidence; both also caught P4/P8 extras) |
+| `js-payments-service/clean`   | 2 | **PASS** — both zero confirmed; spine stub → needs-review |
+| `python-data-pipeline/broken` | 2 | **PASS** — both confirmed all three planted (P2 upward import, P5 `SIGNAL_THRESHOLD`, P8 missing lineage) |
+| `python-data-pipeline/clean`  | 2 | **PASS** — both zero confirmed (P7/P9 advisory, binary engine confidence needs-review) |
+
+**No FAIL — no waiver.** This release touches only the end-of-run handoff and the
+method/bootstrap onboarding text, not the finding logic; the re-run confirms no
+regression — planted sets fully caught, clean trees clean, #101 spine calibration
+still holding.
+
+**Live confirmation of the #88 change:** on the `broken/` fixtures the auditors
+ended with the read-only handoff and — because those trees carry P2/P3/P4/P8
+enforcement gaps — suggested `plumb-line-bootstrap`; on the `clean/` fixtures they
+offered the plan handoff but correctly **withheld** the bootstrap suggestion ("no
+bootstrap handoff warranted"). The conditional gate works, and no auditor applied
+any change (read-only preserved).

@@ -11,6 +11,26 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 _Nothing yet._
 
+## [0.5.1] — 2026-07-03
+
+### Added
+- **Audit remediation handoff** (`plumb-line-audit`) — after printing the report,
+  the auditor now offers a read-only next step: hand the findings to a planning
+  skill (superpowers `writing-plans` / plan mode) for a fix-plan, and, when a
+  finding exposes a provenance/lineage/boundary gap, suggest `plumb-line-bootstrap`
+  to wire enforcement. It applies nothing itself — mechanical fixing stays the
+  planned `plumb-line-remediate` skill
+  ([#88](https://github.com/effythealien/plumb-line/issues/88)).
+- **Onboarding + three-skill cross-links** (`plumb-line-method`) — method now
+  names `plumb-line-bootstrap` as the explicit next step, maps all three skills
+  (method → bootstrap → audit), and documents the first-run flow — including that
+  a marketplace plugin cannot auto-execute a skill on install, so `/method` does
+  not auto-run. Bootstrap and audit gain reciprocal cross-links
+  ([#89](https://github.com/effythealien/plumb-line/issues/89)).
+
+These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes the
+"audit you can act on" theme. See [ROADMAP.md](ROADMAP.md).
+
 ## [0.5.0] — 2026-07-03
 
 ### Added
@@ -210,7 +230,8 @@ _Nothing yet._
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/effythealien/plumb-line/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/effythealien/plumb-line/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/effythealien/plumb-line/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/effythealien/plumb-line/compare/v0.3.1...v0.4.0

@@ -221,5 +221,28 @@ elsewhere — matching the `AUDIT-EXPECTATIONS.md` answer key.
 **principles-revision correctly stays `1`** (no principle meaning, scope, or
 vocabulary changed) — same judgment as H2, recorded in the CHANGELOG.
 
+## v0.5.1 dogfood self-audit
+
+Date: 2026-07-03 · Version: v0.5.1 · Commit: `7bf38b9` · Scope: the method-surface
+diff `v0.5.0..HEAD` (#88 audit handoff, #89 method/bootstrap onboarding) plus the
+ROADMAP/CHANGELOG reconciliation.
+
+**Result: clean — 0 findings.**
+
+The self-audit verified the angles that matter for this change:
+- **The new audit handoff stays genuinely read-only** — "OFFER — do not perform",
+  "produces a plan, not edits", "the auditor applies nothing itself". It never
+  implies it fixes anything (P-consistency with "review you can trust does not
+  mutate").
+- **`plumb-line-remediate` is labelled `planned` everywhere** it appears (SKILL,
+  CHANGELOG, ROADMAP) — no maturity over-claim of an unbuilt skill (P6).
+- **The first-run-flow claim is accurate** — a marketplace plugin registers skills
+  but cannot auto-execute one on install; the claim is scoped precisely to that.
+- **The ROADMAP reconciliation discloses the 0.5.0 descope rather than hiding it** —
+  v0.5.0 is marked "shipped (partial)" with an explicit "the other two planned
+  themes did NOT make 0.5.0" note. This is the overstated-maturity failure the
+  project exists to catch, avoided on its own release notes.
+- No bare `P#` and no report-format drift in the changed skill text.
+
 **Closure:** the v0.4.0 dogfood deferral **G3 → [#80](https://github.com/effythealien/plumb-line/issues/80)**
 (the `audit_meta` totality/parity gap) is the bug **fixed** in this release.
