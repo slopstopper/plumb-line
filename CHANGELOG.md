@@ -9,6 +9,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.5.1] — 2026-07-03
+
 ### Added
 - **Audit remediation handoff** (`plumb-line-audit`) — after printing the report,
   the auditor now offers a read-only next step: hand the findings to a planning
@@ -226,7 +230,8 @@ These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes th
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/effythealien/plumb-line/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/effythealien/plumb-line/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/effythealien/plumb-line/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/effythealien/plumb-line/compare/v0.3.1...v0.4.0
