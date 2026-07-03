@@ -9,6 +9,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.5.0] — 2026-07-03
+
 ### Added
 - **Developer Certificate of Origin** — contributions are now certified under
   the [DCO](DCO) 1.1. A CI check (`.github/workflows/dco.yml`) requires a
@@ -206,7 +210,8 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/effythealien/plumb-line/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/effythealien/plumb-line/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/effythealien/plumb-line/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/effythealien/plumb-line/compare/v0.3.0...v0.3.1
