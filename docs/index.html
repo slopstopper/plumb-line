@@ -15,11 +15,17 @@
       --muted: #57606a;
       --green: #2da44e;
       --green-deep: #176f2c;
+      --amber: #f59e0b;
+      --amber-lo: #92400e;
       --bg: #ffffff;
       --card: #ffffff;
       --border: #e4e8ee;
       --code-bg: #f6f8fa;
       --code-ink: #1f2328;
+      /* mascot speech bubble — green colourway */
+      --gbubble: #eaf7ee;
+      --gbubble-ink: #176f2c;
+      --gbubble-border: #b7e0c2;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -27,11 +33,16 @@
         --muted: #9aa7b4;
         --green: #3fb950;
         --green-deep: #238636;
+        --amber: #f59e0b;
+        --amber-lo: #b45309;
         --bg: #0d1117;
         --card: #161b22;
         --border: #232a33;
         --code-bg: #0b0f14;
         --code-ink: #c9d1d9;
+        --gbubble: #0f2418;
+        --gbubble-ink: #5fd07d;
+        --gbubble-border: #1f4a30;
       }
     }
 
@@ -61,8 +72,10 @@
       text-align: center;
       background:
         radial-gradient(58rem 30rem at 72% -12%, color-mix(in srgb, var(--green) 16%, transparent), transparent 60%),
+        radial-gradient(40rem 24rem at 14% 104%, color-mix(in srgb, var(--amber) 10%, transparent), transparent 55%),
         radial-gradient(46rem 26rem at 8% 2%, color-mix(in srgb, var(--green) 9%, transparent), transparent 55%);
     }
+    @media (max-width: 560px) { .hero { padding-bottom: 5.5rem; } }
     .logo {
       width: 60px; height: auto;
       filter: drop-shadow(0 6px 14px rgba(0,0,0,.12));
@@ -148,6 +161,29 @@
       text-align: center;
     }
     .divider { height: 1px; background: var(--border); border: 0; margin: 0; }
+
+    /* Mascot moment — tucked in the hero's lower-left corner */
+    .corner {
+      position: absolute; left: 1rem; bottom: .4rem; z-index: 2;
+      display: flex; flex-direction: column; align-items: flex-start; gap: .2rem;
+      width: 126px; pointer-events: none;
+    }
+    .bubble-wrap { padding-left: .3rem; }
+    .bubble {
+      background: var(--gbubble); color: var(--gbubble-ink);
+      border: 1.5px solid var(--gbubble-border); border-radius: 999px;
+      padding: .5rem .9rem; font-family: "Space Grotesk", sans-serif; font-weight: 700;
+      font-size: .96rem; white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,.10);
+      animation: bob 3.2s ease-in-out infinite;
+    }
+    .flip { transform: scaleX(-1); }
+    .botwave { width: 118px; height: auto; transform-origin: 60px 132px; animation: lean 3.2s ease-in-out infinite; }
+    .botwave .wave { transform-origin: 45px 91px; animation: wave 1.6s ease-in-out infinite; }
+    @keyframes bob  { 0%,100% { transform: translateY(0); }   50% { transform: translateY(-4px); } }
+    @keyframes lean { 0%,100% { transform: rotate(-1.5deg); }  50% { transform: rotate(1.5deg); } }
+    @keyframes wave { 0%,100% { transform: rotate(0deg); }     50% { transform: rotate(-16deg); } }
+    @media (max-width: 560px) { .corner { width: 96px; left: .5rem; } .bubble { font-size: .78rem; padding: .38rem .7rem; } .botwave { width: 92px; } }
+    @media (prefers-reduced-motion: reduce) { .bubble, .botwave, .botwave .wave { animation: none; } }
   </style>
 </head>
 <body>
@@ -155,7 +191,7 @@
     <div class="wrap">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="./logo-dark.svg">
-        <img class="logo" src="./logo.svg" alt="plumb-line logo" width="60" height="94">
+        <img class="logo" src="./logo.svg" alt="plumb-line logo" width="60" height="85">
       </picture>
       <h1>plumb-line</h1>
       <p class="tagline">
@@ -165,6 +201,32 @@
         <a class="btn btn-primary" href="https://github.com/effythealien/plumb-line">View on GitHub</a>
         <a class="btn btn-ghost" href="https://www.npmjs.com/package/plumb-line-provenance">npm</a>
         <a class="btn btn-ghost" href="https://pypi.org/project/plumb-line-provenance/">PyPI</a>
+      </div>
+    </div>
+
+    <!-- the keeper-bot, waving hello from the corner -->
+    <div class="corner" aria-hidden="true">
+      <div class="bubble">It&rsquo;s plumbin&rsquo; time!</div>
+      <div class="flip">
+        <svg class="botwave" viewBox="0 0 120 150" role="img" aria-label="plumb-line mascot waving">
+          <g fill="var(--amber)" stroke="var(--amber-lo)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="60" y1="34" x2="60" y2="20" stroke="var(--amber-lo)" stroke-width="2.4"/>
+            <circle cx="60" cy="15.5" r="4.6"/>
+            <path d="M52 116 L52 130 M68 116 L68 130" fill="none" stroke="var(--amber)" stroke-width="8"/>
+            <ellipse cx="50.5" cy="132" rx="7" ry="4.5"/>
+            <ellipse cx="69.5" cy="132" rx="7" ry="4.5"/>
+            <path d="M75 92 L86 101" fill="none" stroke="var(--amber)" stroke-width="10"/>
+            <circle cx="88" cy="103" r="6"/>
+            <rect x="41" y="80" width="38" height="40" rx="14" fill="var(--amber)"/>
+            <g class="wave">
+              <path d="M45 91 L33 74" fill="none" stroke="var(--amber)" stroke-width="10"/>
+              <circle cx="31" cy="71" r="6.2"/>
+            </g>
+            <rect x="37" y="33" width="46" height="44" rx="16" fill="var(--amber)"/>
+          </g>
+          <circle cx="52" cy="55" r="6" fill="#1f2328"/>
+          <circle cx="68" cy="55" r="6" fill="#1f2328"/>
+        </svg>
       </div>
     </div>
   </header>
