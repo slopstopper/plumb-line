@@ -41,18 +41,23 @@ Version themes for the near-term releases, and the GitHub issues under each.
   cross-links, and a documented first-run flow (#21 / GH #89). Skill-surface →
   runs the release harness.
 
-- **v0.6.0 — Apply the discipline.** Close the two-halves gap: the adopt-the-
-  primitive offer slice — method names the primitive (GH #106) and bootstrap
-  teaches it (GH #107), **deferred here from v0.5.0** — plus the bundle slice
-  (GH #99, gated on wire v2), all from item #6; and a new `plumb-line-remediate`
-  skill applies audit findings (#11 / GH #57). Depends on `report-format: v1`
-  (GH #28, shipped).
+- **v0.6.0 — Apply the discipline.** Close the two-halves gap on the skill
+  surface: the adopt-the-primitive offer slice — method names the primitive
+  (GH #106) and bootstrap teaches it (GH #107), **deferred here from v0.5.0** —
+  from item #6; and a new `plumb-line-remediate` skill applies audit findings
+  (#11 / GH #57). Rider: lint injection path (#10 / GH #29), pulled forward from
+  v0.7.0 because it makes bootstrap's wiring cover projects that re-export the
+  primitive under their own name — "apply the discipline" end to end. Depends on
+  `report-format: v1` (GH #28, shipped). The bundle slice (GH #99) **moved to
+  v0.7.0**: it is gated on wire v2, which does not land until then, so bundling
+  here would vendor v1 and re-vendor at the break.
 
 - **v0.7.0 — Lower the on-ramp** (runtime + wire v2). Static lint for untagged
   outputs (#1 / GH #91), ecosystem adapters (#2 / GH #92), `PROVENANCE_VERSION`
   per-envelope embedding (#5 / GH #93), durable/stable lineage step IDs — the
-  wire-format break, `PROVENANCE_VERSION` → 2 (GH #52), lint injection path
-  (#10 / GH #29), dual-import hardening (GH #24). The wire-v2 break lives here.
+  wire-format break, `PROVENANCE_VERSION` → 2 (GH #52), bundle the primitive
+  source once the schema settles at v2 (GH #99, deferred from v0.6.0),
+  dual-import hardening (GH #24). The wire-v2 break lives here.
 
 - **Portable beyond Claude** (parallel track, version TBD). Agent-neutral method
   core + agent-adapter contract (#12 / GH #58), MCP server exposing the three
@@ -176,7 +181,7 @@ teaches how to use it in the user's codebase
 ([#107](https://github.com/effythealien/plumb-line/issues/107)); the onboarding
 handoff between them is [#89](https://github.com/effythealien/plumb-line/issues/89).
 The *bundle* slice
-([#99](https://github.com/effythealien/plumb-line/issues/99), **v0.6.0**, gated on
+([#99](https://github.com/effythealien/plumb-line/issues/99), **v0.7.0**, gated on
 the wire-v2 release) makes that download frictionless.
 
 The `plumb-line-bootstrap` skill generates an `AGENTS.md` ruleset and installs
@@ -190,7 +195,7 @@ table.
 Close the gap from the skill side. The first two bullets are the *offer* slice
 (v0.6.0 — deferred from v0.5.0; no schema dependency), split by skill responsibility;
 the third is the *bundle* slice
-([#99](https://github.com/effythealien/plumb-line/issues/99), v0.6.0, gated on
+([#99](https://github.com/effythealien/plumb-line/issues/99), v0.7.0, gated on
 wire v2):
 - **Method — introduce + suggest download:** when teaching P3 (confidence +
   provenance) or P8 (lineage), name the runtime library as the concrete
@@ -255,7 +260,8 @@ versioning now let a saved audit report be re-verified and parsed reliably.
 
 ### 10. Configurable primitive module/function names in provenance lint
 
-**Priority: low** · Milestone: v0.7.0 · GitHub: #29
+**Priority: low** · Milestone: v0.6.0 · GitHub: #29 · rider on the "apply the
+discipline" release — makes bootstrap's wiring cover re-exported primitives
 
 `PRIMITIVE_MODULES` and `TRACKED` function lists in both the JS ESLint rule
 and the Python AST checker are hardcoded. Projects that re-export the
