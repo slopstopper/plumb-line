@@ -5,12 +5,37 @@ description: Use when setting up a project with the plumb-line discipline — in
 
 # Bootstrap a project with plumb-line
 
-Part of the three-skill flow: learn the discipline with `plumb-line-method`, set
-the project up here, then review changes with `plumb-line-audit`.
+Part of the four-skill flow: learn the discipline with `plumb-line-method`, set
+the project up here, review changes with `plumb-line-audit`, and apply findings
+with `plumb-line-remediate`.
 
 REQUIRED READING FIRST: `reference/portable-principles.md` and
 `adapters/adapter-contract.md` (plugin root).
 If either file cannot be read, stop immediately and report which file is missing. Do not proceed from memory.
+
+## Two entries: full bootstrap vs. declaration-only (mid-audit)
+
+This skill has two entry modes. **Full bootstrap** — the builder asked for
+setup — runs every step below. **Declaration-only** — `plumb-line-audit`
+invoked this skill because the project declares no architecture and the audit
+needs that context before proceeding — runs a deliberately two-minute detour:
+
+- Ask ONLY interview questions 1–3 (layers + direction; source-truth layer;
+  composition root). The audit needs the declaration, not the ceremony.
+- Write the ruleset from those answers (Step 3), marking every section the
+  interview did not reach as `planned` — an un-asked question must not read as
+  an answered one.
+- Skip Step 4, Step 4b, and Step 6's audit offer entirely: no enforcement
+  install, no primitive offer, nothing added to the project beyond the ruleset
+  file. Those belong to a full bootstrap run — name it as the follow-up in the
+  report's TODOs.
+- Emit the Step 5 report header with one extra line — `entry: declaration-only`
+  — then return the baton: the calling audit resumes with the freshly declared
+  architecture (do not start a second audit).
+
+The honesty constraint applies in both modes: if the builder cannot name a
+source-truth layer, stop and say so — in declaration-only mode that answer goes
+back to the audit, which then proceeds calibrated with the gap on record.
 
 ## Step 1 — Detect language, pick the adapter
 
@@ -110,6 +135,41 @@ hook. To wire it as a Claude Code PreToolUse hook, map the host's tool payload's
 file path into the `{filePath}` stdin the guard expects — if the host payload
 shape differs, add a one-line shim rather than assuming it matches.
 
+## Step 4b — Offer the runtime primitive (opt-in; never silent)
+
+The interview's own answers say exactly where runtime provenance belongs: **Q4**
+named what flows downstream (gets provenance + confidence), **Q8** named the
+lineage-bearing outputs. After enforcement is installed, make ONE explicit
+offer — scaffold `mark`/`derive` from `plumb-line-provenance` at those exact
+call sites — and act only on an explicit yes:
+
+- **Declined → the project is untouched.** Record the offer as declined in the
+  report and move on; no library, no marking, no new dependency appears.
+- **Accepted →** check the library is importable first (`plumb-line-provenance`
+  on npm / PyPI). If absent, tell the builder the one-line install and pause —
+  suggesting it is fine; running it or vendoring the source is not this slice.
+  This adds no mandatory step: a builder who never accepts never needs it.
+
+When scaffolding, **teach the pattern at the first site rather than carpeting
+all of them** — the goal is a builder who can extend it, not a wrapped codebase:
+
+1. At a Q4 site: wrap the value's origin in `mark(value, { source, confidence })`
+   — the builder supplies `source`/`confidence` per site (their answers, not
+   your defaults; the interview's honesty rule applies here too).
+2. At a derivation: `derive([inputs], fn)` (JS) / the Python equivalent —
+   show that the output inherits `derivedFromMock` and the weakest confidence
+   automatically, and that no API exists to clear taint.
+3. At a Q8 output: show `metaOf(x)` / `meta_of(x)` exposing the lineage, and
+   `auditMeta` / `audit_meta` returning `[]` when the envelope is consistent.
+4. Add one failing-then-passing test that asserts the key output audits clean
+   (`auditMeta(metaOf(out)) === []` / `audit_meta(meta_of(out)) == []`), and
+   wire it into the test command the pre-commit gate already runs (Step 4) — so
+   an unmarked or laundered return is caught before review, by the gate the
+   builder just installed.
+
+Show each file's diff as you scaffold; every remaining unscaffolded Q4/Q8 site
+goes in the report as `planned`, so the coverage claim stays honest.
+
 ## Step 5 — Report (audit format)
 
 Open with the same **required header block** as the audit format (`report-format:
@@ -121,4 +181,18 @@ coverage map are audit-specific and are not part of a bootstrap report.
 
 Then list every file created/modified and any unanswered prompt left as a TODO
 for the builder. Label anything not done as `planned`. (The adapter is recorded
-in the header's `adapter:` line above.)
+in the header's `adapter:` line above.) Record the Step 4b outcome explicitly —
+`accepted` (with the scaffolded sites and the `planned` remainder) or
+`declined` — so the report says whether runtime provenance exists in this
+project or was offered and turned down.
+
+## Step 6 — Hand the baton
+
+The project is now declared and enforced; the natural next step is a first
+audit against the freshly written ruleset. Offer it — "want me to run
+`plumb-line-audit` now for a baseline read?" — and on a yes, **invoke the skill
+directly** (via the host's skill mechanism) rather than telling the builder to
+run it. If bootstrap was itself invoked mid-audit (the audit stops when no
+architecture is declared and hands here for the interview), return the baton
+instead: the calling audit resumes with the now-declared architecture — do not
+start a second audit.
