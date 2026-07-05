@@ -1,6 +1,8 @@
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import provenance_lint as pl
 
@@ -93,3 +95,41 @@ def test_message_cites_source_and_line():
 def test_syntax_error_is_reported_not_raised():
     issues = pl.check("def (:\n")
     assert issues and issues[0]['rule'] == 'parse'
+
+
+# --- injection path (D7 / GH #29): extra_modules + extra_tracked ---
+# Both are ADDITIVE — built-in coverage can never be configured away.
+
+WRAPPER_PB1 = "from myorg_data import mark\nm = mark(1, source='real', derived_from_mock=True)"
+
+def test_wrapper_module_unseen_by_default():
+    # Under-claim by default: an unconfigured wrapper module stays out of scope.
+    assert pl.check(WRAPPER_PB1) == []
+
+def test_extra_modules_extends_coverage_to_wrapper():
+    issues = pl.check(WRAPPER_PB1, extra_modules={'myorg_data'})
+    assert [i['rule'] for i in issues] == ['PB1']
+
+def test_extra_modules_keeps_builtin_coverage():
+    src = IMPORT + "m = mark(42, source='real', derived_from_mock=True)"
+    assert [i['rule'] for i in pl.check(src, extra_modules={'myorg_data'})] == ['PB1']
+
+def test_extra_modules_leaves_honest_wrapper_usage_silent():
+    src = "from myorg_data import mark\nm = mark(2, source='mock', confidence='low')"
+    assert pl.check(src, extra_modules={'myorg_data'}) == []
+
+def test_extra_tracked_maps_renamed_wrapper_to_role():
+    src = "from myorg_data import mark_value\nm = mark_value(1, source='real', derived_from_mock=True)"
+    issues = pl.check(src, extra_modules={'myorg_data'}, extra_tracked={'mark_value': 'mark'})
+    assert [i['rule'] for i in issues] == ['PB1']
+
+def test_extra_tracked_namespace_form():
+    src = "import myorg_data as d\nt = d.derive_all([a], lambda x: x, source='real')"
+    issues = pl.check(src, extra_modules={'myorg_data'}, extra_tracked={'derive_all': 'derive'})
+    assert [i['rule'] for i in issues] == ['PB3']
+
+def test_extra_tracked_unknown_role_fails_loud():
+    # A typo'd role would otherwise mean silently-missing coverage — the exact
+    # failure mode this injection path exists to prevent. Fail loud instead.
+    with pytest.raises(ValueError):
+        pl.check("x = 1", extra_tracked={'mark_value': 'markk'})

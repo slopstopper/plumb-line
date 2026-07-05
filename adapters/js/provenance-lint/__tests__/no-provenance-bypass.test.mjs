@@ -77,3 +77,52 @@ ruleTester.run("no-provenance-bypass", rule, {
     },
   ],
 });
+
+// Injection path (D7 / GH #29): `modules` extends which import sources count as
+// the primitive; `tracked` maps wrapper-local names onto the four roles. Both are
+// ADDITIVE — the built-in coverage can never be configured away.
+ruleTester.run("no-provenance-bypass (injection options)", rule, {
+  valid: [
+    // A wrapper module is invisible WITHOUT the option (under-claim by default)…
+    `import { mark } from "@myorg/data";\nconst m = mark(1, { source: "real", derivedFromMock: true });`,
+    // …and configuring extras must not affect honest wrapper usage.
+    {
+      code:
+        `import { mark } from "@myorg/data";\n` +
+        `const m = mark(2, { source: "mock", confidence: "low" });`,
+      options: [{ modules: ["@myorg/data"] }],
+    },
+  ],
+  invalid: [
+    {
+      // re-export wrapper: same names, different import source
+      code:
+        `import { mark } from "@myorg/data";\n` +
+        `const m = mark(1, { source: "real", derivedFromMock: true });`,
+      options: [{ modules: ["@myorg/data"] }],
+      errors: [{ messageId: "pb1", data: { source: "real" } }],
+    },
+    {
+      // renamed wrapper: `tracked` maps the local name onto the `mark` role
+      code:
+        `import { markValue } from "@myorg/data";\n` +
+        `const m = markValue(1, { source: "real", derivedFromMock: true });`,
+      options: [{ modules: ["@myorg/data"], tracked: { markValue: "mark" } }],
+      errors: [{ messageId: "pb1" }],
+    },
+    {
+      // namespace form of a tracked-role extension
+      code:
+        `import * as d from "@myorg/data";\n` +
+        `const t = d.deriveAll([a], (x) => x, { source: "real" });`,
+      options: [{ modules: ["@myorg/data"], tracked: { deriveAll: "derive" } }],
+      errors: [{ messageId: "pb3" }],
+    },
+    {
+      // extras are additive: built-in coverage still fires with options set
+      code: IMPORT + `const m = mark(42, { source: "real", derivedFromMock: true });`,
+      options: [{ modules: ["@myorg/data"], tracked: { markValue: "mark" } }],
+      errors: [{ messageId: "pb1" }],
+    },
+  ],
+});

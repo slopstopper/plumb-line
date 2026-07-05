@@ -52,8 +52,11 @@ def _is_const_bool(node, value):
 
 
 class _Visitor(ast.NodeVisitor):
-    def __init__(self, clean_sources=None):
+    def __init__(self, clean_sources=None, primitive_modules=None, tracked=None):
         self.clean_sources = clean_sources if clean_sources is not None else CLEAN_SOURCES
+        self.primitive_modules = primitive_modules if primitive_modules is not None else PRIMITIVE_MODULES
+        # name -> role; the built-in names are their own role.
+        self.tracked = tracked if tracked is not None else {n: n for n in TRACKED}
         self.local_fn = {}      # local name -> tracked role
         self.namespaces = set()  # locals bound to a primitive module
         self.issues = []
@@ -65,21 +68,21 @@ class _Visitor(ast.NodeVisitor):
     def collect_imports(self, tree):
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
-                if _basename(node.module) in PRIMITIVE_MODULES:
+                if _basename(node.module) in self.primitive_modules:
                     for alias in node.names:
-                        if alias.name in TRACKED:
-                            self.local_fn[alias.asname or alias.name] = alias.name
+                        if alias.name in self.tracked:
+                            self.local_fn[alias.asname or alias.name] = self.tracked[alias.name]
             elif isinstance(node, ast.Import):
                 for alias in node.names:
-                    if _basename(alias.name) in PRIMITIVE_MODULES:
+                    if _basename(alias.name) in self.primitive_modules:
                         self.namespaces.add(alias.asname or alias.name)
 
     def _callee_role(self, func):
         if isinstance(func, ast.Name):
             return self.local_fn.get(func.id)
         if (isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name)
-                and func.value.id in self.namespaces and func.attr in TRACKED):
-            return func.attr
+                and func.value.id in self.namespaces and func.attr in self.tracked):
+            return self.tracked[func.attr]
         return None
 
     def _is_unwrapped(self, arg):
@@ -114,17 +117,33 @@ class _Visitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def check(source, filename='<unknown>', clean_sources=None):
+def check(source, filename='<unknown>', clean_sources=None, extra_modules=None, extra_tracked=None):
     """Return a list of issue dicts: {'line', 'rule', 'message', 'filename'}. Empty = clean.
 
     clean_sources: set of source strings treated as 'clean' (defaults to CLEAN_SOURCES).
     Projects using a non-standard source vocabulary can override this per-call.
+
+    extra_modules: extra module basenames counted as the primitive, ADDITIVE to
+    PRIMITIVE_MODULES — for projects re-exporting the primitive through a wrapper
+    (e.g. {'myorg_data'}). The built-in coverage cannot be configured away.
+
+    extra_tracked: mapping of wrapper-local function name -> built-in role, for
+    wrappers that rename (e.g. {'mark_value': 'mark'}). Roles must be one of
+    TRACKED; an unknown role raises ValueError — a typo'd role would otherwise
+    mean silently-missing coverage, the exact gap this parameter exists to close.
     """
+    tracked = {n: n for n in TRACKED}
+    if extra_tracked:
+        bad = {name: role for name, role in extra_tracked.items() if role not in TRACKED}
+        if bad:
+            raise ValueError(f'extra_tracked roles must be one of {sorted(TRACKED)}; got {bad}')
+        tracked.update(extra_tracked)
+    modules = PRIMITIVE_MODULES | set(extra_modules or ())
     try:
         tree = ast.parse(source, filename)
     except SyntaxError as e:
         return [{'line': e.lineno or 0, 'rule': 'parse', 'message': f'syntax error: {e.msg}', 'filename': filename}]
-    v = _Visitor(clean_sources=clean_sources)
+    v = _Visitor(clean_sources=clean_sources, primitive_modules=modules, tracked=tracked)
     v.collect_imports(tree)
     v.visit(tree)
     v.issues.sort(key=lambda i: (i['line'], i['rule']))
