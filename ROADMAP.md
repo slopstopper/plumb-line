@@ -5,6 +5,20 @@ authoritative version→work index; the **Planned** section holds the detail for
 each numbered item (item IDs are stable — GitHub issues reference them as
 "ROADMAP #N"). GitHub milestones track issue-level status.
 
+## North star
+
+The long-run identity (status: **planned** — this names direction, not current
+capability): plumb-line is **the epistemic honesty layer for agent-built
+software**, with the provenance library as its runtime enforcement arm. Three
+horizons: (1) deepen the existing promise — P9 tooling, boundary gates,
+CI-native enforcement (v0.8.0–v0.9.0); (2) make provenance a property of a
+*system*, not a process — taint that survives serialization, files, and HTTP
+(Provenance across boundaries); (3) make honest self-reporting a spec any agent
+can adopt — coverage maps, honest denominators, and envelopes on agent-produced
+claims (Agent epistemic state). What is **current** is exactly what the README
+Status section says; everything in this file is planned until CHANGELOG says
+otherwise.
+
 ---
 
 ## Milestones
@@ -55,18 +69,73 @@ Version themes for the near-term releases, and the GitHub issues under each.
 - **v0.7.0 — Lower the on-ramp** (runtime + wire v2). Static lint for untagged
   outputs (#1 / GH #91), ecosystem adapters (#2 / GH #92), `PROVENANCE_VERSION`
   per-envelope embedding (#5 / GH #93), durable/stable lineage step IDs — the
-  wire-format break, `PROVENANCE_VERSION` → 2 (GH #52), bundle the primitive
-  source once the schema settles at v2 (GH #99, deferred from v0.6.0),
-  dual-import hardening (GH #24). The wire-v2 break lives here.
+  wire-format break, `PROVENANCE_VERSION` → 2 (GH #52), lint injection path
+  (#10 / GH #29), dual-import hardening (GH #24). The wire-v2 break lives here,
+  and so must the source-ladder decision: an `inferred` (LLM/agent-produced)
+  slot or a profile mechanism, decided **before** v2 tags (#23 / GH #116) —
+  it is the last cheap chance to touch the ladder.
+
+- **v0.8.0 — Honest over time** (P9 tooling + CI-native). Principle 9 finally
+  gets an implementation: `plumb-line baseline` CLI — golden baseline with
+  lineage-attributed drift (#24 / GH #117); a GitHub Action running the
+  deterministic adapters with SARIF output (#25 / GH #118); a provenance
+  ratchet — "no *new* untagged outputs vs. main" — for incremental adoption on
+  legacy codebases (#26 / GH #119, deps #1). Deterministic-only, no
+  wire-format dependency: **can start alongside v0.7.0**.
+
+- **v0.9.0 — Refuse and explain** (runtime gates + legibility). The runtime
+  learns to say no and to explain itself: egress guard `require()` (#27 /
+  GH #120), `explain()` human-readable lineage + Mermaid/DOT (#28 / GH #121),
+  `summarize()` trust summary for artifacts (#29 / GH #122), pytest/vitest
+  quarantine plugins (#30 / GH #123). Sequenced after wire v2 so new envelope
+  fields are settled; every primitive lands in both languages with conformance
+  rows.
 
 - **Portable beyond Claude** (parallel track, version TBD). Agent-neutral method
   core + agent-adapter contract (#12 / GH #58), MCP server exposing the three
   skills (#13 / GH #59, deps #12), per-host rule-file packs (#14 / GH #60).
   Orthogonal to the release train — can run alongside the versions above.
 
+- **Provenance across boundaries** (parallel track, version TBD; starts after
+  wire v2). Taint must survive process boundaries or the guarantee only holds
+  in-memory: canonical JSON serialization convention (#31 / GH #124),
+  file-artifact sidecars (#32 / GH #125, deps #31), HTTP provenance-context
+  header (#33 / GH #126, deps #31).
+
+- **Agent epistemic state** (parallel track, version TBD; the identity track —
+  can start early, it is skill-surface with no runtime dependency beyond the
+  ladder decision). Generalize the audit skill's coverage-map / honest-
+  denominator machinery into a versioned spec for honest agent self-reporting
+  (#34 / GH #127), and a convention + Claude Code hook so agent-produced claims
+  and code carry envelopes (#35 / GH #128, deps #23, #34).
+
+- **Ecosystem docking** (parallel track, demand-driven — design notes first,
+  code when a real user asks). OpenLineage exporter (#36 / GH #129), W3C PROV-O
+  vocabulary mapping (#37 / GH #130), dbt model-level tags through the DAG
+  (#38 / GH #131).
+
 - **Backlog** (unversioned). Guaranteed total-sweep audit via subagent fan-out,
   with a token-cost warning (#22 / GH #90); IDE integration (#3); Go and Rust
-  ports (#7); relocate `provenance-lint` to `primitives/` (#8).
+  ports (#7); relocate `provenance-lint` to `primitives/` (#8); type-level
+  enforcement — `Marked<T>` branded type + mypy plugin (#39 / GH #132, behind
+  v0.9.0).
+
+### Priority order
+
+The sequencing rule: **finish the audit-trust arc first** (v0.5.1 → v0.6.0,
+already scoped — the only external user adopted the audit skill), then take the
+one-shot schema window (v0.7.0 + the ladder decision), then the two new
+deepening milestones. Parallel tracks interleave by their stated dependencies:
+
+1. **Now:** v0.5.1, then v0.6.0 (unchanged scope).
+2. **Next:** v0.7.0 — with #23 (ladder decision) added as a hard rider on the
+   wire-v2 tag. v0.8.0 may start in parallel (no wire dependency).
+3. **Then:** v0.8.0 → v0.9.0.
+4. **Parallel, start early:** Agent epistemic state (#34 first; #35 after the
+   ladder decision) and Portable beyond Claude — both skill-surface.
+5. **Parallel, after wire v2:** Provenance across boundaries (#31 → #32/#33).
+6. **Opportunistic:** Ecosystem docking — PROV-O mapping (#37) is cheap and
+   credibility-bearing, do it whenever; OpenLineage/dbt wait for a pilot user.
 
 ---
 
@@ -433,16 +502,232 @@ Deliberately deferred beyond v0.5.0; #19's plan + map is the honest-floor versio
 
 ---
 
+### 23. Source ladder — decide an `inferred` (LLM/agent-produced) slot
+
+**Priority: high** · Milestone: v0.7.0 (hard rider on wire v2) · GitHub: #116
+
+The source ladder has no seat for a value an LLM or agent estimated; teams will
+shoehorn it into `semiReal` or `fallback` inconsistently. Decide **before wire
+v2 tags** — it is the last cheap chance to touch the ladder: either add
+`inferred`/`estimated`, or define a registered profile/extension mechanism that
+preserves cross-language parity. Record as an ADR; pin with conformance cases.
+The Agent epistemic state track (#35) needs a ladder position to point at.
+
+---
+
+### 24. `plumb-line baseline` CLI — golden baseline + lineage-attributed drift
+
+**Priority: high** · Milestone: v0.8.0 · GitHub: #117
+
+Principle 9 (golden baseline + explain-the-drift) currently has **no
+implementation anywhere in the repo** — until this ships, P9 is
+`not-implemented` and must be labelled as such wherever the principles are
+presented as enforced. The CLI pins an output *with its lineage*, diffs runs,
+refuses silent drift, and demands a recorded one-line explanation on update.
+Differentiator vs. snapshot testing: lineage lets drift be **attributed**
+("output moved because `rate` source changed real→fallback at step 3"), not
+just diffed. Deterministic; both languages; no wire dependency.
+
+---
+
+### 25. GitHub Action + SARIF output for the deterministic adapters
+
+**Priority: high** · Milestone: v0.8.0 · GitHub: #118
+
+Review-time enforcement currently assumes a Claude session. A composite GitHub
+Action running the boundary check, provenance lint, and (once shipped) the
+baseline check — emitting **SARIF** so findings land in GitHub's native
+code-scanning UI — works for every contributor regardless of agent, at zero
+marginal cost. The LLM audit stays out of scope: this is the always-on
+deterministic floor.
+
+---
+
+### 26. Provenance ratchet — no new untagged outputs vs. main
+
+**Priority: high** · Milestone: v0.8.0 · GitHub: #119 · depends on #1 (GH #91)
+
+The honest answer to "how does a 300k-line legacy repo adopt this?" is
+currently "it can't, realistically." The proven incremental pattern from
+type-coverage tooling: measure untagged output-producing functions on main,
+fail CI only when a PR *increases* the count. A ratchet mode for the lint
+(JS + Python) with a committed manifest, wired into the Action (#25) and the
+pre-commit gate.
+
+---
+
+### 27. Egress guard — `require(x, { noMock, minConfidence })`
+
+**Priority: high** · Milestone: v0.9.0 · GitHub: #120
+
+`auditMeta` flags problems after the fact; nothing *stops* a tainted value at
+the door. A small guard that throws (or returns a typed refusal) at
+export/display/publish points converts the discipline from detectable to
+**enforced at the boundary** — what P4 ("excluded from outputs unless
+explicitly opted in") actually promises. Tiny surface; both languages;
+conformance rows per predicate; failing test first.
+
+---
+
+### 28. `explain(envelope)` — human-readable lineage
+
+**Priority: medium** · Milestone: v0.9.0 · GitHub: #121
+
+Lineage is stored but not legible: no way to ask an envelope *why* it is
+low-confidence and get "tainted at step 2: `rate` was mock", and no visual
+form (lineage → Mermaid/DOT). The first-tester pattern — opaque codes kill
+legibility — will recur at the envelope level the moment anyone debugs a real
+pipeline. Debuggability is the adoption lever for the runtime half.
+Deterministic output, parity-pinned.
+
+---
+
+### 29. `summarize(envelopes)` — trust summary for artifacts
+
+**Priority: medium** · Milestone: v0.9.0 · GitHub: #122
+
+One small record per artifact — % derived-from-mock, weakest source present,
+confidence floor, lineage depth — printable at the bottom of any report or
+export. Makes provenance visible to stakeholders who will never read an
+envelope, which is what keeps instrumentation alive. **Guardrail, by design:**
+never collapse this into a single scalar "honesty score" — a grade invites
+gaming and is itself laundered uncertainty. Distributions and drift, never a
+grade.
+
+---
+
+### 30. Test-harness plugins — automatic fixture quarantine
+
+**Priority: medium** · Milestone: v0.9.0 · GitHub: #123
+
+Tests are where fake data is *supposed* to live; make the quarantine automatic
+there. A pytest plugin and vitest helper that auto-mark fixture-constructed
+values `source: mock` and assert no mock taint reaches golden outputs — the
+classic disaster (test fixture leaks into a prod default) caught at near-zero
+adoption friction. Ships as optional extras; zero-dependency core untouched.
+
+---
+
+### 31. Envelope transport — canonical JSON serialization convention
+
+**Priority: high** · Milestone: Provenance across boundaries · GitHub: #124
+
+Envelopes are in-memory objects; taint evaporates at every HTTP response, DB
+write, file, or queue — today the guarantee only holds inside one process, and
+taint systems historically die exactly here (taint cleared at a serialization
+boundary gets routed around). A normative SPEC section: how an envelope embeds
+in a JSON payload (canonical key, camelCase wire form, version field per #5)
+and how `parse`/`revive` restores it losslessly, both languages,
+conformance-pinned. Foundation for #32 and #33.
+
+---
+
+### 32. File-artifact sidecar convention
+
+**Priority: medium** · Milestone: Provenance across boundaries · GitHub: #125 · depends on #31
+
+Data teams pass files around; taint dies at the file boundary. Define
+`<name>.provenance.json` sidecars for CSV/parquet/JSON artifacts (whole-file or
+per-column envelopes), write/read helpers in both languages, and audit-skill
+awareness: an output artifact with no sidecar is a P8 finding.
+
+---
+
+### 33. HTTP provenance-context header
+
+**Priority: medium** · Milestone: Provenance across boundaries · GitHub: #126 · depends on #31
+
+Envelope context that travels across services the way W3C `traceparent`
+carries trace context: a header carrying the compact envelope so a consuming
+service `mark`s the received value with its true upstream provenance instead
+of defaulting to `real`. Header format in SPEC.md, middleware for the
+fetch/requests/httpx adapters (#2), a worked two-service example. This is the
+"OpenTelemetry for certainty" claim made concrete.
+
+---
+
+### 34. Agent-run epistemic-state spec
+
+**Priority: high** · Milestone: Agent epistemic state · GitHub: #127
+
+The audit skill's coverage-honesty machinery (traversal plan,
+read/partial/not-read map, honest denominator — #19) is the seed of a general
+spec for **honest agent self-reporting**: what an agent read, assumed, and
+skipped, at what confidence. "It confidently acts like it found everything" is
+true of every agent everywhere, not just this auditor. Extract the format into
+a small versioned spec (like `report-format`) that other skills — and other
+tools entirely — can adopt. This is the identity track.
+
+---
+
+### 35. Agent-output provenance convention + hook
+
+**Priority: high** · Milestone: Agent epistemic state · GitHub: #128 · depends on #23, #34
+
+A convention whereby agent-produced claims and code carry envelopes:
+`source: inferred` (pending #23), stated confidence, lineage recording the
+evidence actually consulted (#34's denominator). Documented against SPEC.md; a
+Claude Code hook that stamps provenance on agent-written artifacts; guidance in
+the method skill.
+
+---
+
+### 36. OpenLineage exporter
+
+**Priority: low (demand-driven)** · Milestone: Ecosystem docking · GitHub: #129
+
+plumb-line is value-level lineage; OpenLineage is dataset/job-level. An
+exporter mapping envelope lineage onto OpenLineage facets slots plumb-line into
+Airflow/dbt/Marquez shops as the fine-grained complement, not a competitor.
+Design note first; build when a real user asks.
+
+---
+
+### 37. W3C PROV-O vocabulary mapping
+
+**Priority: medium (cheap)** · Milestone: Ecosystem docking · GitHub: #130
+
+A documented mapping from the envelope schema to PROV-O terms
+(Entity/Activity/Agent, `wasDerivedFrom`, …). A reference document, not code —
+and immediate credibility with the research/scientific-software audience the
+README names as primary. Lives in `reference/`.
+
+---
+
+### 38. dbt adapter — source/confidence through the DAG
+
+**Priority: low (demand-driven)** · Milestone: Ecosystem docking · GitHub: #131
+
+SQL is where most real-world derivation happens and neither primitive touches
+it. Models declare `source`/`confidence` meta tags; a macro or post-hook
+propagates the conservative-combination law through the DAG and surfaces the
+result in docs/exposures. Largest potential audience of any adapter, furthest
+from the current codebase — validate with a design note + one pilot user first.
+
+---
+
+### 39. Type-level enforcement — `Marked<T>` + mypy plugin
+
+**Priority: low** · Milestone: Backlog (behind v0.9.0) · GitHub: #132
+
+Stronger than the AST lint (#1): a TypeScript branded type `Marked<T>` and a
+Python `typing.Annotated` + mypy plugin so functions declared to return
+provenance-bearing values fail to *compile* when they return bare ones. The
+lint finds absence heuristically; the type system proves it. They compose:
+lint for gradual adoption, types for the committed core.
+
+---
+
 ## Deferred — Known Issues
 
-The v0.2.0 / v0.3.0 dogfood deferrals #23, #25, and #26 have shipped — see
+The v0.2.0 / v0.3.0 dogfood deferrals GH #23, #25, and #26 have shipped — see
 [CHANGELOG.md](CHANGELOG.md). Two remain open, folded into the runtime
 milestone:
 
-| # | Summary | File | Milestone |
-|---|---------|------|-----------|
-| #24 | Dual-import shim can be displaced by a top-level `provenance.py` in a consumer project | `primitives/python/{marked,audit}.py` | v0.7.0 |
-| #96 | `auditMeta`/`audit_meta` non-plain-object (Map/Date/class-instance) parity + SPEC §5 totality wording | `primitives/js/audit.mjs`, `primitives/SPEC.md` | v0.7.0 |
+| GH # | Summary | File | Milestone |
+|------|---------|------|-----------|
+| GH #24 | Dual-import shim can be displaced by a top-level `provenance.py` in a consumer project | `primitives/python/{marked,audit}.py` | v0.7.0 |
+| GH #96 | `auditMeta`/`audit_meta` non-plain-object (Map/Date/class-instance) parity + SPEC §5 totality wording | `primitives/js/audit.mjs`, `primitives/SPEC.md` | v0.7.0 |
 
 The related `audit_meta` totality bug on falsy-but-not-`None` input (GH #80)
 shipped in v0.4.1; #96 above tracks the non-plain-object parity edge that review

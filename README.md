@@ -21,11 +21,11 @@
 
 A plumb line measures true vertical by gravity alone; plumb-line does the same for a codebase, keeping it epistemically honest (including about what it doesn't know). It gives a repository a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and boundaries checked by machines (not *vibes*).
 
-plumb-line is a small, standalone provenance library for JavaScript and Python, paired with a Claude Code plugin (three skills). The library enforces the discipline while your code runs; the skills enforce it when you review code.
+plumb-line is a small, standalone provenance library for JavaScript and Python, paired with a Claude Code plugin (three skills). The library enforces the discipline while your code runs; the skills enforce it when you review code. What it is building toward (**planned** — see [where this is going](#where-this-is-going)): an epistemic honesty layer for agent-built software, where every value, artifact, and agent-produced claim carries where it came from and how sure anyone should be.
 
 ## Who it's for
 
-plumb-line is for builders whose outputs are claims, where a silent mistake can poison the whole stream — research and scientific software, data and ML, AI agents and analytics, or any codebase you've inherited and must now stand behind. It assumes that being confidently wrong is worse than being honestly uncertain, that "we don't know yet" is a shippable answer, and that a number without provenance is a liability.
+plumb-line is for builders whose outputs are claims, where a silent mistake can poison the whole stream — research and scientific software, data and ML, AI agents and analytics, or any codebase you've inherited and must now stand behind. It assumes that being confidently wrong is worse than being honestly uncertain, that "we don't know yet" is a shippable answer, and that a number without provenance is a liability. As agents write more of the code and more of the claims, "who produced this, from what evidence, and how sure were they" stops being a research-software nicety — plumb-line is built from that end.
 
 ## Two halves: run-time and review-time
 
@@ -101,7 +101,15 @@ The provenance envelope is a trust claim, so plumb-line states plainly what it g
 
 ## Status
 
-plumb-line ships the run-time provenance primitive with JS/Python parity, the three skills, and enforcement adapters for JavaScript/TypeScript and Python — published to npm and PyPI as `plumb-line-provenance` (the badges above track the current version; the [changelog](CHANGELOG.md) has the per-release detail). The primitive's envelope and law are pinned by a versioned [specification](primitives/SPEC.md) (envelope schema version 1) and a cross-language [conformance suite](primitives/conformance/). The deterministic adapters — boundary checks and the `no-provenance-bypass` static lint (JS + Python) — are validated against the worked fixtures in `examples/`, catching every planted violation with no false positives; see the [validation results](docs/validation-results.md). plumb-line is held to its own principles, too: the auditor is run on plumb-line's own code before each method-surface release, and the [dogfooding report](docs/dogfood.md) and validation results record what it finds — including its own false-positive rate, since an LLM audit is a review aid, not a gate. Planned: bootstrap wiring so host projects adopt the primitive automatically, and Go and Rust adapters.
+plumb-line ships the run-time provenance primitive with JS/Python parity, the three skills, and enforcement adapters for JavaScript/TypeScript and Python — published to npm and PyPI as `plumb-line-provenance` (the badges above track the current version; the [changelog](CHANGELOG.md) has the per-release detail). The primitive's envelope and law are pinned by a versioned [specification](primitives/SPEC.md) (envelope schema version 1) and a cross-language [conformance suite](primitives/conformance/). The deterministic adapters — boundary checks and the `no-provenance-bypass` static lint (JS + Python) — are validated against the worked fixtures in `examples/`, catching every planted violation with no false positives; see the [validation results](docs/validation-results.md). plumb-line is held to its own principles, too: the auditor is run on plumb-line's own code before each method-surface release, and the [dogfooding report](docs/dogfood.md) and validation results record what it finds — including its own false-positive rate, since an LLM audit is a review aid, not a gate. Everything beyond that is **planned**, not current — the [roadmap](ROADMAP.md) is the authoritative index.
+
+## Where this is going
+
+The long-run direction (status: **planned** — this section names intent, not shipped capability; the [roadmap](ROADMAP.md) tracks each item):
+
+- **Deepen the promise.** Tooling for the last unimplemented principle — a golden-baseline CLI with lineage-attributed drift — plus CI-native enforcement (GitHub Action, SARIF, an adoption ratchet for legacy codebases), and runtime primitives that refuse and explain: an egress guard at output boundaries, human-readable lineage, a per-artifact trust summary.
+- **Provenance across boundaries.** Today the taint guarantee holds inside one process; envelopes should survive serialization, file artifacts (provenance sidecars), and HTTP (a provenance-context header) — so honesty becomes a property of a *system*, not a function call.
+- **Agent epistemic state.** The audit skill already reports its own coverage honestly — a traversal plan, a read/partial/not-read map, an honest denominator. The plan is to generalize that machinery into a spec any agent can adopt, and a convention for agent-produced claims and code to carry provenance envelopes. In a world where agents produce most code and most analysis, "who claimed this, based on what, and how sure were they" is basic infrastructure; plumb-line builds it from the epistemic-honesty end.
 
 ## Contributing & governance
 
