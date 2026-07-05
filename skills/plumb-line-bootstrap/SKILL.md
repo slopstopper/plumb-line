@@ -13,6 +13,30 @@ REQUIRED READING FIRST: `reference/portable-principles.md` and
 `adapters/adapter-contract.md` (plugin root).
 If either file cannot be read, stop immediately and report which file is missing. Do not proceed from memory.
 
+## Two entries: full bootstrap vs. declaration-only (mid-audit)
+
+This skill has two entry modes. **Full bootstrap** — the builder asked for
+setup — runs every step below. **Declaration-only** — `plumb-line-audit`
+invoked this skill because the project declares no architecture and the audit
+needs that context before proceeding — runs a deliberately two-minute detour:
+
+- Ask ONLY interview questions 1–3 (layers + direction; source-truth layer;
+  composition root). The audit needs the declaration, not the ceremony.
+- Write the ruleset from those answers (Step 3), marking every section the
+  interview did not reach as `planned` — an un-asked question must not read as
+  an answered one.
+- Skip Step 4, Step 4b, and Step 6's audit offer entirely: no enforcement
+  install, no primitive offer, nothing added to the project beyond the ruleset
+  file. Those belong to a full bootstrap run — name it as the follow-up in the
+  report's TODOs.
+- Emit the Step 5 report header with one extra line — `entry: declaration-only`
+  — then return the baton: the calling audit resumes with the freshly declared
+  architecture (do not start a second audit).
+
+The honesty constraint applies in both modes: if the builder cannot name a
+source-truth layer, stop and say so — in declaration-only mode that answer goes
+back to the audit, which then proceeds calibrated with the gap on record.
+
 ## Step 1 — Detect language, pick the adapter
 
 - Look for `package.json` -> JS adapter (`adapters/js`).
