@@ -9,6 +9,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.6.0] — 2026-07-05
+
 ### Added
 - **Adopt-the-primitive offer slice** — the two skill halves of ROADMAP #6 that
   connect the plugin to the runtime library. `plumb-line-method` now names
@@ -283,7 +287,8 @@ These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes th
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/effythealien/plumb-line/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/effythealien/plumb-line/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/effythealien/plumb-line/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/effythealien/plumb-line/compare/v0.4.0...v0.4.1
