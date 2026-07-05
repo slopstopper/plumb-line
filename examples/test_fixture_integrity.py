@@ -69,6 +69,17 @@ def test_js_clean_propagates_weights_version_lineage():
         "clean JS gateway should propagate weightsVersion from the engine result"
 
 
+def test_py_clean_ui_propagates_weights_version_structurally():
+    # Cross-language parity of the same hardening: the v0.6.0 harness caught the
+    # Python clean ui carrying weights_version only inside display_text — a
+    # structured consumer could not see which priors produced the result. The
+    # clean fixture must expose it as a return-dict key, mirroring JS
+    # clean/src/ui/checkout.js.
+    clean = read(PY, "clean/src/ui/report.py")
+    assert re.search(r'"weights_version"\s*:\s*result\[', clean), \
+        "clean PY ui report must propagate weights_version as a structured key"
+
+
 # --- Python data-pipeline fixture -------------------------------------------
 
 

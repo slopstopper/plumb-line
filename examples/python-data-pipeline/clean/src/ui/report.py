@@ -23,6 +23,7 @@ def build_report(records, config):
             signal_detected - bool
             provenance      - str, passed through from engine for diagnostics
             confidence      - float, passed through from engine
+            weights_version - str, priors version propagated from the engine
     """
     result = aggregate_records(records, config)
 
@@ -42,4 +43,7 @@ def build_report(records, config):
         "signal_detected": result["signal_detected"],
         "provenance": result["provenance"],
         "confidence": result["confidence"],
+        # Propagate the priors version as a structured key, not only inside
+        # display_text — mirrors the JS clean fixture (ui/checkout.js).
+        "weights_version": result["weights_version"],
     }
