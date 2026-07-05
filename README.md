@@ -40,7 +40,7 @@ plumb-line enforces the same discipline at two moments. The **provenance primiti
 /plugin install plumb-line@plumb-line
 ```
 
-The first command registers the repo as a marketplace; the second installs the four skills. Updates come through `/plugin`. To install manually instead, clone the repository and point Claude Code at the plugin directory, or add it under `plugins` in your `.claude/settings.json`:
+The first command registers the repo as a marketplace; the second installs the four skills. **Then get oriented: run `plumb-line-method`** — it teaches the discipline in a few minutes and hands you straight into `plumb-line-bootstrap` when you're ready to set your project up. Updates come through `/plugin`. To install manually instead, clone the repository and point Claude Code at the plugin directory, or add it under `plugins` in your `.claude/settings.json`:
 
 ```bash
 git clone https://github.com/effythealien/plumb-line.git

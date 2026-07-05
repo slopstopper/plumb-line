@@ -5,7 +5,7 @@
     {
       "name": "plumb-line",
       "source": "./",
-      "description": "Epistemic honesty enforced by tooling — review-time skills (method, bootstrap, audit, remediate) plus a run-time provenance primitive for JavaScript and Python."
+      "description": "Epistemic honesty enforced by tooling — review-time skills (method, bootstrap, audit, remediate) plus a run-time provenance primitive for JavaScript and Python. Get oriented: run plumb-line-method first."
     }
   ]
 }
