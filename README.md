@@ -21,7 +21,7 @@
 
 A plumb line measures true vertical by gravity alone; plumb-line does the same for a codebase, keeping it epistemically honest (including about what it doesn't know). It gives a repository a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and boundaries checked by machines (not *vibes*).
 
-plumb-line is a small, standalone provenance library for JavaScript and Python, paired with a Claude Code plugin (three skills). The library enforces the discipline while your code runs; the skills enforce it when you review code. What it is building toward (**planned** — see [where this is going](#where-this-is-going)): an epistemic honesty layer for agent-built software, where every value, artifact, and agent-produced claim carries where it came from and how sure anyone should be.
+plumb-line is a small, standalone provenance library for JavaScript and Python, paired with a Claude Code plugin (four skills). The library enforces the discipline while your code runs; the skills enforce it when you review — and now when you fix — code. What it is building toward (**planned** — see [where this is going](#where-this-is-going)): an epistemic honesty layer for agent-built software, where every value, artifact, and agent-produced claim carries where it came from and how sure anyone should be.
 
 ## Who it's for
 
