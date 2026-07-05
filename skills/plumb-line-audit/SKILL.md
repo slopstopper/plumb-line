@@ -195,5 +195,7 @@ question is settled, OFFER — do not perform — a next step, then stop:
   only when such a gap actually appears, not on every run.
 
 Both are suggestions the builder accepts or declines; the auditor applies nothing
-itself. Mechanical fixing is a separate, opt-in skill (`plumb-line-remediate`,
-planned) — this handoff is the bridge to it, not a substitute.
+itself. Mechanical fixing is a separate, opt-in skill — `plumb-line-remediate`,
+which consumes this report's findings table — and this handoff is the bridge to
+it, not a substitute. When the builder wants the fixes applied, offer
+`plumb-line-remediate` as the third option.
