@@ -116,8 +116,11 @@ After the last fix, run what the project already trusts, and show the output:
 - otherwise the project's own linters/tests that cover the touched files;
 - at minimum, an import/load smoke check of every file changed.
 
-Then offer — do not auto-run — a re-audit (`plumb-line-audit`) scoped to the
-touched files, so find-and-fix stay separate acts with separate records.
+Then offer — never auto-run — a re-audit scoped to the touched files, so
+find-and-fix stay separate acts with separate records. On a yes, **invoke
+`plumb-line-audit` directly** (via the host's skill mechanism) rather than
+telling the builder to run it — the baton passes by invocation, not
+instruction.
 
 ## Step 5 — The remediation record
 

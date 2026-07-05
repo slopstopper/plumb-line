@@ -11,6 +11,27 @@ If this file cannot be read, stop immediately and report: "Cannot audit: `refere
 Scope the audit to the diff if one is given, else the whole repo. For broad
 sweeps, dispatch read-only subagents and keep only their findings.
 
+**Declared architecture first (stop before auditing blind).** Several checks
+(P1 source-truth, P2 layering, the omission pass's adoption calibration) are
+only as good as the audit's knowledge of what the project *declares*. Resolve
+it, in order: (1) supplied in the invocation/prompt by the builder; (2) the
+project's ruleset file (`AGENTS.md`, `CLAUDE.md`, or equivalent) and boundary
+config. If neither yields a source-truth layer and layer direction:
+
+- **Builder present** — stop before the traversal plan and say what is missing.
+  Offer to invoke `plumb-line-bootstrap` (its interview is exactly this
+  declaration, and it writes the ruleset so the next audit never hits this
+  stop); on yes, invoke it, then resume the audit using the freshly declared
+  architecture. On no, proceed as below.
+- **Builder absent, or declined** — proceed, calibrated to adopted principles
+  only (see "Calibrate to adopted principles"), and record the gap in the
+  report: an undeclared architecture is itself a P6-adjacent advisory (the
+  project's rules exist only as vibes), and the audit's P1/P2 coverage is
+  correspondingly `partial`, which the coverage map must say.
+
+Never infer a source-truth layer the project did not declare — an invented
+layer would make P1/P2 findings artifacts of the audit's own assumptions.
+
 **Coverage honesty (emit a traversal plan first).** Before reading, list the
 in-scope files — the diff's touched files, or the repo's source tree — and state
 which you will read, sample, or skip. That list is the audit's **denominator**.
@@ -179,23 +200,30 @@ only then, ask whether to save it to `plumb-line-audit.md`; write the file solel
 on an explicit yes. Never write it without asking — repeated runs on the same
 input MUST produce the same file-write behavior.
 
-## After the report — offer a handoff (read-only; never apply)
+## After the report — hand the baton (read-only; invoke on yes, never apply)
 
 The audit reports; it does not fix. After the report is printed and the file
-question is settled, OFFER — do not perform — a next step, then stop:
+question is settled, present the next steps as ONE short offer — and when the
+builder accepts one, **invoke that skill directly** (via the host's skill
+mechanism) rather than telling them to go run it; a handoff that ends in "you
+could run X" drops the baton. The auditor itself still applies nothing — the
+invoked skill owns its own actions and its own consent gates.
 
-- **Plan the fixes.** Offer to hand the findings to a planning skill (superpowers
-  `writing-plans`, or plan mode) to turn them into a fix-plan the builder can work
-  through. This produces a plan, not edits — the auditor stays read-only.
-- **Close a provenance/enforcement gap.** When the findings include missing
-  provenance or lineage, laundered taint, or a layer boundary that nothing
-  enforces (P3 — Confidence + provenance, P4 — Quarantined fakery, P8 —
-  State-first lineage, P2 — One-way layering), suggest `plumb-line-bootstrap` to
-  wire the discipline into the project (host rule file + git hooks). Offer this
-  only when such a gap actually appears, not on every run.
+- **Apply the findings** (the default next step when there are findings) —
+  invoke `plumb-line-remediate`, pointing it at this report (the saved
+  `plumb-line-audit.md` if the builder said yes to the file, else the printed
+  findings table). Remediate classifies, shows a diff per finding, and keeps
+  its own honesty guardrail — the read-only boundary moves with the baton.
+- **Plan the fixes first** — hand the findings to a planning skill (superpowers
+  `writing-plans`, or plan mode) for a fix-plan the builder works through. This
+  produces a plan, not edits.
+- **Close a provenance/enforcement gap** — when findings include missing
+  provenance or lineage, laundered taint, or a layer boundary nothing enforces
+  (P3 — Confidence + provenance, P4 — Quarantined fakery, P8 — State-first
+  lineage, P2 — One-way layering), offer `plumb-line-bootstrap` to wire the
+  discipline in (host rule file + git hooks). Offer this only when such a gap
+  actually appears, not on every run.
 
-Both are suggestions the builder accepts or declines; the auditor applies nothing
-itself. Mechanical fixing is a separate, opt-in skill — `plumb-line-remediate`,
-which consumes this report's findings table — and this handoff is the bridge to
-it, not a substitute. When the builder wants the fixes applied, offer
-`plumb-line-remediate` as the third option.
+Declined, or no builder present to answer: stop after the report — never
+auto-invoke anything that edits files. On a clean run (no findings), skip the
+remediate offer entirely; offer bootstrap only under the gap condition above.
