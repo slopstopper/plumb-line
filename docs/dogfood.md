@@ -246,3 +246,30 @@ The self-audit verified the angles that matter for this change:
 
 **Closure:** the v0.4.0 dogfood deferral **G3 → [#80](https://github.com/effythealien/plumb-line/issues/80)**
 (the `audit_meta` totality/parity gap) is the bug **fixed** in this release.
+
+## v0.6.0 dogfood self-audit
+
+Date: 2026-07-05 · Scope: diff `v0.5.1..5b5355c` (the v0.6.0 method-surface
+release diff — skills, adapters lint, examples harness, manifests, docs) ·
+Principles revision: 1 · Coverage: 20/21 diff files read, 1 partial (a brand
+SVG whose unread tail mirrors a fully-read sibling).
+
+| # | Location | Principle | Finding | Resolution |
+| - | -------- | --------- | ------- | ---------- |
+| 1 | `README.md:106` | P6 — Maturity vocabulary | Status section still said "the three skills" while the rest of the README and both plugin manifests say four — a merge-resolution artifact contradicting the release this diff prepares (violation) | **Fixed** — count corrected in the harness-fixes pass |
+| 2 | `skills/plumb-line-method/SKILL.md:36` | P6 — Maturity vocabulary | Code sample taught `derivedFromMock … impossible to clear`; the threat model claims tamper-*evident* only — "impossible" overstates the guarantee (needs-review) | **Fixed** — now "no API exists to clear it", matching the threat model and bootstrap's framing |
+| 3 | `adapters/js/provenance-lint/README.md:49–51` | P6 — Maturity vocabulary | "Python parity: same semantics" overstated the #29 injection path — JS `modules` matches import specifiers exactly, Python `extra_modules` matches basenames (needs-review) | **Fixed** (wording — the divergence is now stated explicitly) + **Deferred** (behavior alignment) → [#138](https://github.com/effythealien/plumb-line/issues/138) |
+| 4 | `examples/REMEDIATE-EXPECTATIONS.md` History | P8 — State-first lineage | Harness history entries recorded date + outcome but not the commit/skill revision they were scored against — a tag-unblocking record that could not be tied to the exact SKILL.md it validated (needs-review) | **Fixed** — every history entry now records the commit SHA and principles revision |
+| 5 | `report-format` / `remediation-format` | P7 — Contracted outputs | Version constant + canonical key list exist, validator does not — and remediate consumes reports downstream (advisory adoption gap, reported once) | **Deferred** → [#139](https://github.com/effythealien/plumb-line/issues/139) |
+
+Clean on the rest of the diff by the auditor's own account: the lint injection
+path is additive with fail-loud config errors (spine/P5 done right), all new
+roadmap/README direction text carries explicit `planned` labels, the
+remediation record gives remediation its own lineage by design, and the v0.5.0
+milestone re-scoping is disclosed rather than backfilled.
+
+Meta-note, recorded because the project's honesty applies to its process too:
+finding 1 (and the same-day py-clean fixture FAIL in the validation record) were
+both introduced or missed by the same maintainer+agent pass that built the
+release — and both were caught by the harness, not by re-reading. That is the
+harness doing exactly what it exists to do.

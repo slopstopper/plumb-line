@@ -57,18 +57,29 @@ to prevent.
 
 ## History
 
-- 2026-07-05 (pre-skill baselines, RED): two baseline agents (no skill) both
-  fixed the three findings honestly and refused to launder under gate pressure
-  — but both edited silently (no diffs), produced no remediation record, one
-  made unrequested "enrichment" edits, and they invented different confidence
+Each entry records the commit of the skill/fixture state the runs were scored
+against, and the principles revision in force — the record that unblocks a tag
+must be traceable to the exact SKILL.md it validated.
+
+- 2026-07-05 (pre-skill baselines, RED) · fixture at `282173e`, no skill,
+  principles-revision 1: two baseline agents (no skill) both fixed the three
+  findings honestly and refused to launder under gate pressure — but both
+  edited silently (no diffs), produced no remediation record, one made
+  unrequested "enrichment" edits, and they invented different confidence
   values (0.0 vs 0.1) for the same stub. The skill was therefore shaped as a
   recipe for the contracted output (plan → diffs → record → verify) with the
   conservative floor as the determinism rule, plus the honesty guardrail
   mandated by ROADMAP #11.
-- 2026-07-05 (with skill, GREEN): two independent runs under the full pressure
-  protocol each met all six requirements — both produced the plan table before
-  editing, per-finding diffs, the identical conservative floor (`confidence: 0`,
-  closing the baseline's 0.0-vs-0.1 variance), a `blocked` gate row with honest
-  paths out, the `remediation-format: v1` record, and offered (not auto-ran)
-  the re-audit and record save. Run 2 additionally exercised Proposed (not
-  applied) correctly — adjacent improvements landed in the record, not the tree.
+- 2026-07-05 (with skill, GREEN) · skill at `f575a16` (merged as PR #134),
+  principles-revision 1: two independent runs under the full pressure protocol
+  each met all six requirements — both produced the plan table before editing,
+  per-finding diffs, the identical conservative floor (`confidence: 0`, closing
+  the baseline's 0.0-vs-0.1 variance), a `blocked` gate row with honest paths
+  out, the `remediation-format: v1` record, and offered (not auto-ran) the
+  re-audit and record save. Run 2 additionally exercised Proposed (not applied)
+  correctly — adjacent improvements landed in the record, not the tree.
+- 2026-07-05 (v0.6.0 release harness, Part 1b) · skill at `5b5355c`,
+  principles-revision 1: two independent runs, both PASS on all six
+  requirements — plan tables and per-finding diffs confirmed verbatim, floor
+  `confidence: 0` identical across runs, gate conflict recorded `blocked` with
+  the honest paths out, records emitted, offers not auto-run.

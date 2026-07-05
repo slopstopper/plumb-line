@@ -33,7 +33,7 @@ makes those two principles enforcement instead of intention, with this shape:
 const base  = mark(1000, { source: "real", confidence: "high" });
 const rate  = mark(1.25, { source: "mock", confidence: "low" });
 const total = derive([base, rate], (a, r) => a * r);
-// total.derivedFromMock === true — inherited, and impossible to clear
+// total.derivedFromMock === true — inherited, and no API exists to clear it
 ```
 
 Then say how to get it — `npm install plumb-line-provenance` or

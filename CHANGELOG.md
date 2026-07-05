@@ -46,6 +46,24 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
   harness, `examples/REMEDIATE-EXPECTATIONS.md`, now part of the release gate
   ([#57](https://github.com/effythealien/plumb-line/issues/57)).
 
+### Fixed
+- **`python-data-pipeline/clean` fixture parity** — the v0.6.0 release harness
+  caught the Python clean fixture carrying `weights_version` only inside
+  `display_text`, while the JS clean fixture propagates it structurally: a
+  blind auditor correctly flagged it as a violation of the declared
+  propagate-the-priors-version rule. The fixture now returns `weights_version`
+  as a structured key, a fixture-integrity lock pins it, and the blind re-run
+  passed with 0 confirmed violations (see `docs/validation-results.md`, 0.6.0
+  record).
+- **Dogfood fixes from the v0.6.0 self-audit** — README skill count in Status
+  (merge artifact), method skill no longer says taint is "impossible to clear"
+  (tamper-*evident*, not tamper-proof — now "no API exists to clear it"), the
+  lint README states the JS-vs-Python module-matching divergence instead of
+  claiming "same semantics" (alignment deferred → #138), and the remediate
+  harness history now records the commit SHA + principles revision per entry.
+  P7 validator for report/remediation formats deferred → #139. See
+  `docs/dogfood.md`, v0.6.0 section.
+
 ## [0.5.1] — 2026-07-03
 
 ### Added
