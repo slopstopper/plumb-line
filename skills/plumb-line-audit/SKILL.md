@@ -19,10 +19,11 @@ project's ruleset file (`AGENTS.md`, `CLAUDE.md`, or equivalent) and boundary
 config. If neither yields a source-truth layer and layer direction:
 
 - **Builder present** — stop before the traversal plan and say what is missing.
-  Offer to invoke `plumb-line-bootstrap` (its interview is exactly this
-  declaration, and it writes the ruleset so the next audit never hits this
-  stop); on yes, invoke it, then resume the audit using the freshly declared
-  architecture. On no, proceed as below.
+  Offer to invoke `plumb-line-bootstrap` in its **declaration-only entry** (a
+  two-minute detour: it asks only the three declaration questions, writes the
+  ruleset so the next audit never hits this stop, installs nothing, and returns
+  the baton); on yes, invoke it naming that entry, then resume the audit using
+  the freshly declared architecture. On no, proceed as below.
 - **Builder absent, or declined** — proceed, calibrated to adopted principles
   only (see "Calibrate to adopted principles"), and record the gap in the
   report: an undeclared architecture is itself a P6-adjacent advisory (the
