@@ -26,6 +26,30 @@ module.exports = [
 `eslint-provenance.template.cjs` (one level up) is the bootstrap-installable
 version of this config, with a `__GLOBS__` placeholder.
 
+## Options
+
+All options are per-rule config; `modules` and `tracked` are **additive** — the
+built-in coverage cannot be configured away.
+
+```js
+rules: {
+  "plumb-line/no-provenance-bypass": ["error", {
+    // Replace the clean-source vocabulary (defaults: real, semiReal, fallback).
+    sources: ["real", "semiReal", "fallback"],
+    // Extra import sources counted as the primitive (exact specifier match) —
+    // for projects that re-export it through a wrapper module.
+    modules: ["@myorg/data"],
+    // Wrapper-local names mapped onto the built-in roles, for wrappers that
+    // rename. Values are schema-validated against the four roles.
+    tracked: { markValue: "mark", deriveAll: "derive" },
+  }],
+}
+```
+
+Python parity: `check(source, clean_sources=…, extra_modules=…, extra_tracked=…)`
+— same semantics; an unknown `extra_tracked` role raises `ValueError` (a typo'd
+role would otherwise mean silently-missing coverage).
+
 ## The four patterns
 
 - **PB1** — clean `source` asserted with `derivedFromMock: true` (laundering).

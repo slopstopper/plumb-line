@@ -27,7 +27,19 @@ module.exports = {
     schema: [
       {
         type: "object",
-        properties: { sources: { type: "array", items: { type: "string" } } },
+        properties: {
+          sources: { type: "array", items: { type: "string" } },
+          // ADDITIVE extras (built-in coverage cannot be configured away):
+          // extra import sources counted as the primitive (exact specifier match),
+          // for projects re-exporting it through a wrapper module…
+          modules: { type: "array", items: { type: "string" } },
+          // …and wrapper-local names mapped onto the built-in roles, for
+          // wrappers that rename (e.g. { markValue: "mark" }).
+          tracked: {
+            type: "object",
+            additionalProperties: { enum: ["mark", "derive", "makeMeta", "unwrap"] },
+          },
+        },
         additionalProperties: false,
       },
     ],
@@ -42,6 +54,14 @@ module.exports = {
   create(context) {
     const opts = context.options[0] || {};
     const cleanSources = new Set(opts.sources || DEFAULT_CLEAN_SOURCES);
+    // Injection path (ADDITIVE — see schema): extra primitive import sources,
+    // and wrapper-name -> role mappings layered over the built-in identity map.
+    const extraModules = new Set(opts.modules || []);
+    const trackedRoles = new Map(TRACKED.map((n) => [n, n]));
+    for (const [name, role] of Object.entries(opts.tracked || {})) {
+      trackedRoles.set(name, role);
+    }
+    const isPrimitiveSource = (src) => PRIMITIVE_SOURCE.test(src) || extraModules.has(src);
 
     // local-name -> tracked role (handles `import { mark as m }`)
     const localFn = new Map();
@@ -49,11 +69,11 @@ module.exports = {
 
     function noteImport(node) {
       const src = node.source && node.source.value;
-      if (typeof src !== "string" || !PRIMITIVE_SOURCE.test(src)) return;
+      if (typeof src !== "string" || !isPrimitiveSource(src)) return;
       for (const spec of node.specifiers) {
         if (spec.type === "ImportSpecifier") {
-          if (TRACKED.includes(spec.imported.name)) {
-            localFn.set(spec.local.name, spec.imported.name);
+          if (trackedRoles.has(spec.imported.name)) {
+            localFn.set(spec.local.name, trackedRoles.get(spec.imported.name));
           }
         } else if (spec.type === "ImportNamespaceSpecifier") {
           namespaces.add(spec.local.name);
@@ -70,9 +90,9 @@ module.exports = {
         callee.object.type === "Identifier" &&
         namespaces.has(callee.object.name) &&
         callee.property.type === "Identifier" &&
-        TRACKED.includes(callee.property.name)
+        trackedRoles.has(callee.property.name)
       ) {
-        return callee.property.name;
+        return trackedRoles.get(callee.property.name);
       }
       return null;
     }

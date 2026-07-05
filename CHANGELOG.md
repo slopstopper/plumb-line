@@ -9,7 +9,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **Provenance-lint injection path** (D7 deferral) — both linters can now extend
+  coverage to wrapper/re-export modules without patching source: the ESLint rule
+  gains `modules` (extra import sources counted as the primitive) and `tracked`
+  (wrapper-name → role mapping, schema-validated) options; the Python checker
+  gains matching `extra_modules` / `extra_tracked` parameters (unknown roles
+  raise `ValueError` — fail loud, not silently-missing coverage). Both are
+  additive: built-in coverage cannot be configured away
+  ([#29](https://github.com/effythealien/plumb-line/issues/29)).
 
 ## [0.5.1] — 2026-07-03
 
