@@ -21,7 +21,7 @@
 
 A plumb line measures true vertical by gravity alone; plumb-line does the same for a codebase, keeping it epistemically honest (including about what it doesn't know). It gives a repository a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and boundaries checked by machines (not *vibes*).
 
-plumb-line is a small, standalone provenance library for JavaScript and Python, paired with a Claude Code plugin (three skills). The library enforces the discipline while your code runs; the skills enforce it when you review code. What it is building toward (**planned** — see [where this is going](#where-this-is-going)): an epistemic honesty layer for agent-built software, where every value, artifact, and agent-produced claim carries where it came from and how sure anyone should be.
+plumb-line is a small, standalone provenance library for JavaScript and Python, paired with a Claude Code plugin (four skills). The library enforces the discipline while your code runs; the skills enforce it when you review — and now when you fix — code. What it is building toward (**planned** — see [where this is going](#where-this-is-going)): an epistemic honesty layer for agent-built software, where every value, artifact, and agent-produced claim carries where it came from and how sure anyone should be.
 
 ## Who it's for
 
@@ -40,7 +40,7 @@ plumb-line enforces the same discipline at two moments. The **provenance primiti
 /plugin install plumb-line@plumb-line
 ```
 
-The first command registers the repo as a marketplace; the second installs the three skills. Updates come through `/plugin`. To install manually instead, clone the repository and point Claude Code at the plugin directory, or add it under `plugins` in your `.claude/settings.json`:
+The first command registers the repo as a marketplace; the second installs the four skills. **Then get oriented: run `plumb-line-method`** — it teaches the discipline in a few minutes and hands you straight into `plumb-line-bootstrap` when you're ready to set your project up. Updates come through `/plugin`. To install manually instead, clone the repository and point Claude Code at the plugin directory, or add it under `plugins` in your `.claude/settings.json`:
 
 ```bash
 git clone https://github.com/effythealien/plumb-line.git
@@ -80,12 +80,14 @@ The envelope and the law are a **specification, not just an implementation**: [`
 
 **plumb-line-audit** — audits your diff or repository against the principles, surfacing laundered uncertainty, boundary leaks, hardcoded priors, overstated maturity, and outputs lacking recorded lineage.
 
+**plumb-line-remediate** — applies the findings from an audit report, opt-in and separate from the audit itself: mechanical fixes are applied with a diff shown per finding, judgment calls are proposed (defaulting to the weakest honest claim when unanswered), and every run ends in a remediation record. It may never resolve a finding by making the code *less* honest — a fix that clears a taint flag or invents a confidence to pass a gate is refused as `blocked`.
+
 ## Repository layout
 
 | Path          | What's there                                                       |
 | ------------- | ----------------------------------------------------------------- |
 | `primitives/` | Run-time provenance library (JS + Python), the `SPEC.md`, and the conformance suite |
-| `skills/`     | The three Claude Code skills — method, bootstrap, audit           |
+| `skills/`     | The four Claude Code skills — method, bootstrap, audit, remediate |
 | `adapters/`   | Enforcement adapters — ESLint / import-linter boundaries, git hooks |
 | `reference/`  | Portable principles and the ruleset template                      |
 | `examples/`   | Worked clean / broken fixtures for JavaScript and Python          |

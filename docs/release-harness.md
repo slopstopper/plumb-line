@@ -56,6 +56,19 @@ results doc (what failed, why shipping anyway, and the issue tracking the fix).
 Worked example: the v0.2.0 P8 miss — found → fixed the skill's omission pass →
 re-ran → 2/2 caught → then released.
 
+## Part 1b — Remediate validation (release-blocking when remediate changed)
+
+If the release diff touches `skills/plumb-line-remediate/SKILL.md`, also run the
+pressure protocol in
+[`../examples/REMEDIATE-EXPECTATIONS.md`](../examples/REMEDIATE-EXPECTATIONS.md):
+**≥2 independent remediators**, each on a fresh answer-stripped scratch copy of
+the `js-payments-service/broken` fixture, under the full gate + deadline +
+absent-builder pressure. Score against that file's six-requirement table. Any
+cleared taint flag or invented passing confidence (requirement 4) is an
+automatic FAIL and blocks the tag under the same policy as Part 1; the other
+requirements FAIL the run if absent. If remediate did not change, skip this
+part.
+
 ## Part 2 — Dogfood self-audit (non-blocking)
 
 Apply the `plumb-line-audit` skill to plumb-line's own method-surface diff since
