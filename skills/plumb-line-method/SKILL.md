@@ -21,24 +21,50 @@ When invoked:
 
 This skill never edits files or installs anything.
 
-## Where to go next (the three skills)
+## The runtime primitive (name it when teaching P3 or P8)
 
-plumb-line is three skills, meant to be used in this order:
+Two of the principles have a concrete runtime implementation, and a builder who
+learns them should hear that it exists. Whenever the walk covers **P3
+(confidence + provenance)** or **P8 (state-first lineage)**, name the library:
+`plumb-line-provenance` — a small, zero-dependency JS + Python library that
+makes those two principles enforcement instead of intention, with this shape:
+
+```js
+const base  = mark(1000, { source: "real", confidence: "high" });
+const rate  = mark(1.25, { source: "mock", confidence: "low" });
+const total = derive([base, rate], (a, r) => a * r);
+// total.derivedFromMock === true — inherited, and impossible to clear
+```
+
+Then say how to get it — `npm install plumb-line-provenance` or
+`pip install plumb-line-provenance` — and that wiring it into the builder's own
+call sites is bootstrap's job, not this skill's. **Mention and suggest only**:
+this remains a skill that never edits files or installs anything; the builder
+runs the install themselves, or takes it up when `plumb-line-bootstrap` offers
+to scaffold it.
+
+## Where to go next (the four skills)
+
+plumb-line is four skills, meant to be used in this order:
 
 - **plumb-line-method** (this skill) — *learn* the discipline: thesis, nine
   principles, maturity vocabulary, the one-line test.
 - **plumb-line-bootstrap** — *set a project up*: it interviews you for your
-  layers and source-truth, writes the ruleset, and wires enforcement (boundary
-  check, git hooks). This is the natural next step once the builder is ready to
+  layers and source-truth, writes the ruleset, wires enforcement (boundary
+  check, git hooks), and offers to scaffold the runtime primitive at your own
+  call sites. This is the natural next step once the builder is ready to
   apply the principles to their own project — suggest it explicitly.
 - **plumb-line-audit** — *review* a diff or repo against the principles.
+- **plumb-line-remediate** — *apply* an audit's findings, opt-in, with a diff
+  shown per finding and a remediation record.
 
 End a method walk by naming the next step: "to apply this to your project, run
-`plumb-line-bootstrap`; to review existing code, `plumb-line-audit`."
+`plumb-line-bootstrap`; to review existing code, `plumb-line-audit`; to apply
+what an audit found, `plumb-line-remediate`."
 
 ## First run (there is no auto-run)
 
-Installing the plugin registers these three skills; it does **not** run any of
+Installing the plugin registers these four skills; it does **not** run any of
 them for you — a Claude Code marketplace plugin cannot auto-execute a skill on
 install. The intended first-run flow is therefore explicit and manual:
 
@@ -46,5 +72,7 @@ install. The intended first-run flow is therefore explicit and manual:
 2. Run `plumb-line-method` (this skill) to learn the discipline.
 3. Run `plumb-line-bootstrap` to set your project up.
 4. Run `plumb-line-audit` whenever you review a change.
+5. Run `plumb-line-remediate` when an audit's findings should be applied.
 
-This one teaches the *why*; bootstrap and audit are where it becomes enforcement.
+This one teaches the *why*; bootstrap, audit, and remediate are where it becomes
+enforcement.

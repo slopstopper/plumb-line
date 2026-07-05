@@ -9,7 +9,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **Adopt-the-primitive offer slice** — the two skill halves of ROADMAP #6 that
+  connect the plugin to the runtime library. `plumb-line-method` now names
+  `plumb-line-provenance` (with the three-line `mark`/`derive` example and the
+  npm/pip install) whenever a walk covers P3 or P8 — mention and suggest only,
+  the skill still takes no actions
+  ([#106](https://github.com/effythealien/plumb-line/issues/106)).
+  `plumb-line-bootstrap` gains Step 4b: after enforcement install, one explicit
+  opt-in offer to scaffold `mark`/`derive` at the call sites the interview
+  surfaced (Q4 downstream values, Q8 lineage outputs), teaching the pattern at
+  the first site and wiring an audits-clean test into the pre-commit gate;
+  declining leaves the project untouched, and unscaffolded sites are recorded
+  as `planned`
+  ([#107](https://github.com/effythealien/plumb-line/issues/107)).
 
 ## [0.5.1] — 2026-07-03
 

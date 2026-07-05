@@ -5,8 +5,9 @@ description: Use when setting up a project with the plumb-line discipline — in
 
 # Bootstrap a project with plumb-line
 
-Part of the three-skill flow: learn the discipline with `plumb-line-method`, set
-the project up here, then review changes with `plumb-line-audit`.
+Part of the four-skill flow: learn the discipline with `plumb-line-method`, set
+the project up here, review changes with `plumb-line-audit`, and apply findings
+with `plumb-line-remediate`.
 
 REQUIRED READING FIRST: `reference/portable-principles.md` and
 `adapters/adapter-contract.md` (plugin root).
@@ -110,6 +111,41 @@ hook. To wire it as a Claude Code PreToolUse hook, map the host's tool payload's
 file path into the `{filePath}` stdin the guard expects — if the host payload
 shape differs, add a one-line shim rather than assuming it matches.
 
+## Step 4b — Offer the runtime primitive (opt-in; never silent)
+
+The interview's own answers say exactly where runtime provenance belongs: **Q4**
+named what flows downstream (gets provenance + confidence), **Q8** named the
+lineage-bearing outputs. After enforcement is installed, make ONE explicit
+offer — scaffold `mark`/`derive` from `plumb-line-provenance` at those exact
+call sites — and act only on an explicit yes:
+
+- **Declined → the project is untouched.** Record the offer as declined in the
+  report and move on; no library, no marking, no new dependency appears.
+- **Accepted →** check the library is importable first (`plumb-line-provenance`
+  on npm / PyPI). If absent, tell the builder the one-line install and pause —
+  suggesting it is fine; running it or vendoring the source is not this slice.
+  This adds no mandatory step: a builder who never accepts never needs it.
+
+When scaffolding, **teach the pattern at the first site rather than carpeting
+all of them** — the goal is a builder who can extend it, not a wrapped codebase:
+
+1. At a Q4 site: wrap the value's origin in `mark(value, { source, confidence })`
+   — the builder supplies `source`/`confidence` per site (their answers, not
+   your defaults; the interview's honesty rule applies here too).
+2. At a derivation: `derive([inputs], fn)` (JS) / the Python equivalent —
+   show that the output inherits `derivedFromMock` and the weakest confidence
+   automatically, and that no API exists to clear taint.
+3. At a Q8 output: show `metaOf(x)` / `meta_of(x)` exposing the lineage, and
+   `auditMeta` / `audit_meta` returning `[]` when the envelope is consistent.
+4. Add one failing-then-passing test that asserts the key output audits clean
+   (`auditMeta(metaOf(out)) === []` / `audit_meta(meta_of(out)) == []`), and
+   wire it into the test command the pre-commit gate already runs (Step 4) — so
+   an unmarked or laundered return is caught before review, by the gate the
+   builder just installed.
+
+Show each file's diff as you scaffold; every remaining unscaffolded Q4/Q8 site
+goes in the report as `planned`, so the coverage claim stays honest.
+
 ## Step 5 — Report (audit format)
 
 Open with the same **required header block** as the audit format (`report-format:
@@ -121,4 +157,7 @@ coverage map are audit-specific and are not part of a bootstrap report.
 
 Then list every file created/modified and any unanswered prompt left as a TODO
 for the builder. Label anything not done as `planned`. (The adapter is recorded
-in the header's `adapter:` line above.)
+in the header's `adapter:` line above.) Record the Step 4b outcome explicitly —
+`accepted` (with the scaffolded sites and the `planned` remainder) or
+`declined` — so the report says whether runtime provenance exists in this
+project or was offered and turned down.
