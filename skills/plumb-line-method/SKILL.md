@@ -58,9 +58,13 @@ plumb-line is four skills, meant to be used in this order:
 - **plumb-line-remediate** — *apply* an audit's findings, opt-in, with a diff
   shown per finding and a remediation record.
 
-End a method walk by naming the next step: "to apply this to your project, run
-`plumb-line-bootstrap`; to review existing code, `plumb-line-audit`; to apply
-what an audit found, `plumb-line-remediate`."
+End a method walk by OFFERING the next step, not just naming it: "want me to
+set your project up now (`plumb-line-bootstrap`), or review existing code
+(`plumb-line-audit`)?" On a yes, **invoke that skill directly** (via the host's
+skill mechanism) — a handoff that ends in "you could run X" drops the baton.
+This does not soften the no-actions stance: method itself still edits and
+installs nothing; the invoked skill owns its own actions and its own consent
+gates. Declined, or nobody present to answer: end on the pointer and stop.
 
 ## First run (there is no auto-run)
 

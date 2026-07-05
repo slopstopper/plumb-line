@@ -161,3 +161,14 @@ in the header's `adapter:` line above.) Record the Step 4b outcome explicitly �
 `accepted` (with the scaffolded sites and the `planned` remainder) or
 `declined` — so the report says whether runtime provenance exists in this
 project or was offered and turned down.
+
+## Step 6 — Hand the baton
+
+The project is now declared and enforced; the natural next step is a first
+audit against the freshly written ruleset. Offer it — "want me to run
+`plumb-line-audit` now for a baseline read?" — and on a yes, **invoke the skill
+directly** (via the host's skill mechanism) rather than telling the builder to
+run it. If bootstrap was itself invoked mid-audit (the audit stops when no
+architecture is declared and hands here for the interview), return the baton
+instead: the calling audit resumes with the now-declared architecture — do not
+start a second audit.
