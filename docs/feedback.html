@@ -5,38 +5,113 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>plumb-line — private feedback</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root { --ink: #1a1a1a; --muted: #666; --line: #ddd; --accent: #2da44e; }
+    :root {
+      --ink: #1f2328; --muted: #57606a;
+      --green: #2da44e; --green-deep: #176f2c;
+      --amber: #f59e0b; --amber-lo: #92400e;
+      --bg: #ffffff; --card: #ffffff; --field: #ffffff; --border: #e4e8ee;
+      --code-bg: #f6f8fa;
+      --gbubble: #eaf7ee; --gbubble-ink: #176f2c; --gbubble-border: #b7e0c2;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #e6edf3; --muted: #9aa7b4;
+        --green: #3fb950; --green-deep: #238636;
+        --amber: #f59e0b; --amber-lo: #b45309;
+        --bg: #0d1117; --card: #161b22; --field: #0b0f14; --border: #232a33;
+        --code-bg: #0b0f14;
+        --gbubble: #0f2418; --gbubble-ink: #5fd07d; --gbubble-border: #1f4a30;
+      }
+    }
+
     * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
     body {
       font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: var(--ink); max-width: 720px; margin: 0 auto; padding: 2.5rem 1.25rem 4rem;
+      color: var(--ink); background: var(--bg);
+      max-width: 720px; margin: 0 auto; padding: 1.75rem 1.25rem 4rem;
     }
-    h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
-    .lede { color: var(--muted); margin: 0 0 2rem; }
+    a { color: var(--green); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* brand bar */
+    .topbar { margin: 0 0 2rem; }
+    .brand {
+      display: inline-flex; align-items: center; gap: .5rem;
+      font-family: "Space Grotesk", -apple-system, sans-serif; font-weight: 700; font-size: 1.02rem;
+      color: var(--ink);
+    }
+    .brand:hover { text-decoration: none; opacity: .85; }
+    .brand img { width: 26px; height: auto; filter: drop-shadow(0 2px 5px rgba(0,0,0,.14)); }
+
+    h1 { font-family: "Space Grotesk", -apple-system, sans-serif; font-size: 1.7rem; letter-spacing: -.02em; margin: 0 0 .3rem; }
+    .lede { color: var(--muted); margin: 0 0 2rem; max-width: 40rem; }
+
     label { display: block; font-weight: 600; margin: 1.5rem 0 .4rem; }
     .hint { font-weight: 400; color: var(--muted); font-size: .9rem; }
     input[type=text], input[type=email], select, textarea {
-      width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); border-radius: 6px;
-      font: inherit; color: inherit; background: #fff;
+      width: 100%; padding: .6rem .7rem; border: 1px solid var(--border); border-radius: .55rem;
+      font: inherit; color: var(--ink); background: var(--field);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: var(--green);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 22%, transparent);
     }
     textarea { min-height: 6rem; resize: vertical; }
     textarea.code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem; }
-    .checks label { font-weight: 400; margin: .35rem 0 0; display: flex; gap: .5rem; align-items: center; }
-    .checks input { width: auto; }
+    .checks label { font-weight: 400; margin: .4rem 0 0; display: flex; gap: .5rem; align-items: center; }
+    .checks input { width: auto; accent-color: var(--green); }
+
     button {
-      margin-top: 2rem; padding: .7rem 1.4rem; font: inherit; font-weight: 600; color: #fff;
-      background: var(--accent); border: 0; border-radius: 6px; cursor: pointer;
+      margin-top: 2rem; padding: .7rem 1.4rem;
+      font: inherit; font-family: "Space Grotesk", sans-serif; font-weight: 600; color: #fff;
+      background: linear-gradient(135deg, var(--green), var(--green-deep));
+      border: 0; border-radius: .6rem; cursor: pointer;
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--green) 30%, transparent);
     }
-    button:hover { filter: brightness(.95); }
-    footer { margin-top: 2.5rem; color: var(--muted); font-size: .9rem; border-top: 1px solid var(--line); padding-top: 1rem; }
-    a { color: var(--accent); }
+    button:hover { filter: brightness(1.05); }
+
+    /* footer + small mascot */
+    .foot {
+      margin-top: 2.5rem; border-top: 1px solid var(--border); padding-top: 1.1rem;
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      color: var(--muted); font-size: .9rem;
+    }
+    .thanks { display: flex; align-items: center; gap: .5rem; }
+    .thanks .bubble {
+      background: var(--gbubble); color: var(--gbubble-ink);
+      border: 1.5px solid var(--gbubble-border); border-radius: 999px;
+      padding: .35rem .75rem; font-family: "Space Grotesk", sans-serif; font-weight: 700;
+      font-size: .8rem; white-space: nowrap;
+    }
+    .minibot { width: 58px; height: auto; transform-origin: 60px 132px; animation: lean 3.4s ease-in-out infinite; }
+    .minibot .wave { transform-origin: 45px 91px; animation: wave 1.7s ease-in-out infinite; }
+    .flip { transform: scaleX(-1); }
+    @keyframes lean { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+    @keyframes wave { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-18deg); } }
+    @media (prefers-reduced-motion: reduce) { .minibot, .minibot .wave { animation: none; } }
+    @media (max-width: 460px) { .foot { flex-direction: column-reverse; align-items: flex-start; } }
   </style>
 </head>
 <body>
-  <h1>plumb-line — private feedback</h1>
+  <div class="topbar">
+    <a class="brand" href="./index.html">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./logo-dark.svg">
+        <img src="./logo.svg" alt="plumb-line logo">
+      </picture>
+      <span>plumb-line</span>
+    </a>
+  </div>
+
+  <h1>Private feedback</h1>
   <p class="lede">
-    For feedback you can't post in a public issue — testing on a private or internal
+    For feedback you can&rsquo;t post in a public issue — testing on a private or internal
     codebase. Goes straight to the maintainer. Raw output and one concrete example beat
     polished prose. Prefer public? Open a
     <a href="https://github.com/effythealien/plumb-line/issues/new?template=feedback.yml">GitHub issue</a> instead.
@@ -63,7 +138,7 @@
       <option>Both</option>
     </select>
 
-    <label for="domain">Domain <span class="hint">roughly what kind of project — pick "Other" to type your own</span></label>
+    <label for="domain">Domain <span class="hint">roughly what kind of project — pick &ldquo;Other&rdquo; to type your own</span></label>
     <select id="domain" name="domain">
       <option value="" disabled selected>Select one…</option>
       <option>Web app / API backend</option>
@@ -77,10 +152,10 @@
       <option value="Other">Other</option>
     </select>
 
-    <label for="domain_other">Domain — other <span class="hint">if you picked "Other" above, or nothing fits, type it here</span></label>
+    <label for="domain_other">Domain — other <span class="hint">if you picked &ldquo;Other&rdquo; above, or nothing fits, type it here</span></label>
     <input type="text" id="domain_other" name="domain_other" />
 
-    <label for="loc">Approximate lines of code <span class="hint">rough order of magnitude — e.g. "~20k"</span></label>
+    <label for="loc">Approximate lines of code <span class="hint">rough order of magnitude — e.g. &ldquo;~20k&rdquo;</span></label>
     <input type="text" id="loc" name="loc" />
 
     <label for="version">Version tested <span class="hint">package version, or git tag / SHA</span></label>
@@ -98,7 +173,7 @@
     <label for="bugs">Bugs / errors <span class="hint">stack traces or surprising behavior, with a minimal repro</span></label>
     <textarea id="bugs" name="bugs" class="code"></textarea>
 
-    <label for="anything_else">Anything else? <span class="hint">any other feedback, ideas, or context that didn't fit above</span></label>
+    <label for="anything_else">Anything else? <span class="hint">any other feedback, ideas, or context that didn&rsquo;t fit above</span></label>
     <textarea id="anything_else" name="anything_else"></textarea>
 
     <div class="checks">
@@ -108,8 +183,32 @@
     <button type="submit">Send feedback</button>
   </form>
 
-  <footer>
-    plumb-line · <a href="https://github.com/effythealien/plumb-line">github.com/effythealien/plumb-line</a>
-  </footer>
+  <div class="foot">
+    <span>plumb-line · <a href="https://github.com/effythealien/plumb-line">github.com/effythealien/plumb-line</a></span>
+    <div class="thanks" aria-hidden="true">
+      <div class="bubble">Thanks for testing!</div>
+      <div class="flip">
+        <svg class="minibot" viewBox="0 0 120 150" role="img" aria-label="plumb-line mascot waving">
+          <g fill="var(--amber)" stroke="var(--amber-lo)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="60" y1="34" x2="60" y2="20" stroke="var(--amber-lo)" stroke-width="2.4"/>
+            <circle cx="60" cy="15.5" r="4.6"/>
+            <path d="M52 116 L52 130 M68 116 L68 130" fill="none" stroke="var(--amber)" stroke-width="8"/>
+            <ellipse cx="50.5" cy="132" rx="7" ry="4.5"/>
+            <ellipse cx="69.5" cy="132" rx="7" ry="4.5"/>
+            <path d="M75 92 L86 101" fill="none" stroke="var(--amber)" stroke-width="10"/>
+            <circle cx="88" cy="103" r="6"/>
+            <rect x="41" y="80" width="38" height="40" rx="14" fill="var(--amber)"/>
+            <g class="wave">
+              <path d="M45 91 L33 74" fill="none" stroke="var(--amber)" stroke-width="10"/>
+              <circle cx="31" cy="71" r="6.2"/>
+            </g>
+            <rect x="37" y="33" width="46" height="44" rx="16" fill="var(--amber)"/>
+          </g>
+          <circle cx="52" cy="55" r="6" fill="#1f2328"/>
+          <circle cx="68" cy="55" r="6" fill="#1f2328"/>
+        </svg>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
