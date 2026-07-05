@@ -9,7 +9,21 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **`plumb-line-remediate` skill** — the fourth skill closes the find→fix loop:
+  it consumes an audit report (`report-format: v1`+), classifies every finding
+  mechanical vs. judgment before touching anything, applies fixes one finding at
+  a time with a diff shown per finding, and ends every run with a
+  `remediation-format: v1` record (the remediation's own lineage). Judgment
+  fixes with no builder present take the **conservative floor** — the weakest
+  honest claim, never an invented middle confidence — and are flagged for
+  review. The honesty guardrail from ROADMAP #11 is enforced: a fix may never
+  make code less honest (clear a taint flag, invent a passing confidence,
+  delete a null-result branch, silently update a baseline); when only a
+  dishonest edit would satisfy a finding or gate, it is recorded as `blocked`
+  with the honest paths out. Validated RED→GREEN against a new pressure
+  harness, `examples/REMEDIATE-EXPECTATIONS.md`, now part of the release gate
+  ([#57](https://github.com/effythealien/plumb-line/issues/57)).
 
 ## [0.5.1] — 2026-07-03
 
