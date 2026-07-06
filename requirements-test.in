@@ -6,6 +6,6 @@
 #       --python-version 3.9 -o requirements-test.txt
 pytest==8.4.2
 pytest-cov==6.0.0
-ruff==0.14.0
+ruff==0.15.20
 import-linter==2.5.2
 build==1.4.4
