@@ -7,5 +7,5 @@
 pytest==8.4.2
 pytest-cov==6.0.0
 ruff==0.14.0
-import-linter==2.5.2
+import-linter==2.13
 build==1.4.4
