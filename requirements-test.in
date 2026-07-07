@@ -4,8 +4,11 @@
 # Compile the hashed lock with:
 #   uv pip compile requirements-test.in --generate-hashes --universal \
 #       --python-version 3.9 -o requirements-test.txt
+# The --universal split keeps Python 3.9 installable even where newer releases
+# require >=3.10 (e.g. import-linter >2.5.2 drops 3.9, so it stays pinned here).
+# CI's `lockfile` job (scripts/check-lock-sync.py) rejects a flattened lock.
 pytest==8.4.2
-pytest-cov==6.0.0
-ruff==0.14.0
+pytest-cov==7.1.0
+ruff==0.15.20
 import-linter==2.5.2
 build==1.4.4
