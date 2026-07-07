@@ -66,6 +66,12 @@ This does not soften the no-actions stance: method itself still edits and
 installs nothing; the invoked skill owns its own actions and its own consent
 gates. Declined, or nobody present to answer: end on the pointer and stop.
 
+**Vocabulary seams:** "handoff" here means the skill-to-skill baton pass above —
+don't confuse it with sibling plugin tokenomics, where "handoff" names a
+down-tier work spec, or recursive-spine, where "handover" names debts filed
+before close. Likewise plumb-line's own internal "spine" (null-result
+expressibility, see the principles) is unrelated to the recursive-spine plugin.
+
 ## First run (there is no auto-run)
 
 Installing the plugin registers these four skills; it does **not** run any of

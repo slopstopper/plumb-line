@@ -8,13 +8,13 @@
 
 [![npm](https://img.shields.io/npm/v/plumb-line-provenance?logo=npm)](https://www.npmjs.com/package/plumb-line-provenance)
 [![PyPI](https://img.shields.io/pypi/v/plumb-line-provenance?logo=pypi&logoColor=white)](https://pypi.org/project/plumb-line-provenance/)
-[![CI](https://github.com/effythealien/plumb-line/actions/workflows/ci.yml/badge.svg)](https://github.com/effythealien/plumb-line/actions/workflows/ci.yml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/effythealien/plumb-line/badge)](https://scorecard.dev/viewer/?uri=github.com/effythealien/plumb-line)
+[![CI](https://github.com/slopstopper/plumb-line/actions/workflows/ci.yml/badge.svg)](https://github.com/slopstopper/plumb-line/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/slopstopper/plumb-line/badge)](https://scorecard.dev/viewer/?uri=github.com/slopstopper/plumb-line)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13453/badge)](https://www.bestpractices.dev/projects/13453)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/plumb-line-provenance?logo=python&logoColor=white)](https://pypi.org/project/plumb-line-provenance/)
 [![node: >=16](https://img.shields.io/node/v/plumb-line-provenance?logo=node.js&logoColor=white&label=node)](https://www.npmjs.com/package/plumb-line-provenance)
-[![JS + Python](https://img.shields.io/badge/language-JS%20%2B%20Python-informational)](https://github.com/effythealien/plumb-line)
+[![JS + Python](https://img.shields.io/badge/language-JS%20%2B%20Python-informational)](https://github.com/slopstopper/plumb-line)
 [![zero deps](https://img.shields.io/badge/deps-0-brightgreen)](https://www.npmjs.com/package/plumb-line-provenance?activeTab=dependencies)
 [![minzipped](https://img.shields.io/bundlephobia/minzip/plumb-line-provenance?label=minzipped&color=brightgreen)](https://bundlephobia.com/package/plumb-line-provenance)
 [![Socket](https://socket.dev/api/badge/npm/package/plumb-line-provenance)](https://socket.dev/npm/package/plumb-line-provenance)
@@ -36,14 +36,14 @@ plumb-line enforces the same discipline at two moments. The **provenance primiti
 **As a Claude Code plugin (recommended).** The repository is its own plugin marketplace from inside Claude Code:
 
 ```
-/plugin marketplace add effythealien/plumb-line
+/plugin marketplace add slopstopper/plumb-line
 /plugin install plumb-line@plumb-line
 ```
 
 The first command registers the repo as a marketplace; the second installs the four skills. **Then get oriented: run `plumb-line-method`** — it teaches the discipline in a few minutes and hands you straight into `plumb-line-bootstrap` when you're ready to set your project up. Updates come through `/plugin`. To install manually instead, clone the repository and point Claude Code at the plugin directory, or add it under `plugins` in your `.claude/settings.json`:
 
 ```bash
-git clone https://github.com/effythealien/plumb-line.git
+git clone https://github.com/slopstopper/plumb-line.git
 ```
 
 **The provenance primitive** is a standalone library, independent of the plugin. Install it as `plumb-line-provenance` from npm or PyPI:
@@ -124,7 +124,7 @@ run (decision-making, roles, and continuity). Participation is governed by the
 
 Tried it on a real codebase? Use-case feedback is welcome — bug reports and false positives especially help.
 
-- **Public** — open a [feedback issue](https://github.com/effythealien/plumb-line/issues/new?template=feedback.yml). Good for bugs, false positives, and use cases you can share openly.
+- **Public** — open a [feedback issue](https://github.com/slopstopper/plumb-line/issues/new?template=feedback.yml). Good for bugs, false positives, and use cases you can share openly.
 - **Private** — testing on an internal or confidential codebase? Use the [private feedback form](https://effythealien.github.io/plumb-line/feedback.html); it goes straight to the maintainer.
 
 Raw output and one concrete "it caught something we'd otherwise have shipped" beat polished prose. Let me know if I may quote you or name you as an early user.
