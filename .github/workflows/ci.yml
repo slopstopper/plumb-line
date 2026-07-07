@@ -25,6 +25,23 @@ jobs:
       - name: The 3 release manifests must report the same version
         run: node scripts/check-versions.mjs
 
+  lockfile:
+    name: Requirements lock is universal (py3.9-safe)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.12"
+      # No deps needed — the guard only inspects requirements-test.txt. It fails
+      # if the universal Python-version split markers were flattened (what
+      # Dependabot does when it regenerates the lock), which would otherwise
+      # break `pip install --require-hashes` on the Python 3.9 job below.
+      - name: requirements-test.txt keeps its Python 3.9 / >=3.10 splits
+        run: python scripts/check-lock-sync.py
+
   javascript:
     name: JavaScript (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
