@@ -63,7 +63,7 @@ const ok = failed.length === 0;
 const badge =
   `[![provenance: plumb-line v${PROVENANCE_VERSION}]` +
   `(https://img.shields.io/badge/provenance-plumb--line_v${PROVENANCE_VERSION}-3b82f6)]` +
-  `(https://github.com/effythealien/plumb-line/blob/main/primitives/SPEC.md)`;
+  `(https://github.com/slopstopper/plumb-line/blob/main/primitives/SPEC.md)`;
 
 const mode = process.argv[2];
 

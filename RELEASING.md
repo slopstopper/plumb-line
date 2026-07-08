@@ -23,7 +23,7 @@ Two independent version numbers:
    
    **Crucial:** Before proceeding, verify the GitHub milestone for this version:
    ```
-   gh api repos/effythealien/plumb-line/milestones -q '.[] | select(.title | contains("'$VERSION'")) | {title, open_issues, closed_issues}'
+   gh api repos/slopstopper/plumb-line/milestones -q '.[] | select(.title | contains("'$VERSION'")) | {title, open_issues, closed_issues}'
    ```
    
    **All issues in the milestone must be either closed or explicitly reassigned to a later milestone.** An open issue in a closed milestone means planned work was deferred without being tracked. Open the milestone on GitHub and either:

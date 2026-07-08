@@ -24,7 +24,7 @@ to match reality rather than aspiration.
   normal review: open a pull request, a maintainer reviews and merges. See
   [CONTRIBUTING.md](CONTRIBUTING.md) for what a mergeable PR looks like.
 - **Design changes and new features** are discussed in a
-  [GitHub issue](https://github.com/effythealien/plumb-line/issues) *before*
+  [GitHub issue](https://github.com/slopstopper/plumb-line/issues) *before*
   code is written, so the direction is agreed before anyone invests effort.
 - **Durable architectural decisions** are recorded as
   [ADRs](docs/adr/). ADRs are append-only: a superseded decision is marked as
@@ -87,7 +87,7 @@ stored secrets.
 **Where authority lives**
 
 - **Source of truth** — the Git repository at
-  `github.com/effythealien/plumb-line`. Everything needed to build, test, and
+  `github.com/slopstopper/plumb-line`. Everything needed to build, test, and
   release is in the repo; there is no hidden build state.
 - **Release authority** — publishing to npm and PyPI uses **OIDC trusted
   publishing** (see [RELEASING.md](RELEASING.md) and
