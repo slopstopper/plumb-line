@@ -6,6 +6,16 @@ import provenance as p
 def setup_function():
     p.reset_step_counter()
 
+def test_provenance_version_is_2():
+    assert p.PROVENANCE_VERSION == 2
+
+def test_make_meta_stamps_version():
+    assert p.make_meta(source='real')['provenance_version'] == 2
+
+def test_combine_carries_version():
+    out = p.combine_provenance(p.make_meta(source='real'))
+    assert out['provenance_version'] == 2
+
 def test_constants_order():
     assert p.STATUS == ['unavailable','mock','fallback','semiReal','derived','real']
     assert p.CONFIDENCE == ['none','low','medium','high']

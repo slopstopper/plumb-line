@@ -3,7 +3,7 @@
 // Schema version of the provenance metadata envelope (Principle 7). Declared so
 // consumers can pin to a shape; embedding it per-meta and validating against it
 // is planned.
-export const PROVENANCE_VERSION = 1;
+export const PROVENANCE_VERSION = 2;
 
 export const STATUS = [
   "unavailable",
@@ -48,6 +48,7 @@ export function makeMeta({
   adapter,
 } = {}) {
   const meta = {
+    provenanceVersion: PROVENANCE_VERSION,
     source,
     confidence,
     derivedFromMock:

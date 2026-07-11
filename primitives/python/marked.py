@@ -69,6 +69,9 @@ def derive(inputs, fn, **meta_override):
     value = fn(*[unwrap(i) for i in inputs])
     combined = combine_provenance(*[meta_of(i) for i in inputs])
     overridden = dict(combined)
+    # provenance_version is stamped by make_meta itself from the constant; it is
+    # not one of make_meta's parameters, so it must not be re-forwarded here.
+    overridden.pop('provenance_version', None)
     for key in _OVERRIDE_KEYS:
         if key in meta_override:
             overridden[key] = meta_override[key]

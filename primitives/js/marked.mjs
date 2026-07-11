@@ -2,6 +2,7 @@
 import { combineProvenance, makeMeta } from "./provenance.mjs";
 
 const META_KEYS = [
+  "provenanceVersion",
   "source",
   "confidence",
   "confidenceScore",

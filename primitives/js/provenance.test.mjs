@@ -1,5 +1,24 @@
-import { describe, it, expect } from "vitest";
-import { STATUS, CONFIDENCE, makeMeta } from "./provenance.mjs";
+import { describe, it, test, expect } from "vitest";
+import {
+  STATUS,
+  CONFIDENCE,
+  makeMeta,
+  combineProvenance,
+  PROVENANCE_VERSION,
+} from "./provenance.mjs";
+
+test("PROVENANCE_VERSION is 2", () => {
+  expect(PROVENANCE_VERSION).toBe(2);
+});
+
+test("makeMeta stamps the current provenanceVersion", () => {
+  expect(makeMeta({ source: "real" }).provenanceVersion).toBe(2);
+});
+
+test("combineProvenance output carries provenanceVersion", () => {
+  const out = combineProvenance(makeMeta({ source: "real" }));
+  expect(out.provenanceVersion).toBe(2);
+});
 
 describe("constants", () => {
   it("orders status least->most trustworthy", () => {

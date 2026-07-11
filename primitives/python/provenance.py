@@ -3,7 +3,7 @@
 # Schema version of the provenance metadata envelope (Principle 7). Declared so
 # consumers can pin to a shape; embedding it per-meta and validating against it
 # is planned. Mirror of PROVENANCE_VERSION in provenance.mjs.
-PROVENANCE_VERSION = 1
+PROVENANCE_VERSION = 2
 
 STATUS = ['unavailable', 'mock', 'fallback', 'semiReal', 'derived', 'real']
 CONFIDENCE = ['none', 'low', 'medium', 'high']
@@ -38,6 +38,7 @@ def make_meta(source='derived', confidence='none', confidence_score=None,
         dict: Provenance metadata envelope.
     """
     meta = {
+        'provenance_version': PROVENANCE_VERSION,
         'source': source,
         'confidence': confidence,
         'derived_from_mock': (source == 'mock') if derived_from_mock is None else bool(derived_from_mock),
