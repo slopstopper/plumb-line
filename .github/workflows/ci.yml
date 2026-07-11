@@ -24,6 +24,8 @@ jobs:
           node-version: "20"
       - name: The 3 release manifests must report the same version
         run: node scripts/check-versions.mjs
+      - name: The plugin-bundled primitive must not drift from primitives/
+        run: node scripts/check-bundle-sync.mjs
 
   javascript:
     name: JavaScript (Node ${{ matrix.node }})
@@ -47,6 +49,8 @@ jobs:
         run: npm ci && npm test
       - name: conformance report (envelope schema)
         run: node primitives/conformance/report.mjs
+      - name: conformance against the plugin-bundled copy
+        run: node scripts/check-bundle-conformance.mjs
 
   lint:
     name: Lint (ESLint + Ruff)
@@ -99,3 +103,5 @@ jobs:
         run: python -m pytest -q
       - name: examples — fixtures + real import-linter boundary
         run: python -m pytest -q examples
+      - name: conformance against the plugin-bundled Python copy
+        run: python -m pytest -q scripts/test_bundle_conformance.py

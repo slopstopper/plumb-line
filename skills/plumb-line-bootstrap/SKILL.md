@@ -145,9 +145,23 @@ call sites — and act only on an explicit yes:
 
 - **Declined → the project is untouched.** Record the offer as declined in the
   report and move on; no library, no marking, no new dependency appears.
-- **Accepted →** check the library is importable first (`plumb-line-provenance`
-  on npm / PyPI). If absent, tell the builder the one-line install and pause —
-  suggesting it is fine; running it or vendoring the source is not this slice.
+- **Accepted →** ask which route the builder wants, then act on their answer —
+  don't default to one silently:
+  - **Install the published package** (`plumb-line-provenance` on npm / PyPI).
+    Check it's importable first; if absent, tell the builder the one-line
+    install and pause.
+  - **Vendor the bundled source instead (no npm/pip, no network install).**
+    This plugin ships the same v2 primitive under its own payload at
+    `.claude-plugin/bundled/primitives/js/` (`provenance.mjs`, `audit.mjs`,
+    `marked.mjs`, `index.mjs`) and `.claude-plugin/bundled/primitives/python/`
+    (`provenance.py`, `audit.py`, `marked.py`, `__init__.py`) — copy those
+    four files for the builder's language straight into the target repo (e.g.
+    a `provenance/` dir next to the source-truth layer named in the
+    interview), unmodified. They carry a dual-import shim, so they work
+    copied flat with no `package.json`/`pyproject.toml` entry required. State
+    plainly that this is a vendored copy the builder now owns and updates
+    manually (no auto-sync) — the published-package route is what stays
+    current automatically.
   This adds no mandatory step: a builder who never accepts never needs it.
 
 When scaffolding, **teach the pattern at the first site rather than carpeting
