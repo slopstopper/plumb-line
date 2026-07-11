@@ -1,8 +1,9 @@
 """provenance — the provenance/lineage law (single source). Mirror of provenance.mjs."""
 
 # Schema version of the provenance metadata envelope (Principle 7). Declared so
-# consumers can pin to a shape; embedding it per-meta and validating against it
-# is planned. Mirror of PROVENANCE_VERSION in provenance.mjs.
+# consumers can pin to a shape; every envelope now carries this constant
+# (embedded by make_meta); validating envelopes against it is planned. Mirror of
+# PROVENANCE_VERSION in provenance.mjs.
 PROVENANCE_VERSION = 2
 
 STATUS = ['unavailable', 'mock', 'fallback', 'semiReal', 'derived', 'real']

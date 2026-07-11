@@ -1,8 +1,8 @@
 // provenance.mjs — the provenance/lineage law (single source).
 
 // Schema version of the provenance metadata envelope (Principle 7). Declared so
-// consumers can pin to a shape; embedding it per-meta and validating against it
-// is planned.
+// consumers can pin to a shape; every envelope now carries this constant
+// (embedded by makeMeta); validating envelopes against it is planned.
 export const PROVENANCE_VERSION = 2;
 
 export const STATUS = [
