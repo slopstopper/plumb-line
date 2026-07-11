@@ -6,7 +6,7 @@
 # PROVENANCE_VERSION in provenance.mjs.
 PROVENANCE_VERSION = 2
 
-STATUS = ['unavailable', 'mock', 'fallback', 'semiReal', 'derived', 'real']
+STATUS = ['unavailable', 'mock', 'inferred', 'fallback', 'semiReal', 'derived', 'real']
 CONFIDENCE = ['none', 'low', 'medium', 'high']
 
 # Deprecated no-op, kept for import compatibility. Step IDs are now assigned by

@@ -64,8 +64,12 @@ Two fields draw from ordered enumerations. Order is significant: "weakest" and
 **`source`** — status ladder, least → most trustworthy:
 
 ```
-unavailable  <  mock  <  fallback  <  semiReal  <  derived  <  real
+unavailable  <  mock  <  inferred  <  fallback  <  semiReal  <  derived  <  real
 ```
+
+An `inferred` value (LLM/agent-produced, no external evidence behind it) ranks
+just above `mock` and below `fallback` — treated as suspect until evidenced, so
+that combining it with anything else drags trust down hard. See ADR-0010.
 
 **`confidence`** — certainty ladder, least → most certain:
 

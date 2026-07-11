@@ -8,6 +8,7 @@ export const PROVENANCE_VERSION = 2;
 export const STATUS = [
   "unavailable",
   "mock",
+  "inferred",
   "fallback",
   "semiReal",
   "derived",

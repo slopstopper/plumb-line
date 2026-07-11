@@ -41,6 +41,14 @@
       "inputs": [],
       "expect": { "derivedFromMock": false, "confidence": "none", "source": "unavailable" },
       "absent": ["weakestSource", "confidenceScore"]
+    },
+    {
+      "name": "inferred + fallback — inferred is the weaker source",
+      "inputs": [
+        { "source": "fallback", "confidence": "low", "derivedFromMock": false, "lineage": [] },
+        { "source": "inferred", "confidence": "low", "derivedFromMock": false, "lineage": [] }
+      ],
+      "expect": { "source": "derived", "confidence": "low", "weakestSource": "inferred", "derivedFromMock": false }
     }
   ],
   "audit": [
@@ -137,6 +145,11 @@
       "name": "version-future — newer version passes with an advisory",
       "meta": { "provenanceVersion": 99, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
       "expectContains": ["version-future:"]
+    },
+    {
+      "name": "inferred source is not laundering — no issue on a clean inferred value",
+      "meta": { "provenanceVersion": 2, "source": "inferred", "confidence": "low", "derivedFromMock": false, "lineage": [] },
+      "expectContains": []
     }
   ],
   "validate": [

@@ -17,7 +17,7 @@ def test_combine_carries_version():
     assert out['provenance_version'] == 2
 
 def test_constants_order():
-    assert p.STATUS == ['unavailable','mock','fallback','semiReal','derived','real']
+    assert p.STATUS == ['unavailable','mock','inferred','fallback','semiReal','derived','real']
     assert p.CONFIDENCE == ['none','low','medium','high']
 
 def test_make_meta_defaults():
@@ -166,3 +166,11 @@ def test_combine_records_score_on_lineage_step():
 def test_combine_omits_score_on_step_without_one():
     out = p.combine_provenance(REAL_SCORED, {'source':'real','confidence':'high'})
     assert 'confidence_score' not in out['lineage'][1]
+
+def test_inferred_between_mock_and_fallback():
+    assert p.STATUS.index('mock') < p.STATUS.index('inferred') < p.STATUS.index('fallback')
+
+def test_combine_inferred_weakest_over_fallback():
+    out = p.combine_provenance(p.make_meta(source='fallback', confidence='low'),
+                               p.make_meta(source='inferred', confidence='low'))
+    assert out['weakest_source'] == 'inferred'

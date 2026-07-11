@@ -25,6 +25,7 @@ describe("constants", () => {
     expect(STATUS).toEqual([
       "unavailable",
       "mock",
+      "inferred",
       "fallback",
       "semiReal",
       "derived",
@@ -299,4 +300,17 @@ describe("combineProvenance — new fields", () => {
     const out = combineProvenance(realScored, { source: "real", confidence: "high" });
     expect("confidenceScore" in out.lineage[1]).toBe(false);
   });
+});
+
+test("inferred sits between mock and fallback", () => {
+  expect(STATUS.indexOf("mock")).toBeLessThan(STATUS.indexOf("inferred"));
+  expect(STATUS.indexOf("inferred")).toBeLessThan(STATUS.indexOf("fallback"));
+});
+
+test("combine picks inferred as weakest over fallback", () => {
+  const out = combineProvenance(
+    makeMeta({ source: "fallback", confidence: "low" }),
+    makeMeta({ source: "inferred", confidence: "low" }),
+  );
+  expect(out.weakestSource).toBe("inferred");
 });
