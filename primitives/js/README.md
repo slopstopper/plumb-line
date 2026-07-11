@@ -20,8 +20,8 @@ auditMeta(metaOf(total)); // []  — internally consistent
 You can also copy the `.mjs` files directly into a project and import them
 relatively; both styles work.
 
-- **Specification:** [`SPEC.md`](https://github.com/effythealien/plumb-line/blob/main/primitives/SPEC.md) (envelope schema version 1)
-- **Model, law, examples:** [`README.md`](https://github.com/effythealien/plumb-line/blob/main/primitives/README.md)
+- **Specification:** [`SPEC.md`](https://github.com/slopstopper/plumb-line/blob/main/primitives/SPEC.md) (envelope schema version 1)
+- **Model, law, examples:** [`README.md`](https://github.com/slopstopper/plumb-line/blob/main/primitives/README.md)
 - **License:** Apache-2.0
 
 Python parity package: `plumb-line-provenance` on PyPI.

@@ -20,9 +20,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/effythealien/plumb-line"
-Repository = "https://github.com/effythealien/plumb-line"
-Specification = "https://github.com/effythealien/plumb-line/blob/main/primitives/SPEC.md"
+Homepage = "https://github.com/slopstopper/plumb-line"
+Repository = "https://github.com/slopstopper/plumb-line"
+Specification = "https://github.com/slopstopper/plumb-line/blob/main/primitives/SPEC.md"
 
 # Flat layout: the three source modules live in this directory and are packaged
 # under the import name `plumb_line_provenance`. Tests are excluded from the dist.

@@ -30,12 +30,12 @@
   "author": "Aoife Okonedo Martin",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/effythealien/plumb-line/issues"
+    "url": "https://github.com/slopstopper/plumb-line/issues"
   },
-  "homepage": "https://github.com/effythealien/plumb-line/tree/main/primitives",
+  "homepage": "https://github.com/slopstopper/plumb-line/tree/main/primitives",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/effythealien/plumb-line.git",
+    "url": "git+https://github.com/slopstopper/plumb-line.git",
     "directory": "primitives/js"
   },
   "engines": {
@@ -43,10 +43,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@vitest/coverage-v8": "^4.1.9",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.6.0",
     "fast-check": "^4.8.0",
     "globals": "^17.7.0",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   }
 }

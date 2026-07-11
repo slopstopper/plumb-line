@@ -9,7 +9,7 @@ continuity — is described in [GOVERNANCE.md](GOVERNANCE.md).
 
 ## How to contribute
 
-**Bug reports and questions** — open a [GitHub issue](https://github.com/effythealien/plumb-line/issues).
+**Bug reports and questions** — open a [GitHub issue](https://github.com/slopstopper/plumb-line/issues).
 Include the component (`primitives/js`, `primitives/python`, an adapter, or a
 skill), the version, and the shortest sequence of calls that reproduces the
 problem. For suspected security issues, follow [SECURITY.md](SECURITY.md)

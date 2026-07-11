@@ -25,7 +25,7 @@ implementation of the envelope) can advertise it. The badge links to the spec
 version it conforms to:
 
 ```markdown
-[![provenance: plumb-line v1](https://img.shields.io/badge/provenance-plumb--line_v1-3b82f6)](https://github.com/effythealien/plumb-line/blob/main/primitives/SPEC.md)
+[![provenance: plumb-line v1](https://img.shields.io/badge/provenance-plumb--line_v1-3b82f6)](https://github.com/slopstopper/plumb-line/blob/main/primitives/SPEC.md)
 ```
 
 [![provenance: plumb-line v1](https://img.shields.io/badge/provenance-plumb--line_v1-3b82f6)](../SPEC.md)

@@ -14,7 +14,7 @@ and against whom — see [`docs/threat-model.md`](docs/threat-model.md).
 vulnerability.**
 
 Use GitHub's private vulnerability reporting:
-**[Report a vulnerability](https://github.com/effythealien/plumb-line/security/advisories/new)**
+**[Report a vulnerability](https://github.com/slopstopper/plumb-line/security/advisories/new)**
 (repository → **Security** tab → **Report a vulnerability**).
 
 If that channel is unavailable to you, open a regular issue titled
