@@ -11,6 +11,11 @@ Invoked directly by scripts/check-bundle-conformance.mjs, and can also be run
 on its own:
 
     python3 -m pytest -q scripts/test_bundle_conformance.py
+
+IMPORTANT: run this in its own pytest process, never in the same session as
+primitives/python/tests/test_conformance.py — both import a module named
+`provenance` from different paths, and Python's sys.modules cache would serve
+whichever one imported first to the other, silently testing the wrong copy.
 """
 import json
 import os

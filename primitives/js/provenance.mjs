@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 
 // Schema version of the provenance metadata envelope (Principle 7). Declared so
 // consumers can pin to a shape; every envelope now carries this constant
-// (embedded by makeMeta); validating envelopes against it is planned.
+// (embedded by makeMeta and validated on read).
 export const PROVENANCE_VERSION = 2;
 
 export const STATUS = [
@@ -208,7 +208,17 @@ export function combineProvenance(...metas) {
  * @returns {string} `"sha256:" + first 12 hex chars`
  */
 export function stepId(step, inputIds = []) {
-  const score = isScore(step?.confidenceScore) ? JSON.stringify(step.confidenceScore) : "-";
+  // Canonical score encoding: IEEE-754 big-endian 8-byte representation as
+  // lowercase hex. JSON.stringify/json.dumps disagree across languages for
+  // small floats (e.g. 0.00001: JS "0.00001" vs Python "1e-05"), which would
+  // otherwise produce different step ids for the same value cross-language.
+  // The raw double bit pattern is identical in both, by construction.
+  let score = "-";
+  if (isScore(step?.confidenceScore)) {
+    const buf = Buffer.alloc(8);
+    buf.writeDoubleBE(step.confidenceScore);
+    score = buf.toString("hex");
+  }
   const canon = [
     `of=${step?.of ?? ""}`,
     `source=${step?.source ?? ""}`,

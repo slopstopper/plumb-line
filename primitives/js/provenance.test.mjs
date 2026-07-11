@@ -143,8 +143,8 @@ describe("combineProvenance — the law", () => {
     expect(out.lineage[0].id).toMatch(/^sha256:/);
   });
   it("accumulates prior lineage from inputs", () => {
-    // Inherited steps are carried into the output (identified by content, not by
-    // their original id — the output renumbers every step for §4 uniqueness).
+    // Inherited steps are carried into the output verbatim, keeping their
+    // original content-addressed id — they are never renumbered (#52).
     const withHistory = { ...real, lineage: [{ id: "old", of: "prior" }] };
     const out = combineProvenance(withHistory, semi);
     expect(out.lineage.some((s) => s.of === "prior")).toBe(true);

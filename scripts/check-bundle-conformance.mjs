@@ -37,6 +37,11 @@ function runCombine(c) {
   for (const k of c.absent || []) {
     if (k in out) return `expected ${k} to be absent`;
   }
+  if (c.expectLineageIds) {
+    const ids = out.lineage.map((s) => s.id);
+    if (JSON.stringify(ids) !== JSON.stringify(c.expectLineageIds))
+      return `expected lineage ids ${JSON.stringify(c.expectLineageIds)}, got ${JSON.stringify(ids)}`;
+  }
   return null;
 }
 

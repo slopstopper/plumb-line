@@ -1,11 +1,11 @@
 """provenance — the provenance/lineage law (single source). Mirror of provenance.mjs."""
 
 import hashlib
-import json
+import struct
 
 # Schema version of the provenance metadata envelope (Principle 7). Declared so
 # consumers can pin to a shape; every envelope now carries this constant
-# (embedded by make_meta); validating envelopes against it is planned. Mirror of
+# (embedded by make_meta and validated on read). Mirror of
 # PROVENANCE_VERSION in provenance.mjs.
 PROVENANCE_VERSION = 2
 
@@ -192,11 +192,19 @@ def step_id(step, input_ids=None):
     """Content-addressed id for a lineage step (#52). Mirror of stepId in provenance.mjs."""
     input_ids = input_ids or []
     score = step.get('confidence_score')
-    score_s = json.dumps(score) if is_score(score) else '-'
+    # Canonical score encoding: IEEE-754 big-endian 8-byte representation as
+    # lowercase hex. json.dumps/JSON.stringify disagree across languages for
+    # small floats (e.g. 0.00001: Python "1e-05" vs JS "0.00001"), which would
+    # otherwise produce different step ids for the same value cross-language.
+    # The raw double bit pattern is identical in both, by construction.
+    score_s = struct.pack('>d', score).hex() if is_score(score) else '-'
+    of_ = '' if step.get('of') is None else step.get('of')
+    source_ = '' if step.get('source') is None else step.get('source')
+    confidence_ = '' if step.get('confidence') is None else step.get('confidence')
     canon = "\n".join([
-        f"of={step.get('of') or ''}",
-        f"source={step.get('source') or ''}",
-        f"confidence={step.get('confidence') or ''}",
+        f"of={of_}",
+        f"source={source_}",
+        f"confidence={confidence_}",
         f"derivedFromMock={'true' if step.get('derived_from_mock') else 'false'}",
         f"confidenceScore={score_s}",
         f"inputs={','.join(sorted(input_ids))}",

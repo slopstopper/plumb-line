@@ -118,8 +118,8 @@ def test_combine_records_lineage_step_per_input():
     assert out['lineage'][0]['id'].startswith('sha256:')
 
 def test_combine_accumulates_prior_lineage():
-    # Inherited steps are carried into the output (identified by content, not by
-    # their original id — the output renumbers every step for §4 uniqueness).
+    # Inherited steps are carried into the output verbatim, keeping their
+    # original content-addressed id — they are never renumbered (#52).
     with_history = dict(REAL)
     with_history['lineage'] = [{'id':'old','of':'prior'}]
     out = p.combine_provenance(with_history, SEMI)

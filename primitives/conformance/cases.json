@@ -66,7 +66,16 @@
         { "source": "mock", "confidence": "low", "confidenceScore": 0.2, "derivedFromMock": true, "lineage": [] }
       ],
       "expect": { "source": "derived", "derivedFromMock": true, "weakestSource": "mock", "confidenceScore": 0.2 },
-      "expectLineageIds": ["sha256:47004f53a41a", "sha256:cc9af609c4c3"]
+      "expectLineageIds": ["sha256:2bdad8542ba4", "sha256:114b62067db8"]
+    },
+    {
+      "name": "content-addressed lineage ids — sub-1e-4 score exercises the IEEE-754 hex encoding branch (catches JSON.stringify/json.dumps divergence, #52)",
+      "inputs": [
+        { "source": "real", "confidence": "high", "confidenceScore": 0.9, "derivedFromMock": false, "lineage": [] },
+        { "source": "mock", "confidence": "low", "confidenceScore": 0.00001, "derivedFromMock": true, "lineage": [] }
+      ],
+      "expect": { "source": "derived", "derivedFromMock": true, "weakestSource": "mock", "confidenceScore": 0.00001 },
+      "expectLineageIds": ["sha256:2bdad8542ba4", "sha256:4c2bcbf6481c"]
     }
   ],
   "audit": [
