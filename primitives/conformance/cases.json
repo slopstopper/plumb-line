@@ -41,12 +41,48 @@
       "inputs": [],
       "expect": { "derivedFromMock": false, "confidence": "none", "source": "unavailable" },
       "absent": ["weakestSource", "confidenceScore"]
+    },
+    {
+      "name": "inferred + fallback — inferred is the weaker source",
+      "inputs": [
+        { "source": "fallback", "confidence": "low", "derivedFromMock": false, "lineage": [] },
+        { "source": "inferred", "confidence": "low", "derivedFromMock": false, "lineage": [] }
+      ],
+      "expect": { "source": "derived", "confidence": "low", "weakestSource": "inferred", "derivedFromMock": false }
+    },
+    {
+      "name": "content-addressed lineage ids — real + mock, ids are stable sha256 (#52)",
+      "inputs": [
+        { "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+        { "source": "mock", "confidence": "low", "derivedFromMock": true, "lineage": [] }
+      ],
+      "expect": { "source": "derived", "derivedFromMock": true, "weakestSource": "mock" },
+      "expectLineageIds": ["sha256:097181b20233", "sha256:16b0cc5a3c46"]
+    },
+    {
+      "name": "content-addressed lineage ids — scored inputs pin the confidenceScore branch of the id hash (#52)",
+      "inputs": [
+        { "source": "real", "confidence": "high", "confidenceScore": 0.9, "derivedFromMock": false, "lineage": [] },
+        { "source": "mock", "confidence": "low", "confidenceScore": 0.2, "derivedFromMock": true, "lineage": [] }
+      ],
+      "expect": { "source": "derived", "derivedFromMock": true, "weakestSource": "mock", "confidenceScore": 0.2 },
+      "expectLineageIds": ["sha256:2bdad8542ba4", "sha256:114b62067db8"]
+    },
+    {
+      "name": "content-addressed lineage ids — sub-1e-4 score exercises the IEEE-754 hex encoding branch (catches JSON.stringify/json.dumps divergence, #52)",
+      "inputs": [
+        { "source": "real", "confidence": "high", "confidenceScore": 0.9, "derivedFromMock": false, "lineage": [] },
+        { "source": "mock", "confidence": "low", "confidenceScore": 0.00001, "derivedFromMock": true, "lineage": [] }
+      ],
+      "expect": { "source": "derived", "derivedFromMock": true, "weakestSource": "mock", "confidenceScore": 0.00001 },
+      "expectLineageIds": ["sha256:2bdad8542ba4", "sha256:4c2bcbf6481c"]
     }
   ],
   "audit": [
     {
       "name": "consistent derived value — no issues",
       "meta": {
+        "provenanceVersion": 2,
         "source": "derived", "confidence": "low", "derivedFromMock": true,
         "lineage": [
           { "id": "s1", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false },
@@ -99,7 +135,7 @@
     },
     {
       "name": "zero-input combine output — unavailable with empty lineage audits clean (SPEC §3 ↔ §5)",
-      "meta": { "source": "unavailable", "confidence": "none", "derivedFromMock": false, "lineage": [] },
+      "meta": { "provenanceVersion": 2, "source": "unavailable", "confidence": "none", "derivedFromMock": false, "lineage": [] },
       "expectContains": []
     },
     {
@@ -108,9 +144,9 @@
       "expectContains": ["missing meta"]
     },
     {
-      "name": "empty envelope — no issues",
+      "name": "empty envelope — no issues besides the version-legacy advisory (#93: absent version is legacy)",
       "meta": {},
-      "expectContains": []
+      "expectContains": ["version-legacy:"]
     },
     {
       "name": "non-dict meta (falsy scalar) — missing meta (totality, SPEC §5)",
@@ -126,6 +162,21 @@
       "name": "truthy non-dict meta (array) — missing meta (parity)",
       "meta": [1, 2, 3],
       "expectContains": ["missing meta"]
+    },
+    {
+      "name": "version-legacy — envelope without a version is flagged legacy",
+      "meta": { "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "expectContains": ["version-legacy:"]
+    },
+    {
+      "name": "version-future — newer version passes with an advisory",
+      "meta": { "provenanceVersion": 99, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "expectContains": ["version-future:"]
+    },
+    {
+      "name": "inferred source is not laundering — no issue on a clean inferred value",
+      "meta": { "provenanceVersion": 2, "source": "inferred", "confidence": "low", "derivedFromMock": false, "lineage": [] },
+      "expectContains": []
     }
   ],
   "validate": [

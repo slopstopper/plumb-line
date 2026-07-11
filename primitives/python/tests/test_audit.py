@@ -9,7 +9,7 @@ def setup_function():
     p.reset_step_counter()
 
 def test_silent_on_clean():
-    assert a.audit_meta({'source':'real','confidence':'high','derived_from_mock':False,'lineage':[]}) == []
+    assert a.audit_meta({'provenance_version':2,'source':'real','confidence':'high','derived_from_mock':False,'lineage':[]}) == []
 
 def test_flags_laundering():
     issues = a.audit_meta({'source':'real','confidence':'high','derived_from_mock':True,'lineage':[]})
@@ -61,8 +61,9 @@ def test_no_throw_on_invalid_top_confidence():
                            'lineage': [{'confidence': 'low', 'derivedFromMock': False}]})
     assert isinstance(result, list)
 
-def test_empty_meta_returns_empty_list():
-    assert a.audit_meta({}) == []
+def test_empty_meta_returns_only_version_legacy_advisory():
+    # #93: {} carries no provenance_version, so it is legacy — not "no issues".
+    assert a.audit_meta({}) == [f'version-legacy: envelope predates version {p.PROVENANCE_VERSION}']
 
 def test_none_meta_returns_missing_meta():
     assert a.audit_meta(None) == ['missing meta']
@@ -73,7 +74,7 @@ def test_flags_numeric_over_claiming():
     assert any('over-claiming: confidenceScore' in i for i in a.audit_meta(meta))
 
 def test_silent_when_score_within_lineage():
-    meta = {'source':'derived','confidence':'low','confidence_score':0.2,'derived_from_mock':False,
+    meta = {'provenance_version':2,'source':'derived','confidence':'low','confidence_score':0.2,'derived_from_mock':False,
             'lineage':[{'id':'s1','confidence':'low','confidence_score':0.2}]}
     assert a.audit_meta(meta) == []
 
@@ -88,9 +89,11 @@ def test_validate_silent_on_complete_envelope():
     assert a.validate_envelope(VALID) == []
 
 def test_validate_is_structural_complement_to_audit():
-    # audit_meta({}) is [] (no claims to contradict); validate_envelope reports
-    # all four required fields missing. The two checkers are complementary.
-    assert a.audit_meta({}) == []
+    # audit_meta({}) has no logical claims to contradict — its only issue is the
+    # version-legacy advisory (#93), since {} carries no provenance_version.
+    # validate_envelope reports all four required fields missing. The two
+    # checkers are complementary.
+    assert a.audit_meta({}) == [f'version-legacy: envelope predates version {p.PROVENANCE_VERSION}']
     issues = a.validate_envelope({})
     assert len(issues) == 4
     for f in ('source', 'confidence', 'derivedFromMock', 'lineage'):
@@ -110,3 +113,16 @@ def test_validate_is_total():
     assert a.validate_envelope(None) == ['missing meta']
     assert any('not an envelope object' in i for i in a.validate_envelope('nope'))
     assert any('not an envelope object' in i for i in a.validate_envelope([]))
+
+
+# #93: version read policy — forgiving forward, honest backward.
+def test_current_version_no_issue():
+    assert not any(i.startswith('version-') for i in a.audit_meta(p.make_meta(source='real')))
+
+def test_legacy_absent_version():
+    m = {'source': 'real', 'confidence': 'high', 'derived_from_mock': False, 'lineage': []}
+    assert any(i.startswith('version-legacy:') for i in a.audit_meta(m))
+
+def test_future_version_advisory():
+    m = {'provenance_version': 99, 'source': 'real', 'confidence': 'high', 'derived_from_mock': False, 'lineage': []}
+    assert any(i.startswith('version-future:') for i in a.audit_meta(m))

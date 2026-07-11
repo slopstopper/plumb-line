@@ -1,6 +1,6 @@
 # plumb-line Provenance Envelope — Specification
 
-**Status:** current · **Envelope schema version:** 1 · **SPEC revision:** 1.2
+**Status:** current · **Envelope schema version:** 2 · **SPEC revision:** 1.3
 
 This is the normative, language-neutral definition of the provenance envelope,
 the conservative-combination law, and the consistency checks. Any implementation
@@ -43,7 +43,7 @@ meaningful: it denotes "unknown", which is distinct from any present value.
 ### Envelope versioning
 
 The envelope schema carries a version constant (`PROVENANCE_VERSION`, currently
-`1`). Adding a new **optional** field is backward-compatible and MUST NOT bump
+`2`). Adding a new **optional** field is backward-compatible and MUST NOT bump
 the version (`confidenceScore` and `weakestSource` were added under v1). Removing
 or renaming a field, changing a field's type, or changing the combination law's
 result for an existing case is a breaking change and MUST bump the version —
@@ -64,8 +64,12 @@ Two fields draw from ordered enumerations. Order is significant: "weakest" and
 **`source`** — status ladder, least → most trustworthy:
 
 ```
-unavailable  <  mock  <  fallback  <  semiReal  <  derived  <  real
+unavailable  <  mock  <  inferred  <  fallback  <  semiReal  <  derived  <  real
 ```
+
+An `inferred` value (LLM/agent-produced, no external evidence behind it) ranks
+just above `mock` and below `fallback` — treated as suspect until evidenced, so
+that combining it with anything else drags trust down hard. See ADR-0010.
 
 **`confidence`** — certainty ladder, least → most certain:
 
@@ -124,12 +128,42 @@ Each new step MUST contain:
 
 | Field             | Type    | Meaning                                          |
 | ----------------- | ------- | ------------------------------------------------ |
-| `id`              | string  | Unique-within-output identifier.                 |
+| `id`              | string  | Content-addressed identifier (see below).        |
 | `of`              | string  | `"input"` for steps minted by the law.           |
 | `source`          | enum    | The input's `source` at combination time.        |
 | `confidence`      | enum    | The input's `confidence` at combination time.    |
 | `derivedFromMock` | boolean | Whether the input tainted (flag OR mock source). |
 | `confidenceScore` | number  | Present **iff** the input carried a valid score. |
+
+### Step ids are content-addressed (#52, ADR-0010)
+
+`id` is `"sha256:" + first 12 hex chars` of a SHA-256 hash over the step's
+canonical serialization (`stepId` / `step_id`, Task 4 of wire v2):
+
+```
+of=<of>
+source=<source>
+confidence=<confidence>
+derivedFromMock=<"true"|"false">
+confidenceScore=<JSON number, or "-" if absent>
+inputs=<sorted, comma-joined ids of the step's input steps>
+```
+
+Two guarantees follow from this construction:
+
+- **Stable across recombination.** A step's id is a pure function of its own
+  fields plus its input ids — never of when, how many times, or alongside what
+  else it is combined. `combineProvenance` MUST NOT renumber or otherwise alter
+  the `id` of a lineage step it inherits from a prior envelope; only the new
+  input steps it mints get fresh ids. Combining A with B never changes an id
+  already present in A.
+- **Dedupable, not merely unique.** Two steps collide **iff** they are the same
+  derivation — identical fields *and* identical input ids. That collision is
+  **intended dedup**, not an error: it means the same derivation happened twice
+  (e.g. two branches recombining an identical sub-lineage), and an implementation
+  MUST NOT attempt to force artificial uniqueness (e.g. via a counter or random
+  suffix) — see ADR-0010 for the rejected alternatives (random UUIDs, a
+  flat field-only hash with no ancestry).
 
 `weakestSource` is **computed only**: it is derived from the lineage and MUST NOT
 be settable as a combination override. An implementation MUST NOT let a caller
@@ -145,7 +179,7 @@ A lineage step records each input's **trust state** at combination time, not the
 **transformation** applied to produce the output. Two derivations from identical
 inputs but different transforms (e.g. `sum` vs `max`) therefore produce
 identically-shaped lineage. Capturing transform identity — the function, its
-version, its parameters — is **out of scope for envelope schema version 1**: a
+version, its parameters — is **out of scope for envelope schema version 2**: a
 domain-neutral law cannot canonicalize an arbitrary function into a stable
 identifier.
 
@@ -176,14 +210,17 @@ checker MUST detect each of the following:
 
 The checker MUST be total: a missing or malformed field MUST yield a result list
 (possibly noting the problem), never an exception. A `null`/`None` envelope MUST
-return a single "missing meta" issue. An empty envelope `{}` MUST return `[]`.
+return a single "missing meta" issue. An empty envelope `{}` MUST return only the
+`version-legacy:` advisory (§5b) — it asserts no other claim to contradict, but it
+also carries no `provenanceVersion`, which the version policy treats as legacy.
 
 ### 5a. Structural validation
 
 The audit above checks the *logic* of the claims an envelope makes and treats an
-absent field as "unknown" (§2) — so a structurally empty `{}` audits clean
-(`[]`), because it asserts nothing to contradict. The audit therefore does **not**
-verify that the four required fields (§1) are present.
+absent field as "unknown" (§2) — so a structurally empty `{}` audits clean of
+every logical-consistency check (issues #1–6 above), because it asserts nothing
+to contradict; its only issue is the version-legacy advisory (§5b). The audit
+therefore does **not** verify that the four required fields (§1) are present.
 
 An implementation MUST also provide a structural validator
 (`validateEnvelope` / `validate_envelope`) that takes one envelope and returns a
@@ -201,6 +238,31 @@ validator MUST NOT check enum membership of `source`/`confidence` (that is the
 audit's tolerant-of-unknown domain, §2) — its sole concern is required-field
 presence and type. The two checkers are complementary and independent: an
 envelope MAY pass one and fail the other.
+
+### 5b. Version field
+
+An envelope MAY carry a `provenanceVersion` (`provenance_version` in the
+`snake_case` binding) integer field recording the `PROVENANCE_VERSION` the
+producer stamped it with. `combineProvenance`/`combine_provenance` and
+`makeMeta`/`make_meta` MUST stamp the current `PROVENANCE_VERSION` on every
+envelope they produce.
+
+The audit (§5) MUST read this field on every call and apply an asymmetric
+policy: forgiving forward, honest backward. Exactly one advisory issue is
+appended (never more than one), and it never suppresses or is suppressed by any
+other issue in §5's table:
+
+| envelope `provenanceVersion` | audit issue appended |
+| --- | --- |
+| equal to the checker's `PROVENANCE_VERSION` (current) | none |
+| greater than the checker's `PROVENANCE_VERSION` (unknown future) | `version-future: envelope version N is newer than supported <PROVENANCE_VERSION>` |
+| absent, or less than the checker's `PROVENANCE_VERSION` (legacy) | `version-legacy: envelope predates version <PROVENANCE_VERSION>` |
+
+Both issues are **advisory only**: they MUST NOT cause the checker to throw, and
+MUST NOT alter the result of any other check in §5's table. A future,
+unrecognized version is accepted (not rejected) so that consumers built against
+an older checker keep working against newer producers — the version field
+exists to make drift *legible*, not to gate interoperability.
 
 ---
 
@@ -234,13 +296,13 @@ an unambiguous form, so cases needing dataflow to judge are deliberately left
 out — PB2 fires only on a `derive` override (a literal `derivedFromMock:false` on
 a plain `mark`/`makeMeta` is the honest stored default, not a violation), and PB4
 fires only on the import-bound `unwrap(x)` (a bare `x.value` could be any raw
-field). Whole-program dataflow is out of scope for envelope schema version 1.
+field). Whole-program dataflow is out of scope for envelope schema version 2.
 
 ---
 
 ## 7. Conformance
 
-An implementation **conforms to envelope schema version 1** if, for every case in
+An implementation **conforms to envelope schema version 2** if, for every case in
 `conformance/cases.json`:
 
 - each `combine` case's output matches the expected fields and respects the

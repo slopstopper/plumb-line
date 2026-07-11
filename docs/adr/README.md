@@ -32,3 +32,4 @@ record is append-only.
 | [0007](0007-branch-guard-hardening.md)                  | Branch-guard allowlist hardening                          | Accepted |
 | [0008](0008-zero-input-conformance-fix-no-wire-bump.md) | Self-contradiction fix is conformance, not a wire bump    | Accepted |
 | [0009](0009-checker-totality-non-object-parity.md)      | Checker totality on non-object input, parity, no wire bump | Accepted |
+| [0010](0010-wire-v2-schema-batch.md)                    | Wire v2 — batch the schema-breaking changes into one bump  | Accepted |

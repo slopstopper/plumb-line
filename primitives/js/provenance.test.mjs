@@ -1,11 +1,32 @@
-import { describe, it, expect } from "vitest";
-import { STATUS, CONFIDENCE, makeMeta } from "./provenance.mjs";
+import { describe, it, test, expect } from "vitest";
+import {
+  STATUS,
+  CONFIDENCE,
+  makeMeta,
+  combineProvenance,
+  PROVENANCE_VERSION,
+  stepId,
+} from "./provenance.mjs";
+
+test("PROVENANCE_VERSION is 2", () => {
+  expect(PROVENANCE_VERSION).toBe(2);
+});
+
+test("makeMeta stamps the current provenanceVersion", () => {
+  expect(makeMeta({ source: "real" }).provenanceVersion).toBe(2);
+});
+
+test("combineProvenance output carries provenanceVersion", () => {
+  const out = combineProvenance(makeMeta({ source: "real" }));
+  expect(out.provenanceVersion).toBe(2);
+});
 
 describe("constants", () => {
   it("orders status least->most trustworthy", () => {
     expect(STATUS).toEqual([
       "unavailable",
       "mock",
+      "inferred",
       "fallback",
       "semiReal",
       "derived",
@@ -66,7 +87,7 @@ describe("taints", () => {
   });
 });
 
-import { combineProvenance, __resetStepCounter } from "./provenance.mjs";
+import { __resetStepCounter } from "./provenance.mjs";
 import { beforeEach } from "vitest";
 
 beforeEach(() => __resetStepCounter());
@@ -119,11 +140,11 @@ describe("combineProvenance — the law", () => {
       confidence: "low",
       derivedFromMock: true,
     });
-    expect(out.lineage[0].id).toBe("step-1");
+    expect(out.lineage[0].id).toMatch(/^sha256:/);
   });
   it("accumulates prior lineage from inputs", () => {
-    // Inherited steps are carried into the output (identified by content, not by
-    // their original id — the output renumbers every step for §4 uniqueness).
+    // Inherited steps are carried into the output verbatim, keeping their
+    // original content-addressed id — they are never renumbered (#52).
     const withHistory = { ...real, lineage: [{ id: "old", of: "prior" }] };
     const out = combineProvenance(withHistory, semi);
     expect(out.lineage.some((s) => s.of === "prior")).toBe(true);
@@ -168,25 +189,39 @@ describe("combineProvenance — the law", () => {
     expect(out.source).toBe("unavailable");
     expect(out.lineage).toEqual([]);
   });
-  it("assigns combine-local step IDs that do not drift with the global counter", () => {
-    // No module-level counter: two independent combines (no reset between them)
-    // produce identical, reproducible step IDs. See #23.
+  it("assigns identical, reproducible content-addressed step IDs across repeated combines", () => {
+    // No module-level counter: two independent combines with identical inputs
+    // produce identical step ids, since ids are a pure function of content. See #23.
     const first = combineProvenance(real, mock);
     const second = combineProvenance(real, mock);
-    expect(first.lineage.map((s) => s.id)).toEqual(["step-1", "step-2"]);
-    expect(second.lineage.map((s) => s.id)).toEqual(["step-1", "step-2"]);
+    expect(first.lineage.map((s) => s.id)).toEqual(second.lineage.map((s) => s.id));
+    expect(first.lineage.every((s) => s.id.startsWith("sha256:"))).toBe(true);
   });
-  it("keeps step IDs unique-within-output when both inputs carry lineage (SPEC §4)", () => {
-    // Two independently-built envelopes each start their lineage at step-1.
-    // Combining them must not collide — the output renumbers the whole lineage,
-    // so uniqueness holds for every input shape, not just lineage-less siblings.
-    // See #23 and the PR review on §4.
+  it("dedups identical sub-lineages by design when both inputs carry the same history (SPEC §4)", () => {
+    // Two independently-built envelopes with identical content produce identical
+    // ids for their steps — that collision is intended dedup, not an error,
+    // because it means "the same derivation happened twice." See #52.
     const a = combineProvenance(real, mock);
     const b = combineProvenance(real, mock);
     const out = combineProvenance(a, b);
-    const ids = out.lineage.map((s) => s.id);
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toEqual(["step-1", "step-2", "step-3", "step-4", "step-5", "step-6"]);
+    expect(out.lineage).toHaveLength(6);
+    // a's and b's inherited steps carry the same content -> same ids.
+    expect(out.lineage[0].id).toBe(out.lineage[2].id);
+    expect(out.lineage[1].id).toBe(out.lineage[3].id);
+    expect(out.lineage.every((s) => s.id.startsWith("sha256:"))).toBe(true);
+  });
+  test("input-step id is stable across recombination", () => {
+    const a = { source: "real", confidence: "high", derivedFromMock: false, lineage: [] };
+    const once = combineProvenance(a);
+    const twice = combineProvenance(a, { source: "mock", confidence: "low", derivedFromMock: true, lineage: [] });
+    // the input step summarizing `a` has the same id in both outputs
+    const idInOnce = once.lineage.find((s) => s.source === "real").id;
+    const idInTwice = twice.lineage.find((s) => s.source === "real").id;
+    expect(idInOnce).toBe(idInTwice);
+  });
+  test("combine no longer emits sequential step-N ids", () => {
+    const out = combineProvenance({ source: "real", confidence: "high", derivedFromMock: false, lineage: [] });
+    expect(out.lineage.every((s) => s.id.startsWith("sha256:"))).toBe(true);
   });
   it("handles a single input", () => {
     const real = {
@@ -280,4 +315,27 @@ describe("combineProvenance — new fields", () => {
     const out = combineProvenance(realScored, { source: "real", confidence: "high" });
     expect("confidenceScore" in out.lineage[1]).toBe(false);
   });
+});
+
+test("inferred sits between mock and fallback", () => {
+  expect(STATUS.indexOf("mock")).toBeLessThan(STATUS.indexOf("inferred"));
+  expect(STATUS.indexOf("inferred")).toBeLessThan(STATUS.indexOf("fallback"));
+});
+
+test("combine picks inferred as weakest over fallback", () => {
+  const out = combineProvenance(
+    makeMeta({ source: "fallback", confidence: "low" }),
+    makeMeta({ source: "inferred", confidence: "low" }),
+  );
+  expect(out.weakestSource).toBe("inferred");
+});
+
+test("stepId is a stable sha256 short id for a known leaf step", () => {
+  const step = { of: "input", source: "real", confidence: "high", derivedFromMock: false };
+  expect(stepId(step, [])).toBe("sha256:097181b20233");
+});
+
+test("stepId is stable regardless of input-id order (sorted)", () => {
+  const step = { of: "input", source: "real", confidence: "high", derivedFromMock: false };
+  expect(stepId(step, ["b", "a"])).toBe(stepId(step, ["a", "b"]));
 });
