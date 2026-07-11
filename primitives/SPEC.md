@@ -1,6 +1,6 @@
 # plumb-line Provenance Envelope — Specification
 
-**Status:** current · **Envelope schema version:** 1 · **SPEC revision:** 1.2
+**Status:** current · **Envelope schema version:** 2 · **SPEC revision:** 1.3
 
 This is the normative, language-neutral definition of the provenance envelope,
 the conservative-combination law, and the consistency checks. Any implementation
@@ -145,7 +145,7 @@ A lineage step records each input's **trust state** at combination time, not the
 **transformation** applied to produce the output. Two derivations from identical
 inputs but different transforms (e.g. `sum` vs `max`) therefore produce
 identically-shaped lineage. Capturing transform identity — the function, its
-version, its parameters — is **out of scope for envelope schema version 1**: a
+version, its parameters — is **out of scope for envelope schema version 2**: a
 domain-neutral law cannot canonicalize an arbitrary function into a stable
 identifier.
 
@@ -262,13 +262,13 @@ an unambiguous form, so cases needing dataflow to judge are deliberately left
 out — PB2 fires only on a `derive` override (a literal `derivedFromMock:false` on
 a plain `mark`/`makeMeta` is the honest stored default, not a violation), and PB4
 fires only on the import-bound `unwrap(x)` (a bare `x.value` could be any raw
-field). Whole-program dataflow is out of scope for envelope schema version 1.
+field). Whole-program dataflow is out of scope for envelope schema version 2.
 
 ---
 
 ## 7. Conformance
 
-An implementation **conforms to envelope schema version 1** if, for every case in
+An implementation **conforms to envelope schema version 2** if, for every case in
 `conformance/cases.json`:
 
 - each `combine` case's output matches the expected fields and respects the
