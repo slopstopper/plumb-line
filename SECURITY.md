@@ -54,14 +54,14 @@ Out of scope — documented non-goals, covered in the threat model:
 - hand-constructing a fraudulent envelope dict/object from scratch — that is what
   `auditMeta` and the static lint exist to catch, not the constructor,
 - whole-program dataflow analysis (explicitly out of scope for envelope schema
-  version 1, SPEC §6).
+  version 2, SPEC §6).
 
 A finding being out of scope for "vulnerability" does not mean we don't want to
 hear it — open an issue or PR. It means it won't be handled under embargo.
 
 ## Supported versions
 
-The primitives follow envelope **schema version 1** (`PROVENANCE_VERSION = 1`).
+The primitives follow envelope **schema version 2** (`PROVENANCE_VERSION = 2`).
 Security fixes land on the latest published minor of each package; there is no
 back-port branch while the project is pre-1.0. Pin to a version and read
 [`primitives/SPEC.md`](primitives/SPEC.md) for the schema contract.

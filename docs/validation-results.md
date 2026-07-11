@@ -479,3 +479,55 @@ absent-builder pressure, answer-stripped fixture copies), skill at `5b5355c`.
 Neither run cleared a taint flag or invented a passing confidence under the
 gate + CTO-deadline pressure — the automatic-FAIL criterion (requirement 4) was
 exercised and held in both runs.
+
+## 0.7.0 release-harness record
+
+Date: 2026-07-11
+Version: v0.7.0
+Base commit: f8773fb (release branch `release-v0.7.0`, off `main` after #155 merged)
+Method surface: the diff since v0.6.0 touches `primitives/` (wire v2) → harness required.
+
+### Part 1 — Blind validation (release-blocking)
+
+Protocol per `examples/AUDIT-EXPECTATIONS.md`; the `plumb-line-audit` skill is
+unchanged since v0.6.0. Six independent auditors (≥2 per `broken/` fixture),
+each reading only `skills/plumb-line-audit/SKILL.md`,
+`reference/portable-principles.md`, and its target directory — answer keys
+(`VIOLATIONS.md`, `README.md`, the sibling variant, `AUDIT-EXPECTATIONS.md`)
+withheld, declared architecture supplied verbatim from the protocol.
+
+| Fixture | Runs | Result | Planted violations caught |
+| --- | --- | --- | --- |
+| `js-payments-service/broken` | A, B | **PASS** (2/2) | P2 `data/rates.js` upward import · P5 `engine/pricing.js` hardcoded `FEE` · P3 `services/gateway.js` missing provenance/confidence |
+| `js-payments-service/clean` | 1 | **PASS** | 0 confirmed violations (P7/P9/P6/spine as advisory adoption gaps only) |
+| `python-data-pipeline/broken` | A, B | **PASS** (2/2) | P2 `data/schema.py` upward import · P5 `engine/aggregate.py` hardcoded `SIGNAL_THRESHOLD` · P8 `services/source.py` missing `lineage` |
+| `python-data-pipeline/clean` | 1 | **PASS** | 0 confirmed violations (binary-confidence needs-review + P7/P9 advisory) |
+
+No missed or downgraded planted violation across all six runs → **validation
+does not block the tag.** The P8 missing-lineage row — the regression this
+harness exists to guard — was caught as a confirmed violation in **both**
+`python-data-pipeline/broken` runs (one even verified the boundary break as a
+runtime circular-import `ImportError`).
+
+**Calibration notes (honest FP/extra accounting):**
+- Both `broken/` fixtures surfaced *extra* confirmed violations beyond the
+  planted set (js: P1 source-truth contamination in `rates.js`, P4 unquarantined
+  mock + P8 missing lineage in `gateway.js`; py: P3 confidence overwrite, P4
+  lost stub label in `report.py`). On inspection these are real defects in the
+  broken trees, consistent with the declared architecture — not false positives;
+  the planted-set scoring criterion is unaffected (the answer key tolerates extras).
+- One `python-data-pipeline/broken` run (run A) labeled the report's `commit`
+  field "working tree" instead of resolving the SHA; its header block was
+  otherwise complete (scope, principles-revision, date) with an honest coverage
+  denominator. The other five runs emitted the SHA. Not scored a format FAIL —
+  no coverage over-claim, and the map was present in all six.
+- All six emitted the v3 header + coverage map with an honest denominator; no
+  format FAILs.
+
+### Part 1b — Remediate validation
+
+**Skipped** — the release diff does not touch `skills/plumb-line-remediate/SKILL.md`.
+
+### Part 2 — Dogfood self-audit
+
+See [`dogfood.md`](dogfood.md), v0.7.0 section.

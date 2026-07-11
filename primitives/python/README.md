@@ -20,7 +20,7 @@ audit_meta(meta_of(total))          # []    — internally consistent
 You can also copy the module files directly into a project and import them flat
 (`from marked import mark`); both styles work.
 
-- **Specification:** [`SPEC.md`](https://github.com/slopstopper/plumb-line/blob/main/primitives/SPEC.md) (envelope schema version 1)
+- **Specification:** [`SPEC.md`](https://github.com/slopstopper/plumb-line/blob/main/primitives/SPEC.md) (envelope schema version 2)
 - **Model, law, examples:** [`README.md`](https://github.com/slopstopper/plumb-line/blob/main/primitives/README.md)
 - **License:** Apache-2.0
 
