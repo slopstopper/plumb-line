@@ -12,9 +12,9 @@ PROVENANCE_VERSION = 2
 STATUS = ['unavailable', 'mock', 'inferred', 'fallback', 'semiReal', 'derived', 'real']
 CONFIDENCE = ['none', 'low', 'medium', 'high']
 
-# Deprecated no-op, kept for import compatibility. Step IDs are now assigned by
-# a counter local to each combine_provenance call (see below), so there is no
-# shared state to reset between runs. Safe to delete from call sites.
+# Deprecated no-op, kept for import compatibility. Step IDs are now
+# content-addressed (see step_id, #52) — there is no counter or other shared
+# state to reset between runs. Safe to delete from call sites.
 def reset_step_counter():
     pass
 
@@ -162,6 +162,8 @@ def combine_provenance(*metas):
         lin = m.get('lineage')
         if isinstance(lin, list):
             prior.extend(lin)
+    # Prior steps keep their content-addressed ids verbatim — a subtree's id must
+    # not change because it was recombined (#52). Only new input steps are minted.
     input_steps = []
     for m in metas:
         step = {
@@ -175,14 +177,10 @@ def combine_provenance(*metas):
         score = (m or {}).get('confidence_score')
         if is_score(score):
             step['confidence_score'] = score
+        prior_ids = [s.get('id') for s in ((m or {}).get('lineage') or []) if isinstance(s.get('id'), str)]
+        step['id'] = step_id(step, prior_ids)
         input_steps.append(step)
-    # Renumber the *entire* output lineage from a combine-local counter, so step
-    # IDs are unique-within-output (SPEC §4) for every input shape — two
-    # independently-built inputs each start at step-1, so seeding past the prior
-    # length alone wouldn't stop their inherited steps from colliding. No
-    # module-level state means concurrent combines can't collide either. IDs are
-    # thus a pure function of output structure, not creation order. See #23.
-    lineage = [dict(s, id=f"step-{i + 1}") for i, s in enumerate(prior + input_steps)]
+    lineage = prior + input_steps
     return make_meta(source='derived', confidence=confidence,
                      confidence_score=confidence_score,
                      derived_from_mock=derived_from_mock, lineage=lineage,

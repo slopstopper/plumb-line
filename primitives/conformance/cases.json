@@ -49,6 +49,24 @@
         { "source": "inferred", "confidence": "low", "derivedFromMock": false, "lineage": [] }
       ],
       "expect": { "source": "derived", "confidence": "low", "weakestSource": "inferred", "derivedFromMock": false }
+    },
+    {
+      "name": "content-addressed lineage ids — real + mock, ids are stable sha256 (#52)",
+      "inputs": [
+        { "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+        { "source": "mock", "confidence": "low", "derivedFromMock": true, "lineage": [] }
+      ],
+      "expect": { "source": "derived", "derivedFromMock": true, "weakestSource": "mock" },
+      "expectLineageIds": ["sha256:097181b20233", "sha256:16b0cc5a3c46"]
+    },
+    {
+      "name": "content-addressed lineage ids — scored inputs pin the confidenceScore branch of the id hash (#52)",
+      "inputs": [
+        { "source": "real", "confidence": "high", "confidenceScore": 0.9, "derivedFromMock": false, "lineage": [] },
+        { "source": "mock", "confidence": "low", "confidenceScore": 0.2, "derivedFromMock": true, "lineage": [] }
+      ],
+      "expect": { "source": "derived", "derivedFromMock": true, "weakestSource": "mock", "confidenceScore": 0.2 },
+      "expectLineageIds": ["sha256:47004f53a41a", "sha256:cc9af609c4c3"]
     }
   ],
   "audit": [

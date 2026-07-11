@@ -140,7 +140,7 @@ describe("combineProvenance — the law", () => {
       confidence: "low",
       derivedFromMock: true,
     });
-    expect(out.lineage[0].id).toBe("step-1");
+    expect(out.lineage[0].id).toMatch(/^sha256:/);
   });
   it("accumulates prior lineage from inputs", () => {
     // Inherited steps are carried into the output (identified by content, not by
@@ -189,25 +189,39 @@ describe("combineProvenance — the law", () => {
     expect(out.source).toBe("unavailable");
     expect(out.lineage).toEqual([]);
   });
-  it("assigns combine-local step IDs that do not drift with the global counter", () => {
-    // No module-level counter: two independent combines (no reset between them)
-    // produce identical, reproducible step IDs. See #23.
+  it("assigns identical, reproducible content-addressed step IDs across repeated combines", () => {
+    // No module-level counter: two independent combines with identical inputs
+    // produce identical step ids, since ids are a pure function of content. See #23.
     const first = combineProvenance(real, mock);
     const second = combineProvenance(real, mock);
-    expect(first.lineage.map((s) => s.id)).toEqual(["step-1", "step-2"]);
-    expect(second.lineage.map((s) => s.id)).toEqual(["step-1", "step-2"]);
+    expect(first.lineage.map((s) => s.id)).toEqual(second.lineage.map((s) => s.id));
+    expect(first.lineage.every((s) => s.id.startsWith("sha256:"))).toBe(true);
   });
-  it("keeps step IDs unique-within-output when both inputs carry lineage (SPEC §4)", () => {
-    // Two independently-built envelopes each start their lineage at step-1.
-    // Combining them must not collide — the output renumbers the whole lineage,
-    // so uniqueness holds for every input shape, not just lineage-less siblings.
-    // See #23 and the PR review on §4.
+  it("dedups identical sub-lineages by design when both inputs carry the same history (SPEC §4)", () => {
+    // Two independently-built envelopes with identical content produce identical
+    // ids for their steps — that collision is intended dedup, not an error,
+    // because it means "the same derivation happened twice." See #52.
     const a = combineProvenance(real, mock);
     const b = combineProvenance(real, mock);
     const out = combineProvenance(a, b);
-    const ids = out.lineage.map((s) => s.id);
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toEqual(["step-1", "step-2", "step-3", "step-4", "step-5", "step-6"]);
+    expect(out.lineage).toHaveLength(6);
+    // a's and b's inherited steps carry the same content -> same ids.
+    expect(out.lineage[0].id).toBe(out.lineage[2].id);
+    expect(out.lineage[1].id).toBe(out.lineage[3].id);
+    expect(out.lineage.every((s) => s.id.startsWith("sha256:"))).toBe(true);
+  });
+  test("input-step id is stable across recombination", () => {
+    const a = { source: "real", confidence: "high", derivedFromMock: false, lineage: [] };
+    const once = combineProvenance(a);
+    const twice = combineProvenance(a, { source: "mock", confidence: "low", derivedFromMock: true, lineage: [] });
+    // the input step summarizing `a` has the same id in both outputs
+    const idInOnce = once.lineage.find((s) => s.source === "real").id;
+    const idInTwice = twice.lineage.find((s) => s.source === "real").id;
+    expect(idInOnce).toBe(idInTwice);
+  });
+  test("combine no longer emits sequential step-N ids", () => {
+    const out = combineProvenance({ source: "real", confidence: "high", derivedFromMock: false, lineage: [] });
+    expect(out.lineage.every((s) => s.id.startsWith("sha256:"))).toBe(true);
   });
   it("handles a single input", () => {
     const real = {

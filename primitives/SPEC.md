@@ -128,12 +128,42 @@ Each new step MUST contain:
 
 | Field             | Type    | Meaning                                          |
 | ----------------- | ------- | ------------------------------------------------ |
-| `id`              | string  | Unique-within-output identifier.                 |
+| `id`              | string  | Content-addressed identifier (see below).        |
 | `of`              | string  | `"input"` for steps minted by the law.           |
 | `source`          | enum    | The input's `source` at combination time.        |
 | `confidence`      | enum    | The input's `confidence` at combination time.    |
 | `derivedFromMock` | boolean | Whether the input tainted (flag OR mock source). |
 | `confidenceScore` | number  | Present **iff** the input carried a valid score. |
+
+### Step ids are content-addressed (#52, ADR-0010)
+
+`id` is `"sha256:" + first 12 hex chars` of a SHA-256 hash over the step's
+canonical serialization (`stepId` / `step_id`, Task 4 of wire v2):
+
+```
+of=<of>
+source=<source>
+confidence=<confidence>
+derivedFromMock=<"true"|"false">
+confidenceScore=<JSON number, or "-" if absent>
+inputs=<sorted, comma-joined ids of the step's input steps>
+```
+
+Two guarantees follow from this construction:
+
+- **Stable across recombination.** A step's id is a pure function of its own
+  fields plus its input ids — never of when, how many times, or alongside what
+  else it is combined. `combineProvenance` MUST NOT renumber or otherwise alter
+  the `id` of a lineage step it inherits from a prior envelope; only the new
+  input steps it mints get fresh ids. Combining A with B never changes an id
+  already present in A.
+- **Dedupable, not merely unique.** Two steps collide **iff** they are the same
+  derivation — identical fields *and* identical input ids. That collision is
+  **intended dedup**, not an error: it means the same derivation happened twice
+  (e.g. two branches recombining an identical sub-lineage), and an implementation
+  MUST NOT attempt to force artificial uniqueness (e.g. via a counter or random
+  suffix) — see ADR-0010 for the rejected alternatives (random UUIDs, a
+  flat field-only hash with no ancestry).
 
 `weakestSource` is **computed only**: it is derived from the lineage and MUST NOT
 be settable as a combination override. An implementation MUST NOT let a caller

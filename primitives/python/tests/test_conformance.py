@@ -60,6 +60,9 @@ def test_combine_cases():
         for k in c.get('absent', []):
             sk = _KEY.get(k, k)
             assert sk not in out, f"{c['name']}: {sk} should be absent"
+        if 'expectLineageIds' in c:
+            assert [s.get('id') for s in out['lineage']] == c['expectLineageIds'], \
+                f"{c['name']}: lineage ids {[s.get('id') for s in out['lineage']]}"
 
 
 def test_audit_cases():

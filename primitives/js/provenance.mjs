@@ -132,9 +132,9 @@ export function combineConfidenceScore(scores) {
   return Math.min(...scores);
 }
 
-// Deprecated no-op, kept for import compatibility. Step IDs are now assigned by
-// a counter local to each combineProvenance call (see below), so there is no
-// shared state to reset between runs. Safe to delete from call sites.
+// Deprecated no-op, kept for import compatibility. Step IDs are now
+// content-addressed (see stepId, #52) — there is no counter or other shared
+// state to reset between runs. Safe to delete from call sites.
 export function __resetStepCounter() {}
 
 /**
@@ -166,6 +166,8 @@ export function combineProvenance(...metas) {
   const confidenceScore = combineConfidenceScore(
     metas.map((m) => m?.confidenceScore),
   );
+  // Prior steps keep their content-addressed ids verbatim — a subtree's id must
+  // not change because it was recombined (#52). Only new input steps are minted.
   const priorLineage = metas.flatMap((m) =>
     Array.isArray(m?.lineage) ? m.lineage : [],
   );
@@ -179,18 +181,13 @@ export function combineProvenance(...metas) {
     // Record the numeric score too when the input carries one, so the numeric
     // over-claim audit works on real derive output, not just hand-built metas.
     if (isScore(m?.confidenceScore)) step.confidenceScore = m.confidenceScore;
+    const priorIds = (Array.isArray(m?.lineage) ? m.lineage : [])
+      .map((s) => s?.id)
+      .filter((id) => typeof id === "string");
+    step.id = stepId(step, priorIds);
     return step;
   });
-  // Renumber the *entire* output lineage from a combine-local counter, so step
-  // IDs are unique-within-output (SPEC §4) for every input shape — two
-  // independently-built inputs each start at step-1, so seeding past the prior
-  // length alone wouldn't stop their inherited steps from colliding. No
-  // module-level state means concurrent combines can't collide either. IDs are
-  // thus a pure function of output structure, not creation order. See #23.
-  const lineage = [...priorLineage, ...inputSteps].map((s, i) => ({
-    ...s,
-    id: `step-${i + 1}`,
-  }));
+  const lineage = [...priorLineage, ...inputSteps];
   return makeMeta({
     source: "derived",
     confidence,
