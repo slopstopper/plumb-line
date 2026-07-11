@@ -273,3 +273,47 @@ finding 1 (and the same-day py-clean fixture FAIL in the validation record) were
 both introduced or missed by the same maintainer+agent pass that built the
 release — and both were caught by the harness, not by re-reading. That is the
 harness doing exactly what it exists to do.
+
+## v0.7.0 dogfood self-audit
+
+Date: 2026-07-11 · Scope: diff `v0.6.0..f8773fb` (the wire-v2 method-surface
+release diff — primitives, SPEC, conformance, bundled primitive, bootstrap
+Step 4b, scripts) · Principles revision: 1 · Coverage: 24/56 diff files read, 4
+partial, 28 not-read (~43%; the not-read set was triaged to test-only diffs and
+non-provenance infra/governance files — an honest denominator, not a
+completeness claim).
+
+The core new surface — the content-addressed id scheme, the version field +
+read policy, the `inferred` rung, and the bundled primitive — came back
+**clean** on the provenance model: every new output category carries the fields
+the project's own conventions require (`stepId`/`step_id` is reproducible and
+pinned by cross-language golden vectors; the version policy is documented in
+SPEC §5b and conformance-pinned; the bundle's second-source-of-truth risk is
+guarded by both a byte-identity drift check and a behavioral conformance check).
+The `primitives/README.md` "planned → current" maturity-table edit is itself
+correct self-application of P6.
+
+The auditor found one recurring drift, turned on plumb-line's own docs:
+
+| # | Location | Principle | Finding | Resolution |
+| - | -------- | --------- | ------- | ---------- |
+| 1 | `SECURITY.md:57,64` | P6 / P9 | Security-facing doc still said "envelope schema version 1 (`PROVENANCE_VERSION = 1`)" and the SPEC §6 out-of-scope carve-out still cited "version 1" — a factually wrong claim about the wire version this release ships (violation) | **Fixed** — both → version 2 |
+| 2 | `README.md:73,106` | P6 | Top-level README (most visible doc) described the spec as "envelope schema version 1" in two places, the version this release supersedes (violation) | **Fixed** — both → version 2 |
+| 3 | `primitives/README.md:13`, `primitives/js/README.md:23`, `primitives/python/README.md:23` | P6 | Three package READMEs carried the stale "(envelope schema version 1)" spec reference (violation) | **Fixed** — all → version 2 |
+| 4 | `primitives/conformance/README.md:28,31,38` | P9 | The self-certification doc's example badge (`plumb-line v1`) and certification prose contradicted the tool it documents — `report.mjs` now generates a `v2` badge — so a new implementer would publish a stale badge (violation) | **Fixed** — badges + prose → v2 |
+| 5 | `docs/threat-model.md:91` | P9 | N4's "out of scope for envelope schema version 1 (SPEC §6)" cross-reference drifted from SPEC §6, now version 2 (violation) | **Fixed** → version 2 |
+| 6 | `primitives/js/audit.mjs`, `primitives/python/audit.py` (version-read branches) | P3 | A non-numeric `provenanceVersion` (e.g. string `"2"`) matches neither the legacy nor future branch, so no advisory is emitted — untested, differs from the documented "read on every call" policy (needs-review) | **Deferred** → [#156](https://github.com/slopstopper/plumb-line/issues/156) |
+
+All five confirmed findings are the **same failure class** — a version reference
+that should have moved with `PROVENANCE_VERSION` 1→2 but didn't, across docs
+untouched by the wire-v2 diff. This is exactly the drift P9 exists to catch,
+turned on plumb-line's own documentation; none touch runtime behavior or the
+conformance suite (both version-correct and tested). A repo-wide sweep confirmed
+no other live "schema version 1" reference remains (the one in this file's D4
+row is a historical record of a past scope decision, correctly left as-is).
+
+Meta-note: the bump populated the three manifests and `SPEC.md` but not the
+seven prose copies of the version — a bump-script blind spot. Filed as a
+harness improvement candidate: grep for `schema version <N-1>` after any wire
+bump (recorded here rather than lost; a checklist item belongs in
+`RELEASING.md`/`bump-version.mjs`).

@@ -5,11 +5,45 @@ All notable changes to plumb-line are recorded here. The format follows
 [Semantic Versioning](https://semver.org/).
 
 The version numbers below track the **packages and plugin**. The envelope wire
-format is versioned separately as `PROVENANCE_VERSION` (currently `1`).
+format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
 _Nothing yet._
+
+## [0.7.0] — 2026-07-11
+
+### Changed
+- **Envelope wire format bumped to `PROVENANCE_VERSION` 2** (breaking) — the
+  first wire bump since v1, batching three schema changes so the version moves
+  exactly once ([ADR-0010](docs/adr/0010-wire-v2-schema-batch.md)):
+  - **Content-addressed lineage step ids** — `combineProvenance` /
+    `combine_provenance` no longer renumber the lineage `step-N`; each step now
+    carries a `sha256:` id derived from its own fields plus its input steps' ids
+    (Merkle). Ids are stable across recombination and dedupe identical
+    derivations, replacing the per-combine renumbering that made a step's id
+    depend on what it was later combined with
+    ([#52](https://github.com/effythealien/plumb-line/issues/52)).
+  - **`inferred` source rung** — the source ladder gains a seat for
+    LLM/agent-produced values: `unavailable < mock < inferred < fallback <
+    semiReal < derived < real`. Placed just above `mock`, so `combine` treats an
+    inferred value as suspect until evidenced
+    ([#116](https://github.com/effythealien/plumb-line/issues/116)).
+
+### Added
+- **Per-envelope `provenanceVersion`** — every envelope produced by
+  `makeMeta` / `make_meta` (and therefore `combine`) now embeds the schema
+  version. The checkers validate it with an asymmetric read policy: an
+  unknown-newer version passes with a `version-future:` advisory, an
+  absent/older one is accepted but flagged `version-legacy:`, and the current
+  version is clean — forgiving forward, honest backward
+  ([#93](https://github.com/effythealien/plumb-line/issues/93)).
+- **Bundled runtime primitive** — the zero-dependency provenance modules are
+  now vendored into the plugin (`.claude-plugin/bundled/primitives/`), so
+  `plumb-line-bootstrap` can scaffold `mark`/`derive` into a host project with
+  no separate `npm`/`pip` install. A CI drift check keeps the bundle
+  byte-identical to `primitives/` and runs it against the same conformance
+  suite ([#99](https://github.com/effythealien/plumb-line/issues/99)).
 
 ## [0.6.0] — 2026-07-05
 
@@ -287,7 +321,8 @@ These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes th
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/effythealien/plumb-line/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/effythealien/plumb-line/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/effythealien/plumb-line/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/effythealien/plumb-line/compare/v0.4.1...v0.5.0
