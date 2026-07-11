@@ -229,5 +229,5 @@ if (structural.length) throw new Error(`malformed envelope: ${structural}`);
 | Cross-language conformance suite (`conformance/`)       | current |
 | AST-level static lint rule (`adapters/*/provenance-lint`) | current |
 | `validateEnvelope` structural field-presence checker    | current |
-| Per-output `PROVENANCE_VERSION` embedding in envelopes  | planned |
+| Per-output `PROVENANCE_VERSION` embedding in envelopes  | current |
 | Bootstrap / ruleset wiring for host projects            | planned |

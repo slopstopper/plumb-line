@@ -5,6 +5,7 @@ import {
   weakestConfidence,
   weakestSource,
   isScore,
+  PROVENANCE_VERSION,
 } from "./provenance.mjs";
 
 const CLEAN_SOURCES = ["real", "semiReal", "fallback"];
@@ -19,12 +20,23 @@ const CLEAN_SOURCES = ["real", "semiReal", "fallback"];
  * - `"taint dropped:"` — a tainted lineage step but derivedFromMock is false
  * - `"unreproducible:"` — source is "derived" but lineage is empty
  * - `"missing meta"` — input is not a plain object (null, undefined, or a non-object)
+ * - `"version-legacy:"` — envelope predates the current provenance version, or omits it
+ * - `"version-future:"` — envelope reports a newer version than this checker supports
  * @param {object|null|undefined} meta - Envelope to audit
  * @returns {string[]} List of issue descriptions; empty means consistent
  */
 export function auditMeta(meta) {
   if (!meta || typeof meta !== "object" || Array.isArray(meta)) return ["missing meta"];
   const issues = [];
+
+  // Version read policy (#93): forgiving forward, honest backward. Advisory only.
+  const v = meta.provenanceVersion;
+  if (v === undefined || (typeof v === "number" && v < PROVENANCE_VERSION)) {
+    issues.push(`version-legacy: envelope predates version ${PROVENANCE_VERSION}`);
+  } else if (typeof v === "number" && v > PROVENANCE_VERSION) {
+    issues.push(`version-future: envelope version ${v} is newer than supported ${PROVENANCE_VERSION}`);
+  }
+
   const lineage = Array.isArray(meta.lineage) ? meta.lineage : [];
 
   if (CLEAN_SOURCES.includes(meta.source) && meta.derivedFromMock === true) {
@@ -103,7 +115,8 @@ const REQUIRED_FIELDS = [
 // validateEnvelope — the *structural* checker, complementary to auditMeta.
 // auditMeta verifies logical consistency among the fields that ARE present and
 // tolerates absence as "unknown" (SPEC §2); it therefore passes a structurally
-// empty `{}`. validateEnvelope verifies the four required fields (SPEC §1) are
+// empty `{}` except for the version-legacy advisory (#93), since `{}` omits
+// provenanceVersion. validateEnvelope verifies the four required fields (SPEC §1) are
 // present and well-typed. Like auditMeta it is total: it returns a list of issue
 // strings (empty = structurally valid) and never throws.
 export function validateEnvelope(meta) {

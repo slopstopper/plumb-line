@@ -1,8 +1,8 @@
 """audit — runtime consistency checker for provenance metadata. Mirror of audit.mjs."""
 try:  # installed as a package (plumb_line_provenance)
-    from .provenance import CONFIDENCE, STATUS, weakest_confidence, weakest_source, is_score
+    from .provenance import CONFIDENCE, STATUS, weakest_confidence, weakest_source, is_score, PROVENANCE_VERSION
 except ImportError:  # flat / copy-paste usage (modules on sys.path)
-    from provenance import CONFIDENCE, STATUS, weakest_confidence, weakest_source, is_score
+    from provenance import CONFIDENCE, STATUS, weakest_confidence, weakest_source, is_score, PROVENANCE_VERSION
 
 CLEAN_SOURCES = ['real', 'semiReal', 'fallback']
 
@@ -18,6 +18,8 @@ def audit_meta(meta):
     - ``"taint dropped:"`` — a tainted lineage step but derived_from_mock is False
     - ``"unreproducible:"`` — source is ``"derived"`` but lineage is empty
     - ``"missing meta"`` — meta is None or not a dict
+    - ``"version-legacy:"`` — envelope predates the current provenance version, or omits it
+    - ``"version-future:"`` — envelope reports a newer version than this checker supports
 
     Args:
         meta: Provenance metadata dict to audit, or None.
@@ -28,6 +30,14 @@ def audit_meta(meta):
     if not isinstance(meta, dict):
         return ['missing meta']
     issues = []
+
+    # Version read policy (#93): forgiving forward, honest backward. Advisory only.
+    v = meta.get('provenance_version')
+    if v is None or (isinstance(v, (int, float)) and not isinstance(v, bool) and v < PROVENANCE_VERSION):
+        issues.append(f'version-legacy: envelope predates version {PROVENANCE_VERSION}')
+    elif isinstance(v, (int, float)) and not isinstance(v, bool) and v > PROVENANCE_VERSION:
+        issues.append(f'version-future: envelope version {v} is newer than supported {PROVENANCE_VERSION}')
+
     lineage = meta.get('lineage') if isinstance(meta.get('lineage'), list) else []
     # Per-step field reads use this dict-only view so a malformed step (None, a
     # bare string) reads as "no signal" instead of raising — mirroring the JS
@@ -97,7 +107,8 @@ def validate_envelope(meta):
 
     audit_meta verifies logical consistency among the fields that ARE present
     and tolerates absence as "unknown" (SPEC §2); it therefore passes a
-    structurally empty ``{}``. validate_envelope verifies the four required
+    structurally empty ``{}`` except for the version-legacy advisory (#93),
+    since ``{}`` omits provenance_version. validate_envelope verifies the four required
     fields (SPEC §1) are present and well-typed. Like audit_meta it is total: it
     returns a list of issue strings (empty = structurally valid), never raises.
     """

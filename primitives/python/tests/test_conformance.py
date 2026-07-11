@@ -21,6 +21,7 @@ _KEY = {
     'confidenceScore': 'confidence_score',
     'derivedFromMock': 'derived_from_mock',
     'weakestSource': 'weakest_source',
+    'provenanceVersion': 'provenance_version',
 }
 
 

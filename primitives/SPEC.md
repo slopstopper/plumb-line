@@ -43,7 +43,7 @@ meaningful: it denotes "unknown", which is distinct from any present value.
 ### Envelope versioning
 
 The envelope schema carries a version constant (`PROVENANCE_VERSION`, currently
-`1`). Adding a new **optional** field is backward-compatible and MUST NOT bump
+`2`). Adding a new **optional** field is backward-compatible and MUST NOT bump
 the version (`confidenceScore` and `weakestSource` were added under v1). Removing
 or renaming a field, changing a field's type, or changing the combination law's
 result for an existing case is a breaking change and MUST bump the version —
@@ -176,14 +176,17 @@ checker MUST detect each of the following:
 
 The checker MUST be total: a missing or malformed field MUST yield a result list
 (possibly noting the problem), never an exception. A `null`/`None` envelope MUST
-return a single "missing meta" issue. An empty envelope `{}` MUST return `[]`.
+return a single "missing meta" issue. An empty envelope `{}` MUST return only the
+`version-legacy:` advisory (§5b) — it asserts no other claim to contradict, but it
+also carries no `provenanceVersion`, which the version policy treats as legacy.
 
 ### 5a. Structural validation
 
 The audit above checks the *logic* of the claims an envelope makes and treats an
-absent field as "unknown" (§2) — so a structurally empty `{}` audits clean
-(`[]`), because it asserts nothing to contradict. The audit therefore does **not**
-verify that the four required fields (§1) are present.
+absent field as "unknown" (§2) — so a structurally empty `{}` audits clean of
+every logical-consistency check (issues #1–6 above), because it asserts nothing
+to contradict; its only issue is the version-legacy advisory (§5b). The audit
+therefore does **not** verify that the four required fields (§1) are present.
 
 An implementation MUST also provide a structural validator
 (`validateEnvelope` / `validate_envelope`) that takes one envelope and returns a
@@ -201,6 +204,31 @@ validator MUST NOT check enum membership of `source`/`confidence` (that is the
 audit's tolerant-of-unknown domain, §2) — its sole concern is required-field
 presence and type. The two checkers are complementary and independent: an
 envelope MAY pass one and fail the other.
+
+### 5b. Version field
+
+An envelope MAY carry a `provenanceVersion` (`provenance_version` in the
+`snake_case` binding) integer field recording the `PROVENANCE_VERSION` the
+producer stamped it with. `combineProvenance`/`combine_provenance` and
+`makeMeta`/`make_meta` MUST stamp the current `PROVENANCE_VERSION` on every
+envelope they produce.
+
+The audit (§5) MUST read this field on every call and apply an asymmetric
+policy: forgiving forward, honest backward. Exactly one advisory issue is
+appended (never more than one), and it never suppresses or is suppressed by any
+other issue in §5's table:
+
+| envelope `provenanceVersion` | audit issue appended |
+| --- | --- |
+| equal to the checker's `PROVENANCE_VERSION` (current) | none |
+| greater than the checker's `PROVENANCE_VERSION` (unknown future) | `version-future: envelope version N is newer than supported <PROVENANCE_VERSION>` |
+| absent, or less than the checker's `PROVENANCE_VERSION` (legacy) | `version-legacy: envelope predates version <PROVENANCE_VERSION>` |
+
+Both issues are **advisory only**: they MUST NOT cause the checker to throw, and
+MUST NOT alter the result of any other check in §5's table. A future,
+unrecognized version is accepted (not rejected) so that consumers built against
+an older checker keep working against newer producers — the version field
+exists to make drift *legible*, not to gate interoperability.
 
 ---
 
