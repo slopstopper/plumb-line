@@ -1,5 +1,7 @@
 // provenance.mjs — the provenance/lineage law (single source).
 
+import { createHash } from "node:crypto";
+
 // Schema version of the provenance metadata envelope (Principle 7). Declared so
 // consumers can pin to a shape; every envelope now carries this constant
 // (embedded by makeMeta); validating envelopes against it is planned.
@@ -198,4 +200,25 @@ export function combineProvenance(...metas) {
     // Weakest source anywhere in the ancestry, read off the full lineage.
     weakestSource: weakestSource(...lineage.map((s) => s?.source)),
   });
+}
+
+/**
+ * Content-addressed id for a lineage step (#52). Pure function of the step's
+ * semantic fields plus the sorted ids of its input steps — so a step's id is
+ * independent of what it is later combined with (stable across recombination).
+ * @param {object} step
+ * @param {string[]} inputIds
+ * @returns {string} `"sha256:" + first 12 hex chars`
+ */
+export function stepId(step, inputIds = []) {
+  const score = isScore(step?.confidenceScore) ? JSON.stringify(step.confidenceScore) : "-";
+  const canon = [
+    `of=${step?.of ?? ""}`,
+    `source=${step?.source ?? ""}`,
+    `confidence=${step?.confidence ?? ""}`,
+    `derivedFromMock=${step?.derivedFromMock ? "true" : "false"}`,
+    `confidenceScore=${score}`,
+    `inputs=${[...inputIds].sort().join(",")}`,
+  ].join("\n");
+  return "sha256:" + createHash("sha256").update(canon).digest("hex").slice(0, 12);
 }

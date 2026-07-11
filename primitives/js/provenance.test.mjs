@@ -5,6 +5,7 @@ import {
   makeMeta,
   combineProvenance,
   PROVENANCE_VERSION,
+  stepId,
 } from "./provenance.mjs";
 
 test("PROVENANCE_VERSION is 2", () => {
@@ -313,4 +314,14 @@ test("combine picks inferred as weakest over fallback", () => {
     makeMeta({ source: "inferred", confidence: "low" }),
   );
   expect(out.weakestSource).toBe("inferred");
+});
+
+test("stepId is a stable sha256 short id for a known leaf step", () => {
+  const step = { of: "input", source: "real", confidence: "high", derivedFromMock: false };
+  expect(stepId(step, [])).toBe("sha256:097181b20233");
+});
+
+test("stepId is stable regardless of input-id order (sorted)", () => {
+  const step = { of: "input", source: "real", confidence: "high", derivedFromMock: false };
+  expect(stepId(step, ["b", "a"])).toBe(stepId(step, ["a", "b"]));
 });

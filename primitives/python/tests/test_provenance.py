@@ -174,3 +174,11 @@ def test_combine_inferred_weakest_over_fallback():
     out = p.combine_provenance(p.make_meta(source='fallback', confidence='low'),
                                p.make_meta(source='inferred', confidence='low'))
     assert out['weakest_source'] == 'inferred'
+
+def test_step_id_known_leaf():
+    step = {'of': 'input', 'source': 'real', 'confidence': 'high', 'derived_from_mock': False}
+    assert p.step_id(step, []) == 'sha256:097181b20233'
+
+def test_step_id_input_order_independent():
+    step = {'of': 'input', 'source': 'real', 'confidence': 'high', 'derived_from_mock': False}
+    assert p.step_id(step, ['b', 'a']) == p.step_id(step, ['a', 'b'])

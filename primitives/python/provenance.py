@@ -1,5 +1,8 @@
 """provenance — the provenance/lineage law (single source). Mirror of provenance.mjs."""
 
+import hashlib
+import json
+
 # Schema version of the provenance metadata envelope (Principle 7). Declared so
 # consumers can pin to a shape; every envelope now carries this constant
 # (embedded by make_meta); validating envelopes against it is planned. Mirror of
@@ -185,3 +188,19 @@ def combine_provenance(*metas):
                      derived_from_mock=derived_from_mock, lineage=lineage,
                      # Weakest source anywhere in the ancestry, read off the lineage.
                      weakest_source=weakest_source(*[s.get('source') for s in lineage]))
+
+
+def step_id(step, input_ids=None):
+    """Content-addressed id for a lineage step (#52). Mirror of stepId in provenance.mjs."""
+    input_ids = input_ids or []
+    score = step.get('confidence_score')
+    score_s = json.dumps(score) if is_score(score) else '-'
+    canon = "\n".join([
+        f"of={step.get('of') or ''}",
+        f"source={step.get('source') or ''}",
+        f"confidence={step.get('confidence') or ''}",
+        f"derivedFromMock={'true' if step.get('derived_from_mock') else 'false'}",
+        f"confidenceScore={score_s}",
+        f"inputs={','.join(sorted(input_ids))}",
+    ])
+    return 'sha256:' + hashlib.sha256(canon.encode()).hexdigest()[:12]
