@@ -87,7 +87,7 @@ describe("taints", () => {
   });
 });
 
-import { combineProvenance, __resetStepCounter } from "./provenance.mjs";
+import { __resetStepCounter } from "./provenance.mjs";
 import { beforeEach } from "vitest";
 
 beforeEach(() => __resetStepCounter());

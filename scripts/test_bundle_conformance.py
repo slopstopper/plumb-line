@@ -21,13 +21,18 @@ import json
 import os
 import sys
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_BUNDLE = os.path.join(_ROOT, '.claude-plugin', 'bundled', 'primitives', 'python')
-_CASES = os.path.join(_ROOT, 'primitives', 'conformance', 'cases.json')
-
-sys.path.insert(0, _BUNDLE)
+# Prepend the plugin-bundled primitive to sys.path BEFORE importing it, inlined
+# so no assignment precedes the import (mirrors primitives/python/tests/
+# test_conformance.py and keeps ruff's E402 satisfied). See the module docstring
+# on why this must run in its own pytest process.
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    '.claude-plugin', 'bundled', 'primitives', 'python'))
 import provenance as p
 from audit import audit_meta, validate_envelope
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_CASES = os.path.join(_ROOT, 'primitives', 'conformance', 'cases.json')
 
 with open(_CASES) as f:
     CASES = json.load(f)
