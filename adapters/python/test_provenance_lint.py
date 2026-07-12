@@ -145,3 +145,53 @@ def test_extra_tracked_unknown_role_fails_loud():
     # failure mode this injection path exists to prevent. Fail loud instead.
     with pytest.raises(ValueError):
         pl.check("x = 1", extra_tracked={'mark_value': 'markk'})
+
+# --- #91 check_outputs (declared-surface opt-out) ---
+
+def out_rules(src):
+    return [i['rule'] for i in pl.check_outputs(IMPORT + src)]
+
+def test_direct_raw_return_is_flagged():
+    assert out_rules("def f(x, r):\n    return x * r") == ['REQ-OUTPUT']
+
+def test_raw_via_local_is_flagged():
+    assert out_rules("def f(x, r):\n    t = x * r\n    return t") == ['REQ-OUTPUT']
+
+def test_return_derive_is_silent():
+    assert out_rules("def f(x, r):\n    return derive([x, r], lambda p, q: p * q)") == []
+
+def test_return_local_derive_is_silent():
+    assert out_rules("def f(x, r):\n    t = derive([x, r], lambda p, q: p * q)\n    return t") == []
+
+def test_return_param_is_silent():
+    assert out_rules("def f(marked):\n    return marked") == []
+
+def test_return_unknown_call_is_silent():
+    assert out_rules("def f(x):\n    return compute(x)") == []
+
+def test_return_attribute_is_silent():
+    assert out_rules("def f(o):\n    return o.total") == []
+
+def test_return_constant_is_silent():
+    assert out_rules("def f():\n    return 0") == []
+
+def test_underscore_function_is_out_of_scope():
+    assert out_rules("def _helper(x, r):\n    return x * r") == []
+
+def test_nested_transform_lambda_not_flagged():
+    # the lambda returns raw p*q by design; only module-level defs are checked
+    assert out_rules("def f(x, r):\n    return derive([x, r], lambda p, q: p * q)") == []
+
+def test_reassigned_local_is_silent():
+    # a local reassigned more than once cannot be classified → silent (zero-FP)
+    assert out_rules("def f(x, r):\n    t = derive([x, r], g)\n    t = x * r\n    return t") == []
+
+def test_multi_return_early_tagged_is_not_flagged():
+    # early return of a still-tagged local must NOT be flagged (flow-insensitivity trap)
+    src = ("def f(x, r):\n"
+           "    t = derive([x, r], g)\n"
+           "    if x > 0:\n"
+           "        return t\n"
+           "    t = x * r\n"
+           "    return t")
+    assert out_rules(src) == []
