@@ -2,7 +2,14 @@
 try:  # installed as a package (plumb_line_provenance)
     from .provenance import combine_provenance, make_meta
 except ImportError:  # flat / copy-paste usage (modules on sys.path)
-    from provenance import combine_provenance, make_meta
+    import provenance as _prov
+    if not hasattr(_prov, 'combine_provenance') or not hasattr(_prov, 'PROVENANCE_VERSION'):
+        raise ImportError(
+            "a foreign 'provenance' module shadowed plumb-line's primitive "
+            f"(loaded from {getattr(_prov, '__file__', '?')}); rename it or use the "
+            "installed 'plumb_line_provenance' package"
+        )
+    combine_provenance, make_meta = _prov.combine_provenance, _prov.make_meta
 
 # Only these keys may be supplied as overrides to derive(). lineage and
 # weakest_source always come from the computed combine_provenance result;
