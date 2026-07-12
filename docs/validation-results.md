@@ -531,3 +531,41 @@ runtime circular-import `ImportError`).
 ### Part 2 — Dogfood self-audit
 
 See [`dogfood.md`](dogfood.md), v0.7.0 section.
+
+---
+
+## v0.7.1 release-harness record — 2026-07-12
+
+Release: **v0.7.1** "Lower the on-ramp" (opt-out lint + parity fixes). Diff since
+v0.7.0 touched `primitives/` + `adapters/`, so the method surface changed and the
+harness ran. No wire change (`PROVENANCE_VERSION` stays 2).
+
+### Part 1 — Blind validation (release-blocking) — **PASS (6/6)**
+
+Six read-only auditors, plain identical prompt, answer keys withheld, declared
+architecture supplied verbatim: 2× each `broken/` fixture, 1× each `clean/`.
+
+| Fixture | Runs | Planted set caught | Verdict |
+| --- | --- | --- | --- |
+| `js-payments-service/broken` | 2 | `rates.js` P2, `pricing.js` P5, `gateway.js` P3 — every run | PASS |
+| `python-data-pipeline/broken` | 2 | `schema.py` P2, `aggregate.py` P5, `source.py` **P8** — every run | PASS |
+| `js-payments-service/clean` | 1 | 0 confirmed violations | PASS |
+| `python-data-pipeline/clean` | 1 | 0 confirmed violations | PASS |
+
+- The **P8 missing-lineage** regression (the one this harness exists to guard) was
+  caught in **both** `python-data-pipeline/broken` runs.
+- `clean/` runs surfaced only advisory adoption gaps (P7 no contracts, P9 no
+  baseline) and a spine needs-review — never a per-output violation.
+- All six emitted the `report-format: v3` header + coverage map with an honest
+  denominator; no format FAILs. Extra confirmed violations on `broken/` (e.g. P4
+  unquarantined mock, P1 source-truth contamination) are real defects in the
+  broken trees, not false positives; the planted-set criterion is unaffected.
+
+### Part 1b — Remediate validation
+
+**Skipped** — the diff does not touch `skills/plumb-line-remediate/SKILL.md`.
+
+### Part 2 — Dogfood self-audit
+
+See [`dogfood.md`](dogfood.md), v0.7.1 section — **one confirmed violation found
+and fixed before tag** (a JS zero-FP false positive), three advisory items filed.

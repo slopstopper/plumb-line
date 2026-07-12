@@ -317,3 +317,25 @@ seven prose copies of the version — a bump-script blind spot. Filed as a
 harness improvement candidate: grep for `schema version <N-1>` after any wire
 bump (recorded here rather than lost; a checklist item belongs in
 `RELEASING.md`/`bump-version.mjs`).
+
+---
+
+## v0.7.1 dogfood self-audit — 2026-07-12
+
+Ran the `plumb-line-audit` method on plumb-line's own v0.7.1 diff
+(`c4132a0..HEAD`), lens on P6 (maturity honesty) and P9-style drift — where
+dogfooding historically finds things. One confirmed violation, **fixed before the
+tag**; three advisory items filed as tracking issues.
+
+| # | Location | Principle | Finding | Resolution |
+| --- | --- | --- | --- | --- |
+| 1 | `adapters/js/provenance-lint/require-provenance-output.cjs` (local classification) | P6 | **Confirmed violation.** The JS rule classified locals only from `const/let x =` declarators, ignoring a later plain `out = ...` reassignment — so `let out = x*r; out = mark(out); return out` was flagged as untagged even though `out` **was** tagged. A real false positive, contradicting the "zero-false-positive by design" claim in CHANGELOG/README/ADR-0011. Verified by executing the rule (not just reading it). Python's parallel checker guarded this via pop-on-reassignment; JS did not. | **Fixed** (commit `d2edf49`) — JS now tracks every value-binding assignment (declarator + plain `x = …`) and demotes any name assigned >1× to unknown, mirroring Python. Mirrored regression fixtures added both suites. |
+| 2 | `adapters/js/provenance-lint/README.md` | P9-ish | JS README says the rule "drops straight into `pre-commit-gate`," but only Python has a test proving that wiring — implies symmetric demonstrated integration (advisory). | **Deferred** → [#163](https://github.com/slopstopper/plumb-line/issues/163) |
+| 3 | `eslint-provenance.template.cjs`, bootstrap/remediate skills, root README | P6 (self-application) | New rule shipped but not wired into the project's own onboarding path — a bootstrap user would never discover it (advisory adoption gap). | **Deferred** → [#164](https://github.com/slopstopper/plumb-line/issues/164) |
+| 4 | `primitives/SPEC.md` §5 | P9-ish | The #96 non-plain-object wording reads as uniform, but Python `isinstance(meta, dict)` accepts dict subclasses while JS rejects non-plain objects — slight parity overclaim (needs-review). | **Deferred** → [#165](https://github.com/slopstopper/plumb-line/issues/165) |
+
+The confirmed finding is exactly what this pass exists to catch: a shipped,
+documented-as-zero-FP checker that *wasn't* — surfaced by running the method on
+our own diff, after per-task and whole-branch reviews both missed the
+false-positive direction of the reassignment gap. Fixed before the tag; the
+mechanical version-prose sweep (the v0.7.0 P9 class) came back clean.
