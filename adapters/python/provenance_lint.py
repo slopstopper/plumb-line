@@ -68,7 +68,10 @@ def _is_const_bool(node, value):
 class _Visitor(ast.NodeVisitor):
     def __init__(self, clean_sources=None, primitive_modules=None, tracked=None):
         self.clean_sources = clean_sources if clean_sources is not None else CLEAN_SOURCES
-        self.primitive_modules = primitive_modules if primitive_modules is not None else PRIMITIVE_MODULES
+        self.primitive_modules = (
+            primitive_modules if primitive_modules is not None
+            else {_normalize_module_name(m) for m in PRIMITIVE_MODULES}
+        )
         # name -> role; the built-in names are their own role.
         self.tracked = tracked if tracked is not None else {n: n for n in TRACKED}
         self.local_fn = {}      # local name -> tracked role
@@ -195,18 +198,14 @@ class _OutputVisitor:
 
     @staticmethod
     def _returns_of(fn):
-        # Return nodes belonging to fn, NOT to nested functions/lambdas.
-        out = []
-        def walk(body):
-            for node in body:
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
-                    continue  # nested scope — skip
-                if isinstance(node, ast.Return):
-                    out.append(node)
-                for child in ast.iter_child_nodes(node):
-                    walk([child])
-        walk(fn.body)
-        return out
+        # Intentionally TOP-LEVEL ONLY — returns nested inside if/for/try are an
+        # accepted false-negative, not scanned. This matches the JS rule (which
+        # only walks fnNode.body.body) and keeps _classify_locals (also top-level
+        # only) in sync with what gets inspected: a local re-tagged inside a branch
+        # before being returned there must not be flagged, and the only way to
+        # guarantee that without branch-aware dataflow is to not look inside
+        # branches at all. Zero-false-positive over coverage.
+        return [s for s in fn.body if isinstance(s, ast.Return)]
 
     def visit_module(self, tree):
         for stmt in tree.body:

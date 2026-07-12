@@ -197,6 +197,24 @@ def test_multi_return_early_tagged_is_not_flagged():
     assert out_rules(src) == []
 
 
+def test_nested_return_is_silent():
+    src = "def f(x, r, c):\n    if c:\n        return x * r\n    return 0"
+    assert out_rules(src) == []
+
+def test_branch_reassignment_is_not_flagged():
+    # C1 guard: t is re-tagged in the branch before being returned there.
+    src = ("def f(x, r, cond):\n"
+           "    t = x * r\n"
+           "    if cond:\n"
+           "        t = derive([x, r], g)\n"
+           "        return t\n"
+           "    return 0")
+    assert out_rules(src) == []
+
+def test_comparison_return_is_silent():
+    assert out_rules("def f(a, b):\n    return a == b") == []
+
+
 def test_main_require_output_flag_returns_nonzero(tmp_path, capsys):
     p = tmp_path / "m.py"
     p.write_text(IMPORT + "def f(x, r):\n    return x * r\n")

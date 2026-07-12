@@ -62,7 +62,8 @@ module.exports = {
     const isTrackedCall = (n) =>
       n && n.type === "CallExpression" && n.callee.type === "Identifier" &&
       Boolean(localFn.get(n.callee.name));
-    const isRaw = (n) => n && n.type === "BinaryExpression";
+    const RAW_OPS = new Set(["+", "-", "*", "/", "%", "**", "&", "|", "^", "<<", ">>", ">>>"]);
+    const isRaw = (n) => n && n.type === "BinaryExpression" && RAW_OPS.has(n.operator);
 
     // Classify a function body's returns using single-pass local const/let tracking.
     function checkFunctionBody(fnNode) {

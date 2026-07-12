@@ -32,6 +32,12 @@ ruleTester.run("require-provenance-output", rule, {
     IMPORT + `export function f(x, r) { return derive([x, r], (p, q) => p + q); }`,
     // Returns a literal constant — not a raw *computation*, silent.
     IMPORT + `export function f() { return 0; }`,
+    // Nested return inside an if-branch — top-level-only scan, silent (I3 parity).
+    IMPORT + `export function f(x, r, c) { if (c) return x * r; return 0; }`,
+    // C1 guard: local re-tagged inside the branch before being returned there.
+    IMPORT + `export function f(x, r, cond) { let t = x * r; if (cond) { t = derive([x, r], g); return t; } return 0; }`,
+    // I2 guard: comparison operator is not arithmetic/bitwise, must stay silent.
+    IMPORT + `export function f(a, b) { return a === b; }`,
   ],
   invalid: [
     {
