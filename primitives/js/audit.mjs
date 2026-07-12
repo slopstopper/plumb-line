@@ -19,14 +19,16 @@ const CLEAN_SOURCES = ["real", "semiReal", "fallback"];
  * - `"source over-claim:"` — weakestSource cleaner than lineage proves
  * - `"taint dropped:"` — a tainted lineage step but derivedFromMock is false
  * - `"unreproducible:"` — source is "derived" but lineage is empty
- * - `"missing meta"` — input is not a plain object (null, undefined, or a non-object)
+ * - `"missing meta"` — input is not a plain object (null, undefined, a primitive,
+ *   an array, or a non-plain object such as a Map/Date/class instance)
  * - `"version-legacy:"` — envelope predates the current provenance version, or omits it
  * - `"version-future:"` — envelope reports a newer version than this checker supports
  * @param {object|null|undefined} meta - Envelope to audit
  * @returns {string[]} List of issue descriptions; empty means consistent
  */
 export function auditMeta(meta) {
-  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return ["missing meta"];
+  if (meta === null || typeof meta !== "object" || Object.getPrototypeOf(meta) !== Object.prototype)
+    return ["missing meta"];
   const issues = [];
 
   // Version read policy (#93): forgiving forward, honest backward. Advisory only.

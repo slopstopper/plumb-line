@@ -150,6 +150,22 @@ describe("auditMeta", () => {
     const issues = auditMeta({ provenanceVersion: 99, source: "real", confidence: "high", derivedFromMock: false, lineage: [] });
     expect(issues.some((i) => i.startsWith("version-future:"))).toBe(true);
   });
+
+  it("audits a non-plain object as missing meta (#96 parity with Python)", () => {
+    expect(auditMeta(new Date())).toEqual(["missing meta"]);
+    expect(auditMeta(new Map())).toEqual(["missing meta"]);
+    class Box {}
+    expect(auditMeta(new Box())).toEqual(["missing meta"]);
+    expect(auditMeta(Object.create(null))).toEqual(["missing meta"]);
+  });
+  it("still audits a plain object envelope normally", () => {
+    // A structurally empty plain object has no claims to contradict — its
+    // only issue is the pre-existing version-legacy advisory (#93), since
+    // {} carries no provenanceVersion. It is not "missing meta".
+    expect(auditMeta({})).toEqual([
+      `version-legacy: envelope predates version ${PROVENANCE_VERSION}`,
+    ]);
+  });
 });
 
 describe("validateEnvelope", () => {
