@@ -9,6 +9,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.7.1] — 2026-07-12
+
 ### Added
 - **#91 — `require-provenance-output` lint (JS + Python).** Opt-out output tagging
   within a developer-declared surface: an exported (JS) / module-level (Python)
@@ -342,7 +346,8 @@ These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes th
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/effythealien/plumb-line/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/effythealien/plumb-line/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/effythealien/plumb-line/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/effythealien/plumb-line/compare/v0.5.0...v0.5.1
