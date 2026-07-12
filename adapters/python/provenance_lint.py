@@ -272,12 +272,16 @@ def check_outputs(source, filename='<unknown>', extra_modules=None, extra_tracke
     return [dict(i, filename=filename) for i in v.issues]
 
 
-def main(argv=None):  # pragma: no cover - CLI glue (argv/file/print); logic lives in check()
+def main(argv=None):  # pragma: no cover - CLI glue; logic lives in check()/check_outputs()
     argv = sys.argv[1:] if argv is None else argv
+    runner = check
+    if argv and argv[0] == '--require-output':
+        runner = check_outputs
+        argv = argv[1:]
     total = 0
     for path in argv:
         with open(path, encoding='utf-8') as f:
-            issues = check(f.read(), path)
+            issues = runner(f.read(), path)
         for i in issues:
             total += 1
             # message already begins with the rule id (e.g. "PB1 …")

@@ -1,6 +1,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import branch_guard
 import boundary_guard
 import pre_commit_gate
@@ -112,3 +113,14 @@ def test_boundary_layer_metachar_matched_literally():
     # "a.b" is index 0, "engine" is index 1 → downward → allow
     assert exact_match["allow"] is True
     assert "respects downward" in exact_match["reason"]
+
+def test_gate_blocks_on_untagged_output(tmp_path):
+    import provenance_lint as pl
+    src_file = tmp_path / "m.py"
+    src_file.write_text("from plumb_line_provenance import mark, derive\n"
+                        "def f(x, r):\n    return x * r\n")
+    def lint_runner():
+        return pl.main(['--require-output', str(src_file)]) == 0
+    r = pre_commit_gate.decide(runners=[("require-provenance-output", lint_runner)])
+    assert r["allow"] is False
+    assert "require-provenance-output" in r["reason"]

@@ -195,3 +195,23 @@ def test_multi_return_early_tagged_is_not_flagged():
            "    t = x * r\n"
            "    return t")
     assert out_rules(src) == []
+
+
+def test_main_require_output_flag_returns_nonzero(tmp_path, capsys):
+    p = tmp_path / "m.py"
+    p.write_text(IMPORT + "def f(x, r):\n    return x * r\n")
+    assert pl.main(['--require-output', str(p)]) == 1
+    assert 'REQ-OUTPUT' in capsys.readouterr().out
+
+
+def test_main_require_output_flag_clean_returns_zero(tmp_path):
+    p = tmp_path / "m.py"
+    p.write_text(IMPORT + "def f(x, r):\n    return derive([x, r], lambda p, q: p * q)\n")
+    assert pl.main(['--require-output', str(p)]) == 0
+
+
+def test_main_default_mode_unchanged(tmp_path):
+    p = tmp_path / "m.py"
+    p.write_text(IMPORT + "def f(x, r):\n    return x * r\n")
+    # default mode runs PB1-4 only; a raw return is not a bypass pattern → clean
+    assert pl.main([str(p)]) == 0
