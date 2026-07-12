@@ -124,5 +124,13 @@ ruleTester.run("no-provenance-bypass (injection options)", rule, {
       options: [{ modules: ["@myorg/data"], tracked: { markValue: "mark" } }],
       errors: [{ messageId: "pb1" }],
     },
+    {
+      // #138 — injected module matches on normalized basename, not exact specifier
+      code:
+        `import { mark } from "vendor/myorg-data.mjs";\n` +
+        `const m = mark(42, { source: "real", derivedFromMock: true });`,
+      options: [{ modules: ["myorg_data"] }],
+      errors: [{ messageId: "pb1", data: { source: "real" } }],
+    },
   ],
 });

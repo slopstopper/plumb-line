@@ -35,8 +35,18 @@ MESSAGES = {
            "lineage. Use derive() so provenance propagates. (SPEC §4 / §5 unreproducible)",
 }
 
-def _basename(module):
-    return (module or '').split('.')[-1]
+_EXT = ('.mjs', '.cjs', '.js', '.py')
+
+def _normalize_module_name(module):
+    base = (module or '').split('.')[-1]
+    for ext in _EXT:
+        if base.endswith(ext):
+            base = base[: -len(ext)]
+            break
+    return base.replace('_', '-')
+
+# Back-compat alias used by import collection.
+_basename = _normalize_module_name
 
 
 def _keyword(call, name):
@@ -138,7 +148,9 @@ def check(source, filename='<unknown>', clean_sources=None, extra_modules=None, 
         if bad:
             raise ValueError(f'extra_tracked roles must be one of {sorted(TRACKED)}; got {bad}')
         tracked.update(extra_tracked)
-    modules = PRIMITIVE_MODULES | set(extra_modules or ())
+    modules = {_normalize_module_name(m) for m in PRIMITIVE_MODULES} | {
+        _normalize_module_name(m) for m in (extra_modules or ())
+    }
     try:
         tree = ast.parse(source, filename)
     except SyntaxError as e:

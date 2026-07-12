@@ -128,6 +128,18 @@ def test_extra_tracked_namespace_form():
     issues = pl.check(src, extra_modules={'myorg_data'}, extra_tracked={'derive_all': 'derive'})
     assert [i['rule'] for i in issues] == ['PB3']
 
+def test_extra_module_matches_on_normalized_basename():
+    # #138 — basename + separator normalization; config "myorg-data" covers
+    # a dotted path with underscores.
+    src = ("from pkg.myorg_data import mark\n"
+           "m = mark(42, source='real', derived_from_mock=True)")
+    issues = pl.check(src, extra_modules={'myorg-data'})
+    assert [i['rule'] for i in issues] == ['PB1']
+
+def test_normalize_module_name_folds_separators_and_ext():
+    assert pl._normalize_module_name('pkg.myorg_data') == 'myorg-data'
+    assert pl._normalize_module_name('myorg-data') == 'myorg-data'
+
 def test_extra_tracked_unknown_role_fails_loud():
     # A typo'd role would otherwise mean silently-missing coverage — the exact
     # failure mode this injection path exists to prevent. Fail loud instead.

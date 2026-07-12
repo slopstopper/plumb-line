@@ -49,11 +49,12 @@ rules: {
 Python parity: `check(source, clean_sources=…, extra_modules=…, extra_tracked=…)`
 — same additive model and role vocabulary; an unknown `extra_tracked` role
 raises `ValueError` (a typo'd role would otherwise mean silently-missing
-coverage). One **documented divergence**: JS `modules` matches the import
-specifier **exactly** (`"@myorg/data"` covers only that literal string), while
-Python `extra_modules` matches the module **basename** (`{'myorg_data'}` covers
-`myorg_data` and `pkg.myorg_data` alike). Aligning the matching rule is tracked
-as a deferred issue; until then configure each language against its own rule.
+coverage). Both languages match the injected `modules`/`extra_modules` on
+**normalized basename**: the segment after the last `/` (or `.` in Python), with
+a known file extension stripped and `_` folded to `-`. So `myorg-data` covers
+`@myorg/myorg-data`, `pkg/myorg-data`, `pkg.myorg_data`, and `myorg_data` alike.
+Built-in coverage (`index`/`marked`/`provenance` and the package name) is
+separate and always on.
 
 ## The four patterns
 
