@@ -1,4 +1,5 @@
 "use strict";
+const { normalizeModuleName, matchesExtraModule } = require("./module-match.cjs");
 // no-provenance-bypass — flags source-code patterns that bypass the conservative
 // combination law or launder taint by hand. The static complement to the runtime
 // auditMeta(); see primitives/SPEC.md (PB1–PB4) for the catalogue.
@@ -56,12 +57,12 @@ module.exports = {
     const cleanSources = new Set(opts.sources || DEFAULT_CLEAN_SOURCES);
     // Injection path (ADDITIVE — see schema): extra primitive import sources,
     // and wrapper-name -> role mappings layered over the built-in identity map.
-    const extraModules = new Set(opts.modules || []);
+    const extraModules = new Set((opts.modules || []).map(normalizeModuleName));
     const trackedRoles = new Map(TRACKED.map((n) => [n, n]));
     for (const [name, role] of Object.entries(opts.tracked || {})) {
       trackedRoles.set(name, role);
     }
-    const isPrimitiveSource = (src) => PRIMITIVE_SOURCE.test(src) || extraModules.has(src);
+    const isPrimitiveSource = (src) => PRIMITIVE_SOURCE.test(src) || matchesExtraModule(src, extraModules);
 
     // local-name -> tracked role (handles `import { mark as m }`)
     const localFn = new Map();

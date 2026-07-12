@@ -210,9 +210,13 @@ checker MUST detect each of the following:
 
 The checker MUST be total: a missing or malformed field MUST yield a result list
 (possibly noting the problem), never an exception. A `null`/`None` envelope MUST
-return a single "missing meta" issue. An empty envelope `{}` MUST return only the
-`version-legacy:` advisory (§5b) — it asserts no other claim to contradict, but it
-also carries no `provenanceVersion`, which the version policy treats as legacy.
+return a single "missing meta" issue. A checker MUST treat any input that is not
+a plain object/dict — `null`/`None`, a primitive, an array/list, or a non-plain
+object such as a `Map`/`Date`/class instance — as `["missing meta"]`. Only a
+plain object/dict is examined for claim consistency; a structurally empty one
+(`{}`) has no claims to contradict and audits clean of every logical-consistency
+check, returning only the `version-legacy:` advisory (§5b) — it also carries no
+`provenanceVersion`, which the version policy treats as legacy.
 
 ### 5a. Structural validation
 

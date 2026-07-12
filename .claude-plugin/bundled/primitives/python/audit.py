@@ -2,7 +2,16 @@
 try:  # installed as a package (plumb_line_provenance)
     from .provenance import CONFIDENCE, STATUS, weakest_confidence, weakest_source, is_score, PROVENANCE_VERSION
 except ImportError:  # flat / copy-paste usage (modules on sys.path)
-    from provenance import CONFIDENCE, STATUS, weakest_confidence, weakest_source, is_score, PROVENANCE_VERSION
+    import provenance as _prov
+    if not hasattr(_prov, 'combine_provenance') or not hasattr(_prov, 'PROVENANCE_VERSION'):
+        raise ImportError(
+            "a foreign 'provenance' module shadowed plumb-line's primitive "
+            f"(loaded from {getattr(_prov, '__file__', '?')}); rename it or use the "
+            "installed 'plumb_line_provenance' package"
+        )
+    CONFIDENCE, STATUS = _prov.CONFIDENCE, _prov.STATUS
+    weakest_confidence, weakest_source = _prov.weakest_confidence, _prov.weakest_source
+    is_score, PROVENANCE_VERSION = _prov.is_score, _prov.PROVENANCE_VERSION
 
 CLEAN_SOURCES = ['real', 'semiReal', 'fallback']
 

@@ -9,7 +9,28 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **#91 — `require-provenance-output` lint (JS + Python).** Opt-out output tagging
+  within a developer-declared surface: an exported (JS) / module-level (Python)
+  function that returns a raw computed value not wrapped by `mark`/`derive` is
+  flagged. Intraprocedural and zero-false-positive by design; silent outside the
+  declared surface. See ADR-0011.
+
+### Changed
+- **#138 — lint module-matching aligned across languages.** Both `no-provenance-bypass`
+  and `require-provenance-output` match the injected `modules`/`extra_modules` on
+  normalized basename (extension stripped, `_` folded to `-`) in both JS and Python.
+  Built-in coverage is unchanged.
+
+### Fixed
+- **#96 — `auditMeta` non-plain-object parity.** JS `auditMeta` now returns
+  `["missing meta"]` for a `Map`/`Date`/class instance (previously `[]`), matching
+  Python's dict-only acceptance. SPEC §5 wording extended to state the non-object case.
+- **#24 — dual-import shim guarded.** The Python flat-import fallback now raises a
+  clear `ImportError` if a foreign top-level `provenance.py` shadows the primitive,
+  instead of silently loading the wrong module.
+
+_No wire change — `PROVENANCE_VERSION` stays `2`._
 
 ## [0.7.0] — 2026-07-11
 
