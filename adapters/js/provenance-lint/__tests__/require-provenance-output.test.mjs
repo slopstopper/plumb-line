@@ -38,6 +38,11 @@ ruleTester.run("require-provenance-output", rule, {
     IMPORT + `export function f(x, r, cond) { let t = x * r; if (cond) { t = derive([x, r], g); return t; } return 0; }`,
     // I2 guard: comparison operator is not arithmetic/bitwise, must stay silent.
     IMPORT + `export function f(a, b) { return a === b; }`,
+    // Reassignment guard: raw local re-tagged in place via plain assignment must
+    // NOT be flagged — the reassignment demotes it to unknown (mirrors Python).
+    IMPORT + `export function f(x, r) { let out = x * r; out = mark(out, { source: "derived" }); return out; }`,
+    // Symmetric: tagged local reassigned to raw is also demoted to unknown → silent.
+    IMPORT + `export function f(x, r) { let t = derive([x, r], g); t = x * r; return t; }`,
   ],
   invalid: [
     {

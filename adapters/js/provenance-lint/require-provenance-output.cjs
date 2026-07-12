@@ -75,17 +75,33 @@ module.exports = {
         return;
       }
       const localClass = new Map(); // name -> "raw" | "tagged"
-      const assignedOnce = new Map(); // name -> count (>1 ⇒ downgrade to unknown)
+      const assignedCount = new Map(); // name -> value-binding assignments (>1 ⇒ unknown)
+      // Count every value-binding assignment to a simple local — a `const/let x =`
+      // declarator AND a later plain `x = ...` reassignment. A name assigned more
+      // than once is demoted to unknown (silent): we cannot know statically which
+      // value it holds at the return. This mirrors the Python checker's
+      // pop-on-reassignment and is what keeps `let out = x*r; out = mark(out);
+      // return out` from being flagged (a false positive on already-tagged code).
+      const noteAssign = (name, valueNode) => {
+        const n = (assignedCount.get(name) || 0) + 1;
+        assignedCount.set(name, n);
+        if (n > 1) { localClass.delete(name); return; }
+        if (isTrackedCall(valueNode)) localClass.set(name, "tagged");
+        else if (isRaw(valueNode)) localClass.set(name, "raw");
+      };
       for (const stmt of fnNode.body.body) {
         if (stmt.type === "VariableDeclaration") {
           for (const d of stmt.declarations) {
             if (d.id.type !== "Identifier" || !d.init) continue;
-            const n = (assignedOnce.get(d.id.name) || 0) + 1;
-            assignedOnce.set(d.id.name, n);
-            if (n > 1) { localClass.delete(d.id.name); continue; }
-            if (isTrackedCall(d.init)) localClass.set(d.id.name, "tagged");
-            else if (isRaw(d.init)) localClass.set(d.id.name, "raw");
+            noteAssign(d.id.name, d.init);
           }
+        } else if (
+          stmt.type === "ExpressionStatement" &&
+          stmt.expression.type === "AssignmentExpression" &&
+          stmt.expression.operator === "=" &&
+          stmt.expression.left.type === "Identifier"
+        ) {
+          noteAssign(stmt.expression.left.name, stmt.expression.right);
         }
       }
       for (const stmt of fnNode.body.body) {

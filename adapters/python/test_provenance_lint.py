@@ -186,6 +186,11 @@ def test_reassigned_local_is_silent():
     # a local reassigned more than once cannot be classified → silent (zero-FP)
     assert out_rules("def f(x, r):\n    t = derive([x, r], g)\n    t = x * r\n    return t") == []
 
+def test_raw_local_retagged_in_place_is_not_flagged():
+    # zero-FP: raw value tagged in place before return must NOT be flagged
+    # (the JS parity of this case regressed as a false positive — pinned here too)
+    assert out_rules("def f(x, r):\n    out = x * r\n    out = mark(out)\n    return out") == []
+
 def test_multi_return_early_tagged_is_not_flagged():
     # early return of a still-tagged local must NOT be flagged (flow-insensitivity trap)
     src = ("def f(x, r):\n"
