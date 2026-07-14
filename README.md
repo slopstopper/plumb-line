@@ -72,6 +72,8 @@ The envelope carries `source`, `confidence`, `derivedFromMock`, and `lineage`, p
 
 The envelope and the law are a **specification, not just an implementation**: [`primitives/SPEC.md`](primitives/SPEC.md) defines envelope schema version 2, and a single cross-language [conformance suite](primitives/conformance/) pins JS and Python to identical behavior — so parity is enforced by data, not by prose. See [`primitives/README.md`](primitives/README.md) for the model, the law, and worked examples.
 
+- **HTTP ingestion adapters** — auto-tag `requests`/`httpx`/`fetch` responses with provenance by status and cache state (optional extras; zero-dep core unaffected). See [ADR-0012](docs/adr/0012-ecosystem-adapters-optional-deps-and-mapping.md).
+
 ## The skills (review-time)
 
 **plumb-line-method** — loads the [portable principles](reference/portable-principles.md): thesis, nine principles, maturity vocabulary, and the one-line test. Pure knowledge; takes no actions.
