@@ -7,9 +7,11 @@ import os
 import sys
 
 _PY_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "primitives", "python")
-sys.path.insert(0, _PY_DIR)  # so http.py's flat `from marked import mark` resolves
 
-# Sanity: the libs really are absent in this environment.
+# Sanity: the libs really are absent in this environment. This MUST run while
+# sys.path is still clean — inserting _PY_DIR first would put a flat `http.py`
+# ahead of the stdlib `http` package, breaking requests' internal
+# `import http.client` and making a genuinely-installed requests look absent.
 for lib in ("requests", "httpx"):
     try:
         __import__(lib)
@@ -17,6 +19,8 @@ for lib in ("requests", "httpx"):
         sys.exit(1)
     except ImportError:
         pass
+
+sys.path.insert(0, _PY_DIR)  # so http.py's flat `from marked import mark` resolves
 
 # Load http.py under a private name (never bind stdlib `http`; see Task 1).
 _spec = importlib.util.spec_from_file_location("_plumb_http_adapter", os.path.join(_PY_DIR, "http.py"))
