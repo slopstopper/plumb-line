@@ -52,3 +52,60 @@ def classify_response(status, headers, from_cache=False):
     if 200 <= status < 300:
         return ("real", "medium") if cached else ("real", "high")
     return ("unavailable", "none")
+
+
+try:  # installed as a package (plumb_line_provenance)
+    from .marked import mark
+except ImportError:  # flat / copy-paste usage (modules on sys.path)
+    from marked import mark
+
+_INSTALL = 'install it with: pip install "plumb-line-provenance[{extra}]"'
+
+
+def _tag(response, headers, status, from_cache=False):
+    source, confidence = classify_response(status, headers, from_cache)
+    return mark(response, source=source, confidence=confidence)
+
+
+def tag_requests(response):
+    """Tag a `requests.Response` with a provenance envelope by status/cache.
+    The marked value is the response itself; extract via
+    `derive([tagged], lambda r: r.json())`."""
+    try:
+        import requests
+    except ImportError as e:  # pragma: no cover - exercised in the no-extras CI step
+        raise ImportError("tag_requests needs `requests`; " + _INSTALL.format(extra="requests")) from e
+    if not isinstance(response, requests.Response):
+        raise TypeError(f"tag_requests expects a requests.Response, got {type(response).__name__}")
+    return _tag(response, response.headers, response.status_code,
+                from_cache=bool(getattr(response, "from_cache", False)))
+
+
+def tag_httpx(response):
+    """Tag an `httpx.Response` with a provenance envelope by status/cache."""
+    try:
+        import httpx
+    except ImportError as e:  # pragma: no cover - exercised in the no-extras CI step
+        raise ImportError("tag_httpx needs `httpx`; " + _INSTALL.format(extra="httpx")) from e
+    if not isinstance(response, httpx.Response):
+        raise TypeError(f"tag_httpx expects an httpx.Response, got {type(response).__name__}")
+    return _tag(response, response.headers, response.status_code,
+                from_cache=bool(getattr(response, "from_cache", False)))
+
+
+def tagged_get(url, **kwargs):
+    """Fetch with `requests.get` and tag the response in one call."""
+    try:
+        import requests
+    except ImportError as e:  # pragma: no cover - exercised in the no-extras CI step
+        raise ImportError("tagged_get needs `requests`; " + _INSTALL.format(extra="requests")) from e
+    return tag_requests(requests.get(url, **kwargs))
+
+
+def tagged_httpx_get(url, **kwargs):
+    """Fetch with `httpx.get` and tag the response in one call."""
+    try:
+        import httpx
+    except ImportError as e:  # pragma: no cover - exercised in the no-extras CI step
+        raise ImportError("tagged_httpx_get needs `httpx`; " + _INSTALL.format(extra="httpx")) from e
+    return tag_httpx(httpx.get(url, **kwargs))
