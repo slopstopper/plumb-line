@@ -29,3 +29,14 @@ import pytest
 def test_classify_fixture(c):
     source, confidence = plumb_http.classify_response(c["status"], c["headers"], c["fromCache"])
     assert {"source": source, "confidence": confidence} == c["expect"]
+
+
+class _GetHeaders:
+    """A .get()-bearing, case-insensitive Headers stub (httpx.Headers-shaped)."""
+    def __init__(self, d):
+        self._d = {k.lower(): v for k, v in d.items()}
+    def get(self, k, default=None):
+        return self._d.get(k.lower(), default)
+
+def test_classify_accepts_get_bearing_headers():
+    assert plumb_http.classify_response(200, _GetHeaders({"Age": "60"}), False) == ("real", "medium")

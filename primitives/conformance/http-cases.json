@@ -6,6 +6,8 @@
     { "name": "200 Age=0 (fresh)",          "status": 200, "headers": { "Age": "0" },        "fromCache": false, "expect": { "source": "real",        "confidence": "high" } },
     { "name": "200 X-Cache HIT",            "status": 200, "headers": { "X-Cache": "HIT from edge" }, "fromCache": false, "expect": { "source": "real", "confidence": "medium" } },
     { "name": "200 X-Cache MISS",           "status": 200, "headers": { "X-Cache": "MISS" }, "fromCache": false, "expect": { "source": "real",        "confidence": "high" } },
+    { "name": "200 Age=60.5 (fractional, still cached)", "status": 200, "headers": { "Age": "60.5" }, "fromCache": false, "expect": { "source": "real", "confidence": "medium" } },
+    { "name": "200 Age=abc (malformed, ignored -> fresh)", "status": 200, "headers": { "Age": "abc" }, "fromCache": false, "expect": { "source": "real", "confidence": "high" } },
     { "name": "200 fromCache flag",         "status": 200, "headers": {},                    "fromCache": true,  "expect": { "source": "real",        "confidence": "medium" } },
     { "name": "304 Not Modified",           "status": 304, "headers": {},                    "fromCache": false, "expect": { "source": "real",        "confidence": "medium" } },
     { "name": "404 Not Found",              "status": 404, "headers": {},                    "fromCache": false, "expect": { "source": "unavailable", "confidence": "none" } },

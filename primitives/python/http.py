@@ -6,6 +6,8 @@ convenience wrappers guard-import their library at call time, so importing this
 module — and calling `classify_response` — needs no third-party package. Added in
 a later task."""
 
+import math
+
 
 def _header(headers, name):
     """Case-insensitive header read; supports a dict or a .get()-bearing object."""
@@ -27,8 +29,13 @@ def _is_cached(status, headers, from_cache):
     if status == 304:
         return True
     age = _header(headers, "age")
-    if age is not None and int(age) > 0:
-        return True
+    if age is not None:
+        try:
+            n = float(age)
+        except (ValueError, TypeError):
+            n = None
+        if n is not None and math.isfinite(n) and n > 0:
+            return True
     x_cache = _header(headers, "x-cache")
     if x_cache is not None and "HIT" in str(x_cache).upper():
         return True

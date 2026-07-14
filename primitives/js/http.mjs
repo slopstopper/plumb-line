@@ -19,7 +19,10 @@ function isCached(status, headers, fromCache) {
   if (fromCache) return true;
   if (status === 304) return true;
   const age = header(headers, "age");
-  if (age != null && Number(age) > 0) return true;
+  if (age != null) {
+    const n = Number(age);
+    if (Number.isFinite(n) && n > 0) return true;
+  }
   const xCache = header(headers, "x-cache");
   if (xCache != null && String(xCache).toUpperCase().includes("HIT")) return true;
   return false;
