@@ -1,7 +1,8 @@
 // http.mjs — HTTP ingestion adapter for JS `fetch`. Auto-tags a Response with a
 // provenance envelope by status + cache state (see ADR-0012). The classification
 // core is dependency-free; `fetch`/`Response` are native (Node >= 18 / browsers).
-// The tagger/wrapper live in this file too (added in a later task).
+// The tagger/wrapper live in this file too.
+import { mark } from "./marked.mjs";
 
 // Case-insensitive header read supporting both a Headers-like object (.get) and
 // a plain object.
@@ -40,4 +41,17 @@ export function classifyResponse(status, headers, fromCache = false) {
       : { source: "real", confidence: "high" };
   }
   return { source: "unavailable", confidence: "none" };
+}
+
+// Tag a native Response with a provenance envelope by status/cache. The marked
+// value is the Response; extract via `derive([tagged], (r) => r.json())`.
+// Requires a runtime with global `Response`/`fetch` (Node >= 18 / browsers).
+export function tagResponse(response, fromCache = false) {
+  const { source, confidence } = classifyResponse(response.status, response.headers, fromCache);
+  return mark(response, { source, confidence });
+}
+
+// Fetch with the native `fetch` and tag the response in one call.
+export async function taggedFetch(url, options) {
+  return tagResponse(await fetch(url, options));
 }
