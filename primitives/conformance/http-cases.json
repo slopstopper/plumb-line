@@ -1,0 +1,17 @@
+{
+  "classify": [
+    { "name": "200 fresh",                 "status": 200, "headers": {},                    "fromCache": false, "expect": { "source": "real",        "confidence": "high" } },
+    { "name": "299 fresh (2xx boundary)",   "status": 299, "headers": {},                    "fromCache": false, "expect": { "source": "real",        "confidence": "high" } },
+    { "name": "200 Age>0 (stale cache)",    "status": 200, "headers": { "Age": "60" },       "fromCache": false, "expect": { "source": "real",        "confidence": "medium" } },
+    { "name": "200 Age=0 (fresh)",          "status": 200, "headers": { "Age": "0" },        "fromCache": false, "expect": { "source": "real",        "confidence": "high" } },
+    { "name": "200 X-Cache HIT",            "status": 200, "headers": { "X-Cache": "HIT from edge" }, "fromCache": false, "expect": { "source": "real", "confidence": "medium" } },
+    { "name": "200 X-Cache MISS",           "status": 200, "headers": { "X-Cache": "MISS" }, "fromCache": false, "expect": { "source": "real",        "confidence": "high" } },
+    { "name": "200 fromCache flag",         "status": 200, "headers": {},                    "fromCache": true,  "expect": { "source": "real",        "confidence": "medium" } },
+    { "name": "304 Not Modified",           "status": 304, "headers": {},                    "fromCache": false, "expect": { "source": "real",        "confidence": "medium" } },
+    { "name": "404 Not Found",              "status": 404, "headers": {},                    "fromCache": false, "expect": { "source": "unavailable", "confidence": "none" } },
+    { "name": "500 Server Error",           "status": 500, "headers": {},                    "fromCache": false, "expect": { "source": "unavailable", "confidence": "none" } },
+    { "name": "503 Unavailable",            "status": 503, "headers": {},                    "fromCache": false, "expect": { "source": "unavailable", "confidence": "none" } },
+    { "name": "199 (below 2xx)",            "status": 199, "headers": {},                    "fromCache": false, "expect": { "source": "unavailable", "confidence": "none" } },
+    { "name": "300 (3xx, not 304)",         "status": 300, "headers": {},                    "fromCache": false, "expect": { "source": "unavailable", "confidence": "none" } }
+  ]
+}
