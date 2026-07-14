@@ -20,6 +20,13 @@ audit_meta(meta_of(total))          # []    — internally consistent
 You can also copy the module files directly into a project and import them flat
 (`from marked import mark`); both styles work.
 
+> **Flat-copy caveat for `http.py`:** the HTTP adapter file is named `http.py`. As
+> an installed package it is `plumb_line_provenance.http` and is harmless, but if you
+> copy it flat onto a directory that lands on `sys.path`, a top-level `import http`
+> would shadow the standard library's `http` package and break `requests`/`httpx`
+> (which import `http.client` internally). When copying it flat, import it under a
+> package/private name rather than as bare `http`, or prefer the installed package.
+
 ## HTTP ingestion adapters (optional)
 
 Auto-tag HTTP responses at ingestion. Install the extra for your client:
