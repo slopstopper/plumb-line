@@ -49,11 +49,12 @@ rules: {
 Python parity: `check(source, clean_sources=…, extra_modules=…, extra_tracked=…)`
 — same additive model and role vocabulary; an unknown `extra_tracked` role
 raises `ValueError` (a typo'd role would otherwise mean silently-missing
-coverage). One **documented divergence**: JS `modules` matches the import
-specifier **exactly** (`"@myorg/data"` covers only that literal string), while
-Python `extra_modules` matches the module **basename** (`{'myorg_data'}` covers
-`myorg_data` and `pkg.myorg_data` alike). Aligning the matching rule is tracked
-as a deferred issue; until then configure each language against its own rule.
+coverage). Both languages match the injected `modules`/`extra_modules` on
+**normalized basename**: the segment after the last `/` (or `.` in Python), with
+a known file extension stripped and `_` folded to `-`. So `myorg-data` covers
+`@myorg/myorg-data`, `pkg/myorg-data`, `pkg.myorg_data`, and `myorg_data` alike.
+Built-in coverage (`index`/`marked`/`provenance` and the package name) is
+separate and always on.
 
 ## The four patterns
 
@@ -71,3 +72,28 @@ Python parity: `adapters/python/provenance_lint.py`.
 > Placement: this rule is library-coupled (it knows the primitive's API), unlike
 > the domain-neutral boundary adapter. It lives here as enforcement for now and
 > may move under `primitives/` in a future version.
+
+## Opt-out output tagging (`require-provenance-output`)
+
+A second rule, **`require-provenance-output`**, inverts tagging from opt-in to
+opt-out *within a declared surface*. Enable it only on the files that produce
+trust-bearing outputs (its "surface"); there, an **exported** function that
+returns a raw computed value (e.g. `return a * r`) not wrapped by `mark`/`derive`
+is flagged. Outside those files it never fires. See [ADR-0011](../../../docs/adr/0011-enforcement-rule-scoping.md).
+
+```js
+module.exports = [
+  {
+    files: ["src/pricing/**", "src/model/scores.mjs"], // the declared surface
+    plugins: { "plumb-line": require("./provenance-lint") },
+    rules: { "plumb-line/require-provenance-output": "error" },
+  },
+];
+```
+
+It is intraprocedural and zero-false-positive by design: it flags a return only
+when it can prove the value is a raw arithmetic computation (directly or through a
+same-function local). A returned parameter, an unknown call, or a member access is
+never flagged. As an ESLint `error` it exits non-zero, so it drops straight into
+`hooks/pre-commit-gate` as a runner. Python parity:
+`provenance_lint.check_outputs(...)` / `python3 provenance_lint.py --require-output <files>`.

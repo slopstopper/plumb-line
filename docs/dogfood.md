@@ -273,3 +273,69 @@ finding 1 (and the same-day py-clean fixture FAIL in the validation record) were
 both introduced or missed by the same maintainer+agent pass that built the
 release — and both were caught by the harness, not by re-reading. That is the
 harness doing exactly what it exists to do.
+
+## v0.7.0 dogfood self-audit
+
+Date: 2026-07-11 · Scope: diff `v0.6.0..f8773fb` (the wire-v2 method-surface
+release diff — primitives, SPEC, conformance, bundled primitive, bootstrap
+Step 4b, scripts) · Principles revision: 1 · Coverage: 24/56 diff files read, 4
+partial, 28 not-read (~43%; the not-read set was triaged to test-only diffs and
+non-provenance infra/governance files — an honest denominator, not a
+completeness claim).
+
+The core new surface — the content-addressed id scheme, the version field +
+read policy, the `inferred` rung, and the bundled primitive — came back
+**clean** on the provenance model: every new output category carries the fields
+the project's own conventions require (`stepId`/`step_id` is reproducible and
+pinned by cross-language golden vectors; the version policy is documented in
+SPEC §5b and conformance-pinned; the bundle's second-source-of-truth risk is
+guarded by both a byte-identity drift check and a behavioral conformance check).
+The `primitives/README.md` "planned → current" maturity-table edit is itself
+correct self-application of P6.
+
+The auditor found one recurring drift, turned on plumb-line's own docs:
+
+| # | Location | Principle | Finding | Resolution |
+| - | -------- | --------- | ------- | ---------- |
+| 1 | `SECURITY.md:57,64` | P6 / P9 | Security-facing doc still said "envelope schema version 1 (`PROVENANCE_VERSION = 1`)" and the SPEC §6 out-of-scope carve-out still cited "version 1" — a factually wrong claim about the wire version this release ships (violation) | **Fixed** — both → version 2 |
+| 2 | `README.md:73,106` | P6 | Top-level README (most visible doc) described the spec as "envelope schema version 1" in two places, the version this release supersedes (violation) | **Fixed** — both → version 2 |
+| 3 | `primitives/README.md:13`, `primitives/js/README.md:23`, `primitives/python/README.md:23` | P6 | Three package READMEs carried the stale "(envelope schema version 1)" spec reference (violation) | **Fixed** — all → version 2 |
+| 4 | `primitives/conformance/README.md:28,31,38` | P9 | The self-certification doc's example badge (`plumb-line v1`) and certification prose contradicted the tool it documents — `report.mjs` now generates a `v2` badge — so a new implementer would publish a stale badge (violation) | **Fixed** — badges + prose → v2 |
+| 5 | `docs/threat-model.md:91` | P9 | N4's "out of scope for envelope schema version 1 (SPEC §6)" cross-reference drifted from SPEC §6, now version 2 (violation) | **Fixed** → version 2 |
+| 6 | `primitives/js/audit.mjs`, `primitives/python/audit.py` (version-read branches) | P3 | A non-numeric `provenanceVersion` (e.g. string `"2"`) matches neither the legacy nor future branch, so no advisory is emitted — untested, differs from the documented "read on every call" policy (needs-review) | **Deferred** → [#156](https://github.com/slopstopper/plumb-line/issues/156) |
+
+All five confirmed findings are the **same failure class** — a version reference
+that should have moved with `PROVENANCE_VERSION` 1→2 but didn't, across docs
+untouched by the wire-v2 diff. This is exactly the drift P9 exists to catch,
+turned on plumb-line's own documentation; none touch runtime behavior or the
+conformance suite (both version-correct and tested). A repo-wide sweep confirmed
+no other live "schema version 1" reference remains (the one in this file's D4
+row is a historical record of a past scope decision, correctly left as-is).
+
+Meta-note: the bump populated the three manifests and `SPEC.md` but not the
+seven prose copies of the version — a bump-script blind spot. Filed as a
+harness improvement candidate: grep for `schema version <N-1>` after any wire
+bump (recorded here rather than lost; a checklist item belongs in
+`RELEASING.md`/`bump-version.mjs`).
+
+---
+
+## v0.7.1 dogfood self-audit — 2026-07-12
+
+Ran the `plumb-line-audit` method on plumb-line's own v0.7.1 diff
+(`c4132a0..HEAD`), lens on P6 (maturity honesty) and P9-style drift — where
+dogfooding historically finds things. One confirmed violation, **fixed before the
+tag**; three advisory items filed as tracking issues.
+
+| # | Location | Principle | Finding | Resolution |
+| --- | --- | --- | --- | --- |
+| 1 | `adapters/js/provenance-lint/require-provenance-output.cjs` (local classification) | P6 | **Confirmed violation.** The JS rule classified locals only from `const/let x =` declarators, ignoring a later plain `out = ...` reassignment — so `let out = x*r; out = mark(out); return out` was flagged as untagged even though `out` **was** tagged. A real false positive, contradicting the "zero-false-positive by design" claim in CHANGELOG/README/ADR-0011. Verified by executing the rule (not just reading it). Python's parallel checker guarded this via pop-on-reassignment; JS did not. | **Fixed** (commit `d2edf49`) — JS now tracks every value-binding assignment (declarator + plain `x = …`) and demotes any name assigned >1× to unknown, mirroring Python. Mirrored regression fixtures added both suites. |
+| 2 | `adapters/js/provenance-lint/README.md` | P9-ish | JS README says the rule "drops straight into `pre-commit-gate`," but only Python has a test proving that wiring — implies symmetric demonstrated integration (advisory). | **Deferred** → [#163](https://github.com/slopstopper/plumb-line/issues/163) |
+| 3 | `eslint-provenance.template.cjs`, bootstrap/remediate skills, root README | P6 (self-application) | New rule shipped but not wired into the project's own onboarding path — a bootstrap user would never discover it (advisory adoption gap). | **Deferred** → [#164](https://github.com/slopstopper/plumb-line/issues/164) |
+| 4 | `primitives/SPEC.md` §5 | P9-ish | The #96 non-plain-object wording reads as uniform, but Python `isinstance(meta, dict)` accepts dict subclasses while JS rejects non-plain objects — slight parity overclaim (needs-review). | **Deferred** → [#165](https://github.com/slopstopper/plumb-line/issues/165) |
+
+The confirmed finding is exactly what this pass exists to catch: a shipped,
+documented-as-zero-FP checker that *wasn't* — surfaced by running the method on
+our own diff, after per-task and whole-branch reviews both missed the
+false-positive direction of the reassignment gap. Fixed before the tag; the
+mechanical version-prose sweep (the v0.7.0 P9 class) came back clean.

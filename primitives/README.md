@@ -10,7 +10,7 @@ override that silently clears the flag. The result is a system where uncertainty
 propagates honestly whether or not the developer thinks about it.
 
 The envelope and law are formally specified — see [`SPEC.md`](SPEC.md) (envelope
-schema version 1), pinned by the cross-language [conformance suite](conformance/).
+schema version 2), pinned by the cross-language [conformance suite](conformance/).
 Each language is also packaged as `plumb-line-provenance` (npm / PyPI).
 
 ---
@@ -229,5 +229,5 @@ if (structural.length) throw new Error(`malformed envelope: ${structural}`);
 | Cross-language conformance suite (`conformance/`)       | current |
 | AST-level static lint rule (`adapters/*/provenance-lint`) | current |
 | `validateEnvelope` structural field-presence checker    | current |
-| Per-output `PROVENANCE_VERSION` embedding in envelopes  | planned |
+| Per-output `PROVENANCE_VERSION` embedding in envelopes  | current |
 | Bootstrap / ruleset wiring for host projects            | planned |

@@ -88,7 +88,7 @@ These hold through the documented public API (`mark`, `derive`,
   zero-false-positive: it fires only at resolved primitive call sites on literal
   field values. Patterns that need whole-program dataflow to judge (e.g. a bare
   `x.value` that may or may not hold a marked value) are out of scope for
-  envelope schema version 1 (SPEC §6). Under-claiming is a design choice, not a
+  envelope schema version 2 (SPEC §6). Under-claiming is a design choice, not a
   gap to be reported as a false negative — though novel *literal* bypasses within
   scope are in scope for §2 of [`SECURITY.md`](../SECURITY.md).
 

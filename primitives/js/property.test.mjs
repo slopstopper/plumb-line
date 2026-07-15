@@ -65,11 +65,19 @@ describe("combination law properties", () => {
     );
   });
 
-  it("step IDs are unique within the output lineage", () => {
+  it("step IDs are content-addressed sha256 strings, reproducible across identical combines (#52)", () => {
+    // Uniqueness is no longer the invariant: two steps with identical content
+    // are *meant* to collide (intended dedup, not an error) — see SPEC §4.
+    // What must hold is that every id is a well-formed content hash, and that
+    // combining the same inputs twice yields the same ids both times.
     fc.assert(
       fc.property(arbMetas, (metas) => {
         const ids = combineProvenance(...metas).lineage.map((s) => s.id);
-        return new Set(ids).size === ids.length;
+        const idsAgain = combineProvenance(...metas).lineage.map((s) => s.id);
+        return (
+          ids.every((id) => /^sha256:[0-9a-f]{12}$/.test(id)) &&
+          ids.every((id, i) => id === idsAgain[i])
+        );
       }),
     );
   });

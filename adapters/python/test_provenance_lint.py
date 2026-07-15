@@ -128,8 +128,113 @@ def test_extra_tracked_namespace_form():
     issues = pl.check(src, extra_modules={'myorg_data'}, extra_tracked={'derive_all': 'derive'})
     assert [i['rule'] for i in issues] == ['PB3']
 
+def test_extra_module_matches_on_normalized_basename():
+    # #138 — basename + separator normalization; config "myorg-data" covers
+    # a dotted path with underscores.
+    src = ("from pkg.myorg_data import mark\n"
+           "m = mark(42, source='real', derived_from_mock=True)")
+    issues = pl.check(src, extra_modules={'myorg-data'})
+    assert [i['rule'] for i in issues] == ['PB1']
+
+def test_normalize_module_name_folds_separators_and_ext():
+    assert pl._normalize_module_name('pkg.myorg_data') == 'myorg-data'
+    assert pl._normalize_module_name('myorg-data') == 'myorg-data'
+
 def test_extra_tracked_unknown_role_fails_loud():
     # A typo'd role would otherwise mean silently-missing coverage — the exact
     # failure mode this injection path exists to prevent. Fail loud instead.
     with pytest.raises(ValueError):
         pl.check("x = 1", extra_tracked={'mark_value': 'markk'})
+
+# --- #91 check_outputs (declared-surface opt-out) ---
+
+def out_rules(src):
+    return [i['rule'] for i in pl.check_outputs(IMPORT + src)]
+
+def test_direct_raw_return_is_flagged():
+    assert out_rules("def f(x, r):\n    return x * r") == ['REQ-OUTPUT']
+
+def test_raw_via_local_is_flagged():
+    assert out_rules("def f(x, r):\n    t = x * r\n    return t") == ['REQ-OUTPUT']
+
+def test_return_derive_is_silent():
+    assert out_rules("def f(x, r):\n    return derive([x, r], lambda p, q: p * q)") == []
+
+def test_return_local_derive_is_silent():
+    assert out_rules("def f(x, r):\n    t = derive([x, r], lambda p, q: p * q)\n    return t") == []
+
+def test_return_param_is_silent():
+    assert out_rules("def f(marked):\n    return marked") == []
+
+def test_return_unknown_call_is_silent():
+    assert out_rules("def f(x):\n    return compute(x)") == []
+
+def test_return_attribute_is_silent():
+    assert out_rules("def f(o):\n    return o.total") == []
+
+def test_return_constant_is_silent():
+    assert out_rules("def f():\n    return 0") == []
+
+def test_underscore_function_is_out_of_scope():
+    assert out_rules("def _helper(x, r):\n    return x * r") == []
+
+def test_nested_transform_lambda_not_flagged():
+    # the lambda returns raw p*q by design; only module-level defs are checked
+    assert out_rules("def f(x, r):\n    return derive([x, r], lambda p, q: p * q)") == []
+
+def test_reassigned_local_is_silent():
+    # a local reassigned more than once cannot be classified → silent (zero-FP)
+    assert out_rules("def f(x, r):\n    t = derive([x, r], g)\n    t = x * r\n    return t") == []
+
+def test_raw_local_retagged_in_place_is_not_flagged():
+    # zero-FP: raw value tagged in place before return must NOT be flagged
+    # (the JS parity of this case regressed as a false positive — pinned here too)
+    assert out_rules("def f(x, r):\n    out = x * r\n    out = mark(out)\n    return out") == []
+
+def test_multi_return_early_tagged_is_not_flagged():
+    # early return of a still-tagged local must NOT be flagged (flow-insensitivity trap)
+    src = ("def f(x, r):\n"
+           "    t = derive([x, r], g)\n"
+           "    if x > 0:\n"
+           "        return t\n"
+           "    t = x * r\n"
+           "    return t")
+    assert out_rules(src) == []
+
+
+def test_nested_return_is_silent():
+    src = "def f(x, r, c):\n    if c:\n        return x * r\n    return 0"
+    assert out_rules(src) == []
+
+def test_branch_reassignment_is_not_flagged():
+    # C1 guard: t is re-tagged in the branch before being returned there.
+    src = ("def f(x, r, cond):\n"
+           "    t = x * r\n"
+           "    if cond:\n"
+           "        t = derive([x, r], g)\n"
+           "        return t\n"
+           "    return 0")
+    assert out_rules(src) == []
+
+def test_comparison_return_is_silent():
+    assert out_rules("def f(a, b):\n    return a == b") == []
+
+
+def test_main_require_output_flag_returns_nonzero(tmp_path, capsys):
+    p = tmp_path / "m.py"
+    p.write_text(IMPORT + "def f(x, r):\n    return x * r\n")
+    assert pl.main(['--require-output', str(p)]) == 1
+    assert 'REQ-OUTPUT' in capsys.readouterr().out
+
+
+def test_main_require_output_flag_clean_returns_zero(tmp_path):
+    p = tmp_path / "m.py"
+    p.write_text(IMPORT + "def f(x, r):\n    return derive([x, r], lambda p, q: p * q)\n")
+    assert pl.main(['--require-output', str(p)]) == 0
+
+
+def test_main_default_mode_unchanged(tmp_path):
+    p = tmp_path / "m.py"
+    p.write_text(IMPORT + "def f(x, r):\n    return x * r\n")
+    # default mode runs PB1-4 only; a raw return is not a bypass pattern → clean
+    assert pl.main([str(p)]) == 0

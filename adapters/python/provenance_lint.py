@@ -35,8 +35,22 @@ MESSAGES = {
            "lineage. Use derive() so provenance propagates. (SPEC §4 / §5 unreproducible)",
 }
 
-def _basename(module):
-    return (module or '').split('.')[-1]
+_OUTPUT_MESSAGE = ("REQ-OUTPUT untagged output: this module-level function returns a raw "
+                   "computed value not wrapped by mark/derive. Wrap the returned value with "
+                   "derive()/mark() so provenance propagates. (ADR-0011)")
+
+_EXT = ('.mjs', '.cjs', '.js', '.py')
+
+def _normalize_module_name(module):
+    base = (module or '').split('.')[-1]
+    for ext in _EXT:
+        if base.endswith(ext):
+            base = base[: -len(ext)]
+            break
+    return base.replace('_', '-')
+
+# Back-compat alias used by import collection.
+_basename = _normalize_module_name
 
 
 def _keyword(call, name):
@@ -54,7 +68,10 @@ def _is_const_bool(node, value):
 class _Visitor(ast.NodeVisitor):
     def __init__(self, clean_sources=None, primitive_modules=None, tracked=None):
         self.clean_sources = clean_sources if clean_sources is not None else CLEAN_SOURCES
-        self.primitive_modules = primitive_modules if primitive_modules is not None else PRIMITIVE_MODULES
+        self.primitive_modules = (
+            primitive_modules if primitive_modules is not None
+            else {_normalize_module_name(m) for m in PRIMITIVE_MODULES}
+        )
         # name -> role; the built-in names are their own role.
         self.tracked = tracked if tracked is not None else {n: n for n in TRACKED}
         self.local_fn = {}      # local name -> tracked role
@@ -117,6 +134,85 @@ class _Visitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+class _OutputVisitor:
+    """#91 — flag module-level (non-_) functions whose return is a provably-raw
+    BinOp, directly or via a same-function local. Silent on anything else.
+    Mirror of the JS require-provenance-output rule; see ADR-0011."""
+
+    def __init__(self, primitive_modules, tracked):
+        self.primitive_modules = primitive_modules
+        self.tracked = tracked
+        self.local_fn = {}       # local name -> role
+        self.issues = []
+
+    def collect_imports(self, tree):
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                if _normalize_module_name(node.module) in self.primitive_modules:
+                    for alias in node.names:
+                        if alias.name in self.tracked:
+                            self.local_fn[alias.asname or alias.name] = self.tracked[alias.name]
+
+    def _is_tracked_call(self, node):
+        return (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and self.local_fn.get(node.func.id) is not None)
+
+    @staticmethod
+    def _is_raw(node):
+        return isinstance(node, ast.BinOp)
+
+    def _classify_locals(self, fn):
+        # name -> "raw"|"tagged"; a name assigned more than once, or to anything
+        # unclassifiable, is left/demoted to unknown (absent from the map). This
+        # is deliberately flow-INSENSITIVE-safe: last-write-wins would over-flag an
+        # early `return t` where t is still tagged before a later raw reassignment,
+        # so any reassignment drops the name to unknown (silent) — errs to silence,
+        # which preserves the zero-false-positive contract.
+        local = {}
+        seen = {}
+        for stmt in fn.body:
+            if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and isinstance(stmt.targets[0], ast.Name):
+                name = stmt.targets[0].id
+                seen[name] = seen.get(name, 0) + 1
+                if seen[name] > 1:
+                    local.pop(name, None)
+                    continue
+                if self._is_tracked_call(stmt.value):
+                    local[name] = "tagged"
+                elif self._is_raw(stmt.value):
+                    local[name] = "raw"
+        return local
+
+    def check_function(self, fn):
+        if fn.name.startswith('_'):
+            return
+        local = self._classify_locals(fn)
+        for node in self._returns_of(fn):
+            v = node.value
+            if v is None:
+                continue
+            if self._is_raw(v):
+                self.issues.append({'line': node.lineno, 'rule': 'REQ-OUTPUT', 'message': _OUTPUT_MESSAGE})
+            elif isinstance(v, ast.Name) and local.get(v.id) == "raw":
+                self.issues.append({'line': node.lineno, 'rule': 'REQ-OUTPUT', 'message': _OUTPUT_MESSAGE})
+
+    @staticmethod
+    def _returns_of(fn):
+        # Intentionally TOP-LEVEL ONLY — returns nested inside if/for/try are an
+        # accepted false-negative, not scanned. This matches the JS rule (which
+        # only walks fnNode.body.body) and keeps _classify_locals (also top-level
+        # only) in sync with what gets inspected: a local re-tagged inside a branch
+        # before being returned there must not be flagged, and the only way to
+        # guarantee that without branch-aware dataflow is to not look inside
+        # branches at all. Zero-false-positive over coverage.
+        return [s for s in fn.body if isinstance(s, ast.Return)]
+
+    def visit_module(self, tree):
+        for stmt in tree.body:
+            if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                self.check_function(stmt)
+
+
 def check(source, filename='<unknown>', clean_sources=None, extra_modules=None, extra_tracked=None):
     """Return a list of issue dicts: {'line', 'rule', 'message', 'filename'}. Empty = clean.
 
@@ -138,7 +234,9 @@ def check(source, filename='<unknown>', clean_sources=None, extra_modules=None, 
         if bad:
             raise ValueError(f'extra_tracked roles must be one of {sorted(TRACKED)}; got {bad}')
         tracked.update(extra_tracked)
-    modules = PRIMITIVE_MODULES | set(extra_modules or ())
+    modules = {_normalize_module_name(m) for m in PRIMITIVE_MODULES} | {
+        _normalize_module_name(m) for m in (extra_modules or ())
+    }
     try:
         tree = ast.parse(source, filename)
     except SyntaxError as e:
@@ -150,12 +248,39 @@ def check(source, filename='<unknown>', clean_sources=None, extra_modules=None, 
     return [dict(i, filename=filename) for i in v.issues]
 
 
-def main(argv=None):  # pragma: no cover - CLI glue (argv/file/print); logic lives in check()
+def check_outputs(source, filename='<unknown>', extra_modules=None, extra_tracked=None):
+    """#91 — return a list of REQ-OUTPUT issue dicts for module-level functions
+    that return an untagged raw computation. Same shape/params as check()."""
+    tracked = {n: n for n in TRACKED}
+    if extra_tracked:
+        bad = {name: role for name, role in extra_tracked.items() if role not in TRACKED}
+        if bad:
+            raise ValueError(f'extra_tracked roles must be one of {sorted(TRACKED)}; got {bad}')
+        tracked.update(extra_tracked)
+    modules = {_normalize_module_name(m) for m in PRIMITIVE_MODULES} | {
+        _normalize_module_name(m) for m in (extra_modules or ())
+    }
+    try:
+        tree = ast.parse(source, filename)
+    except SyntaxError as e:
+        return [{'line': e.lineno or 0, 'rule': 'parse', 'message': f'syntax error: {e.msg}', 'filename': filename}]
+    v = _OutputVisitor(primitive_modules=modules, tracked=tracked)
+    v.collect_imports(tree)
+    v.visit_module(tree)
+    v.issues.sort(key=lambda i: (i['line'], i['rule']))
+    return [dict(i, filename=filename) for i in v.issues]
+
+
+def main(argv=None):  # pragma: no cover - CLI glue; logic lives in check()/check_outputs()
     argv = sys.argv[1:] if argv is None else argv
+    runner = check
+    if argv and argv[0] == '--require-output':
+        runner = check_outputs
+        argv = argv[1:]
     total = 0
     for path in argv:
         with open(path, encoding='utf-8') as f:
-            issues = check(f.read(), path)
+            issues = runner(f.read(), path)
         for i in issues:
             total += 1
             # message already begins with the rule id (e.g. "PB1 …")

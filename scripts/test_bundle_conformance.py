@@ -1,18 +1,39 @@
-"""test_conformance — runs the shared cases.json against the Python primitive.
+"""test_bundle_conformance — runs the shared cases.json against the
+plugin-BUNDLED copy of the Python primitive (.claude-plugin/bundled/primitives/python),
+proving the vendored runtime behaves identically to the published package.
 
-Its JS twin (primitives/js/conformance.test.mjs) runs the SAME file; together
-they make JS/Python parity a data contract, not a prose promise. The JSON uses
-camelCase (the canonical envelope shape); we translate to snake_case here.
+Mirrors primitives/python/tests/test_conformance.py, but loads the bundled
+modules (not primitives/python/) and resolves cases.json by an explicit
+repo-root-relative path rather than directory traversal, since the bundle
+lives at a different depth than primitives/python/tests/.
+
+Invoked directly by scripts/check-bundle-conformance.mjs, and can also be run
+on its own:
+
+    python3 -m pytest -q scripts/test_bundle_conformance.py
+
+IMPORTANT: run this in its own pytest process, never in the same session as
+primitives/python/tests/test_conformance.py — both import a module named
+`provenance` from different paths, and Python's sys.modules cache would serve
+whichever one imported first to the other, silently testing the wrong copy.
 """
 import json
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Prepend the plugin-bundled primitive to sys.path BEFORE importing it, inlined
+# so no assignment precedes the import (mirrors primitives/python/tests/
+# test_conformance.py and keeps ruff's E402 satisfied). See the module docstring
+# on why this must run in its own pytest process.
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    '.claude-plugin', 'bundled', 'primitives', 'python'))
 import provenance as p
 from audit import audit_meta, validate_envelope
 
-_CASES = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'conformance', 'cases.json')
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_CASES = os.path.join(_ROOT, 'primitives', 'conformance', 'cases.json')
+
 with open(_CASES) as f:
     CASES = json.load(f)
 
@@ -30,9 +51,6 @@ def _to_snake(d):
 
 
 def _lineage_to_snake(lineage):
-    # Malformed lineage (not a list, or steps that aren't dicts) passes through
-    # verbatim — the validate cases feed deliberately wrong shapes, and the
-    # checkers tolerate them, so the translation shim must too.
     if not isinstance(lineage, list):
         return lineage
     return [_to_snake(step) if isinstance(step, dict) else step for step in lineage]
@@ -49,7 +67,7 @@ def setup_function():
     p.reset_step_counter()
 
 
-def test_combine_cases():
+def test_bundle_combine_cases():
     for c in CASES['combine']:
         p.reset_step_counter()
         inputs = [_meta_to_snake(m) for m in c['inputs']]
@@ -65,11 +83,9 @@ def test_combine_cases():
                 f"{c['name']}: lineage ids {[s.get('id') for s in out['lineage']]}"
 
 
-def test_audit_cases():
+def test_bundle_audit_cases():
     for c in CASES['audit']:
         raw = c['meta']
-        # Only dict envelopes get snake-cased; None and non-dict scalars pass
-        # through so audit_meta itself is exercised on them (mirrors validate).
         meta = _meta_to_snake(raw) if isinstance(raw, dict) else raw
         issues = audit_meta(meta)
         if not c['expectContains']:
@@ -79,11 +95,9 @@ def test_audit_cases():
                 assert any(needle in i for i in issues), f"{c['name']}: '{needle}' not in {issues}"
 
 
-def test_validate_cases():
+def test_bundle_validate_cases():
     for c in CASES['validate']:
         raw = c['meta']
-        # Only dict envelopes get snake-cased; null and non-object metas pass
-        # through verbatim so the checker can exercise its totality guards.
         meta = _meta_to_snake(raw) if isinstance(raw, dict) else raw
         issues = validate_envelope(meta)
         if not c['expectContains']:

@@ -26,6 +26,9 @@ describe("conformance — combine", () => {
       for (const k of c.absent || []) {
         expect(k in out).toBe(false);
       }
+      if (c.expectLineageIds) {
+        expect(out.lineage.map((s) => s.id)).toEqual(c.expectLineageIds);
+      }
     });
   }
 });

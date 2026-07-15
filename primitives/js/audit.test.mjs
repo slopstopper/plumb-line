@@ -1,12 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { auditMeta, validateEnvelope } from "./audit.mjs";
 import { mark, derive, metaOf } from "./marked.mjs";
-import { __resetStepCounter } from "./provenance.mjs";
+import {
+  __resetStepCounter,
+  PROVENANCE_VERSION,
+  makeMeta,
+} from "./provenance.mjs";
 
 describe("auditMeta", () => {
   it("is silent on a consistent clean meta", () => {
     expect(
       auditMeta({
+        provenanceVersion: PROVENANCE_VERSION,
         source: "real",
         confidence: "high",
         derivedFromMock: false,
@@ -68,8 +73,10 @@ describe("auditMeta", () => {
     });
     expect(Array.isArray(result)).toBe(true);
   });
-  it("returns [] for an empty meta object", () => {
-    expect(auditMeta({})).toEqual([]);
+  it("returns only the version-legacy advisory for an empty meta object (#93: absent version is legacy)", () => {
+    expect(auditMeta({})).toEqual([
+      `version-legacy: envelope predates version ${PROVENANCE_VERSION}`,
+    ]);
   });
   it("returns ['missing meta'] for null", () => {
     expect(auditMeta(null)).toEqual(["missing meta"]);
@@ -87,6 +94,7 @@ describe("auditMeta", () => {
   });
   it("is silent when confidenceScore is at or below the weakest lineage score", () => {
     const meta = {
+      provenanceVersion: PROVENANCE_VERSION,
       source: "derived",
       confidence: "low",
       confidenceScore: 0.2,
@@ -126,6 +134,38 @@ describe("auditMeta", () => {
     };
     expect(auditMeta(meta).join(" ")).not.toMatch(/over-claiming/);
   });
+
+  // #93: version read policy — forgiving forward, honest backward.
+  it("current version → no version issue", () => {
+    const issues = auditMeta(makeMeta({ source: "real" }));
+    expect(issues.some((i) => i.startsWith("version-"))).toBe(false);
+  });
+
+  it("legacy (absent version) → version-legacy", () => {
+    const issues = auditMeta({ source: "real", confidence: "high", derivedFromMock: false, lineage: [] });
+    expect(issues.some((i) => i.startsWith("version-legacy:"))).toBe(true);
+  });
+
+  it("unknown future version → version-future (still passes, advisory)", () => {
+    const issues = auditMeta({ provenanceVersion: 99, source: "real", confidence: "high", derivedFromMock: false, lineage: [] });
+    expect(issues.some((i) => i.startsWith("version-future:"))).toBe(true);
+  });
+
+  it("audits a non-plain object as missing meta (#96 parity with Python)", () => {
+    expect(auditMeta(new Date())).toEqual(["missing meta"]);
+    expect(auditMeta(new Map())).toEqual(["missing meta"]);
+    class Box {}
+    expect(auditMeta(new Box())).toEqual(["missing meta"]);
+    expect(auditMeta(Object.create(null))).toEqual(["missing meta"]);
+  });
+  it("still audits a plain object envelope normally", () => {
+    // A structurally empty plain object has no claims to contradict — its
+    // only issue is the pre-existing version-legacy advisory (#93), since
+    // {} carries no provenanceVersion. It is not "missing meta".
+    expect(auditMeta({})).toEqual([
+      `version-legacy: envelope predates version ${PROVENANCE_VERSION}`,
+    ]);
+  });
 });
 
 describe("validateEnvelope", () => {
@@ -140,10 +180,14 @@ describe("validateEnvelope", () => {
     expect(validateEnvelope(VALID)).toEqual([]);
   });
 
-  it("is the structural complement to auditMeta: flags {} that auditMeta passes", () => {
-    // auditMeta({}) is [] (no claims to contradict); validateEnvelope reports
-    // all four required fields missing. The two checkers are complementary.
-    expect(auditMeta({})).toEqual([]);
+  it("is the structural complement to auditMeta: flags {} that auditMeta mostly passes", () => {
+    // auditMeta({}) has no logical claims to contradict — its only issue is the
+    // version-legacy advisory (#93), since {} carries no provenanceVersion.
+    // validateEnvelope reports all four required fields missing. The two
+    // checkers are complementary.
+    expect(auditMeta({})).toEqual([
+      `version-legacy: envelope predates version ${PROVENANCE_VERSION}`,
+    ]);
     const issues = validateEnvelope({});
     expect(issues).toHaveLength(4);
     for (const f of ["source", "confidence", "derivedFromMock", "lineage"]) {

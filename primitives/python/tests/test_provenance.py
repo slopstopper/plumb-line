@@ -6,8 +6,18 @@ import provenance as p
 def setup_function():
     p.reset_step_counter()
 
+def test_provenance_version_is_2():
+    assert p.PROVENANCE_VERSION == 2
+
+def test_make_meta_stamps_version():
+    assert p.make_meta(source='real')['provenance_version'] == 2
+
+def test_combine_carries_version():
+    out = p.combine_provenance(p.make_meta(source='real'))
+    assert out['provenance_version'] == 2
+
 def test_constants_order():
-    assert p.STATUS == ['unavailable','mock','fallback','semiReal','derived','real']
+    assert p.STATUS == ['unavailable','mock','inferred','fallback','semiReal','derived','real']
     assert p.CONFIDENCE == ['none','low','medium','high']
 
 def test_make_meta_defaults():
@@ -67,36 +77,49 @@ def test_combine_zero_inputs():
     assert out['source'] == 'unavailable'
     assert out['lineage'] == []
 
-def test_combine_step_ids_are_combine_local():
-    # No module-level counter: two independent combines (no reset between them)
-    # produce identical, reproducible step IDs. See #23.
+def test_combine_step_ids_are_reproducible_content_addressed():
+    # No module-level counter: two independent combines with identical inputs
+    # produce identical step ids, since ids are a pure function of content. See #23.
     first = p.combine_provenance(REAL, MOCK)
     second = p.combine_provenance(REAL, MOCK)
-    assert [s['id'] for s in first['lineage']] == ['step-1', 'step-2']
-    assert [s['id'] for s in second['lineage']] == ['step-1', 'step-2']
+    assert [s['id'] for s in first['lineage']] == [s['id'] for s in second['lineage']]
+    assert all(s['id'].startswith('sha256:') for s in first['lineage'])
 
-def test_combine_step_ids_unique_within_output_when_both_inputs_carry_lineage():
-    # Two independently-built envelopes each start their lineage at step-1.
-    # Combining them must not collide — the output renumbers the whole lineage,
-    # so uniqueness holds for every input shape, not just lineage-less siblings.
-    # See #23 and the PR review on SPEC §4.
+def test_combine_dedups_identical_sub_lineages_by_design():
+    # Two independently-built envelopes with identical content produce identical
+    # ids for their steps — that collision is intended dedup, not an error,
+    # because it means "the same derivation happened twice." See #52.
     a = p.combine_provenance(REAL, MOCK)
     b = p.combine_provenance(REAL, MOCK)
     out = p.combine_provenance(a, b)
     ids = [s['id'] for s in out['lineage']]
-    assert len(set(ids)) == len(ids)
-    assert ids == ['step-1', 'step-2', 'step-3', 'step-4', 'step-5', 'step-6']
+    assert len(ids) == 6
+    assert ids[0] == ids[2]
+    assert ids[1] == ids[3]
+    assert all(i.startswith('sha256:') for i in ids)
+
+def test_input_step_id_stable_across_recombination():
+    a = dict(REAL)
+    once = p.combine_provenance(a)
+    twice = p.combine_provenance(a, {'source': 'mock', 'confidence': 'low', 'derived_from_mock': True, 'lineage': []})
+    id_in_once = next(s['id'] for s in once['lineage'] if s['source'] == 'real')
+    id_in_twice = next(s['id'] for s in twice['lineage'] if s['source'] == 'real')
+    assert id_in_once == id_in_twice
+
+def test_combine_no_longer_emits_sequential_step_ids():
+    out = p.combine_provenance(REAL)
+    assert all(s['id'].startswith('sha256:') for s in out['lineage'])
 
 def test_combine_records_lineage_step_per_input():
     out = p.combine_provenance(REAL, MOCK)
     assert len(out['lineage']) == 2
     assert out['lineage'][1]['source'] == 'mock'
     assert out['lineage'][1]['derived_from_mock'] is True
-    assert out['lineage'][0]['id'] == 'step-1'
+    assert out['lineage'][0]['id'].startswith('sha256:')
 
 def test_combine_accumulates_prior_lineage():
-    # Inherited steps are carried into the output (identified by content, not by
-    # their original id — the output renumbers every step for §4 uniqueness).
+    # Inherited steps are carried into the output verbatim, keeping their
+    # original content-addressed id — they are never renumbered (#52).
     with_history = dict(REAL)
     with_history['lineage'] = [{'id':'old','of':'prior'}]
     out = p.combine_provenance(with_history, SEMI)
@@ -156,3 +179,19 @@ def test_combine_records_score_on_lineage_step():
 def test_combine_omits_score_on_step_without_one():
     out = p.combine_provenance(REAL_SCORED, {'source':'real','confidence':'high'})
     assert 'confidence_score' not in out['lineage'][1]
+
+def test_inferred_between_mock_and_fallback():
+    assert p.STATUS.index('mock') < p.STATUS.index('inferred') < p.STATUS.index('fallback')
+
+def test_combine_inferred_weakest_over_fallback():
+    out = p.combine_provenance(p.make_meta(source='fallback', confidence='low'),
+                               p.make_meta(source='inferred', confidence='low'))
+    assert out['weakest_source'] == 'inferred'
+
+def test_step_id_known_leaf():
+    step = {'of': 'input', 'source': 'real', 'confidence': 'high', 'derived_from_mock': False}
+    assert p.step_id(step, []) == 'sha256:097181b20233'
+
+def test_step_id_input_order_independent():
+    step = {'of': 'input', 'source': 'real', 'confidence': 'high', 'derived_from_mock': False}
+    assert p.step_id(step, ['b', 'a']) == p.step_id(step, ['a', 'b'])

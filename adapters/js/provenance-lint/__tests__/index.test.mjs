@@ -13,4 +13,11 @@ describe("provenance-lint plugin entry point", () => {
     expect(plugin.rules["no-provenance-bypass"]).toBe(rule);
     expect(typeof rule.create).toBe("function");
   });
+
+  it("exposes both provenance-lint rules", () => {
+    const plugin = require("../index.cjs");
+    expect(Object.keys(plugin.rules).sort()).toEqual(
+      ["no-provenance-bypass", "require-provenance-output"]
+    );
+  });
 });
