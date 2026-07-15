@@ -22,7 +22,8 @@ for lib in ("requests", "httpx"):
 
 sys.path.insert(0, _PY_DIR)  # so http.py's flat `from marked import mark` resolves
 
-# Load http.py under a private name (never bind stdlib `http`; see Task 1).
+# Load http.py under a private name so we never bind sys.modules['http'] to it —
+# that would shadow the stdlib `http` package and break `import http.client`.
 _spec = importlib.util.spec_from_file_location("_plumb_http_adapter", os.path.join(_PY_DIR, "http.py"))
 plumb_http = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(plumb_http)
