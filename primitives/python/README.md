@@ -54,8 +54,11 @@ Mapping (`source` = origin, `confidence` = freshness):
 | 2xx cached / `304`    | `real`        | `medium`   |
 | 4xx / 5xx (no data)   | `unavailable` | `none`     |
 
-Cache is detected best-effort (`Age > 0`, `X-Cache: HIT`, `304`, or a client
-`from_cache` flag) and only lowers `confidence`, never `source`. The tagger never
+Cache is detected best-effort from response headers (`Age > 0`, `X-Cache: HIT`,
+`304`) and only lowers `confidence`, never `source`. (A `from_cache` attribute is
+also honored if present — set by caching wrappers such as `requests-cache` — but
+stock `requests`/`httpx` responses don't carry one, so header detection is the
+path that fires for them.) The tagger never
 emits `fallback` — that's for a value *you* substitute on error. The core
 (`classify_response`) is dependency-free; the taggers guard-import their library
 and raise a clear `ImportError` if the extra isn't installed.
