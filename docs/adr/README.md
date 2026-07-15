@@ -34,3 +34,4 @@ record is append-only.
 | [0009](0009-checker-totality-non-object-parity.md)      | Checker totality on non-object input, parity, no wire bump | Accepted |
 | [0010](0010-wire-v2-schema-batch.md)                    | Wire v2 — batch the schema-breaking changes into one bump  | Accepted |
 | [0011](0011-enforcement-rule-scoping.md)                | Output-tag enforcement is scoped to a declared surface     | Accepted |
+| [0012](0012-ecosystem-adapters-optional-deps-and-mapping.md) | Ecosystem adapters — optional deps + source-vs-freshness mapping | Accepted |

@@ -9,7 +9,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **#92 — HTTP ingestion adapters (requests / httpx / fetch).** Auto-tag HTTP
+  responses with a provenance envelope at ingestion: `2xx fresh → real/high`,
+  `2xx cached/304 → real/medium`, `4xx/5xx → unavailable/none` (`source` = origin,
+  `confidence` = freshness; never `fallback`). Python `tag_requests`/`tag_httpx` +
+  `tagged_get`/`tagged_httpx_get` ship as optional extras
+  (`pip install "plumb-line-provenance[requests]"`) with a dependency-free
+  classification core; JS `tagResponse`/`taggedFetch` ship at the
+  `plumb-line-provenance/http` subpath (native `fetch`, no dependency). Cross-language
+  mapping pinned by `primitives/conformance/http-cases.json`. See ADR-0012.
+
+_No wire change — `PROVENANCE_VERSION` stays `2`._
 
 ## [0.7.1] — 2026-07-12
 

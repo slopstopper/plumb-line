@@ -5,13 +5,15 @@
   "type": "module",
   "main": "./index.mjs",
   "exports": {
-    ".": "./index.mjs"
+    ".": "./index.mjs",
+    "./http": "./http.mjs"
   },
   "files": [
     "index.mjs",
     "provenance.mjs",
     "marked.mjs",
     "audit.mjs",
+    "http.mjs",
     "README.md"
   ],
   "scripts": {
