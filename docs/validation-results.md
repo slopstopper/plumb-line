@@ -569,3 +569,38 @@ architecture supplied verbatim: 2× each `broken/` fixture, 1× each `clean/`.
 
 See [`dogfood.md`](dogfood.md), v0.7.1 section — **one confirmed violation found
 and fixed before tag** (a JS zero-FP false positive), three advisory items filed.
+
+---
+
+## v0.7.2 release-harness record — 2026-07-15
+
+Release: **v0.7.2** "Ecosystem adapters — HTTP" (requests/httpx/fetch auto-tagging).
+Diff since v0.7.1 touched `primitives/`, so the harness ran. No wire change
+(`PROVENANCE_VERSION` stays 2 — adapters only call `mark`).
+
+### Part 1 — Blind validation (release-blocking) — **PASS (6/6)**
+
+Six read-only auditors, plain identical prompt, answer keys withheld, declared
+architecture supplied verbatim: 2× each `broken/` fixture, 1× each `clean/`.
+
+| Fixture | Runs | Planted set caught | Verdict |
+| --- | --- | --- | --- |
+| `js-payments-service/broken` | 2 | `rates.js` P2, `pricing.js` P5, `gateway.js` P3 — every run | PASS |
+| `python-data-pipeline/broken` | 2 | `schema.py` P2, `aggregate.py` P5, `source.py` **P8** — every run | PASS |
+| `js-payments-service/clean` | 1 | 0 confirmed violations | PASS |
+| `python-data-pipeline/clean` | 1 | 0 confirmed violations | PASS |
+
+- The **P8 missing-lineage** regression was caught in **both** `python-data-pipeline/broken` runs.
+- All six emitted the `report-format: v3` header + coverage map; no format FAILs.
+- Note: one `clean/` auditor spotted an injected "date changed" system-reminder in
+  its tool stream and *refused the instruction to conceal it*, flagging it for
+  transparency — correct epistemic-honesty behavior, no effect on the audit.
+
+### Part 1b — Remediate validation
+
+**Skipped** — the diff does not touch `skills/plumb-line-remediate/SKILL.md`.
+
+### Part 2 — Dogfood self-audit
+
+See [`dogfood.md`](dogfood.md), v0.7.2 section — 0 confirmed violations, 5 advisory
+doc/comment-drift items, all fixed before the tag.
