@@ -29,8 +29,22 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           set -euo pipefail
+          # Dependabot PRs are opened by the authenticated `dependabot[bot]` actor —
+          # a login a human contributor cannot forge (unlike commit-author metadata,
+          # which anyone can set). Its dependency bumps are mechanical, carry no
+          # human authorship to certify, and are signed off with a fixed noreply
+          # address that never matches its author email, so they can never satisfy
+          # the exact-match check below. Exempt such PRs wholesale. This gates on
+          # the authenticated PR author, NOT the spoofable commit `%an`, so it can't
+          # be bypassed by authoring a commit as "dependabot[bot]". The job still
+          # runs and reports success, so a required-check gate stays satisfied.
+          if [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
+            echo "PR opened by dependabot[bot] — DCO-exempt (mechanical bot bumps). ✓"
+            exit 0
+          fi
           fail=0
           for sha in $(git rev-list --no-merges "$BASE_SHA".."$HEAD_SHA"); do
             author="$(git show -s --format='%an <%ae>' "$sha")"
