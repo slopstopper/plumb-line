@@ -59,7 +59,11 @@ class PlumbArray:
 def plumb_derive(inputs, fn, **meta_override):
     """General combinator: run `fn` on the unwrapped arrays, run the combination
     law on the metas (via `marked.derive`), return a PlumbArray. Taint is
-    force-OR'd and cannot be cleared via override (SPEC §3 rule 1)."""
+    force-OR'd and cannot be cleared via override (SPEC §3 rule 1).
+
+    The result is wrapped as-is: `fn`'s return type is NOT re-validated, so a
+    reducing `fn` (e.g. `lambda a: a.sum()`) yields a PlumbArray whose `.value`
+    is a numpy scalar — the provenance still propagates correctly."""
     marked_inputs = [{'value': i.value, 'meta': i.meta} for i in inputs]
     result = derive(marked_inputs, fn, **meta_override)
     return PlumbArray._wrap(result['value'], result['meta'])

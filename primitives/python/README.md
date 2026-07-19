@@ -89,7 +89,10 @@ total.value                      # the underlying DataFrame
 same pattern: `from plumb_line_provenance.arrays import PlumbArray, plumb_concatenate, plumb_stack`.
 
 You **declare** the `source` when you wrap (a raw frame carries no intrinsic
-provenance — there is no auto-classification). Operations outside the combinators
+provenance — there is no auto-classification). Pass a real `source=` for a leaf:
+the default (`"derived"`) is meant for combinator *outputs*, and a `"derived"`
+leaf with no lineage will show up as `unreproducible` under `.audit()`.
+Operations outside the combinators
 work on `.value` and drop provenance until you re-wrap via `plumb_derive` — the
 combination point stays visible in your code (see [ADR-0013](../../docs/adr/0013-dataframe-adapters-explicit-combinators.md)).
 The core is dependency-free; the wrappers guard-import their library and raise a

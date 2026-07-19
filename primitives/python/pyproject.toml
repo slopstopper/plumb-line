@@ -30,7 +30,7 @@ Homepage = "https://github.com/slopstopper/plumb-line"
 Repository = "https://github.com/slopstopper/plumb-line"
 Specification = "https://github.com/slopstopper/plumb-line/blob/main/primitives/SPEC.md"
 
-# Flat layout: the three source modules live in this directory and are packaged
+# Flat layout: the source modules live in this directory and are packaged
 # under the import name `plumb_line_provenance`. Tests are excluded from the dist.
 [tool.setuptools]
 packages = ["plumb_line_provenance"]
