@@ -75,7 +75,7 @@ node primitives/conformance/report.mjs               # exits non-zero on diverge
 python3 -m pytest -q examples
 ```
 
-Python CI test deps: `pip install pytest import-linter`. Node 20; Python 3.9 + 3.12 in CI.
+Python CI test deps: `pip install pytest import-linter`. Node 20; Python 3.11 + 3.13 in CI (floor is 3.11 — see [SUPPORT.md](SUPPORT.md)).
 
 ## Held to its own principles
 

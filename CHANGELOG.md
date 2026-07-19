@@ -9,7 +9,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+- **Minimum Python is now 3.11** (was 3.8; 3.9/3.10 are EOL or near-EOL). Adopted
+  an EOL-tracking [support policy](SUPPORT.md): the floor follows Python's EOL
+  calendar rather than whatever a dependency last dropped. This collapses the
+  `requirements-test.txt` universal py3.9/≥3.10 lock split into a single flat
+  hashed lock, so the recurring per-cycle lock reconciliation (and the
+  `check-lock-sync` guard + pip Dependabot special-casing) is gone; held test-dep
+  bumps (pytest 9, import-linter 2.13, ruff 0.15.22, build 1.5.0) are taken. The
+  **runtime library API is unchanged** — this only moves the supported/tested
+  interpreter floor. `PROVENANCE_VERSION` stays `2`.
 
 ## [0.7.3] — 2026-07-19
 

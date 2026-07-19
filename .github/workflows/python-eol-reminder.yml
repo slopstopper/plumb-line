@@ -1,0 +1,47 @@
+name: Python EOL reminder
+
+# Once a year (1 September), open an issue to raise the supported-Python floor
+# before the next CPython version reaches end-of-life that October — see
+# SUPPORT.md. This breaks the reactive loop where a dependency drop forces the
+# floor at the last minute (the pain that motivated the 3.11 floor). Also
+# runnable on demand.
+
+on:
+  schedule:
+    - cron: "0 9 1 9 *" # 09:00 UTC, 1 September, annually
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open the annual floor-raise reminder (once)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          title="Annual Python EOL check — raise the supported floor per SUPPORT.md"
+          # Don't stack duplicates: skip if an open reminder already exists.
+          count="$(gh issue list --repo "$REPO" --state open --search "$title in:title" --json number --jq 'length')"
+          if [ "$count" != "0" ]; then
+            echo "An open reminder already exists ($count); nothing to do."
+            exit 0
+          fi
+          body="$(printf '%s\n' \
+            'Scheduled reminder (see SUPPORT.md): a CPython version reaches end-of-life this October.' \
+            '' \
+            'Check the EOL calendar — https://devguide.python.org/versions/ — and, if the current floor is now (or is about to be) EOL, raise it:' \
+            '' \
+            '- `primitives/python/pyproject.toml` `requires-python`' \
+            '- `.github/workflows/ci.yml` python matrix (floor + newest) and `release.yml`' \
+            '- `ruff.toml` `target-version`, plus the `SUPPORT.md` floor line' \
+            '- recompile `requirements-test.txt` and take any held dependency bumps' \
+            '- update the branch-protection required checks (`Python <floor>` / `Python <newest>`)' \
+            '' \
+            'Ship as a version bump. Doing this proactively — before a dependency forces it — is the whole point of the policy.')"
+          gh issue create --repo "$REPO" --title "$title" --label "python" --label "dependencies" --body "$body"

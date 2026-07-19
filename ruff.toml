@@ -2,8 +2,9 @@
 # Enforces the PEP 8 baseline CONTRIBUTING.md asks for, as a CI gate
 # (OpenSSF Best Practices silver: coding_standards_enforced, warnings_strict).
 #
-# The published library supports Python 3.8+, so lint against that floor.
-target-version = "py38"
+# The published library supports non-EOL CPython (floor >=3.11; see SUPPORT.md),
+# so lint against that floor.
+target-version = "py311"
 
 # The examples/*/broken/ trees are intentionally-wrong fixtures for the audit
 # skill — their defects are provenance-principle violations, not Python-lint
