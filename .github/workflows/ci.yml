@@ -108,8 +108,8 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: ${{ matrix.python }}
-      - name: http adapter — guarded imports work with NO extras installed
-        run: python scripts/check_http_guarded_imports.py
+      - name: adapters — guarded imports work with NO extras installed
+        run: python scripts/check_adapter_guarded_imports.py
       - name: install test deps
         # --require-hashes: every dep (incl. transitive) must match a hash in
         # the lock, so a compromised index cannot swap in a tampered wheel.
