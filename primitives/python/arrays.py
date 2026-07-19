@@ -19,8 +19,10 @@ _NUMPY_HINT = ('needs numpy; install it with: '
 
 
 class PlumbArray:
-    """A numpy ndarray carrying a provenance envelope. `.value` is the array;
-    `.meta` is the standard envelope (audit_meta/validate_envelope work on it)."""
+    """A numpy ndarray carrying a provenance envelope. `.value` is the array
+    (typically an ndarray; a reducing `plumb_derive` may yield a narrower numpy
+    type such as a scalar); `.meta` is the standard envelope
+    (audit_meta/validate_envelope work on it)."""
 
     def __init__(self, value, source='derived', confidence='none', **meta_input):
         try:

@@ -40,6 +40,7 @@ def test_stack_propagates_taint():
     assert out.meta["derived_from_mock"] is True
     assert out.meta["confidence"] == "medium"
     assert out.value.shape == (2, 2)
+    assert out.audit() == []                      # combinator output audits clean
 
 
 def test_derive_general_and_taint_not_clearable():
@@ -47,3 +48,4 @@ def test_derive_general_and_taint_not_clearable():
     out = arrays.plumb_derive([mock], lambda x: x * 2, derived_from_mock=False)
     assert out.meta["derived_from_mock"] is True
     assert list(out.value) == [2, 4]
+    assert out.audit() == []                      # combinator output audits clean (dfm=True is honest, not laundering)

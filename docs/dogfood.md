@@ -360,3 +360,22 @@ violations; 5 advisory doc/comment-drift items — all fixed before the tag** (c
 Every finding is documentation/comment honesty drift — exactly what this pass
 exists to catch (v0.7.0 caught stale version docs; v0.7.1 caught a zero-FP false
 positive). No functional defect; the mechanical version-prose sweep was clean.
+
+---
+
+## v0.7.3 dogfood self-audit — 2026-07-19
+
+Ran the `plumb-line-audit` method on plumb-line's own v0.7.3 diff (`c88204b..HEAD`),
+lens on P6 (maturity honesty) and P9-style drift. **No product-code violations**;
+two doc/test-discipline items, **both fixed before the tag** (commit `9574cbc`). The
+adapter code, README, CHANGELOG, ROADMAP #92 closure, and version bump were all
+consistent (mechanical version sweep clean).
+
+| # | Location | Principle | Finding | Resolution |
+| --- | --- | --- | --- | --- |
+| 1 | `docs/adr/0013…md` §3 vs the combinator tests | P6 | ADR-0013 claimed *each* combinator's test asserts the result audits clean, but only `plumb_concat`/`plumb_concatenate` did — `plumb_merge`, both `plumb_derive`s, and `plumb_stack` tested propagation but never called `.audit()`. The ADR overstated the shipped test discipline. | **Fixed** — added `assert out.audit() == []` to the merge/derive/stack tests so the shipped tests match the ADR's promise (the stronger fix: fulfil the discipline, don't weaken the claim). |
+| 2 | `PlumbDataFrame`/`PlumbArray` class docstrings | consistency (advisory) | The class docstring's "`.value` is the frame/array" contradicted `plumb_derive`'s own docstring (a reducing `fn` yields a Series/scalar) — an inconsistency introduced by the whole-branch-review Minor-2 docstring note. | **Fixed** — softened the class docstrings to "typically a frame/array; a reducing combinator may yield a narrower type." |
+
+Both are honesty drift the dogfood exists to catch (v0.7.0: stale version docs;
+v0.7.1: a zero-FP false positive; v0.7.2: ROADMAP describing an ADR-rejected design;
+v0.7.3: an ADR promising test discipline the tests didn't fully carry).
