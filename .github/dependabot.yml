@@ -45,3 +45,14 @@ updates:
       pip:
         patterns:
           - "*"
+    # These majors drop the supported Python 3.9 runtime (documented in
+    # requirements-test.in: pytest >=9 and import-linter >2.5.2 both require
+    # >=3.10). Dependabot kept re-proposing them in the pip group, and every such
+    # PR failed the py3.9 CI leg. Ignore them so the 3.9 floor holds until it is
+    # deliberately raised; the pip group still proposes 3.9-safe bumps (which
+    # then need the manual uv recompile above).
+    ignore:
+      - dependency-name: "pytest"
+        versions: [">=9"]
+      - dependency-name: "import-linter"
+        versions: [">2.5.2"]
