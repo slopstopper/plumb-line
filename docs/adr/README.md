@@ -35,3 +35,4 @@ record is append-only.
 | [0010](0010-wire-v2-schema-batch.md)                    | Wire v2 — batch the schema-breaking changes into one bump  | Accepted |
 | [0011](0011-enforcement-rule-scoping.md)                | Output-tag enforcement is scoped to a declared surface     | Accepted |
 | [0012](0012-ecosystem-adapters-optional-deps-and-mapping.md) | Ecosystem adapters — optional deps + source-vs-freshness mapping | Accepted |
+| [0013](0013-dataframe-adapters-explicit-combinators.md)  | Dataframe adapters — explicit combinators, no proxying, Python-only | Accepted |
