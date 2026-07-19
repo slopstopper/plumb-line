@@ -604,3 +604,35 @@ architecture supplied verbatim: 2× each `broken/` fixture, 1× each `clean/`.
 
 See [`dogfood.md`](dogfood.md), v0.7.2 section — 0 confirmed violations, 5 advisory
 doc/comment-drift items, all fixed before the tag.
+
+---
+
+## v0.7.3 release-harness record — 2026-07-19
+
+Release: **v0.7.3** "Dataframe adapters" (pandas/numpy wrappers; completes #92).
+Diff since v0.7.2 touched `primitives/`, so the harness ran. No wire change
+(`PROVENANCE_VERSION` stays 2 — adapters call `combine_provenance`/`make_meta`).
+
+### Part 1 — Blind validation (release-blocking) — **PASS (6/6)**
+
+Six read-only auditors, plain identical prompt, answer keys withheld: 2× each
+`broken/` fixture, 1× each `clean/`.
+
+| Fixture | Runs | Planted set caught | Verdict |
+| --- | --- | --- | --- |
+| `js-payments-service/broken` | 2 | `rates.js` P2, `pricing.js` P5, `gateway.js` P3 — every run | PASS |
+| `python-data-pipeline/broken` | 2 | `schema.py` P2, `aggregate.py` P5, `source.py` **P8** — every run | PASS |
+| `js-payments-service/clean` | 1 | 0 confirmed violations | PASS |
+| `python-data-pipeline/clean` | 1 | 0 confirmed violations | PASS |
+
+The **P8 missing-lineage** regression was caught in **both** `python-data-pipeline/broken`
+runs. All six emitted the `report-format: v3` header + coverage map; no format FAILs.
+
+### Part 1b — Remediate validation
+
+**Skipped** — the diff does not touch `skills/plumb-line-remediate/SKILL.md`.
+
+### Part 2 — Dogfood self-audit
+
+See [`dogfood.md`](dogfood.md), v0.7.3 section — 0 code violations; 1 P6 doc/test-discipline
+gap + 1 doc-consistency advisory, both fixed before the tag.
