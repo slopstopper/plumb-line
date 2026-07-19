@@ -19,8 +19,10 @@ _PANDAS_HINT = ('needs pandas; install it with: '
 
 
 class PlumbDataFrame:
-    """A pandas DataFrame carrying a provenance envelope. `.value` is the frame;
-    `.meta` is the standard envelope (audit_meta/validate_envelope work on it)."""
+    """A pandas DataFrame carrying a provenance envelope. `.value` is the frame
+    (typically a DataFrame; a reducing `plumb_derive` may yield a narrower pandas
+    type such as a Series); `.meta` is the standard envelope
+    (audit_meta/validate_envelope work on it)."""
 
     def __init__(self, value, source='derived', confidence='none', **meta_input):
         try:

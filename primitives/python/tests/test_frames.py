@@ -51,6 +51,7 @@ def test_merge_runs_join_and_combines_meta():
     assert out.meta["derived_from_mock"] is True
     assert out.meta["confidence"] == "medium"     # weakest of high/medium
     assert set(out.value.columns) == {"id", "x", "y"}
+    assert out.audit() == []                      # combinator output audits clean
 
 
 def test_derive_general_combinator():
@@ -60,6 +61,7 @@ def test_derive_general_combinator():
     assert out.meta["source"] == "derived"
     assert out.meta["confidence"] == "medium"
     assert int(out.value["v"].iloc[0]) == 3
+    assert out.audit() == []                      # combinator output audits clean
 
 
 def test_taint_cannot_be_cleared_via_override():
