@@ -9,7 +9,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **#92 (completed) — Dataframe adapters (pandas / numpy).** `PlumbDataFrame` and
+  `PlumbArray` wrap a frame/array with a provenance envelope; explicit combinators
+  (`plumb_concat`/`plumb_merge`/`plumb_derive`; `plumb_concatenate`/`plumb_stack`)
+  run the pandas/numpy operation on the values and the existing combination law on
+  the metas — so mock taint and the weakest confidence propagate and cannot be
+  cleared. Ship as optional extras (`pip install "plumb-line-provenance[pandas]"`)
+  with a dependency-free import surface. The user declares `source` at wrap time
+  (no auto-classification); one envelope per frame. See ADR-0013. This completes
+  the ecosystem-adapters milestone (#92; HTTP taggers shipped in v0.7.2).
+
+_No wire change — `PROVENANCE_VERSION` stays `2`._
 
 ## [0.7.2] — 2026-07-15
 
