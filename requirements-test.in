@@ -14,3 +14,5 @@ import-linter==2.5.2
 build==1.4.4
 requests
 httpx
+pandas
+numpy
