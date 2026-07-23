@@ -3,8 +3,7 @@ a provenance envelope by status + cache state (see ADR-0012).
 
 The classification core (`classify_response`) is dependency-free. The taggers and
 convenience wrappers guard-import their library at call time, so importing this
-module — and calling `classify_response` — needs no third-party package. Added in
-a later task."""
+module — and calling `classify_response` — needs no third-party package."""
 
 import math
 

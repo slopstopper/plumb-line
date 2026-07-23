@@ -339,3 +339,43 @@ documented-as-zero-FP checker that *wasn't* — surfaced by running the method o
 our own diff, after per-task and whole-branch reviews both missed the
 false-positive direction of the reassignment gap. Fixed before the tag; the
 mechanical version-prose sweep (the v0.7.0 P9 class) came back clean.
+
+---
+
+## v0.7.2 dogfood self-audit — 2026-07-15
+
+Ran the `plumb-line-audit` method on plumb-line's own v0.7.2 diff
+(`d933c4c..HEAD`), lens on P6 (maturity honesty) and P9-style drift. **0 confirmed
+violations; 5 advisory doc/comment-drift items — all fixed before the tag** (commit
+`8bd305f`). The shipped mapping code is correct and matches its own fixture + CI guard.
+
+| # | Location | Principle | Finding | Resolution |
+| --- | --- | --- | --- | --- |
+| 1 | `ROADMAP.md` #92 | P6 | Roadmap still described the requests/httpx adapter with the **ADR-0012-rejected** binary mapping (`source: real or fallback`); the shipped code never emits `fallback`. | **Fixed** — rewrote to the shipped `real/high · real/medium · unavailable/none` mapping + ADR-0012 link. |
+| 2 | `ROADMAP.md` #92 | P9 | #92 lacked a "shipped" marker despite the file annotating every other completed item. | **Fixed** — added "HTTP portion shipped in v0.7.2 (pandas/numpy pending v0.7.3)". |
+| 3 | `primitives/python/http.py` docstring | P6 | Shipped docstring ended "Added in a later task." — stale planning scaffolding; the taggers are implemented in that same file. | **Fixed** — sentence removed. |
+| 4 | `scripts/check_http_guarded_imports.py` comment | P6 | Comment referenced "see Task 1", meaningless to an external reader. | **Fixed** — made self-contained (explains the stdlib-`http` shadow). |
+| 5 | `primitives/python/README.md` | P6 | The `from_cache` flag was listed as an equal cache-detection mechanism, but it's a no-op for stock requests/httpx (only caching-wrapper libs set it) and untested at the tagger level — overclaimed parity with the header heuristics. | **Fixed** — qualified: header detection is what fires for stock clients; `from_cache` honored if a wrapper sets it. |
+
+Every finding is documentation/comment honesty drift — exactly what this pass
+exists to catch (v0.7.0 caught stale version docs; v0.7.1 caught a zero-FP false
+positive). No functional defect; the mechanical version-prose sweep was clean.
+
+---
+
+## v0.7.3 dogfood self-audit — 2026-07-19
+
+Ran the `plumb-line-audit` method on plumb-line's own v0.7.3 diff (`c88204b..HEAD`),
+lens on P6 (maturity honesty) and P9-style drift. **No product-code violations**;
+two doc/test-discipline items, **both fixed before the tag** (commit `9574cbc`). The
+adapter code, README, CHANGELOG, ROADMAP #92 closure, and version bump were all
+consistent (mechanical version sweep clean).
+
+| # | Location | Principle | Finding | Resolution |
+| --- | --- | --- | --- | --- |
+| 1 | `docs/adr/0013…md` §3 vs the combinator tests | P6 | ADR-0013 claimed *each* combinator's test asserts the result audits clean, but only `plumb_concat`/`plumb_concatenate` did — `plumb_merge`, both `plumb_derive`s, and `plumb_stack` tested propagation but never called `.audit()`. The ADR overstated the shipped test discipline. | **Fixed** — added `assert out.audit() == []` to the merge/derive/stack tests so the shipped tests match the ADR's promise (the stronger fix: fulfil the discipline, don't weaken the claim). |
+| 2 | `PlumbDataFrame`/`PlumbArray` class docstrings | consistency (advisory) | The class docstring's "`.value` is the frame/array" contradicted `plumb_derive`'s own docstring (a reducing `fn` yields a Series/scalar) — an inconsistency introduced by the whole-branch-review Minor-2 docstring note. | **Fixed** — softened the class docstrings to "typically a frame/array; a reducing combinator may yield a narrower type." |
+
+Both are honesty drift the dogfood exists to catch (v0.7.0: stale version docs;
+v0.7.1: a zero-FP false positive; v0.7.2: ROADMAP describing an ADR-rejected design;
+v0.7.3: an ADR promising test discipline the tests didn't fully carry).

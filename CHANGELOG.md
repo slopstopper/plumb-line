@@ -9,6 +9,34 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Changed
+- **Minimum Python is now 3.11** (was 3.8; 3.9/3.10 are EOL or near-EOL). Adopted
+  an EOL-tracking [support policy](SUPPORT.md): the floor follows Python's EOL
+  calendar rather than whatever a dependency last dropped. This collapses the
+  `requirements-test.txt` universal py3.9/≥3.10 lock split into a single flat
+  hashed lock, so the recurring per-cycle lock reconciliation (and the
+  `check-lock-sync` guard + pip Dependabot special-casing) is gone; held test-dep
+  bumps (pytest 9, import-linter 2.13, ruff 0.15.22, build 1.5.0) are taken. The
+  **runtime library API is unchanged** — this only moves the supported/tested
+  interpreter floor. `PROVENANCE_VERSION` stays `2`.
+
+## [0.7.3] — 2026-07-19
+
+### Added
+- **#92 (completed) — Dataframe adapters (pandas / numpy).** `PlumbDataFrame` and
+  `PlumbArray` wrap a frame/array with a provenance envelope; explicit combinators
+  (`plumb_concat`/`plumb_merge`/`plumb_derive`; `plumb_concatenate`/`plumb_stack`)
+  run the pandas/numpy operation on the values and the existing combination law on
+  the metas — so mock taint and the weakest confidence propagate and cannot be
+  cleared. Ship as optional extras (`pip install "plumb-line-provenance[pandas]"`)
+  with a dependency-free import surface. The user declares `source` at wrap time
+  (no auto-classification); one envelope per frame. See ADR-0013. This completes
+  the ecosystem-adapters milestone (#92; HTTP taggers shipped in v0.7.2).
+
+_No wire change — `PROVENANCE_VERSION` stays `2`._
+
+## [0.7.2] — 2026-07-15
+
 ### Added
 - **#92 — HTTP ingestion adapters (requests / httpx / fetch).** Auto-tag HTTP
   responses with a provenance envelope at ingestion: `2xx fresh → real/high`,
@@ -357,7 +385,9 @@ These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes th
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/effythealien/plumb-line/compare/v0.7.2...v0.7.3
+[0.7.2]: https://github.com/effythealien/plumb-line/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/effythealien/plumb-line/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/effythealien/plumb-line/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/effythealien/plumb-line/compare/v0.5.1...v0.6.0

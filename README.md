@@ -73,6 +73,7 @@ The envelope carries `source`, `confidence`, `derivedFromMock`, and `lineage`, p
 The envelope and the law are a **specification, not just an implementation**: [`primitives/SPEC.md`](primitives/SPEC.md) defines envelope schema version 2, and a single cross-language [conformance suite](primitives/conformance/) pins JS and Python to identical behavior — so parity is enforced by data, not by prose. See [`primitives/README.md`](primitives/README.md) for the model, the law, and worked examples.
 
 - **HTTP ingestion adapters** — auto-tag `requests`/`httpx`/`fetch` responses with provenance by status and cache state (optional extras; zero-dep core unaffected). See [ADR-0012](docs/adr/0012-ecosystem-adapters-optional-deps-and-mapping.md).
+- **Dataframe adapters** — `PlumbDataFrame`/`PlumbArray` wrap pandas/numpy with provenance and propagate taint through explicit combinators (optional extras; zero-dep core unaffected). See [ADR-0013](docs/adr/0013-dataframe-adapters-explicit-combinators.md).
 
 ## The skills (review-time)
 

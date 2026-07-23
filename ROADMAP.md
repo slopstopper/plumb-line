@@ -167,7 +167,7 @@ Scope:
 
 ### 2. Ecosystem adapters for common data sources
 
-**Priority: high** · Milestone: v0.7.0 · GitHub: #92
+**Priority: high** · Milestone: v0.7.0 · GitHub: #92 · **Shipped: HTTP in v0.7.2, pandas/numpy in v0.7.3**
 
 Taint propagation in security tools works because common sources (HTTP
 requests, user input, env vars) are pre-tagged — developers don't mark every
@@ -176,11 +176,15 @@ call site, which is a steep on-ramp for data/ML teams.
 
 Build thin wrappers that auto-tag values at the point of ingestion:
 
-- **Python:** `pandas` adapter — `PlumbDataFrame` wraps a DataFrame with a
-  provenance envelope; operations that combine frames propagate taint
-  automatically via `combineProvenance`. Similar wrapper for `numpy` arrays.
-- **Python:** `requests`/`httpx` adapter — responses tagged `source: real` or
-  `source: fallback` based on status code / cache header.
+- **Python:** `pandas`/`numpy` adapters — `PlumbDataFrame`/`PlumbArray` wrap a
+  frame/array with a provenance envelope; explicit combinators
+  (`plumb_concat`/`plumb_merge`/`plumb_derive`, `plumb_concatenate`/`plumb_stack`)
+  propagate taint via `combine_provenance`. See
+  [ADR-0013](docs/adr/0013-dataframe-adapters-explicit-combinators.md).
+- **Python:** `requests`/`httpx` adapter — responses tagged by status + cache
+  state, `source` = origin and `confidence` = freshness: `2xx fresh → real/high`,
+  `2xx cached/304 → real/medium`, `4xx/5xx → unavailable/none` (never `fallback`).
+  See [ADR-0012](docs/adr/0012-ecosystem-adapters-optional-deps-and-mapping.md).
 - **JS:** `fetch` adapter — same pattern; tags the resolved value before
   returning to the caller.
 

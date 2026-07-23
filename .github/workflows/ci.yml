@@ -19,30 +19,13 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: "20"
       - name: The 3 release manifests must report the same version
         run: node scripts/check-versions.mjs
       - name: The plugin-bundled primitive must not drift from primitives/
         run: node scripts/check-bundle-sync.mjs
-
-  lockfile:
-    name: Requirements lock is universal (py3.9-safe)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
-        with:
-          python-version: "3.12"
-      # No deps needed — the guard only inspects requirements-test.txt. It fails
-      # if the universal Python-version split markers were flattened (what
-      # Dependabot does when it regenerates the lock), which would otherwise
-      # break `pip install --require-hashes` on the Python 3.9 job below.
-      - name: requirements-test.txt keeps its Python 3.9 / >=3.10 splits
-        run: python scripts/check-lock-sync.py
 
   javascript:
     name: JavaScript (Node ${{ matrix.node }})
@@ -55,7 +38,7 @@ jobs:
         node: ["20"]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: ${{ matrix.node }}
       - name: primitives/js — provenance primitive
@@ -76,7 +59,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: "20"
       - name: ESLint — primitives/js
@@ -85,7 +68,7 @@ jobs:
       - name: ESLint — adapters/js
         working-directory: adapters/js
         run: npm ci && npm run lint
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
       - name: install lint deps (hash-pinned)
@@ -102,14 +85,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.9", "3.12"]
+        python: ["3.11", "3.13"]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - name: http adapter — guarded imports work with NO extras installed
-        run: python scripts/check_http_guarded_imports.py
+      - name: adapters — guarded imports work with NO extras installed
+        run: python scripts/check_adapter_guarded_imports.py
       - name: install test deps
         # --require-hashes: every dep (incl. transitive) must match a hash in
         # the lock, so a compromised index cannot swap in a tampered wheel.

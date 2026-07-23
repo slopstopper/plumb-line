@@ -26,22 +26,11 @@ updates:
     schedule:
       interval: "weekly"
 
-  # pip: pinned test/release dependencies.
-  #
-  # requirements-test.txt is a *universal* uv-compiled lock (see its header and
-  # scripts/check-lock-sync.py): it carries `python_full_version` markers so the
-  # supported Python 3.9 runtime keeps installable pins even where newer releases
-  # require >=3.10. Dependabot can't run uv, so it flattens those markers and
-  # breaks the 3.9 CI leg. The `lockfile` CI job now catches that, but a pip PR
-  # here still needs its lock recompiled before it can go green:
-  #   uv pip compile requirements-test.in --generate-hashes --universal \
-  #       --python-version 3.9 -o requirements-test.txt
-  # Grouped into a single PR to keep that manual recompile to once per cycle.
+  # pip: pinned test/release dependencies. requirements-test.txt is a uv-compiled
+  # hashed lock; recompile after a bump per the requirements-test.in header. With
+  # the Python floor at 3.11 (SUPPORT.md) the lock is a single flat resolution, so
+  # a routine bump no longer needs a universal split or a manual reconcile.
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
-    groups:
-      pip:
-        patterns:
-          - "*"

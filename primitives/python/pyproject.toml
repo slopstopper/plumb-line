@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "plumb-line-provenance"
-version = "0.7.1"
+version = "0.7.3"
 description = "Conservative provenance/confidence/lineage envelope with a taint-propagation combination law. Mock or low-confidence data cannot launder itself clean."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 license = "Apache-2.0"
 authors = [{ name = "Aoife Okonedo Martin" }]
 keywords = ["provenance", "lineage", "confidence", "epistemic-honesty", "reproducibility", "data-quality"]
@@ -17,18 +17,23 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Topic :: Software Development :: Quality Assurance",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 [project.optional-dependencies]
 requests = ["requests>=2.25"]
 httpx = ["httpx>=0.23"]
+pandas = ["pandas>=1.3"]
+numpy = ["numpy>=1.20"]
 
 [project.urls]
 Homepage = "https://github.com/slopstopper/plumb-line"
 Repository = "https://github.com/slopstopper/plumb-line"
 Specification = "https://github.com/slopstopper/plumb-line/blob/main/primitives/SPEC.md"
 
-# Flat layout: the three source modules live in this directory and are packaged
+# Flat layout: the source modules live in this directory and are packaged
 # under the import name `plumb_line_provenance`. Tests are excluded from the dist.
 [tool.setuptools]
 packages = ["plumb_line_provenance"]
