@@ -3,7 +3,9 @@
 Planned features for future versions. The **Milestones** section below is the
 authoritative version→work index; the **Planned** section holds the detail for
 each numbered item (item IDs are stable — GitHub issues reference them as
-"ROADMAP #N"). GitHub milestones track issue-level status.
+"ROADMAP #N"). Issue-level status lives on GitHub: release milestones for
+scheduled work, `track:*` labels for deliberately unscheduled work — see *How
+this backlog is organised* below.
 
 ## North star
 
@@ -11,13 +13,44 @@ The long-run identity (status: **planned** — this names direction, not current
 capability): plumb-line is **the epistemic honesty layer for agent-built
 software**, with the provenance library as its runtime enforcement arm. Three
 horizons: (1) deepen the existing promise — P9 tooling, boundary gates,
-CI-native enforcement (v0.8.0–v0.9.0); (2) make provenance a property of a
+CI-native enforcement (v0.9.0–v0.10.0); (2) make provenance a property of a
 *system*, not a process — taint that survives serialization, files, and HTTP
 (Provenance across boundaries); (3) make honest self-reporting a spec any agent
 can adopt — coverage maps, honest denominators, and envelopes on agent-produced
 claims (Agent epistemic state). What is **current** is exactly what the README
 Status section says; everything in this file is planned until CHANGELOG says
 otherwise.
+
+---
+
+## How this backlog is organised
+
+Two categories, deliberately kept apart, because mixing them is what let work
+hang:
+
+- **Release milestones** (`v0.8.0`, `v0.9.0`, …) are the only GitHub
+  *milestones*. A milestone means "these ship together, at a version". A
+  stalled release milestone is therefore always a real signal.
+- **Parallel tracks** are GitHub *labels* (`track:portable`,
+  `track:boundaries`, `track:agent-state`, `track:ecosystem`,
+  `track:skills`, `track:runtime`). They have no version and no due date by
+  design. They were previously modelled as milestones, which made them
+  permanently "stalled" by construction and trained the eye to ignore the
+  stalled signal.
+
+**Every open issue carries exactly one of the two.** A release milestone means
+*scheduled*; a track label means *deliberately unscheduled*. There is no third
+state — an issue with neither is a tracking bug, not a backlog item. This is the
+maturity vocabulary (`current` / `planned`) applied to the backlog itself:
+unscheduled is a recorded decision, not neglect.
+
+**Deferrals have an outbox.** Findings deferred by an audit, dogfood pass, or
+review are filed as issues labelled `audit-deferral` — that part already worked.
+What was missing was a way out: at each release-scoping moment, every open
+`audit-deferral` older than **30 days** is either scheduled into the next
+release or closed with a written waiver. No third option, no silent aging. The
+same shape as the provenance ratchet (#26): don't demand zero, refuse
+regression.
 
 ---
 
@@ -75,67 +108,99 @@ Version themes for the near-term releases, and the GitHub issues under each.
   slot or a profile mechanism, decided **before** v2 tags (#23 / GH #116) —
   it is the last cheap chance to touch the ladder.
 
-- **v0.8.0 — Honest over time** (P9 tooling + CI-native). Principle 9 finally
-  gets an implementation: `plumb-line baseline` CLI — golden baseline with
-  lineage-attributed drift (#24 / GH #117); a GitHub Action running the
-  deterministic adapters with SARIF output (#25 / GH #118); a provenance
-  ratchet — "no *new* untagged outputs vs. main" — for incremental adoption on
-  legacy codebases (#26 / GH #119, deps #1). Deterministic-only, no
-  wire-format dependency: **can start alongside v0.7.0**.
+- **v0.8.0 — Firm ground** (pay the debt, prove the gates). Ships the
+  already-merged Python 3.11 floor + `SUPPORT.md` EOL policy — a supported-
+  runtime change to published packages, so **minor** under pre-1.0 SemVer, which
+  is what forced this release ahead of the P9 work. Around it, the deferral
+  backlog gets its first scheduled drain: the deterministic-gate cluster —
+  wire-bump prose-drift guard (GH #160), `report-format`/`remediation-format`
+  validator (GH #139), JS pre-commit-gate wiring test (GH #163),
+  `require-provenance-output` onboarding wiring (GH #164) — and the
+  parity-pinning batch — non-numeric `provenanceVersion` advisory (GH #156),
+  SPEC §5 dict-subclass divergence (GH #165), `Age`-header parity rows
+  (GH #172) — plus the accepted Scorecard residuals record (GH #77).
+  Deliberately small; the point is that deferrals now have an outbox.
 
-- **v0.9.0 — Refuse and explain** (runtime gates + legibility). The runtime
-  learns to say no and to explain itself: egress guard `require()` (#27 /
-  GH #120), `explain()` human-readable lineage + Mermaid/DOT (#28 / GH #121),
-  `summarize()` trust summary for artifacts (#29 / GH #122), pytest/vitest
-  quarantine plugins (#30 / GH #123). Sequenced after wire v2 so new envelope
-  fields are settled; every primitive lands in both languages with conformance
-  rows.
+- **v0.9.0 — Honest over time** (P9 tooling + CI-native) · *renumbered from
+  v0.8.0.* Principle 9 finally gets an implementation: `plumb-line baseline`
+  CLI — golden baseline with lineage-attributed drift (#24 / GH #117); a GitHub
+  Action running the deterministic adapters with SARIF output (#25 / GH #118);
+  a provenance ratchet — "no *new* untagged outputs vs. main" — for incremental
+  adoption on legacy codebases (#26 / GH #119, deps #1, closed in v0.7.0). Also
+  takes the bundle vendor-set enumeration footgun (GH #157), which needs a
+  glob-vs-enumerate ADR rather than a scope-filler fix. Deterministic-only, no
+  wire-format dependency.
 
-- **Portable beyond Claude** (parallel track, version TBD). Agent-neutral method
+- **v0.10.0 — Refuse and explain** (runtime gates + legibility) · *renumbered
+  from v0.9.0.* The runtime learns to say no and to explain itself: egress guard
+  `require()` (#27 / GH #120), `explain()` human-readable lineage + Mermaid/DOT
+  (#28 / GH #121), `summarize()` trust summary for artifacts (#29 / GH #122),
+  pytest/vitest quarantine plugins (#30 / GH #123). Sequenced after wire v2 so
+  new envelope fields are settled; every primitive lands in both languages with
+  conformance rows. Two deferrals ride here because both are API-semantics
+  decisions this milestone has to settle anyway: the `http.py` stdlib-shadow
+  rename (GH #171, which breaks the documented flat copy-paste path) and the
+  wrapper/`mark` default `source='derived'` producing an audit-dirty leaf
+  (GH #177, inherited from the primitive's own default).
+
+- **Portable beyond Claude** (label `track:portable`). Agent-neutral method
   core + agent-adapter contract (#12 / GH #58), MCP server exposing the three
   skills (#13 / GH #59, deps #12), per-host rule-file packs (#14 / GH #60).
   Orthogonal to the release train — can run alongside the versions above.
 
-- **Provenance across boundaries** (parallel track, version TBD; starts after
+- **Provenance across boundaries** (label `track:boundaries`; starts after
   wire v2). Taint must survive process boundaries or the guarantee only holds
   in-memory: canonical JSON serialization convention (#31 / GH #124),
   file-artifact sidecars (#32 / GH #125, deps #31), HTTP provenance-context
   header (#33 / GH #126, deps #31).
 
-- **Agent epistemic state** (parallel track, version TBD; the identity track —
+- **Agent epistemic state** (label `track:agent-state`; the identity track —
   can start early, it is skill-surface with no runtime dependency beyond the
   ladder decision). Generalize the audit skill's coverage-map / honest-
   denominator machinery into a versioned spec for honest agent self-reporting
   (#34 / GH #127), and a convention + Claude Code hook so agent-produced claims
   and code carry envelopes (#35 / GH #128, deps #23, #34).
 
-- **Ecosystem docking** (parallel track, demand-driven — design notes first,
-  code when a real user asks). OpenLineage exporter (#36 / GH #129), W3C PROV-O
-  vocabulary mapping (#37 / GH #130), dbt model-level tags through the DAG
-  (#38 / GH #131).
+- **Ecosystem docking** (label `track:ecosystem`, demand-driven — design notes
+  first, code when a real user asks). OpenLineage exporter (#36 / GH #129), W3C
+  PROV-O vocabulary mapping (#37 / GH #130), dbt model-level tags through the
+  DAG (#38 / GH #131).
 
-- **Backlog** (unversioned). Guaranteed total-sweep audit via subagent fan-out,
-  with a token-cost warning (#22 / GH #90); IDE integration (#3); Go and Rust
-  ports (#7); relocate `provenance-lint` to `primitives/` (#8); type-level
-  enforcement — `Marked<T>` branded type + mypy plugin (#39 / GH #132, behind
-  v0.9.0).
+- **Skills surface** (label `track:skills`). The review-time half of the product,
+  which no track previously covered: guaranteed total-sweep audit via subagent
+  fan-out, with a token-cost warning (#22 / GH #90); an adoption guide skill for
+  less-technical users taking on the ecosystem adapters (GH #176).
+
+- **Runtime enforcement direction** (label `track:runtime`). Type-level
+  enforcement — `Marked<T>` branded type + mypy plugin (#39 / GH #132).
+
+- **Backlog** (unversioned, no issue filed yet). IDE integration (#3); Go and
+  Rust ports (#7); relocate `provenance-lint` to `primitives/` (#8).
 
 ### Priority order
 
-The sequencing rule: **finish the audit-trust arc first** (v0.5.1 → v0.6.0,
-already scoped — the only external user adopted the audit skill), then take the
-one-shot schema window (v0.7.0 + the ladder decision), then the two new
-deepening milestones. Parallel tracks interleave by their stated dependencies:
+The audit-trust arc (v0.5.1 → v0.6.0) and the one-shot schema window (v0.7.0 +
+the ladder decision) are **shipped**. The sequencing rule from here: **drain the
+deferral backlog before adding surface**, then the two deepening milestones.
+Tracks interleave by their stated dependencies.
 
-1. **Now:** v0.5.1, then v0.6.0 (unchanged scope).
-2. **Next:** v0.7.0 — with #23 (ladder decision) added as a hard rider on the
-   wire-v2 tag. v0.8.0 may start in parallel (no wire dependency).
-3. **Then:** v0.8.0 → v0.9.0.
-4. **Parallel, start early:** Agent epistemic state (#34 first; #35 after the
-   ladder decision) and Portable beyond Claude — both skill-surface.
-5. **Parallel, after wire v2:** Provenance across boundaries (#31 → #32/#33).
-6. **Opportunistic:** Ecosystem docking — PROV-O mapping (#37) is cheap and
+1. **Now:** v0.8.0 — the merged Python 3.11 floor forces a minor release, so it
+   carries the first scheduled deferral drain with it. Nothing in it is large.
+2. **Next:** v0.9.0 (P9 tooling + CI-native). No wire dependency; #119's
+   prerequisite (#1 / GH #91) closed in v0.7.0, so the milestone is unblocked.
+3. **Then:** v0.10.0 — sequenced after wire v2 so the envelope fields it adds
+   are settled.
+4. **Parallel, start early:** `track:agent-state` (#34 first; #35 after the
+   ladder decision) and `track:portable` — both skill-surface.
+5. **Parallel, after wire v2:** `track:boundaries` (#31 → #32/#33).
+6. **Opportunistic:** `track:ecosystem` — PROV-O mapping (#37) is cheap and
    credibility-bearing, do it whenever; OpenLineage/dbt wait for a pilot user.
+
+A note on the numbering: v0.9.0 and v0.10.0 were previously v0.8.0 and v0.9.0.
+They moved because the Python floor change was already merged and unreleased,
+and dropping 3.8–3.10 is minor under pre-1.0 SemVer — holding it back until P9
+tooling landed would have repeated the 0.2.0 mistake of letting shipped code sit
+behind a stale tag.
 
 ---
 
@@ -374,7 +439,7 @@ you cannot name a source-truth layer, that absence is the finding").
 
 ### 12. Agent-neutral method core + agent-adapter contract
 
-**Priority: high** · Milestone: Portable beyond Claude · GitHub: #58
+**Priority: high** · Track: `track:portable` · GitHub: #58
 
 The discipline is already portable in substance — `reference/portable-principles.md`
 is referenced, not restated; bootstrap emits `AGENTS.md` (not `CLAUDE.md`); and the
@@ -393,7 +458,7 @@ among several rather than the substrate.
 
 ### 13. MCP server exposing method/bootstrap/audit
 
-**Priority: high** · Milestone: Portable beyond Claude · GitHub: #59 · depends on #12
+**Priority: high** · Track: `track:portable` · GitHub: #59 · depends on #12
 
 An MCP server that exposes the three skills as tools lets any MCP-capable agent
 (Codex, Cursor, Qwen, Continue) run them with zero rewrite — the highest-leverage
@@ -405,7 +470,7 @@ unmodified from a non-Claude host against the worked fixtures in `examples/`.
 
 ### 14. Per-host rule-file packs
 
-**Priority: medium** · Milestone: Portable beyond Claude · GitHub: #60
+**Priority: medium** · Track: `track:portable` · GitHub: #60
 
 Beyond `AGENTS.md`, generate the host-specific rule file for whichever agent the
 builder uses — `.cursor/rules`, `.github/copilot-instructions.md`, `CLAUDE.md`,
@@ -498,7 +563,7 @@ intended first-run flow instead of promising auto-run.
 
 ### 22. Audit — guaranteed total sweep (subagent fan-out)
 
-**Priority: low** · Milestone: Backlog · GitHub: #90
+**Priority: low** · Track: `track:skills` (unscheduled) · GitHub: #90
 
 Fan out subagents to chunk the whole tree so large repos are genuinely fully read,
 not sampled. **Must ship a token-consumption warning** — this is expensive.
@@ -521,7 +586,7 @@ The Agent epistemic state track (#35) needs a ladder position to point at.
 
 ### 24. `plumb-line baseline` CLI — golden baseline + lineage-attributed drift
 
-**Priority: high** · Milestone: v0.8.0 · GitHub: #117
+**Priority: high** · Milestone: v0.9.0 · GitHub: #117
 
 Principle 9 (golden baseline + explain-the-drift) currently has **no
 implementation anywhere in the repo** — until this ships, P9 is
@@ -536,7 +601,7 @@ just diffed. Deterministic; both languages; no wire dependency.
 
 ### 25. GitHub Action + SARIF output for the deterministic adapters
 
-**Priority: high** · Milestone: v0.8.0 · GitHub: #118
+**Priority: high** · Milestone: v0.9.0 · GitHub: #118
 
 Review-time enforcement currently assumes a Claude session. A composite GitHub
 Action running the boundary check, provenance lint, and (once shipped) the
@@ -549,7 +614,7 @@ deterministic floor.
 
 ### 26. Provenance ratchet — no new untagged outputs vs. main
 
-**Priority: high** · Milestone: v0.8.0 · GitHub: #119 · depends on #1 (GH #91)
+**Priority: high** · Milestone: v0.9.0 · GitHub: #119 · depends on #1 (GH #91, closed in v0.7.0)
 
 The honest answer to "how does a 300k-line legacy repo adopt this?" is
 currently "it can't, realistically." The proven incremental pattern from
@@ -562,7 +627,7 @@ pre-commit gate.
 
 ### 27. Egress guard — `require(x, { noMock, minConfidence })`
 
-**Priority: high** · Milestone: v0.9.0 · GitHub: #120
+**Priority: high** · Milestone: v0.10.0 · GitHub: #120
 
 `auditMeta` flags problems after the fact; nothing *stops* a tainted value at
 the door. A small guard that throws (or returns a typed refusal) at
@@ -575,7 +640,7 @@ conformance rows per predicate; failing test first.
 
 ### 28. `explain(envelope)` — human-readable lineage
 
-**Priority: medium** · Milestone: v0.9.0 · GitHub: #121
+**Priority: medium** · Milestone: v0.10.0 · GitHub: #121
 
 Lineage is stored but not legible: no way to ask an envelope *why* it is
 low-confidence and get "tainted at step 2: `rate` was mock", and no visual
@@ -588,7 +653,7 @@ Deterministic output, parity-pinned.
 
 ### 29. `summarize(envelopes)` — trust summary for artifacts
 
-**Priority: medium** · Milestone: v0.9.0 · GitHub: #122
+**Priority: medium** · Milestone: v0.10.0 · GitHub: #122
 
 One small record per artifact — % derived-from-mock, weakest source present,
 confidence floor, lineage depth — printable at the bottom of any report or
@@ -602,7 +667,7 @@ grade.
 
 ### 30. Test-harness plugins — automatic fixture quarantine
 
-**Priority: medium** · Milestone: v0.9.0 · GitHub: #123
+**Priority: medium** · Milestone: v0.10.0 · GitHub: #123
 
 Tests are where fake data is *supposed* to live; make the quarantine automatic
 there. A pytest plugin and vitest helper that auto-mark fixture-constructed
@@ -614,7 +679,7 @@ adoption friction. Ships as optional extras; zero-dependency core untouched.
 
 ### 31. Envelope transport — canonical JSON serialization convention
 
-**Priority: high** · Milestone: Provenance across boundaries · GitHub: #124
+**Priority: high** · Track: `track:boundaries` · GitHub: #124
 
 Envelopes are in-memory objects; taint evaporates at every HTTP response, DB
 write, file, or queue — today the guarantee only holds inside one process, and
@@ -628,7 +693,7 @@ conformance-pinned. Foundation for #32 and #33.
 
 ### 32. File-artifact sidecar convention
 
-**Priority: medium** · Milestone: Provenance across boundaries · GitHub: #125 · depends on #31
+**Priority: medium** · Track: `track:boundaries` · GitHub: #125 · depends on #31
 
 Data teams pass files around; taint dies at the file boundary. Define
 `<name>.provenance.json` sidecars for CSV/parquet/JSON artifacts (whole-file or
@@ -639,7 +704,7 @@ awareness: an output artifact with no sidecar is a P8 finding.
 
 ### 33. HTTP provenance-context header
 
-**Priority: medium** · Milestone: Provenance across boundaries · GitHub: #126 · depends on #31
+**Priority: medium** · Track: `track:boundaries` · GitHub: #126 · depends on #31
 
 Envelope context that travels across services the way W3C `traceparent`
 carries trace context: a header carrying the compact envelope so a consuming
@@ -652,7 +717,7 @@ fetch/requests/httpx adapters (#2), a worked two-service example. This is the
 
 ### 34. Agent-run epistemic-state spec
 
-**Priority: high** · Milestone: Agent epistemic state · GitHub: #127
+**Priority: high** · Track: `track:agent-state` · GitHub: #127
 
 The audit skill's coverage-honesty machinery (traversal plan,
 read/partial/not-read map, honest denominator — #19) is the seed of a general
@@ -666,7 +731,7 @@ tools entirely — can adopt. This is the identity track.
 
 ### 35. Agent-output provenance convention + hook
 
-**Priority: high** · Milestone: Agent epistemic state · GitHub: #128 · depends on #23, #34
+**Priority: high** · Track: `track:agent-state` · GitHub: #128 · depends on #23, #34
 
 A convention whereby agent-produced claims and code carry envelopes:
 `source: inferred` (pending #23), stated confidence, lineage recording the
@@ -678,7 +743,7 @@ the method skill.
 
 ### 36. OpenLineage exporter
 
-**Priority: low (demand-driven)** · Milestone: Ecosystem docking · GitHub: #129
+**Priority: low (demand-driven)** · Track: `track:ecosystem` · GitHub: #129
 
 plumb-line is value-level lineage; OpenLineage is dataset/job-level. An
 exporter mapping envelope lineage onto OpenLineage facets slots plumb-line into
@@ -689,7 +754,7 @@ Design note first; build when a real user asks.
 
 ### 37. W3C PROV-O vocabulary mapping
 
-**Priority: medium (cheap)** · Milestone: Ecosystem docking · GitHub: #130
+**Priority: medium (cheap)** · Track: `track:ecosystem` · GitHub: #130
 
 A documented mapping from the envelope schema to PROV-O terms
 (Entity/Activity/Agent, `wasDerivedFrom`, …). A reference document, not code —
@@ -700,7 +765,7 @@ README names as primary. Lives in `reference/`.
 
 ### 38. dbt adapter — source/confidence through the DAG
 
-**Priority: low (demand-driven)** · Milestone: Ecosystem docking · GitHub: #131
+**Priority: low (demand-driven)** · Track: `track:ecosystem` · GitHub: #131
 
 SQL is where most real-world derivation happens and neither primitive touches
 it. Models declare `source`/`confidence` meta tags; a macro or post-hook
@@ -712,7 +777,7 @@ from the current codebase — validate with a design note + one pilot user first
 
 ### 39. Type-level enforcement — `Marked<T>` + mypy plugin
 
-**Priority: low** · Milestone: Backlog (behind v0.9.0) · GitHub: #132
+**Priority: low** · Track: `track:runtime` (unscheduled) · GitHub: #132
 
 Stronger than the AST lint (#1): a TypeScript branded type `Marked<T>` and a
 Python `typing.Annotated` + mypy plugin so functions declared to return
