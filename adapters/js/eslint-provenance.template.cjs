@@ -4,12 +4,33 @@
 //
 // Flat-config (ESLint 9+). The plugin lives in the adapter; point require() at
 // wherever bootstrap copied adapters/js/provenance-lint/.
-const provenance = require("./provenance-lint");
+//
+// The path is explicit down to index.cjs on purpose. Node's directory-index
+// resolution only tries index.js/.json/.node — NOT index.cjs — so bare
+// require("./provenance-lint") throws MODULE_NOT_FOUND against this directory.
+const provenance = require("./provenance-lint/index.cjs");
 
 module.exports = [
   {
     files: __GLOBS__, // e.g. ["src/**/*.{js,mjs}"]
     plugins: { "plumb-line": provenance },
     rules: { "plumb-line/no-provenance-bypass": "error" },
+  },
+  // Output-tag enforcement (ADR-0011). Scoped to a DECLARED SURFACE: inside it
+  // every function is checked by default; outside it the rule does not exist.
+  // The surface is deliberately a separate boundary from the globs above —
+  // "files that use the primitive" and "files whose outputs must carry
+  // provenance" are not the same set, and conflating them is how a broad rule
+  // starts crying wolf.
+  //
+  // Bootstrap replaces __OUTPUT_GLOBS__ with the trust-bearing surface the
+  // builder named (interview Q4/Q8), or REMOVES THIS WHOLE BLOCK if the builder
+  // declines. An unreplaced placeholder throws ReferenceError when ESLint loads
+  // this config — it fails loudly rather than silently linting nothing, the
+  // same contract as __GLOBS__ above.
+  {
+    files: __OUTPUT_GLOBS__, // e.g. ["src/pricing/**/*.{js,mjs}"]
+    plugins: { "plumb-line": provenance },
+    rules: { "plumb-line/require-provenance-output": "error" },
   },
 ];

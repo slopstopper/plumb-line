@@ -112,7 +112,8 @@ honestly, that impossibility is the finding.
 After the last fix, run what the project already trusts, and show the output:
 
 - plumb-line adapters if installed (boundary check, `no-provenance-bypass`
-  lint, pre-commit gate);
+  lint, `require-provenance-output` if the project declared a surface,
+  pre-commit gate);
 - otherwise the project's own linters/tests that cover the touched files;
 - at minimum, an import/load smoke check of every file changed.
 
