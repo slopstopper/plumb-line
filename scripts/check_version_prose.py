@@ -57,6 +57,33 @@ def is_exempt_path(path):
     return path.startswith(EXEMPT_PREFIXES)
 
 
+BADGE_README = "primitives/conformance/README.md"
+
+
+def badge_mismatch(badge, readme_text):
+    """None when the live badge appears verbatim in the conformance README.
+
+    A literal containment test rather than a version regex: the badge embeds the
+    shields.io URL and colour as well as the version, and all three can drift.
+    """
+    if badge and badge in readme_text:
+        return None
+    return (
+        f"{BADGE_README}: documented badge does not match "
+        f"`node primitives/conformance/report.mjs --badge`.\n"
+        f"  expected to find: {badge}"
+    )
+
+
+def live_badge():
+    """Badge markdown as the conformance tool currently emits it."""
+    out = subprocess.run(
+        ["node", "primitives/conformance/report.mjs", "--badge"],
+        cwd=_ROOT, capture_output=True, text=True, check=True,
+    )
+    return out.stdout.strip()
+
+
 def exempt_line_numbers(lines):
     """1-indexed line numbers exempted by an inline marker.
 

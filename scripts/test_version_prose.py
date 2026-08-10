@@ -78,6 +78,24 @@ def test_marker_does_not_exempt_unrelated_lines():
     assert findings[0].line_no == 1
 
 
+BADGE_V2 = (
+    "[![provenance: plumb-line v2]"
+    "(https://img.shields.io/badge/provenance-plumb--line_v2-3b82f6)]"
+    "(https://github.com/slopstopper/plumb-line/blob/main/primitives/SPEC.md)"
+)
+
+
+def test_badge_present_passes():
+    assert cvp.badge_mismatch(BADGE_V2, "intro\n" + BADGE_V2 + "\noutro") is None
+
+
+def test_badge_absent_is_reported():
+    stale = BADGE_V2.replace("v2", "v1")
+    msg = cvp.badge_mismatch(BADGE_V2, "intro\n" + stale + "\noutro")
+    assert msg is not None
+    assert "report.mjs --badge" in msg
+
+
 def test_historical_paths_are_exempt():
     assert cvp.is_exempt_path("CHANGELOG.md")
     assert cvp.is_exempt_path("docs/adr/0010-wire-v2-schema-batch.md")
