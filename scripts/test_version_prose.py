@@ -56,6 +56,28 @@ def test_unrelated_numbers_are_not_flagged():
     assert findings == []
 
 
+def test_marker_on_same_line_exempts_it():
+    text = "Additive; `PROVENANCE_VERSION` stayed 1. <!-- wire-version-historical -->"
+    assert cvp.scan_text("ROADMAP.md", text, 2) == []
+
+
+def test_marker_alone_on_next_line_exempts_previous_line():
+    text = "Additive; `PROVENANCE_VERSION` stayed 1.\n<!-- wire-version-historical -->\n"
+    assert cvp.scan_text("ROADMAP.md", text, 2) == []
+
+
+def test_marker_alone_skips_blank_lines_to_reach_target():
+    text = "schema version 1\n\n<!-- wire-version-historical -->\n"
+    assert cvp.scan_text("ROADMAP.md", text, 2) == []
+
+
+def test_marker_does_not_exempt_unrelated_lines():
+    text = "schema version 1\nschema version 1 <!-- wire-version-historical -->\n"
+    findings = cvp.scan_text("ROADMAP.md", text, 2)
+    assert len(findings) == 1
+    assert findings[0].line_no == 1
+
+
 def test_historical_paths_are_exempt():
     assert cvp.is_exempt_path("CHANGELOG.md")
     assert cvp.is_exempt_path("docs/adr/0010-wire-v2-schema-batch.md")

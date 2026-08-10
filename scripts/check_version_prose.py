@@ -57,10 +57,35 @@ def is_exempt_path(path):
     return path.startswith(EXEMPT_PREFIXES)
 
 
+def exempt_line_numbers(lines):
+    """1-indexed line numbers exempted by an inline marker.
+
+    The marker exempts the line it sits on. When it is alone on its own line it
+    exempts the nearest preceding non-blank line instead, so a wrapped markdown
+    bullet can be tagged without a trailing comment mid-sentence.
+    """
+    exempt = set()
+    for i, line in enumerate(lines):
+        if MARKER not in line:
+            continue
+        exempt.add(i + 1)
+        if line.strip() == MARKER:
+            j = i - 1
+            while j >= 0 and not lines[j].strip():
+                j -= 1
+            if j >= 0:
+                exempt.add(j + 1)
+    return exempt
+
+
 def scan_text(path, text, current):
     """Return a Finding for every canonical-form match whose version != current."""
     findings = []
-    for line_no, line in enumerate(text.splitlines(), start=1):
+    lines = text.splitlines()
+    exempt = exempt_line_numbers(lines)
+    for line_no, line in enumerate(lines, start=1):
+        if line_no in exempt:
+            continue
         for pattern in _PATTERNS:
             for m in pattern.finditer(line):
                 found = int(m.group(1))
