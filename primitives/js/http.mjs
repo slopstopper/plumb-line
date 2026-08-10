@@ -23,8 +23,13 @@ function header(headers, name) {
 // Either coercion would make cache detection language-dependent (#172). A
 // fractional part is tolerated because some proxies emit one and it is already
 // pinned in the conformance table; anything else reads as "no usable Age".
-// Returns a number, or null when the header is not a decimal value.
-const AGE_DECIMAL = /^\s*\d+(\.\d+)?\s*$/;
+//
+// EVERY character class is spelled explicitly, matching http.py. Neither \d nor
+// \s is safe here: Python's are Unicode-aware and JS's are not, in both
+// directions (JS \s matches U+FEFF and not U+0085; Python's is the reverse, and
+// also covers U+001C–001F). Surrounding space is [ \t] because RFC 7230 OWS is
+// SP/HTAB only. Returns a number, or null when the header is not a decimal value.
+const AGE_DECIMAL = /^[ \t]*[0-9]+(\.[0-9]+)?[ \t]*$/;
 
 export function parseAge(raw) {
   if (raw == null) return null;

@@ -31,21 +31,37 @@ def _header(headers, name):
 # tolerated because some proxies emit one and it is already pinned in the
 # conformance table; anything else reads as "no usable Age".
 # Mirror of parseAge in http.mjs.
-# [0-9] explicitly, NOT \d: Python's \d matches any Unicode decimal digit, so
-# \d would accept Arabic-Indic "٦٠" (and float() would happily return 60.0),
-# while JS \d without the u flag is ASCII-only and rejects it. Using \d here
-# would have replaced the coercion divergence this fix removes with a regex one.
-_AGE_DECIMAL = re.compile(r'^\s*[0-9]+(\.[0-9]+)?\s*$')
+# EVERY character class is spelled explicitly. Neither \d nor \s may be used
+# here: Python's are Unicode-aware and JS's (without the u flag) are not, in
+# BOTH directions —
+#   \d : Python accepts Arabic-Indic "٦٠", JS rejects it.
+#   \s : Python matches U+0085 (JS does not) and not U+FEFF (JS does), and
+#        Python's \s covers U+001C–001F, which float() then REJECTS — so a
+#        header of "\x1c60" passed the regex and raised out of the tagger.
+# Surrounding space is [ \t] because RFC 7230 OWS is SP/HTAB only; anything
+# else is not optional whitespace around a header value, it is a malformed
+# value. Getting this wrong replaces a coercion divergence with a regex one.
+_AGE_DECIMAL = re.compile(r'^[ \t]*[0-9]+(\.[0-9]+)?[ \t]*$')
 
 
 def parse_age(raw):
-    """Age header as a float, or None when it is not a decimal value."""
+    """Age header as a float, or None when it is not a decimal value.
+
+    Total by construction: never raises, whatever the remote sent. The pattern
+    above admits only ASCII digits and SP/HTAB, so float() cannot fail — the
+    try/except is a belt-and-braces guarantee, because this runs on
+    attacker-controlled header bytes and a crash in the tagging path is a worse
+    failure than an ignored Age.
+    """
     if raw is None:
         return None
     s = str(raw)
     if not _AGE_DECIMAL.match(s):
         return None
-    n = float(s)
+    try:
+        n = float(s)
+    except (ValueError, OverflowError):
+        return None
     return n if math.isfinite(n) else None
 
 

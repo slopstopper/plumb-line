@@ -31,11 +31,22 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     (`Number("0x10")` is 16) but not in Python (`float("0x10")` raises), and
     `Age: 1_000` did the reverse. Both now parse Age as RFC 7234 decimal
     delta-seconds via an explicit pattern; hex, underscore, scientific notation and
-    non-ASCII digits read as "no usable Age". The Python pattern spells the digit
-    class `[0-9]` rather than `\d`, because Python's `\d` matches any Unicode
-    decimal digit while JS's (without the `u` flag) is ASCII-only — `\d` would have
-    swapped a coercion divergence for a regex one. Pinned by five new
-    `http-cases.json` rows.
+    non-ASCII digits read as "no usable Age". **Every character class is spelled
+    out in both languages** (`[0-9]` not `\d`, `[ \t]` not `\s`): Python's classes
+    are Unicode-aware and JS's are not, in both directions — `\d` accepts
+    Arabic-Indic digits only in Python, `\s` matches U+0085 only in Python and
+    U+FEFF only in JS — so a shared-looking pattern would have swapped a coercion
+    divergence for a quieter regex one. `[ \t]` is also what RFC 7230 defines OWS
+    to be. Pinned by ten new `http-cases.json` rows.
+- **`audit_meta` and `parse_age` are total again on hostile input** (found in
+  review of this change, before merge). Two regressions introduced by the fixes
+  above: `math.isfinite()` on a large **int** raises `OverflowError`, breaking
+  SPEC §5's requirement that the checker never raise — an envelope deserialised
+  from JSON with a big integer version crashed it. And Python's `\s` matches the
+  C0 separators U+001C–U+001F, which `float()` then rejects, so `Age: "\x1c60"`
+  raised out of `classify_response` and the requests/httpx taggers on
+  remote-controlled header bytes. Both now return an advisory / `None` as they
+  should, pinned by regression tests.
 - **BREAKING (Python): `audit_meta` no longer accepts `dict` subclasses**
   ([#165](https://github.com/slopstopper/plumb-line/issues/165)). It used
   `isinstance(meta, dict)`, so an `OrderedDict`, `defaultdict` or user subclass

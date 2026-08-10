@@ -1,5 +1,8 @@
 """audit — runtime consistency checker for provenance metadata. Mirror of audit.mjs."""
 import math
+import sys
+
+_FLOAT_MAX = sys.float_info.max
 
 # Sentinel distinguishing an ABSENT key from an explicit null. dict.get() collapses
 # both to None; JS sees `undefined` vs `null` natively. That asymmetry is what made
@@ -63,7 +66,15 @@ def audit_meta(meta):
     v = meta.get('provenance_version', _MISSING)
     if v is _MISSING:
         issues.append(f'version-legacy: envelope predates version {PROVENANCE_VERSION}')
-    elif not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v):
+    elif (not isinstance(v, (int, float)) or isinstance(v, bool)
+          or (isinstance(v, float) and not math.isfinite(v))
+          or (isinstance(v, int) and abs(v) > _FLOAT_MAX)):
+        # isfinite is applied ONLY to floats: math.isfinite(huge_int) converts to
+        # float first and raises OverflowError, which would break SPEC §5's
+        # totality guarantee (the checker must never raise). Python ints are
+        # unbounded, so a version literal past IEEE754 range is also ruled
+        # malformed to keep parity — JSON.parse turns the same literal into
+        # Infinity in JS, which lands in this branch there.
         issues.append('version-malformed: provenance version is not an integer')
     elif v < PROVENANCE_VERSION:
         issues.append(f'version-legacy: envelope predates version {PROVENANCE_VERSION}')
