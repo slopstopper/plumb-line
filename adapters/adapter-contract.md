@@ -39,6 +39,20 @@ and parameterizes these files into the target repo.
 - Python: `provenance_lint.py` — a stdlib-`ast` checker exposing
   `check(source, filename) -> [issue]` and a CLI (`file:line: RULE message`,
   non-zero exit on any issue).
+
+## 5b. Output-tag enforcement (declared surface)
+
+- Purpose: invert the default inside a surface the builder declares — a
+  trust-bearing function that returns a provably raw computation is an error,
+  rather than something review must spot (ADR-0011). Opt-in once at the
+  boundary, opt-out per function; with no surface declared it is a no-op.
+- JS: `provenance-lint/require-provenance-output.cjs` (an ESLint rule) +
+  the `__OUTPUT_GLOBS__` block in `eslint-provenance.template.cjs`.
+- Python: `provenance_lint.py --require-output <files>` — no config template;
+  it is wired as a pre-commit-gate runner rather than through a config file.
+- Both sides' gate wiring is proven end-to-end, not asserted: see
+  `adapters/js/hooks/__tests__/provenance-lint-gate.integration.test.mjs` and
+  `adapters/python/hooks/test_hooks.py::test_gate_blocks_on_untagged_output`.
 - Note: unlike capabilities 1–4 this rule is *library-coupled* (it knows the
   primitive's API), not domain-neutral. It is grouped with the adapters as
   enforcement for now and may move under `primitives/` in a future version.

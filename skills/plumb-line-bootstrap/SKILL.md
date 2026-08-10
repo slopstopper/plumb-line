@@ -184,6 +184,43 @@ all of them** — the goal is a builder who can extend it, not a wrapped codebas
 Show each file's diff as you scaffold; every remaining unscaffolded Q4/Q8 site
 goes in the report as `planned`, so the coverage claim stays honest.
 
+## Step 4c — Offer output-tag enforcement (opt-in; only after 4b was accepted)
+
+Step 4b scaffolds `mark`/`derive` at the trust-bearing sites. This step offers
+the gate that keeps them tagged: `require-provenance-output` flags a function
+that returns a *provably raw* computation, inside a surface the builder declares
+(ADR-0011).
+
+**Only offer this if Step 4b was accepted.** With no primitive in the project,
+every trust-bearing function returns raw by definition, so the rule would fire
+across the surface on day one — the exact cry-wolf failure ADR-0011 exists to
+avoid. If 4b was declined, skip this step and record it as not-offered (with
+that reason) rather than silently omitting it.
+
+The surface is **not** the same as the bypass-lint globs. Those cover "files
+that use the primitive"; this covers "files whose outputs must carry
+provenance". Propose the surface from the interview's own answers — the Q4
+downstream values and Q8 lineage-bearing outputs — and let the builder correct
+it. Do not widen it for them: a surface drawn too broad is how this rule earns a
+blanket disable, after which it catches nothing.
+
+- **Declined → remove the `__OUTPUT_GLOBS__` block from the config entirely.**
+  Not a placeholder left in place, not the rule set to `"off"` — an unreplaced
+  placeholder throws `ReferenceError` when ESLint loads the config, and a
+  disabled rule is a claim the project enforces something it doesn't. Record the
+  decline in the report.
+- **Accepted →** wire it for the builder's language:
+  - **JS:** replace `__OUTPUT_GLOBS__` in `eslint-provenance.template.cjs` with
+    the agreed surface. The rule is already registered in that block.
+  - **Python:** there is no config template — add
+    `python3 provenance_lint.py --require-output <surface files>` as a runner on
+    the pre-commit gate installed in Step 4.
+- **Verify, don't assume** (same rule as Step 4): plant a function inside the
+  surface that returns a raw computation, confirm the gate blocks, then remove
+  it. An installed-but-inert rule is the failure mode to rule out — and this one
+  is silent by design outside its surface, so "no output" is not evidence it is
+  working.
+
 ## Step 5 — Report (audit format)
 
 Open with the same **required header block** as the audit format (`report-format:

@@ -9,6 +9,28 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Fixed
+- **`eslint-provenance.template.cjs` never loaded.** The bootstrap-installable
+  ESLint config did `require("./provenance-lint")`, but Node's directory-index
+  resolution tries `index.js`/`.json`/`.node` and **not** `index.cjs`, so the
+  config threw `MODULE_NOT_FOUND` for anyone who copied it — taking
+  `no-provenance-bypass` down with it, not just the newly-wired output rule. The
+  require path is now explicit to `index.cjs`. Found while adding the template's
+  first integration test, which now pins that it loads, resolves the plugin, and
+  fires both rules; the boundary template had such a test, this one did not
+  ([#164](https://github.com/slopstopper/plumb-line/issues/164)).
+
+### Added
+- **`require-provenance-output` wired into the onboarding path**
+  ([#164](https://github.com/slopstopper/plumb-line/issues/164)). The rule shipped
+  in 0.7.1 but was invisible to `plumb-line-bootstrap`, so a user on the
+  recommended path would never learn it existed. The template now carries an
+  `__OUTPUT_GLOBS__` block for the declared surface (ADR-0011), bootstrap gains
+  **Step 4c** offering it — opt-in, and only after the Step 4b primitive offer was
+  accepted, since with no primitive in the project every trust-bearing function
+  returns raw and the rule would fire across the surface on day one — and the
+  root README, adapter contract, and `plumb-line-remediate` name it.
+
 ### Changed
 - **Minimum Python is now 3.11** (was 3.8; 3.9/3.10 are EOL or near-EOL). Adopted
   an EOL-tracking [support policy](SUPPORT.md): the floor follows Python's EOL
