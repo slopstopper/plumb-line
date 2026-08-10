@@ -62,6 +62,7 @@ Version themes for the near-term releases, and the GitHub issues under each.
   `validateEnvelope` (#4 / GH #27), reproducible report header + `report-format:
   v1` (#9 / GH #28), documented `basis` convention (GH #26). Additive;
   `PROVENANCE_VERSION` stayed 1.
+  <!-- wire-version-historical -->
 
 - **v0.4.1 — Legible audit** (patch). First-tester UX pass on `plumb-line-audit`:
   principle glossary + inline names (#15 / GH #83), canonical report format —

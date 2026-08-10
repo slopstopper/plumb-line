@@ -119,3 +119,49 @@ def scan_text(path, text, current):
                 if found != current:
                     findings.append(Finding(path, line_no, found, current, line.strip()))
     return findings
+
+
+def tracked_markdown():
+    """Tracked *.md only — an untracked scratch file can never fail the gate."""
+    out = subprocess.run(
+        ["git", "ls-files", "*.md"],
+        cwd=_ROOT, capture_output=True, text=True, check=True,
+    )
+    return [p for p in out.stdout.splitlines() if p]
+
+
+def main():
+    with open(os.path.join(_ROOT, "primitives", "python", "provenance.py"), encoding="utf-8") as fh:
+        current = read_current_version(fh.read())
+
+    findings = []
+    for path in tracked_markdown():
+        if is_exempt_path(path):
+            continue
+        with open(os.path.join(_ROOT, path), encoding="utf-8") as fh:
+            findings.extend(scan_text(path, fh.read(), current))
+
+    with open(os.path.join(_ROOT, BADGE_README), encoding="utf-8") as fh:
+        badge_msg = badge_mismatch(live_badge(), fh.read())
+
+    for f in findings:
+        print(f"✗ {f.path}:{f.line_no}: wire version {f.found}, expected {f.expected}")
+        print(f"    {f.line_text}")
+    if badge_msg:
+        print(f"✗ {badge_msg}")
+
+    if findings or badge_msg:
+        print(
+            f"\nFAIL: {len(findings)} stale wire-version reference(s)"
+            f"{' + badge drift' if badge_msg else ''}."
+            f"\nCurrent PROVENANCE_VERSION is {current}. Fix the prose, or — if the"
+            f"\nmention is genuinely historical — tag it with {MARKER}"
+        )
+        return 1
+
+    print(f"✓ all live wire-version prose matches PROVENANCE_VERSION = {current}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

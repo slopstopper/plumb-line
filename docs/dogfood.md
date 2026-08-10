@@ -318,6 +318,15 @@ harness improvement candidate: grep for `schema version <N-1>` after any wire
 bump (recorded here rather than lost; a checklist item belongs in
 `RELEASING.md`/`bump-version.mjs`).
 
+> **Correction (2026-08-10, [#160](https://github.com/slopstopper/plumb-line/issues/160)):**
+> the sweep claim above was wrong. `docs/api.md:32` still stated schema version
+> 1, phrased as a bare backticked number rather than the "schema version N" form
+> the sweep grepped for, so it survived both the fix and the verification. Found
+> while building the deterministic gate this meta-note asked for; fixed in the
+> same change. The miss is the argument for the gate — a human sweep matches the
+> phrasings it thinks of, which is why the gate now defines the canonical forms
+> and docs conform to them rather than the reverse.
+
 ---
 
 ## v0.7.1 dogfood self-audit — 2026-07-12
