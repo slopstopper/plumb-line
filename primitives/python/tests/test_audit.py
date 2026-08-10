@@ -68,6 +68,35 @@ def test_empty_meta_returns_only_version_legacy_advisory():
 def test_none_meta_returns_missing_meta():
     assert a.audit_meta(None) == ['missing meta']
 
+def test_audit_meta_rejects_dict_subclasses():
+    """#165: JS auditMeta rejects any non-plain object (prototype check), so the
+    Python checker must reject dict SUBCLASSES to match. Not encodable in
+    cases.json — JSON has no dict-subclass literal — so it is pinned here.
+
+    This is deliberately stricter than validate_envelope, which mirrors the
+    looser JS validateEnvelope (typeof === 'object').
+    """
+    import collections
+
+    valid = {'provenance_version': p.PROVENANCE_VERSION, 'source': 'real',
+             'confidence': 'high', 'derived_from_mock': False, 'lineage': []}
+    assert a.audit_meta(dict(valid)) == []          # exact dict → accepted
+
+    class MyMeta(dict):
+        pass
+
+    for subclass in (collections.OrderedDict(valid), collections.defaultdict(None, valid), MyMeta(valid)):
+        assert a.audit_meta(subclass) == ['missing meta'], type(subclass).__name__
+
+def test_validate_envelope_still_accepts_dict_subclasses():
+    """The looser sibling: validate_envelope mirrors JS validateEnvelope, which
+    does no prototype check. Pinning the asymmetry so it stays deliberate."""
+    import collections
+
+    valid = {'provenance_version': p.PROVENANCE_VERSION, 'source': 'real',
+             'confidence': 'high', 'derived_from_mock': False, 'lineage': []}
+    assert a.validate_envelope(collections.OrderedDict(valid)) == []
+
 def test_flags_numeric_over_claiming():
     meta = {'source':'derived','confidence':'low','confidence_score':0.9,'derived_from_mock':False,
             'lineage':[{'id':'s1','confidence':'low','confidence_score':0.2}]}

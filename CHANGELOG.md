@@ -9,6 +9,40 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Changed
+- **Audit gains a `version-malformed:` advisory, and two cross-language
+  divergences are closed** — the parity batch
+  ([#156](https://github.com/slopstopper/plumb-line/issues/156),
+  [#165](https://github.com/slopstopper/plumb-line/issues/165),
+  [#172](https://github.com/slopstopper/plumb-line/issues/172)). `PROVENANCE_VERSION`
+  is unchanged — the envelope shape did not move, only what the checker says about
+  a malformed one.
+  - **`version-malformed:` (new advisory).** A `provenanceVersion` that is present
+    but not a finite number (`"2"`, `null`, `[]`, `{}`, `true`) previously passed
+    audit **silently** in both languages. It now gets its own advisory rather than
+    reusing `version-legacy:` — an envelope holding `[]` predates nothing, so
+    calling it legacy asserted something false. Absent still means legacy.
+  - **Divergence closed (#156).** With an explicit `null` version, JS returned `[]`
+    and Python returned `['version-legacy: …']` — the issue had recorded parity as
+    holding here, which was wrong. Python now uses an explicit sentinel so an absent
+    key and a present `null` are distinguishable, as they already were in JS. Pinned
+    by five new `cases.json` rows.
+  - **Divergence closed (#172).** `Age: 0x10` marked a response cached in JS
+    (`Number("0x10")` is 16) but not in Python (`float("0x10")` raises), and
+    `Age: 1_000` did the reverse. Both now parse Age as RFC 7234 decimal
+    delta-seconds via an explicit pattern; hex, underscore and scientific notation
+    read as "no usable Age". Pinned by four new `http-cases.json` rows.
+- **BREAKING (Python): `audit_meta` no longer accepts `dict` subclasses**
+  ([#165](https://github.com/slopstopper/plumb-line/issues/165)). It used
+  `isinstance(meta, dict)`, so an `OrderedDict`, `defaultdict` or user subclass
+  audited as a valid envelope — while the JS `auditMeta` prototype check rejects
+  any non-plain object. The check is now `type(meta) is dict`, restoring parity;
+  a subclass returns `['missing meta']`. `validate_envelope` is unaffected and
+  still accepts subtypes, mirroring the deliberately looser JS `validateEnvelope`.
+  Callers passing a subclass should convert with `dict(meta)`. Not encodable in
+  `cases.json` (JSON has no dict-subclass literal), so it is pinned by unit tests
+  in both directions.
+
 ### Fixed
 - **`eslint-provenance.template.cjs` never loaded.** The bootstrap-installable
   ESLint config did `require("./provenance-lint")`, but Node's directory-index

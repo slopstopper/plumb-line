@@ -212,7 +212,15 @@ The checker MUST be total: a missing or malformed field MUST yield a result list
 (possibly noting the problem), never an exception. A `null`/`None` envelope MUST
 return a single "missing meta" issue. A checker MUST treat any input that is not
 a plain object/dict — `null`/`None`, a primitive, an array/list, or a non-plain
-object such as a `Map`/`Date`/class instance — as `["missing meta"]`. Only a
+object such as a `Map`/`Date`/class instance — as `["missing meta"]`. **"Plain"
+means exactly the language's own map type, not a subtype:** a `dict` subclass
+(`OrderedDict`, `defaultdict`, a user subclass) is NOT a plain dict and audits as
+`["missing meta"]`, matching the JS prototype check
+(`Object.getPrototypeOf(meta) !== Object.prototype`). This cannot be pinned in
+`cases.json` — JSON has no dict-subclass literal — so it is pinned by a
+per-language unit test instead (#165). Note that `validateEnvelope` /
+`validate_envelope` (§5c) is deliberately looser and does accept subtypes; the
+two checkers answer different questions. Only a
 plain object/dict is examined for claim consistency; a structurally empty one
 (`{}`) has no claims to contradict and audits clean of every logical-consistency
 check, returning only the `version-legacy:` advisory (§5b) — it also carries no
@@ -261,8 +269,17 @@ other issue in §5's table:
 | equal to the checker's `PROVENANCE_VERSION` (current) | none |
 | greater than the checker's `PROVENANCE_VERSION` (unknown future) | `version-future: envelope version N is newer than supported <PROVENANCE_VERSION>` |
 | absent, or less than the checker's `PROVENANCE_VERSION` (legacy) | `version-legacy: envelope predates version <PROVENANCE_VERSION>` |
+| present but not a finite number — a string, `null`, a list, an object, a boolean | `version-malformed: provenance version is not an integer` |
 
-Both issues are **advisory only**: they MUST NOT cause the checker to throw, and
+**Absent and malformed are different states.** An absent field is *legacy*: the
+envelope predates the field, which is a true statement about it. A field holding
+`"2"` or `[]` or `true` predates nothing — reporting it as legacy would assert
+something false about the producer, so it gets its own advisory. Implementations
+MUST distinguish an absent key from a present `null`; a language whose map
+accessor collapses the two (Python's `dict.get`) needs an explicit sentinel, and
+a language whose booleans are integers (Python again) MUST exclude them here.
+
+All three issues are **advisory only**: they MUST NOT cause the checker to throw, and
 MUST NOT alter the result of any other check in §5's table. A future,
 unrecognized version is accepted (not rejected) so that consumers built against
 an older checker keep working against newer producers — the version field

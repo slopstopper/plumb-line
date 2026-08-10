@@ -6,6 +6,7 @@ convenience wrappers guard-import their library at call time, so importing this
 module — and calling `classify_response` — needs no third-party package."""
 
 import math
+import re
 
 
 def _header(headers, name):
@@ -22,6 +23,28 @@ def _header(headers, name):
     return None
 
 
+# Age is RFC 7234 delta-seconds: a decimal number. Parsed by an explicit pattern
+# rather than float()/Number() because the two languages' built-in coercions
+# disagree on non-decimal strings — float("0x10") raises while JS Number("0x10")
+# is 16, and float("1_000") is 1000 while Number("1_000") is NaN. Either coercion
+# would make cache detection language-dependent (#172). A fractional part is
+# tolerated because some proxies emit one and it is already pinned in the
+# conformance table; anything else reads as "no usable Age".
+# Mirror of parseAge in http.mjs.
+_AGE_DECIMAL = re.compile(r'^\s*\d+(\.\d+)?\s*$')
+
+
+def parse_age(raw):
+    """Age header as a float, or None when it is not a decimal value."""
+    if raw is None:
+        return None
+    s = str(raw)
+    if not _AGE_DECIMAL.match(s):
+        return None
+    n = float(s)
+    return n if math.isfinite(n) else None
+
+
 def _is_cached(status, headers, from_cache):
     if from_cache:
         return True
@@ -29,11 +52,8 @@ def _is_cached(status, headers, from_cache):
         return True
     age = _header(headers, "age")
     if age is not None:
-        try:
-            n = float(age)
-        except (ValueError, TypeError):
-            n = None
-        if n is not None and math.isfinite(n) and n > 0:
+        n = parse_age(age)
+        if n is not None and n > 0:
             return True
     x_cache = _header(headers, "x-cache")
     if x_cache is not None and "HIT" in str(x_cache).upper():
