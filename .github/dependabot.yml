@@ -34,3 +34,14 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # numpy >=2.5 requires Python >=3.12; our floor is 3.11 (SUPPORT.md), and
+    # 3.11 is not EOL until 2027-10 — so this is a dependency running ahead of
+    # the EOL calendar, exactly the case the support policy says to hold on.
+    # The lock is compiled with `uv pip compile --python-version 3.11`, which
+    # correctly refuses 2.5; Dependabot does not read that flag, so it proposed
+    # numpy==2.5.1 (#187) and the Python 3.11 CI job failed at install with
+    # "No matching distribution found". Ungated, that PR regenerates weekly.
+    # Remove this entry when the floor moves to 3.12.
+    ignore:
+      - dependency-name: "numpy"
+        versions: [">=2.5"]
