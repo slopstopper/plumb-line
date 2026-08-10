@@ -31,7 +31,11 @@ def _header(headers, name):
 # tolerated because some proxies emit one and it is already pinned in the
 # conformance table; anything else reads as "no usable Age".
 # Mirror of parseAge in http.mjs.
-_AGE_DECIMAL = re.compile(r'^\s*\d+(\.\d+)?\s*$')
+# [0-9] explicitly, NOT \d: Python's \d matches any Unicode decimal digit, so
+# \d would accept Arabic-Indic "٦٠" (and float() would happily return 60.0),
+# while JS \d without the u flag is ASCII-only and rejects it. Using \d here
+# would have replaced the coercion divergence this fix removes with a regex one.
+_AGE_DECIMAL = re.compile(r'^\s*[0-9]+(\.[0-9]+)?\s*$')
 
 
 def parse_age(raw):

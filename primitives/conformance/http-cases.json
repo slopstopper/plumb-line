@@ -12,6 +12,7 @@
     { "name": "200 Age=1_000 (underscores are not decimal-seconds, ignored -> fresh) (#172: was JS NaN / Python 1000)", "status": 200, "headers": { "Age": "1_000" }, "fromCache": false, "expect": { "source": "real", "confidence": "high" } },
     { "name": "200 Age=1e3 (scientific notation is not decimal-seconds, ignored -> fresh) (#172)", "status": 200, "headers": { "Age": "1e3" }, "fromCache": false, "expect": { "source": "real", "confidence": "high" } },
     { "name": "200 Age=' 60 ' (surrounding whitespace tolerated, still cached) (#172)", "status": 200, "headers": { "Age": " 60 " }, "fromCache": false, "expect": { "source": "real", "confidence": "medium" } },
+    { "name": "200 Age=٦٠ (non-ASCII digits are not decimal-seconds, ignored -> fresh) (#172: Python \\d is Unicode-aware, JS \\d is not)", "status": 200, "headers": { "Age": "٦٠" }, "fromCache": false, "expect": { "source": "real", "confidence": "high" } },
     { "name": "200 fromCache flag",         "status": 200, "headers": {},                    "fromCache": true,  "expect": { "source": "real",        "confidence": "medium" } },
     { "name": "304 Not Modified",           "status": 304, "headers": {},                    "fromCache": false, "expect": { "source": "real",        "confidence": "medium" } },
     { "name": "404 Not Found",              "status": 404, "headers": {},                    "fromCache": false, "expect": { "source": "unavailable", "confidence": "none" } },

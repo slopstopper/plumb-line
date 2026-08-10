@@ -30,8 +30,12 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   - **Divergence closed (#172).** `Age: 0x10` marked a response cached in JS
     (`Number("0x10")` is 16) but not in Python (`float("0x10")` raises), and
     `Age: 1_000` did the reverse. Both now parse Age as RFC 7234 decimal
-    delta-seconds via an explicit pattern; hex, underscore and scientific notation
-    read as "no usable Age". Pinned by four new `http-cases.json` rows.
+    delta-seconds via an explicit pattern; hex, underscore, scientific notation and
+    non-ASCII digits read as "no usable Age". The Python pattern spells the digit
+    class `[0-9]` rather than `\d`, because Python's `\d` matches any Unicode
+    decimal digit while JS's (without the `u` flag) is ASCII-only — `\d` would have
+    swapped a coercion divergence for a regex one. Pinned by five new
+    `http-cases.json` rows.
 - **BREAKING (Python): `audit_meta` no longer accepts `dict` subclasses**
   ([#165](https://github.com/slopstopper/plumb-line/issues/165)). It used
   `isinstance(meta, dict)`, so an `OrderedDict`, `defaultdict` or user subclass
