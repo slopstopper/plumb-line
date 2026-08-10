@@ -91,6 +91,19 @@ Append a dated, version-tagged section — same shape as the existing v0.2.0 one
 A run that found nothing still gets a recorded section saying so — a missing
 section is indistinguishable from "never run."
 
+## Deterministic pre-tag checks
+
+These are machine checks, not judgement calls — they either pass or block:
+
+- [ ] `python3 scripts/check_version_prose.py` — clean. The wire-version prose
+      gate ([#160](https://github.com/slopstopper/plumb-line/issues/160)):
+      no live doc may state a wire version other than the current
+      `PROVENANCE_VERSION`, and the conformance badge must match
+      `report.mjs --badge`. Supersedes the manual "grep for `schema version
+      <N-1>`" step the v0.7.0 dogfood recommended — that sweep missed a copy
+      phrased as a bare backticked number, which is why this is tooled now.
+      CI runs it on every PR, so it should already be green at tag time.
+
 ## Where this sits in the release flow
 
 In [`../RELEASING.md`](../RELEASING.md): run this **after** deciding the version

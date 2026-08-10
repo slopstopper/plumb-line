@@ -29,8 +29,8 @@ Ordered vocabulary of confidence level, weakest first:
 
 ### `PROVENANCE_VERSION`
 
-Integer schema version of the envelope (`1`). Bump only on breaking changes
-to the envelope shape or combination law (see SPEC §1).
+Integer schema version of the envelope (currently **schema version 2**). Bump
+only on breaking changes to the envelope shape or combination law (see SPEC §1).
 
 ---
 

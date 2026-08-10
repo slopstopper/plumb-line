@@ -14,7 +14,11 @@ Two independent version numbers:
   `.claude-plugin/plugin.json`. CI fails if they disagree.
 - **`PROVENANCE_VERSION`** — the envelope wire format. Changes *only* on a
   breaking change to the metadata shape, independent of releases. The bump
-  script does not touch it.
+  script does not touch it. On any change to it, `scripts/check_version_prose.py`
+  fails CI if a live doc still states the old wire version, and diffs the
+  conformance badge against `report.mjs --badge`. It runs on every PR, so a
+  stale copy surfaces at the PR that introduces it rather than at the tag
+  ([#160](https://github.com/slopstopper/plumb-line/issues/160)).
 
 ## Steps
 
