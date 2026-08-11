@@ -110,6 +110,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   Callers passing a subclass should convert with `dict(meta)`. Not encodable in
   `cases.json` (JSON has no dict-subclass literal), so it is pinned by unit tests
   in both directions.
+- **`plumb-line-remediate` now validates its own remediation record** before
+  emitting it, mirroring what `plumb-line-audit` already does for its report.
+  `remediation-format` had a version constant, a canonical key list, and — as of
+  this release — a validator that nothing ever called: both skills ran the
+  checker on their *input* only. A contract enforced on the way in and not on the
+  way out is the same P7 gap [#139](https://github.com/slopstopper/plumb-line/issues/139)
+  was filed for, one level down. The record's table template also gained the
+  example row it never had, so the required Action rendering is shown rather than
+  inferred. Found by running the release harness, not by reading the skill.
 
 ### Fixed
 - **The `scripts/` test suites now run in CI.** Every other pytest step is scoped
@@ -130,6 +139,30 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   require was left in the plugin README's two copy-paste examples and in
   `index.cjs`'s header — corrected in
   [#213](https://github.com/slopstopper/plumb-line/pull/213).
+- **`check_report_format.py` rejected reports written the way the skills render
+  them.** Two false FAILs, both found by running the v0.8.0 harness rather than
+  by reading the code — the checker's first contact with reports it did not
+  write. (1) Both skills print the header template inside a fenced code block, so
+  an agent copying it literally produced a fenced header and got `unrecognised
+  report contract`, a message that never mentioned fencing; a blind auditor hit
+  this live and recovered only by trial and error. (2) `plumb-line-remediate`
+  names its Action vocabulary as `applied-mechanical` and its table template
+  carried no example row, so both harness remediators wrote the verb backticked
+  and were failed by a message that listed the rejected value among the valid
+  ones. Fenced headers are now accepted, inline-code markers are stripped before
+  the Action verb is matched (a verb outside the vocabulary still fails), and the
+  unrecognised-contract message names the likely cause. Pinned by four new cases.
+- **The blind validation harness leaked its own answer key.** The
+  `js-payments-service/broken` fixture annotates each planted violation inline
+  with its principle number, and `AUDIT-EXPECTATIONS.md` withheld only
+  `VIOLATIONS.md`/`README.md` — so the auditor read the answers in the code it
+  was being tested on, and every JS `broken/` PASS recorded through v0.7.3 was
+  weaker evidence than it appeared. The protocol now requires an answer-stripped
+  scratch copy with a verification step. `REMEDIATE-EXPECTATIONS.md` did strip
+  annotations but matched `VIOLATION` case-sensitively, leaving the fixture's two
+  lowercase annotations intact in every prior run; it now matches
+  case-insensitively. Re-run answer-stripped for v0.8.0, both fixtures still
+  passed — the leak had been inflating confidence, not hiding a failure.
 
 ## [0.7.3] — 2026-07-19
 
