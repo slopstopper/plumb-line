@@ -50,7 +50,8 @@ and parameterizes these files into the target repo.
   the `__OUTPUT_GLOBS__` block in `eslint-provenance.template.cjs`.
 - Python: `provenance_lint.py --require-output <files>` — no config template;
   it is wired as a pre-commit-gate runner rather than through a config file.
-- Both sides' gate wiring is proven end-to-end, not asserted: see
+- Both sides prove the rule → `decide()` contract — NOT the shipped CLI path
+  (`PLUMBLINE_TEST_CMD` → spawn → exit code), which is uncovered on both sides:
   `adapters/js/hooks/__tests__/provenance-lint-gate.integration.test.mjs` and
   `adapters/python/hooks/test_hooks.py::test_gate_blocks_on_untagged_output`.
 - Note: unlike capabilities 1–4 this rule is *library-coupled* (it knows the

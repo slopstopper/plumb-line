@@ -26,7 +26,10 @@ const plugin = require("../../provenance-lint/index.cjs");
 
 const RULE = "plumb-line/require-provenance-output";
 // `plumb-line-provenance` matches the rule's built-in PRIMITIVE_SOURCE regex,
-// which is what puts the file in scope for the rule at all.
+// which is how the rule learns that the local names `mark`/`derive` are the
+// tracked primitive. It is NOT what puts the file in scope — scope is the set
+// of files the config enables the rule on, and an untagged output is flagged
+// with no import present at all.
 const IMPORT = `import { mark, derive } from "plumb-line-provenance";\n`;
 
 const workdir = mkdtempSync(path.join(tmpdir(), "plumb-gate-"));
@@ -103,12 +106,31 @@ describe("require-provenance-output wired into pre-commit-gate", () => {
     expect(r.reason).toBe("all gates passed");
   });
 
-  it("keeps `mark` imported in the fixtures meaningful — an unused import must not itself fail the gate", async () => {
-    // The fixtures import both `mark` and `derive`; only `derive` is used in the
-    // tagged case. Pinning this means a future no-unused-vars addition to the
-    // gate config cannot silently turn every fixture red and mask a real result.
-    const file = writeSource("tagged-mark.mjs", `export const v = mark(1, { source: "real" });`);
-    const results = await lintFile(file);
-    expect(results.flatMap((r) => r.messages)).toHaveLength(0);
+  it("flags a raw local but not a wrapped one — the local-tracking behaviour users rely on", async () => {
+    // Both return a LOCAL, so this pins the rule's local classification rather
+    // than only its direct-return path.
+    //
+    // Be precise about what it does NOT prove. The rule stays silent on any
+    // unclassifiable return by design (its zero-false-positive contract), so
+    // `return frobnicate(x, r)` and a deleted provenance import both pass
+    // identically. Silence therefore cannot distinguish "recognised as tagged"
+    // from "could not classify" — and no black-box test can, because the
+    // tracked-import path has NO observable effect on this rule's output:
+    // `localClass` is set to "tagged" but the only read tests for "raw", and
+    // the two classifications are mutually exclusive anyway. Verified by
+    // mutation: disabling PRIMITIVE_SOURCE matching leaves every test green.
+    // Tracked as its own defect rather than papered over here.
+    const raw = writeSource(
+      "local-raw.mjs",
+      `export function f(x, r) { const t = x * r; return t; }`,
+    );
+    const tagged = writeSource(
+      "local-tagged.mjs",
+      `export function f(x, r) { const t = derive([x, r], (p, q) => p * q); return t; }`,
+    );
+
+    expect((await lintFile(raw)).flatMap((r) => r.messages).map((m) => m.ruleId))
+      .toContain(RULE);
+    expect((await lintFile(tagged)).flatMap((r) => r.messages)).toHaveLength(0);
   });
 });

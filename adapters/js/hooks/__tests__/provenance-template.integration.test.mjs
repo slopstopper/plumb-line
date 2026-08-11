@@ -11,7 +11,12 @@
  * one did not).
  *
  * What is pinned here: the template's placeholder contract, that it resolves the
- * plugin, and that BOTH rules actually fire through it on real files.
+ * plugin, and that the OUTPUT rule fires through it on real files — inside its
+ * declared surface and not outside.
+ *
+ * Not covered: no test lints a `no-provenance-bypass` violation through the
+ * template, so the rule whose breakage motivated this fix is only proven to be
+ * REGISTERED, not to fire. Tracked rather than overstated here.
  */
 
 import { describe, it, expect, afterAll } from "vitest";
