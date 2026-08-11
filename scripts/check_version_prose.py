@@ -36,10 +36,25 @@ EXEMPT_PREFIXES = (
     "docs/validation-results.md",
 )
 
+# Every digit class is [0-9], never \d: Python's \d matches any Unicode decimal
+# digit, and this file is the one that must not accept a version it cannot
+# compare.
 _PATTERNS = (
-    re.compile(r"schema version (\d+)"),
-    re.compile(r"plumb-line[_ ]v(\d+)"),
-    re.compile(r"PROVENANCE_VERSION.{0,12}?(\d+)"),
+    re.compile(r"schema version ([0-9]+)"),
+    # (?![.0-9]) so the RELEASE version — "plumb-line v0.8.0", the natural way to
+    # write a release in prose — is not read as wire version 0. The two numbers
+    # are explicitly independent in this project, and conflating them made a
+    # correct sentence fail CI with a nonsense number.
+    re.compile(r"plumb-line[_ ]v([0-9]+)(?![.0-9])"),
+    # An explicit ASSERTION about the constant, not mere proximity to a number.
+    # The old `.{0,12}?([0-9]+)` matched any nearby digits, so ordinary prose
+    # broke the gate: "`PROVENANCE_VERSION` (issue #160)" read as wire version
+    # 160, "PROVENANCE_VERSION — see ADR 0010" as 10, "the PROVENANCE_VERSION
+    # bump in v0.8.0" as 0. This repo links issues and ADRs inline constantly,
+    # so that pattern was a CI failure waiting for the next doc sentence — and
+    # its advice was to tag the line historical, mislabelling live prose.
+    re.compile(r"PROVENANCE_VERSION`?[^0-9\n]{0,4}?"
+               r"(?:=|is|are|stays|stayed|was|→|->)\s*`?([0-9]+)`?(?![.0-9])"),
 )
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -76,20 +91,38 @@ def badge_mismatch(badge, readme_text):
 
 
 def live_badge():
-    """Badge markdown as the conformance tool currently emits it."""
-    out = subprocess.run(
-        ["node", "primitives/conformance/report.mjs", "--badge"],
-        cwd=_ROOT, capture_output=True, text=True, check=True,
-    )
-    return out.stdout.strip()
+    """Badge markdown as the conformance tool currently emits it, or None.
+
+    NOT check=True. `report.mjs` exits non-zero when the conformance suite
+    diverges — it withholds the badge on failure by design — so check=True
+    turned an unrelated conformance failure into an uncaught
+    CalledProcessError inside a CI step named "Live docs must not state a
+    stale envelope wire version", pointing the reader at the wrong problem.
+    A missing `node` did the same. Returning None lets the caller report
+    "could not obtain the live badge" as one ordinary finding.
+    """
+    try:
+        out = subprocess.run(
+            ["node", "primitives/conformance/report.mjs", "--badge"],
+            cwd=_ROOT, capture_output=True, text=True, check=False,
+        )
+    except OSError:
+        return None
+    badge = out.stdout.strip()
+    return badge or None
 
 
 def exempt_line_numbers(lines):
     """1-indexed line numbers exempted by an inline marker.
 
     The marker exempts the line it sits on. When it is alone on its own line it
-    exempts the nearest preceding non-blank line instead, so a wrapped markdown
-    bullet can be tagged without a trailing comment mid-sentence.
+    exempts the whole contiguous non-blank BLOCK above it — the paragraph or
+    markdown bullet it is tagging.
+
+    Exempting only the single nearest line was wrong for the common case: a
+    wrapped bullet whose version mention sits mid-sentence still failed, and the
+    failure told the author to add the marker they had already added. The unit a
+    reader thinks they are tagging is the bullet, not the line.
     """
     exempt = set()
     for i, line in enumerate(lines):
@@ -99,9 +132,10 @@ def exempt_line_numbers(lines):
         if line.strip() == MARKER:
             j = i - 1
             while j >= 0 and not lines[j].strip():
+                j -= 1                      # skip blanks between marker and block
+            while j >= 0 and lines[j].strip():
+                exempt.add(j + 1)           # the whole contiguous block
                 j -= 1
-            if j >= 0:
-                exempt.add(j + 1)
     return exempt
 
 
@@ -141,12 +175,22 @@ def main():
         with open(os.path.join(_ROOT, path), encoding="utf-8") as fh:
             findings.extend(scan_text(path, fh.read(), current))
 
-    with open(os.path.join(_ROOT, BADGE_README), encoding="utf-8") as fh:
-        badge_msg = badge_mismatch(live_badge(), fh.read())
-
+    # Print the prose findings BEFORE touching the badge. They are the gate's
+    # reason for existing, and computing them first only to lose them to an
+    # exception raised by the badge subprocess is the worst possible ordering.
     for f in findings:
         print(f"✗ {f.path}:{f.line_no}: wire version {f.found}, expected {f.expected}")
         print(f"    {f.line_text}")
+
+    badge = live_badge()
+    if badge is None:
+        badge_msg = ("could not obtain the live badge from "
+                     "`node primitives/conformance/report.mjs --badge` "
+                     "(node missing, or the conformance suite is failing and "
+                     "withheld it) — badge drift NOT checked this run")
+    else:
+        with open(os.path.join(_ROOT, BADGE_README), encoding="utf-8") as fh:
+            badge_msg = badge_mismatch(badge, fh.read())
     if badge_msg:
         print(f"✗ {badge_msg}")
 

@@ -96,6 +96,59 @@ def test_badge_absent_is_reported():
     assert "report.mjs --badge" in msg
 
 
+# --- retrospective review of #204: false positives on ordinary prose -------
+#
+# The proximity pattern matched any digits near the constant name, so correct
+# sentences hard-failed CI with a nonsense number — and the failure message
+# advised tagging the line historical, which would mislabel live prose.
+
+def test_issue_reference_near_the_constant_is_not_a_version():
+    assert cvp.scan_text("x.md", "`PROVENANCE_VERSION` (issue #160) is the wire version", 2) == []
+
+
+def test_adr_number_near_the_constant_is_not_a_version():
+    assert cvp.scan_text("x.md", "PROVENANCE_VERSION — see ADR 0010", 2) == []
+
+
+def test_release_version_is_not_the_wire_version():
+    """The two numbers are explicitly independent in this project;
+    'plumb-line v0.8.0' must not read as wire version 0."""
+    assert cvp.scan_text("x.md", "plumb-line v0.8.0 ships the floor change", 2) == []
+    assert cvp.scan_text("x.md", "the `PROVENANCE_VERSION` bump in v0.8.0", 2) == []
+
+
+def test_assertion_forms_are_still_caught():
+    """Tightening the pattern must not cost detection."""
+    for line in ("`PROVENANCE_VERSION` stays `1`", "PROVENANCE_VERSION = 1",
+                 "PROVENANCE_VERSION is 1", "`PROVENANCE_VERSION` stayed 1",
+                 "`PROVENANCE_VERSION` → 1", "[![provenance: plumb-line v1](x)](y)",
+                 "plumb-line_v1 badge", "envelope schema version 1"):
+        assert cvp.scan_text("x.md", line, 2), line
+
+
+def test_marker_exempts_the_whole_wrapped_block():
+    """Exempting one line meant a mention mid-bullet still failed, telling the
+    author to add the marker they had already added."""
+    wrapped = ("- v0.4.0 shipped; `PROVENANCE_VERSION` stayed 1 for this\n"
+               "  release; additive only.\n"
+               "  <!-- wire-version-historical -->\n")
+    assert cvp.scan_text("ROADMAP.md", wrapped, 2) == []
+
+
+def test_live_badge_returns_none_instead_of_raising(monkeypatch):
+    """report.mjs exits non-zero when conformance diverges — it withholds the
+    badge by design. check=True turned that into a traceback in a CI step about
+    stale docs, and discarded the prose findings computed before it."""
+    import subprocess
+
+    class _Result:
+        stdout = ""
+        returncode = 1
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _Result())
+    assert cvp.live_badge() is None
+
+
 def test_historical_paths_are_exempt():
     assert cvp.is_exempt_path("CHANGELOG.md")
     assert cvp.is_exempt_path("docs/adr/0010-wire-v2-schema-batch.md")

@@ -103,8 +103,14 @@ never flagged. As an ESLint `error` it exits non-zero, so it drops straight into
 `hooks/pre-commit-gate` as a runner. Python parity:
 `provenance_lint.check_outputs(...)` / `python3 provenance_lint.py --require-output <files>`.
 
-The gate wiring is proven end-to-end on **both** sides, not just asserted here —
-`hooks/__tests__/provenance-lint-gate.integration.test.mjs` (JS) and
+The **rule → `decide()` contract** is proven on both sides, not just asserted
+here: `hooks/__tests__/provenance-lint-gate.integration.test.mjs` (JS) and
 `adapters/python/hooks/test_hooks.py::test_gate_blocks_on_untagged_output`
-(Python) each run the real rule over a real untagged-output file and assert the
-gate blocks.
+(Python) each run the real shipped rule over a real untagged-output file on disk
+and assert `decide()` blocks.
+
+What is **not** covered, stated plainly: the shipped CLI path — `pre-commit-gate`
+spawning a command via `PLUMBLINE_TEST_CMD` and reading its exit code. Both tests
+call `decide()` in-process with their own runner, and the CLI wrapper is excluded
+from coverage (`v8 ignore`, process-entry glue). So "the rule blocks a commit
+through the gate" is demonstrated at the contract level, not through the spawn.
