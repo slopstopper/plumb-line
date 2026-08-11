@@ -110,6 +110,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   Callers passing a subclass should convert with `dict(meta)`. Not encodable in
   `cases.json` (JSON has no dict-subclass literal), so it is pinned by unit tests
   in both directions.
+- **The `version-malformed:` advisory now says what it actually checks.** The
+  string shipped earlier in this release as `provenance version is not an
+  integer`, but the branch rejects non-**finite** values — `2.5` is not an
+  integer and audits as `version-future`. It now reads `provenance version is not
+  a finite number`, matching `SPEC.md` and the code; both docstrings, which said
+  "not a number", were corrected too, and a `cases.json` row pins
+  `2.5 → version-future` in both languages so the current answer is enforced
+  rather than described. The advisory is a contracted output consumers
+  prefix-match, so the wording was fixed before the tag rather than deferred —
+  after a release it would be a breaking change. **No behaviour changed:** no
+  version value audits differently. Whether a non-integer float *should* be
+  malformed at all remains open as
+  [#216](https://github.com/slopstopper/plumb-line/issues/216); `SPEC.md` §5 still
+  declares the field an integer, and that is now the only place the tension sits.
 - **`plumb-line-remediate` now validates its own remediation record** before
   emitting it, mirroring what `plumb-line-audit` already does for its report.
   `remediation-format` had a version constant, a canonical key list, and — as of
