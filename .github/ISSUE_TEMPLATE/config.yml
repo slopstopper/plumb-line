@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: "🔒 Private feedback (sensitive / internal codebases)"
-    url: "https://effythealien.github.io/plumb-line/feedback.html"
+    url: "https://slopstopper.github.io/plumb-line/feedback.html"
     about: "Testing on a private codebase? Send use-case feedback privately instead of a public issue."

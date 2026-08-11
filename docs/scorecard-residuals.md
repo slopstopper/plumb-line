@@ -24,9 +24,9 @@ curl -s https://api.scorecard.dev/projects/github.com/slopstopper/plumb-line
 | --- | --- | --- |
 | Binary-Artifacts, CI-Tests, Dangerous-Workflow, Dependency-Update-Tool, License, Packaging, SAST, Security-Policy, Token-Permissions | 10 | — |
 | Pinned-Dependencies | 9 | accepted |
-| Vulnerabilities | 8 | accepted |
+| Vulnerabilities | 8 → **resolved** | patched, see below |
 | Contributors | 6 | accepted (structural) |
-| Branch-Protection | 5 | accepted (partly a misread) |
+| Branch-Protection | 5 | accepted (Scorecard is correct) |
 | Maintained | 0 | self-resolving |
 | Code-Review | 0 | structural |
 | Fuzzing | 0 | out of scope |
@@ -45,31 +45,26 @@ constraint that no longer exists.
   `GHSA-6w46-j5rx-g56g` (`pytest==8.4.2`) on the grounds that pytest ≥9 requires
   Python ≥3.10 and "fixing = dropping Python 3.9". The floor moved to **3.11**
   under the [support policy](../SUPPORT.md) and `pytest==9.1.1` was taken. That
-  advisory is gone; the current 8/10 is a *different* pair (below).
+  advisory is gone.
+- **Vulnerabilities: the replacement pair was patchable, not acceptable.** The
+  8/10 at the time of writing was two `brace-expansion` DoS advisories
+  ([`GHSA-mh99-v99m-4gvg`](https://osv.dev/GHSA-mh99-v99m-4gvg),
+  [`GHSA-rgw5-rvv9-x895`](https://osv.dev/GHSA-rgw5-rvv9-x895)). The first draft
+  of this record **accepted** them, on the reasoning that they are transitive
+  dev-only and that "Dependabot will raise it, no manual action".
+
+  Both halves were wrong. Fixes shipped upstream in `5.0.8` (2026-07-24) and
+  `5.0.9` (2026-08-03); the lockfiles pinned `5.0.7` while every consumer already
+  required `^5.0.5`, so the patch needed one `npm update`. And Dependabot had
+  **auto-dismissed** all four alerts as `scope: development`, so it was never
+  going to raise anything.
+
+  Resolved by updating both lockfiles to `5.0.9`. The lesson is recorded rather
+  than quietly fixed: *"wait for upstream"* is only an acceptance if someone has
+  checked that upstream has not already shipped, and *"the bot will tell us"* is
+  only a backstop if the bot is actually watching that scope.
 
 ## Accepted residuals
-
-### Vulnerabilities — 8/10
-
-Two advisories, both in **`brace-expansion`**:
-
-- [`GHSA-mh99-v99m-4gvg`](https://osv.dev/GHSA-mh99-v99m-4gvg) — DoS via
-  unbounded expansion length
-- [`GHSA-rgw5-rvv9-x895`](https://osv.dev/GHSA-rgw5-rvv9-x895) — DoS via
-  unbounded intermediate arrays
-
-Both are availability-only (`C:N/I:N/A:H`) and reachable only by expanding
-attacker-controlled brace patterns.
-
-**Why accepted:** `brace-expansion` is a *transitive dev* dependency of the
-lint/test toolchain, present in `primitives/js/package-lock.json` and
-`adapters/js/package-lock.json` only. **Both published packages declare zero
-runtime dependencies** — nothing here ships to a consumer. The exposure is a
-developer running our own test suite against a hostile glob, which is not a
-threat this project defends against ([threat model](threat-model.md)).
-
-**Revisit when:** the upstream toolchain releases a patched transitive; Dependabot
-will raise it. No manual action.
 
 ### Pinned-Dependencies — 9/10
 
@@ -83,30 +78,49 @@ scoring one.
 
 ### Contributors — 6/10
 
-Scorecard wants contributions from ≥2 organisations; it detects `slopstopper` and
-`anthropics`.
+Full marks need contributions from **≥3** organisations. Scorecard detects two
+(`slopstopper`, `anthropics`) and normalises: 2 × 10/3 → 6.
 
-**Why accepted:** this measures project popularity, not security posture. It
-moves when other organisations contribute, which is not something to engineer.
+**Why accepted:** this measures project reach, not security posture. It moves
+when a third organisation contributes, which is not something to engineer.
 
 ### Branch-Protection — 5/10
 
-Protection is real and verified live via the API: 1 approving review required,
-**code-owner review required**, force-pushes disabled, deletion disabled.
+`main` is governed by an **active repository ruleset**, `protect-main`
+(id 18269324, no bypass actors). Force-pushes and deletion are disabled and
+**code-owner review is required**. Its pull-request parameters are:
 
-Scorecard's own detail lines partly contradict the API. It reports *"'stale
-review dismissal' is disabled on branch 'main'"* while
-`/branches/main/protection` returns `dismiss_stale_reviews: true`. Scorecard is
-running with the default `GITHUB_TOKEN`, which cannot read every protection
-field; the accurate reading requires a classic **admin PAT** stored as
-`repo_token`.
+```
+required_approving_review_count   0
+dismiss_stale_reviews_on_push     false
+require_last_push_approval        false
+require_code_owner_review         true
+```
 
-**Why accepted:** a long-lived admin PAT in CI is a materially worse
-supply-chain risk than an under-reported score. The remaining points also want
-`enforce_admins=true`, which locks a solo maintainer out of their own repository.
+Scorecard's `Warn` lines are therefore **accurate**, not a misread. An earlier
+draft of this record claimed Scorecard was misreading the classic protection API
+and that a classic admin PAT would be needed to see the truth. That was wrong on
+both counts: Scorecard reads *rulesets*, which need no admin PAT, and stale-review
+dismissal genuinely is off. The classic `/branches/main/protection` endpoint
+returns `dismiss_stale_reviews: true`, but the ruleset is what governs merges —
+citing only the endpoint that agreed with us was the error.
 
-**Revisit when:** a second maintainer joins — at which point `enforce_admins`
-stops being self-defeating and the PAT tradeoff can be re-argued.
+**What is actually true:** `enforce_admins` is `false`, and the ruleset requires
+**zero** approvals, so the review requirement is not binding on the maintainer who
+merges. Scorecard measured **0 of 9 changesets approved** — that is the honest
+picture, and issue #77 stated it plainly ("solo maintainer admin-merges own PRs")
+before this record briefly lost it.
+
+**Why accepted:** a single-maintainer project cannot require an approval it has
+nobody to obtain. Requiring one would stop all merging; requiring two (what
+Scorecard wants for full marks) is further still. Code-owner review is enabled
+because it costs nothing today and becomes meaningful the moment a second person
+exists.
+
+**Revisit when:** a second maintainer joins — then raise
+`required_approving_review_count` to 1, enable `dismiss_stale_reviews_on_push`
+and `require_last_push_approval`, and set `enforce_admins`. All four are cheap
+with two people and self-defeating with one.
 
 ### Maintained — 0/10
 
@@ -115,12 +129,16 @@ automatically around **2026-09-26**. Pure repository age.
 
 ### Code-Review — 0/10
 
-Scorecard counts approved changesets. A solo maintainer approving their own PRs
-scores zero by construction, even though branch protection requires a review and
-CODEOWNERS is in place.
+Scorecard counts **approved** changesets and found 0 of 9.
 
-**Why accepted:** structural to a single-maintainer project. It improves only as
-PRs receive approvals from someone else.
+The mechanism is worth stating precisely, because it is easy to describe wrongly:
+GitHub does not permit approving your own pull request. The zero comes from PRs
+being merged with **no approval at all** — the ruleset requires zero, and
+`enforce_admins` is `false`, so an admin merge is unobstructed.
+
+**Why accepted:** structural to a single-maintainer project, and the same
+condition as Branch-Protection above. It moves when someone else reviews, not
+through configuration.
 
 ### Fuzzing — 0/10
 
@@ -133,9 +151,11 @@ a library whose inputs are small structured envelopes.
 
 ### Signed-Releases — −1 (inconclusive)
 
-*"No releases found."* The project tags releases (`v0.7.3`) and publishes to npm
-and PyPI via trusted publishing, but does not attach signed artifacts to GitHub
-Releases, which is what this check inspects.
+*"No releases found."* The project **does** publish GitHub Releases — 13 of them,
+v0.1.0 through v0.7.3, created by `release.yml`. Scorecard counts only releases
+carrying **assets**, and these carry none, so it reports nothing found rather
+than nothing signed. Stated precisely because the check's own wording sends a
+reader looking for missing releases that are in fact there.
 
 **Why accepted:** npm and PyPI trusted publishing already provides provenance
 attestation at the registries — the place consumers actually install from.
@@ -175,10 +195,15 @@ badge in the README — a discrepancy nobody had reconciled.
 
 ## Decision
 
-Accept the residuals above. Do **not** delete the npm-upgrade step, add an admin
-PAT to CI, or take on OSS-Fuzz to move the number. Let *Maintained* and
-*Code-Review* trend on their own. Investigate **CII-Best-Practices** as ordinary
-work.
+Accept the residuals above. Do **not** delete the npm-upgrade step or take on
+OSS-Fuzz to move the number, and do not weaken the ruleset to score better. Let
+*Maintained*, *Code-Review* and *Contributors* trend on their own — all three are
+functions of time and other people, not configuration.
+
+**CII-Best-Practices is not accepted**: the cause is identified (a stale
+`repo_url` on badge entry 13453) and the fix is a two-field edit on
+bestpractices.dev, tracked as
+[#217](https://github.com/slopstopper/plumb-line/issues/217).
 
 Re-run this analysis at each release whose diff touches CI, release tooling, or
 dependency pinning — and update it in place rather than appending, since a

@@ -128,7 +128,7 @@ run (decision-making, roles, and continuity). Participation is governed by the
 Tried it on a real codebase? Use-case feedback is welcome — bug reports and false positives especially help.
 
 - **Public** — open a [feedback issue](https://github.com/slopstopper/plumb-line/issues/new?template=feedback.yml). Good for bugs, false positives, and use cases you can share openly.
-- **Private** — testing on an internal or confidential codebase? Use the [private feedback form](https://effythealien.github.io/plumb-line/feedback.html); it goes straight to the maintainer.
+- **Private** — testing on an internal or confidential codebase? Use the [private feedback form](https://slopstopper.github.io/plumb-line/feedback.html); it goes straight to the maintainer.
 
 Raw output and one concrete "it caught something we'd otherwise have shipped" beat polished prose. Let me know if I may quote you or name you as an early user.
 
