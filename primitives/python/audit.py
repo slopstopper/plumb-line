@@ -1,4 +1,14 @@
 """audit — runtime consistency checker for provenance metadata. Mirror of audit.mjs."""
+import math
+import sys
+
+_FLOAT_MAX = sys.float_info.max
+
+# Sentinel distinguishing an ABSENT key from an explicit null. dict.get() collapses
+# both to None; JS sees `undefined` vs `null` natively. That asymmetry is what made
+# the two checkers disagree on an explicit null version (#156).
+_MISSING = object()
+
 try:  # installed as a package (plumb_line_provenance)
     from .provenance import CONFIDENCE, STATUS, weakest_confidence, weakest_source, is_score, PROVENANCE_VERSION
 except ImportError:  # flat / copy-paste usage (modules on sys.path)
@@ -29,6 +39,7 @@ def audit_meta(meta):
     - ``"missing meta"`` — meta is None or not a dict
     - ``"version-legacy:"`` — envelope predates the current provenance version, or omits it
     - ``"version-future:"`` — envelope reports a newer version than this checker supports
+    - ``"version-malformed:"`` — the version field is present but is not a number (#156)
 
     Args:
         meta: Provenance metadata dict to audit, or None.
@@ -36,15 +47,38 @@ def audit_meta(meta):
     Returns:
         list[str]: Issue descriptions; empty means consistent.
     """
-    if not isinstance(meta, dict):
+    # Exact dict, not isinstance (#165). JS auditMeta rejects any non-plain object
+    # via `Object.getPrototypeOf(meta) !== Object.prototype`, so accepting dict
+    # SUBCLASSES here (OrderedDict, defaultdict) would diverge — and parity is the
+    # invariant this project sells. Deliberately stricter than validate_envelope
+    # below, which mirrors the looser JS validateEnvelope.
+    if type(meta) is not dict:
         return ['missing meta']
     issues = []
 
     # Version read policy (#93): forgiving forward, honest backward. Advisory only.
-    v = meta.get('provenance_version')
-    if v is None or (isinstance(v, (int, float)) and not isinstance(v, bool) and v < PROVENANCE_VERSION):
+    # Absent is legacy (an envelope predating the field). Present-but-not-a-number
+    # is malformed, NOT legacy (#156) — saying "predates version N" about a list or
+    # a bool asserts something false. `_MISSING` distinguishes an absent key from an
+    # explicit null: .get() collapses both to None, which is what made JS and Python
+    # diverge here (JS saw `undefined` vs `null` and treated only the former as
+    # legacy). bool is excluded explicitly because it IS an int subclass in Python.
+    v = meta.get('provenance_version', _MISSING)
+    if v is _MISSING:
         issues.append(f'version-legacy: envelope predates version {PROVENANCE_VERSION}')
-    elif isinstance(v, (int, float)) and not isinstance(v, bool) and v > PROVENANCE_VERSION:
+    elif (not isinstance(v, (int, float)) or isinstance(v, bool)
+          or (isinstance(v, float) and not math.isfinite(v))
+          or (isinstance(v, int) and abs(v) > _FLOAT_MAX)):
+        # isfinite is applied ONLY to floats: math.isfinite(huge_int) converts to
+        # float first and raises OverflowError, which would break SPEC §5's
+        # totality guarantee (the checker must never raise). Python ints are
+        # unbounded, so a version literal past IEEE754 range is also ruled
+        # malformed to keep parity — JSON.parse turns the same literal into
+        # Infinity in JS, which lands in this branch there.
+        issues.append('version-malformed: provenance version is not an integer')
+    elif v < PROVENANCE_VERSION:
+        issues.append(f'version-legacy: envelope predates version {PROVENANCE_VERSION}')
+    elif v > PROVENANCE_VERSION:
         issues.append(f'version-future: envelope version {v} is newer than supported {PROVENANCE_VERSION}')
 
     lineage = meta.get('lineage') if isinstance(meta.get('lineage'), list) else []

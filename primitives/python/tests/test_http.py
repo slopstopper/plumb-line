@@ -85,3 +85,27 @@ def test_tagged_httpx_get_calls_httpx_and_tags(monkeypatch):
     monkeypatch.setattr(httpx, "get", lambda url, **kw: httpx.Response(200))
     m = plumb_http.tagged_httpx_get("https://example.test/data")
     assert (meta_of(m)["source"], meta_of(m)["confidence"]) == ("real", "high")
+
+def test_parse_age_never_raises_on_hostile_header_bytes():
+    r"""#172 review: parse_age dropped the old try/except on the assumption that
+    the regex fully vetted its input. It did not — Python's \s matches the C0
+    separators U+001C-U+001F, which float() then rejects, so an Age of
+    "\x1c60" raised straight out of classify_response and the requests/httpx
+    taggers. Header bytes are remote-controlled, so a crash there is a worse
+    failure than an ignored Age.
+    """
+    hostile = ['\x1c60', '\x1d60', '\x1e60', '\x1f60', '\x8560', '﻿60',
+               '\xa060', ' 60', '　60', '٦٠', '0x10', '1_000', '1e3',
+               'abc', '', '   ', '-5', '+60', '.5', '60.', 'Infinity', 'NaN']
+    for raw in hostile:
+        assert plumb_http.parse_age(raw) is None, repr(raw)
+        # ...and the whole classification path stays total on the same input
+        assert plumb_http.classify_response(200, {'Age': raw}) == ('real', 'high'), repr(raw)
+
+def test_parse_age_accepts_only_ows_and_ascii_digits():
+    # RFC 7230 OWS is SP/HTAB only; RFC 7234 delta-seconds is ASCII digits.
+    assert plumb_http.parse_age('60') == 60.0
+    assert plumb_http.parse_age(' 60 ') == 60.0
+    assert plumb_http.parse_age('\t60\t') == 60.0
+    assert plumb_http.parse_age('60.5') == 60.5
+    assert plumb_http.parse_age(None) is None
