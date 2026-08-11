@@ -46,13 +46,12 @@ ACTIONS = {"applied-mechanical", "applied-judgment", "applied-conservative",
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 _WORKING_TREE = "working tree (uncommitted)"
-# A principle citation: P<n>, optionally followed by the em-dash + name. The
-# name capture is non-greedy and bounded, because the glossary packs several
-# per line ("P3 — Confidence + provenance  P7 — Contracted outputs") — a greedy
-# capture swallows the next principle and reports a spurious name mismatch.
-# It ends at a table pipe, a closing paren, two+ spaces, or end of line.
-_PRINCIPLE_REF = re.compile(
-    r"\bP([1-9])\b(?:\s*—\s*([^|)\n]+?)(?=\s{2,}|\s*[|)]|\s*$))?", re.M)
+# Principle citations are found by code alone; the name is then checked as a
+# PREFIX of what follows (see _check_principles). Capturing the name with a
+# regex instead means choosing an end delimiter, and every choice was wrong for
+# some legal case: the glossary packs several per line, and prose cites one
+# mid-sentence. Prefix-matching the canonical name needs no delimiter at all.
+_PRINCIPLE_CODE = re.compile(r"\bP([1-9])\b")
 
 
 def load_principles(text):
@@ -150,23 +149,44 @@ def _table_columns(text, expected):
 
 
 def _check_principles(text, principles, glossary_required, issues):
-    """Every P# citation must be inline-named with the ruleset's own wording."""
-    cited = set()
-    for m in _PRINCIPLE_REF.finditer(text):
+    """Every P# citation must be inline-named with the ruleset's own wording.
+
+    The canonical name is matched as a PREFIX of what follows the em-dash, not
+    as the whole remainder. The format explicitly allows a citation mid-sentence
+    ("this run leaned on P3 — Confidence + provenance throughout"), and the
+    glossary packs several per line — so comparing against everything up to the
+    line end rejects the format's own documented usage. A false positive in a
+    format checker is the fastest way to get the checker disabled.
+    """
+    cited, seen = set(), set()
+
+    def add(issue):
+        if issue not in seen:      # one citation repeated N times is one problem
+            seen.add(issue)
+            issues.append(issue)
+
+    for m in re.finditer(r"\bP([1-9])\b", text):
         code = "P" + m.group(1)
         cited.add(code)
-        name = (m.group(2) or "").strip()
-        if not name:
-            issues.append(f"{code} is not inline-named (bare code); "
-                          f"render it as '{code} — {principles.get(code, '<name>')}'")
-        elif code in principles and name != principles[code]:
-            issues.append(f"{code} has the wrong name: {name!r}, "
-                          f"ruleset says {principles[code]!r}")
+        rest = text[m.end():]
+        dash = re.match(r"[ \t]*—[ \t]*", rest)
+        if not dash:
+            add(f"{code} is not inline-named (bare code); "
+                f"render it as '{code} — {principles.get(code, '<name>')}'")
+            continue
+        after = rest[dash.end():]
+        canonical = principles.get(code)
+        if canonical and after.startswith(canonical):
+            continue
+        snippet = re.split(r"\s{2,}|[|)\n]", after)[0].strip()
+        add(f"{code} has the wrong name: {snippet!r}, "
+            f"ruleset says {canonical!r}")
+
     if glossary_required:
         glossary = _glossary_codes(text)
         for code in sorted(cited):
             if code not in glossary:
-                issues.append(f"{code} is cited but not in the glossary")
+                add(f"{code} is cited but not in the glossary")
     return cited
 
 
@@ -175,7 +195,7 @@ def _glossary_codes(text):
     before the findings table."""
     head = text.split("| Path |")[0]
     head = "\n".join(ln for ln in head.split("\n") if not re.match(r"^[a-z][a-z-]*:", ln))
-    return {"P" + m.group(1) for m in _PRINCIPLE_REF.finditer(head)}
+    return {"P" + m.group(1) for m in re.finditer(r"\bP([1-9])\b", head)}
 
 
 def check_report(text, principles):

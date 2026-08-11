@@ -193,5 +193,42 @@ def test_remediation_missing_source_report_format_is_flagged():
     assert any("source-report-format" in i for i in issues_of(text))
 
 
+# --- false positives: valid-but-unusual reports the checker MUST accept ----
+#
+# Found by an adversarial pass before merge. Each of these is legal per the
+# skill's own format spec; a checker that rejects them is one a user disables,
+# after which it catches nothing.
+
+def test_principle_cited_inline_named_mid_sentence_is_accepted():
+    """The spec REQUIRES prose citations to be inline-named. Comparing the
+    canonical name against everything up to the line end rejected exactly the
+    usage the format mandates."""
+    text = VALID_REPORT.replace(
+        "\n| Path |",
+        "\nThis run leaned on P3 — Confidence + provenance throughout.\n\n| Path |")
+    assert _check(text) == []
+
+
+def test_glossary_with_several_principles_per_line_is_accepted():
+    assert _check(VALID_REPORT) == []   # the fixture glossary packs two per line
+
+
+def test_em_dash_placeholders_in_line_and_function_are_accepted():
+    text = VALID_REPORT.replace("| 42 | `load_scores` |", "| — | — |")
+    assert _check(text) == []
+
+
+def test_extra_optional_header_key_after_the_required_ones_is_accepted():
+    text = VALID_REPORT.replace("commit:              abab68d\n",
+                                "commit:              abab68d\nauditor:             plumb-line-audit\n")
+    assert _check(text) == []
+
+
+def test_repeated_bare_citation_reports_the_problem_once():
+    text = VALID_REPORT.replace("P3 — Confidence + provenance", "P3")
+    bare = [i for i in _check(text) if "not inline-named" in i]
+    assert len(bare) == 1, bare
+
+
 def issues_of(text):
     return _check(text)
