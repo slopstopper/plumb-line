@@ -95,6 +95,20 @@ section is indistinguishable from "never run."
 
 These are machine checks, not judgement calls — they either pass or block:
 
+- [ ] `python3 scripts/check_report_format.py <each report emitted above>` —
+      clean. The report-contract validator
+      ([#139](https://github.com/slopstopper/plumb-line/issues/139)): header keys
+      and order, known contract version, `YYYY-MM-DD` date, git-SHA-or-working-tree
+      commit, exact findings-table columns, inline-named principles matching
+      `reference/portable-principles.md`, every cited principle present in the
+      glossary, and the coverage map + scope note. Works on the audit's
+      `report-format` and remediate's `remediation-format`.
+
+      **This replaces a human judgement.** Every "no format FAILs" line recorded
+      in `validation-results.md` up to v0.7.3 was someone reading the report and
+      deciding — which is exactly the P7 gap #139 was filed for. Score format
+      compliance with the tool and record the command, not the impression.
+
 - [ ] `python3 scripts/check_version_prose.py` — clean. The wire-version prose
       gate ([#160](https://github.com/slopstopper/plumb-line/issues/160)):
       no live doc may state a wire version other than the current

@@ -17,6 +17,20 @@ seen. If there is no report, offer to run `plumb-line-audit` first, or accept
 findings pasted in the findings-table shape (Path / Line / Function / Issue /
 Suggested Fix / Principle).
 
+**Validate the report before consuming it.** This skill acts on a contracted
+input, so check the contract when `scripts/check_report_format.py` is reachable:
+
+```
+python3 scripts/check_report_format.py <the report>
+```
+
+A violation is **not** a reason to refuse the run — it is a reason to say what is
+wrong before acting on it. Report the violations, then ask whether to proceed;
+the risk a malformed report carries is that a column means something other than
+you assume, and the builder is the one who can tell. If the checker is
+unavailable, say the input was not mechanically validated rather than staying
+silent — the same honesty the audit owes its own output.
+
 ## The contract (what a remediation run IS)
 
 A remediation run produces, in order:
