@@ -115,3 +115,9 @@ jobs:
         run: python -m pytest -q examples
       - name: conformance against the plugin-bundled Python copy
         run: python -m pytest -q scripts/test_bundle_conformance.py
+      # The repo-infrastructure checkers (wire-version prose #160, report-format
+      # #139). Named explicitly because every other pytest step above is scoped
+      # to a package directory, so scripts/ was never collected — both suites
+      # could have regressed silently.
+      - name: repo-infrastructure checkers (scripts/)
+        run: python -m pytest -q scripts/test_version_prose.py scripts/test_report_format.py

@@ -230,5 +230,93 @@ def test_repeated_bare_citation_reports_the_problem_once():
     assert len(bare) == 1, bare
 
 
+# --- review findings, pinned ----------------------------------------------
+
+ALIGNED_RECORD = """remediation-format: v1
+source-report:       r.md
+source-report-format: v3
+principles-revision: 1
+date:                2026-08-11
+commit:              abab68d
+
+| Finding | Path   | Class      | Action        | Change summary |
+| ------- | ------ | ---------- | ------------- | -------------- |
+| 1       | `a.py` | mechanical | totally-bogus | did a thing    |
+"""
+
+
+def test_column_aligned_table_is_still_parsed():
+    """Comparing the RAW header line required single-space padding, so an
+    aligned table — what a model actually emits — never matched, and the
+    fallback returned zero rows. Every per-row check was silently dead: this
+    record passed clean with a bogus Action verb."""
+    issues = _check(ALIGNED_RECORD)
+    assert any("unknown Action" in i for i in issues), issues
+
+
+def test_record_row_with_wrong_cell_count_is_flagged():
+    text = ALIGNED_RECORD.replace(
+        "| 1       | `a.py` | mechanical | totally-bogus | did a thing    |",
+        "| 1       | mechanical | applied-mechanical |")
+    assert any("cells, expected" in i for i in _check(text))
+
+
+def test_bootstrap_report_is_header_only_by_design():
+    """Bootstrap shares the v3 header block and nothing else — glossary,
+    findings table and coverage map are audit-specific. Without this the
+    checker failed a conformant bootstrap report three times over, and the
+    harness runs it on every report."""
+    text = """report-format: v3
+scope:               my-project
+principles-revision: 1
+date:                2026-08-11
+commit:              abab68d
+adapter:             js
+
+Created: eslint.config.cjs, .claude/guards/pre-commit-gate.mjs
+Step 4b: declined — project untouched.
+"""
+    assert _check(text) == []
+
+
+def test_v1_report_is_not_judged_by_v3_rules():
+    """The contract grew: glossary and findings table in v2, coverage map in
+    v3. A stored v1 report must not fail for lacking parts it never had."""
+    text = """report-format: v1
+scope:               src/
+principles-revision: 1
+date:                2026-08-11
+commit:              abab68d
+
+Two findings, described in prose as v1 allowed.
+"""
+    assert _check(text) == []
+
+
+def test_non_ascii_digits_are_rejected_in_date_and_revision():
+    """Same class as the Age-header fix one commit earlier: \\d and isdigit()
+    are Unicode-aware, so both accepted values int() cannot parse."""
+    text = VALID_REPORT.replace("2026-08-11", "٢٠٢٦-٠٨-١١")
+    assert any("date" in i for i in _check(text))
+    text = VALID_REPORT.replace("principles-revision: 1", "principles-revision: ²")
+    assert any("principles-revision" in i for i in _check(text))
+
+
+def test_principle_code_inside_a_path_is_not_a_citation():
+    """An audit report quotes repo paths and identifiers; `src/P3-loader.py` is
+    a quotation, not a bare citation."""
+    text = VALID_REPORT.replace("`src/foo.py`", "`src/P3-loader.py`")
+    assert _check(text) == []
+
+
+def test_principle_code_inside_an_identifier_is_not_a_citation():
+    text = VALID_REPORT.replace("`load_scores`", "`P4_STEP`")
+    assert _check(text) == []
+
+
+def test_unreadable_path_fails_cleanly_without_a_traceback():
+    assert crf.main(["/nonexistent/report.md"]) == 1
+
+
 def issues_of(text):
     return _check(text)

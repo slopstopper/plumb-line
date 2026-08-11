@@ -29,6 +29,19 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   consumes. Where the checker is unreachable, the skills say the report was not
   mechanically validated rather than implying it was.
 
+  The checker models the contract's own history rather than one snapshot of it:
+  the glossary and canonical findings table arrived in v2 and the coverage map in
+  v3, so a stored v1 report is not failed for lacking parts its contract never
+  had. Bootstrap reports — which share the v3 header block and deliberately no
+  more — are recognised by their `adapter:` key and checked on the header alone.
+
+### Fixed
+- **The `scripts/` test suites now run in CI.** Every other pytest step is scoped
+  to a package directory, so `scripts/` was never collected — meaning the
+  wire-version prose checker's tests (#160) had never run on a PR since they
+  landed, and could have regressed silently. Named explicitly alongside the new
+  report-format suite.
+
 ### Changed
 - **Audit gains a `version-malformed:` advisory, and two cross-language
   divergences are closed** — the parity batch

@@ -19,7 +19,8 @@ P9 warns about, and the hardcoded prior P5 forbids.
 Pure stdlib. Run from the repo root:
 
     python3 scripts/check_report_format.py <report.md> [<more.md> ...]
-    python3 scripts/check_report_format.py --self-test
+
+Exits 0 when every report conforms, 1 otherwise (including an unreadable path).
 """
 import os
 import re
@@ -43,15 +44,35 @@ RECORD_COLUMNS = ["Finding", "Path", "Class", "Action", "Change summary"]
 ACTIONS = {"applied-mechanical", "applied-judgment", "applied-conservative",
            "proposed", "blocked", "skipped"}
 
-_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# [0-9] not \d, and an explicit ASCII test rather than str.isdigit(): Python's
+# \d matches any Unicode decimal digit and isdigit() is broader still (it is
+# True for "²"), so both would accept a date of "٢٠٢٦-٠٨-١١" or a revision of
+# "²" that int() cannot parse. Same class of bug as the Age-header fix in
+# primitives/python/http.py — it recurs anywhere a "digit" is assumed ASCII.
+_DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 _COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
+_ASCII_INT = re.compile(r"^[0-9]+$")
 _WORKING_TREE = "working tree (uncommitted)"
 # Principle citations are found by code alone; the name is then checked as a
 # PREFIX of what follows (see _check_principles). Capturing the name with a
 # regex instead means choosing an end delimiter, and every choice was wrong for
 # some legal case: the glossary packs several per line, and prose cites one
 # mid-sentence. Prefix-matching the canonical name needs no delimiter at all.
-_PRINCIPLE_CODE = re.compile(r"\bP([1-9])\b")
+#
+# The code must stand alone: `\bP3\b` also matches inside `src/P3-loader.py`
+# and `P3_STEP`, and an audit report is precisely the artifact that quotes repo
+# paths and identifiers — so that fired on valid reports.
+_PRINCIPLE_CODE = re.compile(r"(?<![\w/.-])P([1-9])(?![\w/.-])")
+
+# Inline code spans are masked before scanning: a path in backticks is a
+# quotation, not a citation, and must not be read as either.
+_CODE_SPAN = re.compile(r"`[^`\n]*`")
+
+
+def _mask_code_spans(text):
+    """Replace inline `code` spans with same-length blanks, preserving offsets
+    and line structure so reported positions and prefix matches stay accurate."""
+    return _CODE_SPAN.sub(lambda m: " " * len(m.group(0)), text)
 
 
 def load_principles(text):
@@ -109,7 +130,7 @@ def _check_header(pairs, required, version_key, known_versions, issues):
     if "date" in values and not _DATE.match(values["date"]):
         issues.append(f"date must be YYYY-MM-DD, got {values['date']!r}")
 
-    if "principles-revision" in values and not values["principles-revision"].isdigit():
+    if "principles-revision" in values and not _ASCII_INT.match(values["principles-revision"]):
         issues.append(
             f"principles-revision must be an integer, got {values['principles-revision']!r}")
 
@@ -121,27 +142,45 @@ def _check_header(pairs, required, version_key, known_versions, issues):
     return values
 
 
+def _split_row(line):
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def _is_separator(cells):
+    return bool(cells) and all(set(c) <= {"-", ":", " "} and c for c in cells)
+
+
 def _table_columns(text, expected):
-    """Find a markdown table whose header row is exactly `expected`. Returns
-    (found_columns_or_None, rows) — rows are the body cell-lists."""
-    want = "| " + " | ".join(expected) + " |"
+    """Find the markdown table whose header cells are exactly `expected`.
+
+    Compares PARSED CELLS, never the raw line. Comparing raw text required
+    single-space padding, so a column-aligned table — which is what a model
+    emitting a report actually produces — never matched. It then fell through to
+    the fallback and returned zero rows, silently disabling every per-row check
+    (a remediation record with an aligned table and a bogus Action verb passed
+    clean), while also reporting the WRONG table's columns on a report that
+    legitimately contains more than one table.
+
+    Returns (columns_of_the_matching_table_or_best_guess, body_rows).
+    """
     lines = text.split("\n")
     best = None
     for i, line in enumerate(lines):
         stripped = line.strip()
         if not (stripped.startswith("|") and stripped.endswith("|")):
             continue
-        cells = [c.strip() for c in stripped.strip("|").split("|")]
-        if set(cells) <= {"", "----", "-" * len(cells[0] or "-")} or all(
-                set(c) <= {"-", " "} for c in cells):
-            continue  # separator row
-        if stripped == want:
-            rows = []
-            for body in lines[i + 2:]:
+        cells = _split_row(stripped)
+        if _is_separator(cells):
+            continue
+        if cells == expected:
+            rows, j = [], i + 1
+            if j < len(lines) and _is_separator(_split_row(lines[j])):
+                j += 1                      # skip the separator, if present
+            for body in lines[j:]:
                 b = body.strip()
                 if not (b.startswith("|") and b.endswith("|")):
                     break
-                rows.append([c.strip() for c in b.strip("|").split("|")])
+                rows.append(_split_row(b))
             return cells, rows
         if best is None and len(cells) >= 3:
             best = cells
@@ -159,13 +198,14 @@ def _check_principles(text, principles, glossary_required, issues):
     format checker is the fastest way to get the checker disabled.
     """
     cited, seen = set(), set()
+    text = _mask_code_spans(text)
 
     def add(issue):
         if issue not in seen:      # one citation repeated N times is one problem
             seen.add(issue)
             issues.append(issue)
 
-    for m in re.finditer(r"\bP([1-9])\b", text):
+    for m in _PRINCIPLE_CODE.finditer(text):
         code = "P" + m.group(1)
         cited.add(code)
         rest = text[m.end():]
@@ -193,30 +233,49 @@ def _check_principles(text, principles, glossary_required, issues):
 def _glossary_codes(text):
     """Codes defined in the glossary block: the inline-named lines that appear
     before the findings table."""
-    head = text.split("| Path |")[0]
+    head = _mask_code_spans(text).split("| Path |")[0]
     head = "\n".join(ln for ln in head.split("\n") if not re.match(r"^[a-z][a-z-]*:", ln))
-    return {"P" + m.group(1) for m in re.finditer(r"\bP([1-9])\b", head)}
+    return {"P" + m.group(1) for m in _PRINCIPLE_CODE.finditer(head)}
 
 
 def check_report(text, principles):
     issues = []
-    _check_header(_header_lines(text), REPORT_HEADER_KEYS, "report-format",
-                  KNOWN_REPORT_VERSIONS, issues)
+    values = _check_header(_header_lines(text), REPORT_HEADER_KEYS, "report-format",
+                           KNOWN_REPORT_VERSIONS, issues)
 
-    cols, _rows = _table_columns(text, FINDINGS_COLUMNS)
-    if cols != FINDINGS_COLUMNS:
-        if "No findings." not in text:
+    # A BOOTSTRAP report shares the v3 header block and nothing else — the
+    # glossary, findings table and coverage map are audit-specific
+    # (skills/plumb-line-bootstrap/SKILL.md, "Step 5 — Report"). It is
+    # identified by the `adapter:` key the bootstrap header adds. Without this
+    # branch the checker emitted three FAILs on a perfectly conformant bootstrap
+    # report — and the harness tells the operator to run it on every report, so
+    # that would have blocked a release on a false failure.
+    if "adapter" in values:
+        _check_principles(text, principles, glossary_required=False, issues=issues)
+        return issues
+
+    # The contract grew: the glossary and canonical findings table arrived in
+    # v2, the coverage map in v3 (docs/validation-results.md). Applying v3 rules
+    # to a stored v1 report would fail it for lacking parts its own contract
+    # never had — the checker must model the version it is reading.
+    version = values.get("report-format", "v3")
+    level = int(version[1:]) if re.match(r"^v[0-9]+$", version) else 3
+
+    if level >= 2:
+        cols, _rows = _table_columns(text, FINDINGS_COLUMNS)
+        if cols != FINDINGS_COLUMNS and "No findings." not in text:
             issues.append(
                 f"findings table columns must be exactly {FINDINGS_COLUMNS}; "
                 f"found {cols} (a clean run instead states 'No findings.')")
 
-    _check_principles(text, principles, glossary_required=True, issues=issues)
+    _check_principles(text, principles, glossary_required=level >= 2, issues=issues)
 
-    if not re.search(r"^coverage:\s*\S", text, re.M):
-        issues.append("missing the coverage map — the audit's honest denominator "
-                      "(REQUIRED on every run, including clean ones)")
-    if not re.search(r"^scope note:\s*\S", text, re.M):
-        issues.append("missing the 'scope note:' no-completeness caveat")
+    if level >= 3:
+        if not re.search(r"^coverage:[ \t]*\S", text, re.M):
+            issues.append("missing the coverage map — the audit's honest denominator "
+                          "(REQUIRED on every run, including clean ones)")
+        if not re.search(r"^scope note:[ \t]*\S", text, re.M):
+            issues.append("missing the 'scope note:' no-completeness caveat")
     return issues
 
 
@@ -231,8 +290,16 @@ def check_remediation(text, principles):
             f"record table columns must be exactly {RECORD_COLUMNS}; found {cols}")
     else:
         action_at = RECORD_COLUMNS.index("Action")
-        for row in rows:
-            if len(row) > action_at and row[action_at] not in ACTIONS:
+        for n, row in enumerate(rows, start=1):
+            # A row with the wrong cell count is not "skip it" — a stray or
+            # missing pipe shifts every later cell, so Action would be read from
+            # the Class column and the record would misdescribe what was done.
+            if len(row) != len(RECORD_COLUMNS):
+                issues.append(
+                    f"record row {n} has {len(row)} cells, expected "
+                    f"{len(RECORD_COLUMNS)} — a shifted row misreports its Action")
+                continue
+            if row[action_at] not in ACTIONS:
                 issues.append(
                     f"unknown Action verb {row[action_at]!r}; "
                     f"must be one of {sorted(ACTIONS)}")
@@ -265,8 +332,16 @@ def main(argv):
 
     failed = 0
     for path in argv:
-        with open(path, encoding="utf-8") as fh:
-            issues = check(fh.read(), principles)
+        # An unreadable path is a FAIL line, not a traceback: this runs from the
+        # release harness, where a mistyped filename should read like every
+        # other failure rather than a stack trace.
+        try:
+            with open(path, encoding="utf-8") as fh:
+                issues = check(fh.read(), principles)
+        except OSError as exc:
+            failed += 1
+            print(f"✗ {path}\n    cannot read: {exc.strerror}")
+            continue
         if issues:
             failed += 1
             print(f"✗ {path}")
