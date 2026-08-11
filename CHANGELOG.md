@@ -98,9 +98,13 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   config threw `MODULE_NOT_FOUND` for anyone who copied it — taking
   `no-provenance-bypass` down with it, not just the newly-wired output rule. The
   require path is now explicit to `index.cjs`. Found while adding the template's
-  first integration test, which now pins that it loads, resolves the plugin, and
-  fires both rules; the boundary template had such a test, this one did not
-  ([#164](https://github.com/slopstopper/plumb-line/issues/164)).
+  first integration test, which pins that it loads, resolves the plugin, and that
+  the output rule fires inside its declared surface; the boundary template had
+  such a test, this one did not
+  ([#164](https://github.com/slopstopper/plumb-line/issues/164)). The same broken
+  require was left in the plugin README's two copy-paste examples and in
+  `index.cjs`'s header — corrected in
+  [#213](https://github.com/slopstopper/plumb-line/pull/213).
 
 ### Added
 - **`require-provenance-output` wired into the onboarding path**

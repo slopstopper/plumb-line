@@ -12,7 +12,10 @@ does not misfire on dynamic code or on unrelated functions of the same name.
 ## Usage (ESLint 9 flat config)
 
 ```js
-const provenance = require("./provenance-lint"); // path to this dir
+// Explicit to index.cjs: Node's directory-index resolution tries index.js /
+// .json / .node and NOT index.cjs, so a bare require("./provenance-lint")
+// against this directory throws MODULE_NOT_FOUND.
+const provenance = require("./provenance-lint/index.cjs"); // path to this dir
 
 module.exports = [
   {
@@ -90,7 +93,7 @@ is flagged. Outside those files it never fires. See [ADR-0011](../../../docs/adr
 module.exports = [
   {
     files: ["src/pricing/**", "src/model/scores.mjs"], // the declared surface
-    plugins: { "plumb-line": require("./provenance-lint") },
+    plugins: { "plumb-line": require("./provenance-lint/index.cjs") },
     rules: { "plumb-line/require-provenance-output": "error" },
   },
 ];
