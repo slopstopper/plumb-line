@@ -107,7 +107,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   [#213](https://github.com/slopstopper/plumb-line/pull/213).
 
 ### Added
-- **`require-provenance-output` wired into the onboarding path**
+- **`require-provenance-output` is now visible on the onboarding path**
   ([#164](https://github.com/slopstopper/plumb-line/issues/164)). The rule shipped
   in 0.7.1 but was invisible to `plumb-line-bootstrap`, so a user on the
   recommended path would never learn it existed. The template now carries an
@@ -116,6 +116,14 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   accepted, since with no primitive in the project every trust-bearing function
   returns raw and the rule would fire across the surface on day one — and the
   root README, adapter contract, and `plumb-line-remediate` name it.
+
+  **Scope, stated honestly:** this makes the rule *discoverable and documented*,
+  not *installed*. A retrospective review found that no bootstrap step copies the
+  provenance ESLint config into a target repo at all — `__GLOBS__` has never been
+  filled by any step, predating this change — so Step 4c currently describes an
+  offer the skill cannot yet carry out. Tracked as
+  [#214](https://github.com/slopstopper/plumb-line/issues/214); wiring the rule is
+  manual until it lands.
 
 ### Changed
 - **Minimum Python is now 3.11** (was 3.8; 3.9/3.10 are EOL or near-EOL). Adopted
