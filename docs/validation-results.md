@@ -649,6 +649,19 @@ at `994704d` after that commit amended `skills/plumb-line-remediate/SKILL.md`
 (see "Findings from the harness itself" below); the re-run is the one that
 unblocks the tag.
 
+**Method-surface changes after the recorded runs, and why they were not re-run.**
+Two commits in this release touch harness-trigger paths *after* `994704d`, so no
+recorded run covers the exact tree being tagged. Stated rather than glossed:
+
+| Commit | What it changed | Re-run? |
+| --- | --- | --- |
+| `ee65470` | `primitives/{js,python}/audit.mjs\|py`, `SPEC.md`, `cases.json` | **No.** Advisory *string* wording only — no control flow, no branch, no behaviour. Conformance re-run instead (39/39, both languages), plus a new row pinning `2.5 → version-future`. Parts 1 and 1b exercise the **skills** against fixtures; neither reads these strings, so a re-run would re-test nothing that changed. |
+| post-review fixes | `scripts/check_report_format.py`, `skills/plumb-line-remediate/SKILL.md` (example row label, one-line validation marker) | **No for Part 1b.** The SKILL.md edits are presentational — an `example` label on the template row and splitting two alternative marker lines into separate blocks — and change no instruction a remediator follows. The checker fix is in `scripts/`, outside the trigger, and is covered by unit tests including a regression test for the defect it closes. |
+
+This is a judgement, not a rule the harness states, and it is recorded here so a
+reader can disagree with it. The conservative alternative — re-running eight
+agents for an advisory string edit — was not taken.
+
 ### Part 1 — Blind validation (release-blocking) — **PASS (6/6)**
 
 Six read-only auditors, plain identical prompt, answer keys withheld: 2× each

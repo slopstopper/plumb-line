@@ -154,11 +154,12 @@ commit:              <git SHA before remediation, or "working tree (uncommitted)
 
 | Finding | Path | Class | Action | Change summary |
 | ------- | ---- | ----- | ------ | -------------- |
-| 1 — mock given a real source | `src/foo.py` | Judgment | applied-conservative | tagged `derivedFromMock`, confidence at the floor — needs builder review (P3 — Confidence + provenance) |
+| *example — replace with real rows* | `src/foo.py` | Judgment | applied-conservative | tagged `derivedFromMock`, confidence at the floor — needs builder review (P3 — Confidence + provenance) |
 
-The Action cell carries the bare verb, as above. Everywhere else this file names
-the vocabulary in prose it renders as `applied-conservative`, which is markdown
-emphasis, not part of the value.
+The row above is an **example**: delete it and emit your own findings. It is here
+only to show the Action cell's form — the **bare verb**, no backticks. Everywhere
+else this file names the vocabulary in prose it renders as `applied-conservative`,
+which is markdown inline-code formatting, not part of the value.
 
 - **Action** is one of: `applied-mechanical`, `applied-judgment` (builder said
   yes), `applied-conservative` (default taken, needs review), `proposed`
@@ -188,8 +189,13 @@ If the checker is not reachable (the common case in a consumer repo, which has
 the skills but not this repo's `scripts/`), say so in one line rather than
 implying the record was mechanically checked:
 
+Emit **one** of these lines, never both:
+
 ```
 format-validation: scripts/check_report_format.py — clean
+```
+
+```
 format-validation: not run (checker unavailable in this repo)
 ```
 

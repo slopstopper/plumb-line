@@ -74,6 +74,7 @@ _PRINCIPLE_CODE = re.compile(r"(?<![\w/–—-])P([1-9])(?![\w/–—-])")
 # quotation, not a citation, and must not be read as either.
 _CODE_SPAN = re.compile(r"`[^`\n]*`")
 _FENCE = re.compile(r"^\s*(?:```+|~~~+)\s*[A-Za-z0-9_-]*\s*$")
+_HEADER_START = re.compile(r"^(?:report|remediation)-format:", re.M)
 
 
 def _mask_code_spans(text):
@@ -389,10 +390,24 @@ def check_remediation(text, principles):
 
 def check(text, principles):
     kind = detect_format(text)
-    if kind == "report":
-        return check_report(text, principles)
-    if kind == "remediation":
-        return check_remediation(text, principles)
+    if kind in ("report", "remediation"):
+        # Exactly one header block, or the checker cannot say which one it
+        # validated. Fence tolerance made `_header_lines` take the FIRST header
+        # it found, so a document quoting the template in a fence and then
+        # carrying its own malformed header validated clean — the quoted block
+        # shadowed the real one and a loud failure became a silent pass on the
+        # release gate. Both skills print the template in a fence, so "quote the
+        # format, then emit the report" is the shape agents actually produce.
+        starts = _HEADER_START.findall(text)
+        issues = []
+        if len(starts) > 1:
+            issues.append(
+                f"ambiguous report: {len(starts)} header lines "
+                f"('report-format:'/'remediation-format:') — a report carries "
+                f"exactly one header block, and the checker cannot tell which "
+                f"one it is validating")
+        checker = check_report if kind == "report" else check_remediation
+        return issues + checker(text, principles)
     return ["unrecognised report contract: the first header key must be "
             "'report-format:' or 'remediation-format:' — check for a title "
             "line, prose, or an unclosed code fence above the header block"]

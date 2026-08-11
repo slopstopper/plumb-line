@@ -393,10 +393,28 @@ v0.7.3: an ADR promising test discipline the tests didn't fully carry).
 
 ## v0.8.0 dogfood self-audit — 2026-08-11
 
-Ran the `plumb-line-audit` method on plumb-line's own v0.8.0 method-surface diff
-(`v0.7.3..HEAD`, 27 files) at commit `6d12220`. **14 findings: 4 violations, 10
-needs-review.** Three fixed before the tag (commit `ee65470`); nine filed as
-`audit-deferral` issues; two folded into an existing issue's thread.
+Ran the `plumb-line-audit` method over plumb-line's own v0.8.0 diff at commit
+`6d12220`. **14 findings: 4 violations, 10 needs-review.** Three fixed before the
+tag (commit `ee65470`); nine filed as `audit-deferral` issues; two folded into an
+existing issue's thread.
+
+**Scope, stated exactly.** `v0.7.3..6d12220` touches **55** files. The audited
+set was **27** of them — the method surface plus `scripts/` and `examples/`,
+excluding lockfiles:
+
+```sh
+git diff --name-only v0.7.3..6d12220 \
+  | grep -E '^(skills/|reference/portable-principles\.md|primitives/|adapters/|scripts/|examples/)' \
+  | grep -v package-lock.json      # 27 files
+```
+
+That is **wider** than the harness's method-surface trigger (22 files) because
+this release's most consequential changes are in `scripts/` — which the trigger
+deliberately excludes — and narrower than the full diff, which is mostly
+lockfiles and CI. The 28 unaudited files were not examined and are not claimed
+clean. An earlier draft of this section called the 27 "the method-surface diff",
+which was wrong: the method surface is 22 files, and the reviewer of the release
+branch caught the mislabel.
 
 This is the first dogfood run where the finding count is double digits, and the
 reason is worth recording: the pass ran **after** the release harness rather than
@@ -436,9 +454,14 @@ the finding held on re-test, which is the reason the check exists.
   first as two unexplained test failures from the repo root that passed from
   inside `primitives/python`. [#157](https://github.com/slopstopper/plumb-line/issues/157)
   already tracks the hand-enumerated vendor set that makes this easy to trip.
-- **Scope note.** The auditor read 9 of 27 files in full and 18 partially
-  (changed hunks plus context). A partially-read file with no finding is not a
-  clean file; this pass does not claim completeness.
+- **Scope note.** The auditor read 9 of the 27 audited files in full and 18
+  partially (changed hunks plus context), against a whole-diff denominator of 55.
+  A partially-read file with no finding is not a clean file, an unaudited file is
+  not a clean file, and this pass does not claim completeness.
+- **The violation/needs-review split is not derivable from the table above.** The
+  4/10 figure comes from the auditor's report, which is not retained in the repo;
+  the table records location, principle, finding and resolution, not the
+  severity label. Noted by the branch reviewer.
 
 The pattern holds from previous runs — v0.7.0 stale version docs, v0.7.1 a
 zero-FP false positive, v0.7.2 a ROADMAP describing an ADR-rejected design,

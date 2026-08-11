@@ -165,7 +165,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   and were failed by a message that listed the rejected value among the valid
   ones. Fenced headers are now accepted, inline-code markers are stripped before
   the Action verb is matched (a verb outside the vocabulary still fails), and the
-  unrecognised-contract message names the likely cause. Pinned by four new cases.
+  unrecognised-contract message names the likely cause. Pinned by new cases.
+
+  **A third defect, found in review of that fix:** the fence tolerance made the
+  header parser take the *first* header it saw, so a report that quoted the
+  template in a fence and then carried its own **malformed** header validated
+  clean — the quoted block shadowed the real one, turning a loud failure into a
+  silent pass on the release-blocking gate. A document must now carry exactly one
+  `report-format:`/`remediation-format:` header line or it fails as ambiguous.
+  Regression test included.
 - **The blind validation harness leaked its own answer key.** The
   `js-payments-service/broken` fixture annotates each planted violation inline
   with its principle number, and `AUDIT-EXPECTATIONS.md` withheld only

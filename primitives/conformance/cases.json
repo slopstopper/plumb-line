@@ -174,7 +174,7 @@
       "expectContains": ["version-future:"]
     },
     {
-      "name": "version-future — a fractional version is finite, so it is compared not rejected (pins the advisory wording: the malformed branch is about finiteness, not integer-ness)",
+      "name": "version-future — a fractional version is finite, so it is routed to the comparison branches, not the malformed one (#216; the advisory wording itself is pinned by unit tests in both languages, not here — expectContains matches the prefix only)",
       "meta": { "provenanceVersion": 2.5, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
       "expectContains": ["version-future:"]
     },
