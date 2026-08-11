@@ -144,20 +144,34 @@ path to keep honest, for a check scored `−1` (not counted) either way.
 
 ## Actionable, not accepted
 
-### CII-Best-Practices — 0/10
+### CII-Best-Practices — 0/10 — **cause identified**
 
 Scorecard reports *"no effort to earn an OpenSSF best practices badge
-detected"* — but the project **has** a Best Practices entry
-([13453](https://www.bestpractices.dev/projects/13453)), linked from the README.
+detected"*. The project in fact holds **silver** — entry
+[13453](https://www.bestpractices.dev/projects/13453), passing 2026-07-01,
+silver 2026-07-02.
 
-This is the one residual that is neither a deliberate tradeoff nor
-self-resolving: either the badge entry is below the `passing` threshold, or
-Scorecard cannot associate it with this repository. Both are fixable and neither
-has been investigated.
+The entry still records the **pre-rename repository URL**:
 
-**Not accepted.** Tracked separately rather than absorbed into this record,
-because filing it under "accepted residuals" would be exactly the laundering
-this document exists to prevent.
+```
+badge_level  silver
+repo_url     https://github.com/effythealien/plumb-line
+```
+
+Scorecard resolves a Best Practices entry by the repository URL it is scanning
+(`github.com/slopstopper/plumb-line`), finds no entry registered against it, and
+scores 0. The badge work is complete; the *registration* was left behind by the
+organisation rename.
+
+**Not accepted — actionable.** The fix is to update `repo_url` (and
+`homepage_url`) on entry 13453 to the current URL, which requires the badge
+account and so cannot be done from the repository. Tracked as
+[#217](https://github.com/slopstopper/plumb-line/issues/217).
+
+Worth naming the class: an organisation rename updates everything *inside* the
+repository, and silently strands every **external registration that points back
+at it**. This one was visible only because a scoring check disagreed with a
+badge in the README — a discrepancy nobody had reconciled.
 
 ## Decision
 
