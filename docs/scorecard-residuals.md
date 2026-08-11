@@ -9,8 +9,12 @@ score with no recorded reasoning is indistinguishable from a score nobody looked
 at ([#77](https://github.com/slopstopper/plumb-line/issues/77)).
 
 **None of the residuals is an exploitable vulnerability in shipped code.**
-Scorecard's per-check "score" reflects how important the check is judged to be,
-not the severity of anything found.
+
+A note on reading the numbers, since it is easy to get backwards: a check's
+**score** *is* its finding (Vulnerabilities scored 8 because two advisories were
+found — 10 minus 2). What encodes importance is the separate per-check **risk
+level**, which weights the aggregate. So a low score means "this check found
+something", not "this check matters more than others".
 
 Re-check with:
 
@@ -24,7 +28,7 @@ curl -s https://api.scorecard.dev/projects/github.com/slopstopper/plumb-line
 | --- | --- | --- |
 | Binary-Artifacts, CI-Tests, Dangerous-Workflow, Dependency-Update-Tool, License, Packaging, SAST, Security-Policy, Token-Permissions | 10 | — |
 | Pinned-Dependencies | 9 | accepted |
-| Vulnerabilities | 8 → **resolved** | patched, see below |
+| Vulnerabilities | 8 | **patched here, awaiting re-scan** |
 | Contributors | 6 | accepted (structural) |
 | Branch-Protection | 5 | accepted (Scorecard is correct) |
 | Maintained | 0 | self-resolving |
@@ -33,7 +37,12 @@ curl -s https://api.scorecard.dev/projects/github.com/slopstopper/plumb-line
 | CII-Best-Practices | 0 | **fix applied, awaiting re-scan** |
 | Signed-Releases | −1 | not applicable |
 
-## Resolved since #77 was filed
+## Changed since #77 was filed
+
+Two of #77's seven acceptances no longer stand. One resolved on its own; one was
+never a valid acceptance. Recorded rather than deleted, because a stale
+acceptance is worse than none — it justifies a constraint that no longer exists,
+and the failure mode is invisible unless someone writes down what expired.
 
 Recorded because a stale acceptance is worse than none — it justifies a
 constraint that no longer exists.
@@ -53,16 +62,24 @@ constraint that no longer exists.
   of this record **accepted** them, on the reasoning that they are transitive
   dev-only and that "Dependabot will raise it, no manual action".
 
-  Both halves were wrong. Fixes shipped upstream in `5.0.8` (2026-07-24) and
-  `5.0.9` (2026-08-03); the lockfiles pinned `5.0.7` while every consumer already
-  required `^5.0.5`, so the patch needed one `npm update`. And Dependabot had
+  Both halves were wrong. Upstream published `5.0.8` on **2026-07-23** and
+  `5.0.9` on **2026-07-30** (npm publish times, not the later advisory
+  publication dates); the lockfiles pinned `5.0.7` while every consumer already
+  required `^5.0.5`, so the patch needed one `npm update`. The fix was therefore
+  available and unapplied for **twelve days**. And Dependabot had
   **auto-dismissed** all four alerts as `scope: development`, so it was never
   going to raise anything.
 
-  Resolved by updating both lockfiles to `5.0.9`. The lesson is recorded rather
-  than quietly fixed: *"wait for upstream"* is only an acceptance if someone has
-  checked that upstream has not already shipped, and *"the bot will tell us"* is
-  only a backstop if the bot is actually watching that scope.
+  Both lockfiles are updated to `5.0.9` in the change that introduced this
+  record. **Scorecard has not re-scanned**, so the check still reads 8 in the
+  table above — patched is not the same claim as observed-resolved, and this
+  record does not get to make the second one early (see the same discipline
+  applied to CII-Best-Practices below).
+
+  The reasoning is recorded rather than quietly deleted: *"wait for upstream"* is
+  only an acceptance if someone has checked that upstream has not already
+  shipped, and *"the bot will tell us"* is only a backstop if the bot is actually
+  watching that scope.
 
 ## Accepted residuals
 
@@ -97,19 +114,36 @@ require_last_push_approval        false
 require_code_owner_review         true
 ```
 
-Scorecard's `Warn` lines are therefore **accurate**, not a misread. An earlier
-draft of this record claimed Scorecard was misreading the classic protection API
-and that a classic admin PAT would be needed to see the truth. That was wrong on
-both counts: Scorecard reads *rulesets*, which need no admin PAT, and stale-review
-dismissal genuinely is off. The classic `/branches/main/protection` endpoint
-returns `dismiss_stale_reviews: true`, but the ruleset is what governs merges —
-citing only the endpoint that agreed with us was the error.
+**Both systems are live at once**, and this took two wrong drafts to state
+correctly. Classic branch protection is *also* configured on `main`,
+independently of the ruleset:
 
-**What is actually true:** `enforce_admins` is `false`, and the ruleset requires
-**zero** approvals, so the review requirement is not binding on the maintainer who
-merges. Scorecard measured **0 of 9 changesets approved** — that is the honest
-picture, and issue #77 stated it plainly ("solo maintainer admin-merges own PRs")
-before this record briefly lost it.
+```
+required_approving_review_count   1
+dismiss_stale_reviews             true
+enforce_admins                    false
+required status checks            JavaScript (Node 20), Manifest versions agree,
+                                  Python 3.11, Python 3.13
+```
+
+That fourth required check appears in no ruleset, which proves the classic
+config is not a derived view of one. GitHub applies both, most-restrictive-wins:
+**for any non-admin contributor, one approval is required and stale reviews are
+dismissed.**
+
+Two earlier drafts of this section were wrong in opposite directions. The first
+claimed Scorecard was misreading and that an admin PAT was needed — false; it
+reads rulesets without one. The second claimed "the ruleset is what governs
+merges" and that stale-review dismissal is genuinely off — also false, because
+classic protection is live too. Scorecard in fact merges both sources: its detail
+line `required approving review count is 1` can only come from the classic API,
+since the ruleset says 0.
+
+**What is actually true:** `enforce_admins` is `false`, so none of it binds the
+maintainer who merges. Scorecard measured **0 of 9 changesets approved** — that
+is the honest picture, and issue #77 stated it plainly ("solo maintainer
+admin-merges own PRs") before this record twice reached for a more flattering
+mechanism.
 
 **Why accepted:** a single-maintainer project cannot require an approval it has
 nobody to obtain. Requiring one would stop all merging; requiring two (what
@@ -117,10 +151,17 @@ Scorecard wants for full marks) is further still. Code-owner review is enabled
 because it costs nothing today and becomes meaningful the moment a second person
 exists.
 
-**Revisit when:** a second maintainer joins — then raise
-`required_approving_review_count` to 1, enable `dismiss_stale_reviews_on_push`
-and `require_last_push_approval`, and set `enforce_admins`. All four are cheap
-with two people and self-defeating with one.
+**Revisit when:** a second maintainer joins. Note which system each setting lives
+in, because they are not interchangeable:
+
+- **Ruleset `protect-main`:** raise `required_approving_review_count` to 1 (2 for
+  full marks), enable `dismiss_stale_reviews_on_push` and
+  `require_last_push_approval`.
+- **Classic protection:** enable `enforce_admins`. There is no ruleset equivalent
+  — rulesets express the same idea as an empty `bypass_actors` list, which is
+  already the case, so the admin bypass here comes from the classic config.
+
+All are cheap with two people and self-defeating with one.
 
 ### Maintained — 0/10
 
@@ -164,24 +205,19 @@ path to keep honest, for a check scored `−1` (not counted) either way.
 
 ## Actionable, not accepted
 
-### CII-Best-Practices — 0/10 — **cause identified**
+### CII-Best-Practices — 0/10 — **cause found and fixed, awaiting re-scan**
 
 Scorecard reports *"no effort to earn an OpenSSF best practices badge
 detected"*. The project in fact holds **silver** — entry
 [13453](https://www.bestpractices.dev/projects/13453), passing 2026-07-01,
 silver 2026-07-02.
 
-The entry still records the **pre-rename repository URL**:
-
-```
-badge_level  silver
-repo_url     https://github.com/effythealien/plumb-line
-```
-
-Scorecard resolves a Best Practices entry by the repository URL it is scanning
-(`github.com/slopstopper/plumb-line`), finds no entry registered against it, and
-scores 0. The badge work is complete; the *registration* was left behind by the
-organisation rename.
+**Cause (since fixed):** the entry recorded the **pre-rename repository URL** —
+`repo_url` and `homepage_url` both read
+`https://github.com/effythealien/plumb-line`. Scorecard resolves a Best Practices
+entry by the repository URL it is scanning (`github.com/slopstopper/plumb-line`),
+found no entry registered against it, and scored 0. The badge work was complete;
+the *registration* had been left behind by the organisation rename.
 
 **Not accepted — fix applied 2026-08-11.** Entry 13453 now records
 `repo_url` and `homepage_url` as `https://github.com/slopstopper/plumb-line`.
