@@ -59,6 +59,21 @@ Out of scope — documented non-goals, covered in the threat model:
 A finding being out of scope for "vulnerability" does not mean we don't want to
 hear it — open an issue or PR. It means it won't be handled under embargo.
 
+## Supply-chain posture and accepted residuals
+
+The project runs [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/slopstopper/plumb-line)
+(badge in the README). Not every check scores 10, and
+[`docs/scorecard-residuals.md`](docs/scorecard-residuals.md) records **why** for
+each one — which are deliberate tradeoffs (an admin PAT in CI would be a worse
+supply-chain risk than the points it buys), which are structural to a new
+single-maintainer repository, and which are simply unresolved and tracked as
+ordinary work.
+
+Two things that record is careful about, because they are what a reader actually
+needs: no residual is an exploitable vulnerability in **shipped** code (both
+published packages declare zero runtime dependencies), and an item whose original
+justification has expired is marked resolved rather than left standing.
+
 ## Supported versions
 
 The primitives follow envelope **schema version 2** (`PROVENANCE_VERSION = 2`).
