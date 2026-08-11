@@ -205,9 +205,14 @@ which has the skills but not this repo's `scripts/`), say so in one line rather
 than implying the report was mechanically checked:
 
 ```
-report-format: validated by scripts/check_report_format.py
-report-format: not mechanically validated (checker unavailable)
+format-validation: scripts/check_report_format.py — clean
+format-validation: not run (checker unavailable in this repo)
 ```
+
+Put this line **below the coverage map**, and note the key is
+`format-validation:`, *not* `report-format:` — a second `report-format:` line
+would be read as a duplicate header key, and re-running the checker on the saved
+report would then fail it on its own validation marker.
 
 Never suppress a finding to make the report validate — the contract describes the
 report's *shape*, and a shape violation is fixed by fixing the shape.

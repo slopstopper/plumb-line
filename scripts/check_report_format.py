@@ -62,7 +62,13 @@ _WORKING_TREE = "working tree (uncommitted)"
 # The code must stand alone: `\bP3\b` also matches inside `src/P3-loader.py`
 # and `P3_STEP`, and an audit report is precisely the artifact that quotes repo
 # paths and identifiers — so that fired on valid reports.
-_PRINCIPLE_CODE = re.compile(r"(?<![\w/.-])P([1-9])(?![\w/.-])")
+#
+# The lookarounds exclude en/em dashes as well as ASCII "-", because "P1–P9" is
+# a RANGE, not two bare citations, and this project's prose uses those dashes
+# heavily. They do NOT exclude a trailing "." — "this violates P3." is exactly
+# the bare citation the format forbids, and excluding "." created a hole in the
+# rule at its most common prose position.
+_PRINCIPLE_CODE = re.compile(r"(?<![\w/–—-])P([1-9])(?![\w/–—-])")
 
 # Inline code spans are masked before scanning: a path in backticks is a
 # quotation, not a citation, and must not be read as either.
@@ -84,14 +90,23 @@ def load_principles(text):
 
 
 def _header_lines(text):
-    """Leading `key: value` lines, stopping at the first blank or non-key line."""
+    """The header's `key: value` lines.
+
+    Leading blank lines are skipped: a single stray newline before the header
+    otherwise turned a conformant report into 'unrecognised report contract',
+    and the harness runs this on every report before tagging.
+    """
     pairs = []
+    started = False
     for line in text.split("\n"):
         if not line.strip():
-            break
-        m = re.match(r"^([a-z][a-z-]*):\s*(.*)$", line)
+            if not started:
+                continue          # leading blank — not yet in the header
+            break                 # blank after the header ends it
+        m = re.match(r"^([a-z][a-z-]*):[ \t]*(.*)$", line)
         if not m:
             break
+        started = True
         pairs.append((m.group(1), m.group(2).strip()))
     return pairs
 
@@ -121,11 +136,18 @@ def _check_header(pairs, required, version_key, known_versions, issues):
     if ordered != [k for k in required if k in present]:
         issues.append(f"header keys out of order: expected {required}, got {ordered}")
 
-    version = values.get(version_key, "")
-    if version and version not in known_versions:
-        issues.append(
-            f"unknown {version_key} version: {version!r} "
-            f"(this checker models {sorted(known_versions)})")
+    if version_key in values:
+        version = values[version_key]
+        # An EMPTY value is a failure, not a default. The version constant is the
+        # first of P7's three parts; silently treating a bare "report-format:" as
+        # current is the checker inventing the very thing it exists to verify.
+        if not version:
+            issues.append(f"{version_key} has no value; it must state a version "
+                          f"(one of {sorted(known_versions)})")
+        elif version not in known_versions:
+            issues.append(
+                f"unknown {version_key} version: {version!r} "
+                f"(this checker models {sorted(known_versions)})")
 
     if "date" in values and not _DATE.match(values["date"]):
         issues.append(f"date must be YYYY-MM-DD, got {values['date']!r}")
@@ -143,7 +165,14 @@ def _check_header(pairs, required, version_key, known_versions, issues):
 
 
 def _split_row(line):
-    return [c.strip() for c in line.strip().strip("|").split("|")]
+    """Split a markdown row on UNESCAPED pipes.
+
+    `\\|` is the legal way to put a literal pipe in a cell — a Change summary
+    quoting a shell pipeline, for instance. Splitting naively invented an extra
+    cell and reported a fabricated 'shifted row' failure.
+    """
+    cells = re.split(r"(?<!\\)\|", line.strip().strip("|"))
+    return [c.strip().replace("\\|", "|") for c in cells]
 
 
 def _is_separator(cells):
@@ -233,8 +262,27 @@ def _check_principles(text, principles, glossary_required, issues):
 def _glossary_codes(text):
     """Codes defined in the glossary block: the inline-named lines that appear
     before the findings table."""
-    head = _mask_code_spans(text).split("| Path |")[0]
-    head = "\n".join(ln for ln in head.split("\n") if not re.match(r"^[a-z][a-z-]*:", ln))
+    masked = _mask_code_spans(text)
+    lines = masked.split("\n")
+
+    # The glossary is what sits between the header and the FIRST table. Locating
+    # that table by the literal string "| Path |" required single-space padding,
+    # so an aligned table put the whole document in `head` — the cited set then
+    # equalled the glossary set and this check could never fire. That is the
+    # same aligned-table bug fixed in _table_columns, left behind one function
+    # below it. Find the first table row structurally instead.
+    end = len(lines)
+    for i, line in enumerate(lines):
+        s = line.strip()
+        if s.startswith("|") and s.endswith("|") and len(_split_row(s)) >= 2:
+            end = i
+            break
+        if s == "No findings.":
+            end = i
+            break
+
+    head = "\n".join(ln for ln in lines[:end]
+                     if not re.match(r"^[a-z][a-z-]*:", ln))
     return {"P" + m.group(1) for m in _PRINCIPLE_CODE.finditer(head)}
 
 
@@ -262,11 +310,26 @@ def check_report(text, principles):
     level = int(version[1:]) if re.match(r"^v[0-9]+$", version) else 3
 
     if level >= 2:
-        cols, _rows = _table_columns(text, FINDINGS_COLUMNS)
-        if cols != FINDINGS_COLUMNS and "No findings." not in text:
-            issues.append(
-                f"findings table columns must be exactly {FINDINGS_COLUMNS}; "
-                f"found {cols} (a clean run instead states 'No findings.')")
+        cols, rows = _table_columns(text, FINDINGS_COLUMNS)
+        if cols != FINDINGS_COLUMNS:
+            # 'No findings.' stands IN PLACE OF the table. Accepting the phrase
+            # anywhere in the document meant a prose sentence containing it
+            # excused a genuinely malformed table, so require that no candidate
+            # findings table is present at all.
+            clean_run = re.search(r"^No findings\.\s*$", text, re.M) and cols is None
+            if not clean_run:
+                issues.append(
+                    f"findings table columns must be exactly {FINDINGS_COLUMNS}; "
+                    f"found {cols} (a clean run instead states 'No findings.' "
+                    f"on its own line, with no findings table)")
+        else:
+            # Same reasoning as the record table: a shifted row moves the
+            # Principle cell, and the Principle is the whole point of the row.
+            for n, row in enumerate(rows, start=1):
+                if len(row) != len(FINDINGS_COLUMNS):
+                    issues.append(
+                        f"findings row {n} has {len(row)} cells, expected "
+                        f"{len(FINDINGS_COLUMNS)} — a shifted row loses its Principle")
 
     _check_principles(text, principles, glossary_required=level >= 2, issues=issues)
 
@@ -324,8 +387,15 @@ def main(argv):
         print("\nusage: python3 scripts/check_report_format.py <report.md> [...]")
         return 2
 
-    with open(_PRINCIPLES_DOC, encoding="utf-8") as fh:
-        principles = load_principles(fh.read())
+    # Trapped for the same reason report paths are: a checkout without
+    # reference/ (a plugin-bundled or partial copy) should get a FAIL line, not
+    # a traceback. The docstring promises exit 1 on an unreadable path.
+    try:
+        with open(_PRINCIPLES_DOC, encoding="utf-8") as fh:
+            principles = load_principles(fh.read())
+    except OSError as exc:
+        print(f"✗ cannot read {_PRINCIPLES_DOC}: {exc.strerror}")
+        return 1
     if not principles:
         print(f"✗ could not read principle names from {_PRINCIPLES_DOC}")
         return 1

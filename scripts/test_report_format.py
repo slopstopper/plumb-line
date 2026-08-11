@@ -318,5 +318,77 @@ def test_unreadable_path_fails_cleanly_without_a_traceback():
     assert crf.main(["/nonexistent/report.md"]) == 1
 
 
+# --- second review round: checks that were silently vacuous ---------------
+#
+# Three of these made the checker print "conforms" on a report that violates
+# the contract — strictly worse than not shipping it.
+
+ALIGNED_REPORT = """report-format: v3
+scope:               src/
+principles-revision: 1
+date:                2026-08-11
+commit:              abab68d
+
+| Path        | Line | Function | Issue | Suggested Fix | Principle              |
+| ----------- | ---- | -------- | ----- | ------------- | ---------------------- |
+| `src/a.py`  | 42   | `f`      | issue | fix           | P5 — Injectable priors |
+
+coverage: 1/1 files read, 0 partial, 0 not-read (100%)
+scope note: no completeness claimed.
+"""
+
+
+def test_glossary_check_works_on_an_aligned_table():
+    """_glossary_codes split on the literal '| Path |', so an aligned table put
+    the WHOLE document in the glossary head — cited set equalled glossary set
+    and this check could never fire. Same aligned-table bug as _table_columns,
+    left one function below it."""
+    assert any("not in the glossary" in i for i in _check(ALIGNED_REPORT))
+
+
+def test_no_findings_phrase_in_prose_does_not_excuse_a_bad_table():
+    """'No findings.' stands IN PLACE OF the table; accepting it anywhere in the
+    document let a prose sentence excuse a malformed one."""
+    text = ALIGNED_REPORT.replace(
+        "| Path        | Line | Function | Issue | Suggested Fix | Principle              |",
+        "| Path | Line | Issue | Suggested Fix | Principle |").replace(
+        "scope note: no completeness claimed.",
+        "scope note: No findings. in adapters/; completeness not claimed.")
+    assert any("findings table columns" in i for i in _check(text))
+
+
+def test_findings_row_missing_the_principle_cell_is_flagged():
+    text = VALID_REPORT.replace(
+        "| `src/bar.py` | — | — | output has no contract | add a version constant | P7 — Contracted outputs |",
+        "| `src/bar.py` | — | — | output has no contract | add a version constant |")
+    assert any("findings row" in i and "cells" in i for i in _check(text))
+
+
+def test_empty_contract_version_is_a_failure_not_a_default():
+    text = VALID_REPORT.replace("report-format: v3", "report-format:")
+    assert any("has no value" in i for i in _check(text))
+
+
+def test_bare_code_before_a_full_stop_is_flagged():
+    """The most common prose position for a bare citation; excluding '.' from
+    the lookahead put a hole in the headline 'never a bare P3' rule."""
+    text = VALID_REPORT.replace("2 findings:", "This clearly violates P3.\n\n2 findings:")
+    assert any("not inline-named" in i for i in _check(text))
+
+
+def test_en_dash_principle_range_is_not_two_bare_citations():
+    text = VALID_REPORT.replace("2 findings:", "Audited against P1–P9 as a set.\n\n2 findings:")
+    assert not any("not inline-named" in i for i in _check(text))
+
+
+def test_leading_blank_line_does_not_break_header_detection():
+    assert _check("\n" + VALID_REPORT) == []
+
+
+def test_escaped_pipe_in_a_cell_is_not_an_extra_column():
+    text = VALID_REMEDIATION.replace("tagged via derive", r"ran `a \| b`")
+    assert not any("cells, expected" in i for i in _check(text))
+
+
 def issues_of(text):
     return _check(text)
