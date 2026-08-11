@@ -388,3 +388,60 @@ consistent (mechanical version sweep clean).
 Both are honesty drift the dogfood exists to catch (v0.7.0: stale version docs;
 v0.7.1: a zero-FP false positive; v0.7.2: ROADMAP describing an ADR-rejected design;
 v0.7.3: an ADR promising test discipline the tests didn't fully carry).
+
+---
+
+## v0.8.0 dogfood self-audit — 2026-08-11
+
+Ran the `plumb-line-audit` method on plumb-line's own v0.8.0 method-surface diff
+(`v0.7.3..HEAD`, 27 files) at commit `6d12220`. **14 findings: 4 violations, 10
+needs-review.** Three fixed before the tag (commit `ee65470`); nine filed as
+`audit-deferral` issues; two folded into an existing issue's thread.
+
+This is the first dogfood run where the finding count is double digits, and the
+reason is worth recording: the pass ran **after** the release harness rather than
+alongside it, so it audited code written that same day in response to harness
+findings. Auditing fresh work found more than auditing settled work does.
+
+Every finding below was independently verified against the code before being
+fixed or filed — one of the verification greps was wrong on the first attempt and
+the finding held on re-test, which is the reason the check exists.
+
+| # | Location | Principle | Finding | Resolution |
+| --- | --- | --- | --- | --- |
+| 1 | `primitives/{js/audit.mjs,python/audit.py}` | P6 | The `version-malformed:` advisory — **new in this release** — read "provenance version is not an integer", but the branch rejects non-*finite* values: `2.5` is not an integer and audits as `version-future`. Three descriptions disagreed over one branch (advisory said integer, both docstrings said "not a number", `SPEC.md` said "not a finite number"). | **Fixed** — advisory now "is not a finite number" in both languages; SPEC's condition column gained the omitted cases; both docstrings state that a fractional version is compared, not rejected; new `cases.json` row pins `2.5 → version-future` in both languages (39/39). Fixed rather than deferred because an advisory string is a contracted output consumers prefix-match — cheap to change now, a breaking change after the tag. |
+| 2 | `scripts/check_version_prose.py:65` | P6 | Read `PROVENANCE_VERSION` with `(\d+)` while line 39 of the same file declares "Every digit class is `[0-9]`, never `\d` … this file is the one that must not accept a version it cannot compare". A stated invariant with one exception, in the file that states it. | **Fixed** — `[0-9]+`, and the surrounding whitespace class spelled out too. |
+| 3 | `examples/AUDIT-EXPECTATIONS.md` step 5 | P6 | Still defined "format FAIL" as something a scorer reads and decides, contradicting `docs/release-harness.md` and this release's own CHANGELOG, both of which say the judgement is now mechanical (#139). Introduced by this session's step-2 edit, which left step 5 behind. | **Fixed** — step 5 points at `check_report_format.py` and asks for the command and exit code to be recorded. |
+| 4 | `skills/plumb-line-bootstrap/SKILL.md` Step 4c | P6 | Instructs the agent to fill `__OUTPUT_GLOBS__` and verify the gate blocks, but no bootstrap step copies that config into the target repo, so the accepted branch cannot be executed. CHANGELOG says this plainly; the skill the agent actually reads does not. | **Deferred** — [#228](https://github.com/slopstopper/plumb-line/issues/228); the underlying install gap is [#214](https://github.com/slopstopper/plumb-line/issues/214). Honesty exists in the release notes but not at the point of use. |
+| 5 | `scripts/check_report_format.py` `_check_header` | P9 | `principles-revision` validated only as an ASCII integer; the checker already loads the ruleset that declares revision 1 but never compares, so a report claiming revision 7 passes clean — defeating the field's purpose. | **Deferred** — [#220](https://github.com/slopstopper/plumb-line/issues/220). |
+| 6 | `scripts/check_report_format.py` `main` | P8 | The checker's output records no ruleset revision and no checker version, yet `docs/release-harness.md` now stores that output as the gate evidence that replaced a human judgement — evidence that cannot be attributed or reproduced. | **Deferred** — [#221](https://github.com/slopstopper/plumb-line/issues/221). |
+| 7 | `scripts/check_report_format.py` `check_remediation` | P7 | The record's `Class` column has a named vocabulary but only `Action` is validated, so an invented Class passes the contract meant to enforce it. | **Deferred** — [#222](https://github.com/slopstopper/plumb-line/issues/222). |
+| 8 | `scripts/check_report_format.py` module constants | P9 | Six lists duplicate what the SKILL files define, while the docstring justifies loading principle *names* from the ruleset because a second copy "would be exactly the drift P9 warns about" — reasoning applied to one list and not the other five. v0.8.0 is direct evidence the drift is real (see harness defects 3–4). | **Deferred** — [#223](https://github.com/slopstopper/plumb-line/issues/223). |
+| 9 | `primitives/js/http.mjs` `parseAge` | P7 | New public export on the `./http` subpath with no SPEC section, no `docs/api.md` entry, and no JS unit test — while Python's `parse_age` gained two dedicated tests in the same release. | **Deferred** — [#224](https://github.com/slopstopper/plumb-line/issues/224). |
+| 10 | `primitives/python/tests/test_audit.py` | P6 | A cross-language parity claim ("JSON.parse turns the same literal into Infinity in JS") carried only by a docstring — nothing on the JS side pins `Infinity`/`NaN`, and `cases.json` cannot express them. Parity is this project's central invariant. | **Deferred** — [#225](https://github.com/slopstopper/plumb-line/issues/225). |
+| 11 | two `adapters/js/hooks/__tests__/*.mjs` comments | P8 | Both claim a defect is "Tracked" and name no issue; an issue search found no match for either. Every other deferral in this diff carries a number. | **Deferred** — [#226](https://github.com/slopstopper/plumb-line/issues/226). The convention exists because a claim of tracking that cannot be checked is the thing it was written to prevent. |
+| 12 | `primitives/python/pyproject.toml` | P6 | Classifiers claim 3.12; the test matrix is `["3.11", "3.13"]` (3.12 runs lint only), so the suite never runs on an advertised version. | **Deferred** — [#227](https://github.com/slopstopper/plumb-line/issues/227). |
+| 13–14 | `primitives/{js,python}` version branch | P6 | Non-integer float versions (`1.5 → version-legacy`, `2.5 → version-future`) against `SPEC.md` §5's "integer field" claim. | **Folded into [#216](https://github.com/slopstopper/plumb-line/issues/216)**, which already owns this question and is milestoned to v0.10.0. Commented there: fix 1 removed the *contradictory* advisory wording, so the tension now sits in exactly one place (§5 line 257) instead of two. Behaviour unchanged. |
+
+**Calibration notes.**
+
+- **No false positives that survived verification.** Every finding above was
+  reproduced before action. One verification grep (`\d` in the prose checker)
+  returned nothing on the first attempt due to shell escaping and appeared to
+  clear the finding; re-testing confirmed the finding was correct. Recorded
+  because the near-miss was an operator error, not an auditor error.
+- **A missed gate the audit did not catch.** Editing `primitives/` left
+  `.claude-plugin/bundled/primitives/` stale. `check-bundle-sync.mjs` caught it —
+  the mechanical gate did the work here, not the audit — and the drift surfaced
+  first as two unexplained test failures from the repo root that passed from
+  inside `primitives/python`. [#157](https://github.com/slopstopper/plumb-line/issues/157)
+  already tracks the hand-enumerated vendor set that makes this easy to trip.
+- **Scope note.** The auditor read 9 of 27 files in full and 18 partially
+  (changed hunks plus context). A partially-read file with no finding is not a
+  clean file; this pass does not claim completeness.
+
+The pattern holds from previous runs — v0.7.0 stale version docs, v0.7.1 a
+zero-FP false positive, v0.7.2 a ROADMAP describing an ADR-rejected design,
+v0.7.3 an ADR promising test discipline the tests didn't carry, and now v0.8.0's
+recurring shape: **a claim stated more precisely than the code enforces it.**
+Findings 1, 2, 3, 4 and 11 are all that same defect in different files.

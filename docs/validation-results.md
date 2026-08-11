@@ -750,3 +750,20 @@ not on the way out.
   gate depends on was mine, and it was wrong.
 - **The `clean/` fixtures drew no confirmed violations**, so the declared-adoption
   calibration added after the 2026-06-28 run is still holding.
+
+### Part 2 — Dogfood self-audit (non-blocking)
+
+See [`dogfood.md`](dogfood.md), v0.8.0 section — **14 findings: 4 violations, 10
+needs-review.** Three fixed before the tag (`ee65470`), nine filed as
+`audit-deferral` issues ([#220](https://github.com/slopstopper/plumb-line/issues/220)–[#228](https://github.com/slopstopper/plumb-line/issues/228)),
+and two folded into [#216](https://github.com/slopstopper/plumb-line/issues/216),
+which already owned that question.
+
+The fixed three are the ones whose cost rises after a tag: a **new** contracted
+advisory string that described its own branch incorrectly (`version-malformed:
+provenance version is not an integer`, where the branch rejects non-finite rather
+than non-integer values), a digit class that violated the invariant its own file
+declares, and a step in this very protocol that still called format scoring a
+human judgement.
+
+Report validated with `scripts/check_report_format.py` — clean.
