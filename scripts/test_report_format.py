@@ -390,5 +390,68 @@ def test_escaped_pipe_in_a_cell_is_not_an_extra_column():
     assert not any("cells, expected" in i for i in _check(text))
 
 
+def test_fenced_header_block_is_accepted():
+    """Both skills render the header template inside a ``` fence, so an agent
+    copying the template literally emitted a fenced header — and got
+    'unrecognised report contract', whose message never mentions fencing.
+    Found in the v0.8.0 release harness: an auditor hit this live and fixed it
+    by trial and error."""
+    assert _check("```\n" + VALID_REPORT + "```\n") == []
+
+
+def test_fenced_remediation_header_is_accepted():
+    assert _check("```\n" + VALID_REMEDIATION + "```\n") == []
+
+
+def test_backticked_action_verb_is_accepted():
+    """SKILL.md presents the Action vocabulary as `applied-mechanical` and its
+    table template has no example row, so both v0.8.0 harness remediators wrote
+    the verb backticked. The checker rejected it with a message that listed the
+    rejected value as valid."""
+    text = VALID_REMEDIATION.replace(
+        "| applied-mechanical |", "| `applied-mechanical` |")
+    assert not any("unknown Action verb" in i for i in _check(text))
+
+
+def test_unknown_action_verb_is_still_rejected():
+    """Tolerating backticks must not tolerate a verb outside the vocabulary."""
+    text = VALID_REMEDIATION.replace(
+        "| applied-mechanical |", "| `applied-magically` |")
+    assert any("unknown Action verb" in i for i in _check(text))
+
+
+def test_a_fenced_header_cannot_shadow_the_real_one():
+    """Regression: fence tolerance made `_header_lines` parse the FIRST header it
+    found, so a document that quotes the template in a fence and then carries its
+    own malformed header validated clean — a loud failure turned into a silent
+    pass on the release-blocking gate. Found in review of the fix that added
+    fence tolerance."""
+    quoted = "```\n" + VALID_REPORT.split("\n\n")[0] + "\n```\n\n"
+    real_but_broken = ("# Audit report\n\n"
+                       "report-format: v9\n"
+                       "date:                not-a-date\n"
+                       "commit:              zzzz\n")
+    body = "\n\n".join(VALID_REPORT.split("\n\n")[1:])
+    assert _check(quoted + real_but_broken + "\n" + body) != []
+
+
+def test_closing_fence_ends_the_header():
+    """The header-terminating half of the fence logic: key/value lines after the
+    closing fence are body text, not header keys."""
+    text = ("```\n" + VALID_REPORT.split("\n\n")[0] + "\n```\n"
+            "scope:               injected-after-the-fence\n\n"
+            + "\n\n".join(VALID_REPORT.split("\n\n")[1:]))
+    # The post-fence line must not be absorbed as a second `scope` header key.
+    assert not any("injected-after-the-fence" in i for i in _check(text))
+
+
+def test_record_may_carry_its_own_format_validation_line():
+    """plumb-line-remediate now validates its own record and marks the result,
+    mirroring the audit skill. The marker sits below the table, so it must not
+    read as a stray header key."""
+    assert _check(VALID_REMEDIATION +
+                  "\nformat-validation: scripts/check_report_format.py — clean\n") == []
+
+
 def issues_of(text):
     return _check(text)

@@ -9,6 +9,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.8.0] — 2026-08-11
+
 ### Added
 - **`scripts/check_report_format.py` — the report contract finally has a
   validator** ([#139](https://github.com/slopstopper/plumb-line/issues/139)). P7
@@ -35,14 +39,34 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   had. Bootstrap reports — which share the v3 header block and deliberately no
   more — are recognised by their `adapter:` key and checked on the header alone.
 
-### Fixed
-- **The `scripts/` test suites now run in CI.** Every other pytest step is scoped
-  to a package directory, so `scripts/` was never collected — meaning the
-  wire-version prose checker's tests (#160) had never run on a PR since they
-  landed, and could have regressed silently. Named explicitly alongside the new
-  report-format suite.
+- **`require-provenance-output` is now visible on the onboarding path**
+  ([#164](https://github.com/slopstopper/plumb-line/issues/164)). The rule shipped
+  in 0.7.1 but was invisible to `plumb-line-bootstrap`, so a user on the
+  recommended path would never learn it existed. The template now carries an
+  `__OUTPUT_GLOBS__` block for the declared surface (ADR-0011), bootstrap gains
+  **Step 4c** offering it — opt-in, and only after the Step 4b primitive offer was
+  accepted, since with no primitive in the project every trust-bearing function
+  returns raw and the rule would fire across the surface on day one — and the
+  root README, adapter contract, and `plumb-line-remediate` name it.
+
+  **Scope, stated honestly:** this makes the rule *discoverable and documented*,
+  not *installed*. A retrospective review found that no bootstrap step copies the
+  provenance ESLint config into a target repo at all — `__GLOBS__` has never been
+  filled by any step, predating this change — so Step 4c currently describes an
+  offer the skill cannot yet carry out. Tracked as
+  [#214](https://github.com/slopstopper/plumb-line/issues/214); wiring the rule is
+  manual until it lands.
 
 ### Changed
+- **Minimum Python is now 3.11** (was 3.8; 3.9/3.10 are EOL or near-EOL). Adopted
+  an EOL-tracking [support policy](SUPPORT.md): the floor follows Python's EOL
+  calendar rather than whatever a dependency last dropped. This collapses the
+  `requirements-test.txt` universal py3.9/≥3.10 lock split into a single flat
+  hashed lock, so the recurring per-cycle lock reconciliation (and the
+  `check-lock-sync` guard + pip Dependabot special-casing) is gone; held test-dep
+  bumps (pytest 9, import-linter 2.13, ruff 0.15.22, build 1.5.0) are taken. The
+  **runtime library API is unchanged** — this only moves the supported/tested
+  interpreter floor. `PROVENANCE_VERSION` stays `2`.
 - **Audit gains a `version-malformed:` advisory, and two cross-language
   divergences are closed** — the parity batch
   ([#156](https://github.com/slopstopper/plumb-line/issues/156),
@@ -90,8 +114,36 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   Callers passing a subclass should convert with `dict(meta)`. Not encodable in
   `cases.json` (JSON has no dict-subclass literal), so it is pinned by unit tests
   in both directions.
+- **The `version-malformed:` advisory now says what it actually checks.** The
+  string shipped earlier in this release as `provenance version is not an
+  integer`, but the branch rejects non-**finite** values — `2.5` is not an
+  integer and audits as `version-future`. It now reads `provenance version is not
+  a finite number`, matching `SPEC.md` and the code; both docstrings, which said
+  "not a number", were corrected too, and a `cases.json` row pins
+  `2.5 → version-future` in both languages so the current answer is enforced
+  rather than described. The advisory is a contracted output consumers
+  prefix-match, so the wording was fixed before the tag rather than deferred —
+  after a release it would be a breaking change. **No behaviour changed:** no
+  version value audits differently. Whether a non-integer float *should* be
+  malformed at all remains open as
+  [#216](https://github.com/slopstopper/plumb-line/issues/216); `SPEC.md` §5 still
+  declares the field an integer, and that is now the only place the tension sits.
+- **`plumb-line-remediate` now validates its own remediation record** before
+  emitting it, mirroring what `plumb-line-audit` already does for its report.
+  `remediation-format` had a version constant, a canonical key list, and — as of
+  this release — a validator that nothing ever called: both skills ran the
+  checker on their *input* only. A contract enforced on the way in and not on the
+  way out is the same P7 gap [#139](https://github.com/slopstopper/plumb-line/issues/139)
+  was filed for, one level down. The record's table template also gained the
+  example row it never had, so the required Action rendering is shown rather than
+  inferred. Found by running the release harness, not by reading the skill.
 
 ### Fixed
+- **The `scripts/` test suites now run in CI.** Every other pytest step is scoped
+  to a package directory, so `scripts/` was never collected — meaning the
+  wire-version prose checker's tests (#160) had never run on a PR since they
+  landed, and could have regressed silently. Named explicitly alongside the new
+  report-format suite.
 - **`eslint-provenance.template.cjs` never loaded.** The bootstrap-installable
   ESLint config did `require("./provenance-lint")`, but Node's directory-index
   resolution tries `index.js`/`.json`/`.node` and **not** `index.cjs`, so the
@@ -105,36 +157,38 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   require was left in the plugin README's two copy-paste examples and in
   `index.cjs`'s header — corrected in
   [#213](https://github.com/slopstopper/plumb-line/pull/213).
+- **`check_report_format.py` rejected reports written the way the skills render
+  them.** Two false FAILs, both found by running the v0.8.0 harness rather than
+  by reading the code — the checker's first contact with reports it did not
+  write. (1) Both skills print the header template inside a fenced code block, so
+  an agent copying it literally produced a fenced header and got `unrecognised
+  report contract`, a message that never mentioned fencing; a blind auditor hit
+  this live and recovered only by trial and error. (2) `plumb-line-remediate`
+  names its Action vocabulary as `applied-mechanical` and its table template
+  carried no example row, so both harness remediators wrote the verb backticked
+  and were failed by a message that listed the rejected value among the valid
+  ones. Fenced headers are now accepted, inline-code markers are stripped before
+  the Action verb is matched (a verb outside the vocabulary still fails), and the
+  unrecognised-contract message names the likely cause. Pinned by new cases.
 
-### Added
-- **`require-provenance-output` is now visible on the onboarding path**
-  ([#164](https://github.com/slopstopper/plumb-line/issues/164)). The rule shipped
-  in 0.7.1 but was invisible to `plumb-line-bootstrap`, so a user on the
-  recommended path would never learn it existed. The template now carries an
-  `__OUTPUT_GLOBS__` block for the declared surface (ADR-0011), bootstrap gains
-  **Step 4c** offering it — opt-in, and only after the Step 4b primitive offer was
-  accepted, since with no primitive in the project every trust-bearing function
-  returns raw and the rule would fire across the surface on day one — and the
-  root README, adapter contract, and `plumb-line-remediate` name it.
-
-  **Scope, stated honestly:** this makes the rule *discoverable and documented*,
-  not *installed*. A retrospective review found that no bootstrap step copies the
-  provenance ESLint config into a target repo at all — `__GLOBS__` has never been
-  filled by any step, predating this change — so Step 4c currently describes an
-  offer the skill cannot yet carry out. Tracked as
-  [#214](https://github.com/slopstopper/plumb-line/issues/214); wiring the rule is
-  manual until it lands.
-
-### Changed
-- **Minimum Python is now 3.11** (was 3.8; 3.9/3.10 are EOL or near-EOL). Adopted
-  an EOL-tracking [support policy](SUPPORT.md): the floor follows Python's EOL
-  calendar rather than whatever a dependency last dropped. This collapses the
-  `requirements-test.txt` universal py3.9/≥3.10 lock split into a single flat
-  hashed lock, so the recurring per-cycle lock reconciliation (and the
-  `check-lock-sync` guard + pip Dependabot special-casing) is gone; held test-dep
-  bumps (pytest 9, import-linter 2.13, ruff 0.15.22, build 1.5.0) are taken. The
-  **runtime library API is unchanged** — this only moves the supported/tested
-  interpreter floor. `PROVENANCE_VERSION` stays `2`.
+  **A third defect, found in review of that fix:** the fence tolerance made the
+  header parser take the *first* header it saw, so a report that quoted the
+  template in a fence and then carried its own **malformed** header validated
+  clean — the quoted block shadowed the real one, turning a loud failure into a
+  silent pass on the release-blocking gate. A document must now carry exactly one
+  `report-format:`/`remediation-format:` header line or it fails as ambiguous.
+  Regression test included.
+- **The blind validation harness leaked its own answer key.** The
+  `js-payments-service/broken` fixture annotates each planted violation inline
+  with its principle number, and `AUDIT-EXPECTATIONS.md` withheld only
+  `VIOLATIONS.md`/`README.md` — so the auditor read the answers in the code it
+  was being tested on, and every JS `broken/` PASS recorded through v0.7.3 was
+  weaker evidence than it appeared. The protocol now requires an answer-stripped
+  scratch copy with a verification step. `REMEDIATE-EXPECTATIONS.md` did strip
+  annotations but matched `VIOLATION` case-sensitively, leaving the fixture's two
+  lowercase annotations intact in every prior run; it now matches
+  case-insensitively. Re-run answer-stripped for v0.8.0, both fixtures still
+  passed — the leak had been inflating confidence, not hiding a failure.
 
 ## [0.7.3] — 2026-07-19
 
@@ -501,7 +555,8 @@ These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes th
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/effythealien/plumb-line/compare/v0.7.3...HEAD
+[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/slopstopper/plumb-line/compare/v0.7.3...v0.8.0
 [0.7.3]: https://github.com/effythealien/plumb-line/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/effythealien/plumb-line/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/effythealien/plumb-line/compare/v0.7.0...v0.7.1

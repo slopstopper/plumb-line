@@ -99,13 +99,13 @@ def test_audit_meta_is_total_on_a_huge_integer_version():
     huge = int('9' * 400)
     meta = {'provenance_version': huge, 'source': 'real', 'confidence': 'high',
             'derived_from_mock': False, 'lineage': []}
-    assert a.audit_meta(meta) == ['version-malformed: provenance version is not an integer']
+    assert a.audit_meta(meta) == ['version-malformed: provenance version is not a finite number']
 
 def test_audit_meta_is_total_on_non_finite_float_versions():
     for bad in (float('inf'), float('-inf'), float('nan')):
         meta = {'provenance_version': bad, 'source': 'real', 'confidence': 'high',
                 'derived_from_mock': False, 'lineage': []}
-        assert a.audit_meta(meta) == ['version-malformed: provenance version is not an integer'], bad
+        assert a.audit_meta(meta) == ['version-malformed: provenance version is not a finite number'], bad
 
 def test_large_but_representable_version_is_still_future_not_malformed():
     meta = {'provenance_version': 10 ** 15, 'source': 'real', 'confidence': 'high',

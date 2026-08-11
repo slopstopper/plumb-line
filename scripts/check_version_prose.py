@@ -62,7 +62,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def read_current_version(text):
     """Parse PROVENANCE_VERSION out of primitives/python/provenance.py source."""
-    m = re.search(r"^PROVENANCE_VERSION\s*=\s*(\d+)", text, re.M)
+    m = re.search(r"^PROVENANCE_VERSION[ \t]*=[ \t]*([0-9]+)", text, re.M)
     if not m:
         raise ValueError("PROVENANCE_VERSION not found in provenance source")
     return int(m.group(1))

@@ -39,7 +39,9 @@ def audit_meta(meta):
     - ``"missing meta"`` — meta is None or not a dict
     - ``"version-legacy:"`` — envelope predates the current provenance version, or omits it
     - ``"version-future:"`` — envelope reports a newer version than this checker supports
-    - ``"version-malformed:"`` — the version field is present but is not a number (#156)
+    - ``"version-malformed:"`` — the version field is present but is not a finite
+      number (#156). A fractional version is finite, so it is compared like any
+      other, not rejected — the branch is about finiteness, not integer-ness.
 
     Args:
         meta: Provenance metadata dict to audit, or None.
@@ -75,7 +77,7 @@ def audit_meta(meta):
         # unbounded, so a version literal past IEEE754 range is also ruled
         # malformed to keep parity — JSON.parse turns the same literal into
         # Infinity in JS, which lands in this branch there.
-        issues.append('version-malformed: provenance version is not an integer')
+        issues.append('version-malformed: provenance version is not a finite number')
     elif v < PROVENANCE_VERSION:
         issues.append(f'version-legacy: envelope predates version {PROVENANCE_VERSION}')
     elif v > PROVENANCE_VERSION:

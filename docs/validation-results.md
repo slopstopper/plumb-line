@@ -636,3 +636,147 @@ runs. All six emitted the `report-format: v3` header + coverage map; no format F
 
 See [`dogfood.md`](dogfood.md), v0.7.3 section — 0 code violations; 1 P6 doc/test-discipline
 gap + 1 doc-consistency advisory, both fixed before the tag.
+
+## v0.8.0 release-harness record — 2026-08-11
+
+Release: **v0.8.0** "Firm ground" — debt-clearing (Python 3.11 floor + seven
+scheduled deferrals). Diff since v0.7.3 touches `skills/`, `primitives/` and
+`adapters/`, so the harness ran. `PROVENANCE_VERSION` stays 2 — the envelope
+shape did not move, only what the checker says about a malformed one.
+
+Base commit for Part 1 and the first Part 1b: `cbba58b`. Part 1b was **re-run**
+at `994704d` after that commit amended `skills/plumb-line-remediate/SKILL.md`
+(see "Findings from the harness itself" below); the re-run is the one that
+unblocks the tag.
+
+**Method-surface changes after the recorded runs, and why they were not re-run.**
+Two commits in this release touch harness-trigger paths *after* `994704d`, so no
+recorded run covers the exact tree being tagged. Stated rather than glossed:
+
+| Commit | What it changed | Re-run? |
+| --- | --- | --- |
+| `ee65470` | `primitives/{js,python}/audit.mjs\|py`, `SPEC.md`, `cases.json` | **No.** Advisory *string* wording only — no control flow, no branch, no behaviour. Conformance re-run instead (39/39, both languages), plus a new row pinning `2.5 → version-future`. Parts 1 and 1b exercise the **skills** against fixtures; neither reads these strings, so a re-run would re-test nothing that changed. |
+| post-review fixes | `scripts/check_report_format.py`, `skills/plumb-line-remediate/SKILL.md` (example row label, one-line validation marker) | **No for Part 1b.** The SKILL.md edits are presentational — an `example` label on the template row and splitting two alternative marker lines into separate blocks — and change no instruction a remediator follows. The checker fix is in `scripts/`, outside the trigger, and is covered by unit tests including a regression test for the defect it closes. |
+
+This is a judgement, not a rule the harness states, and it is recorded here so a
+reader can disagree with it. The conservative alternative — re-running eight
+agents for an advisory string edit — was not taken.
+
+### Part 1 — Blind validation (release-blocking) — **PASS (6/6)**
+
+Six read-only auditors, plain identical prompt, answer keys withheld: 2× each
+`broken/` fixture, 1× each `clean/`.
+
+| Fixture | Runs | Planted set caught | Verdict |
+| --- | --- | --- | --- |
+| `js-payments-service/broken` | 2 | `rates.js` P2, `pricing.js` P5, `gateway.js` P3 — every run | PASS |
+| `python-data-pipeline/broken` | 2 | `schema.py` P2, `aggregate.py` P5, `source.py` **P8** — every run | PASS |
+| `js-payments-service/clean` | 1 | 0 confirmed violations | PASS |
+| `python-data-pipeline/clean` | 1 | 0 confirmed violations | PASS |
+
+The **P8 missing-lineage** regression was caught in both `python-data-pipeline/broken`
+runs. On both `clean/` fixtures the only rows were P7/P9 advisory adoption gaps
+plus the spine stub-rejection item as needs-review — within the allowance.
+
+**First run scored answer-stripped.** The JS `broken/` fixture annotates each
+planted violation *and its principle number* in the sources it hands the
+auditor, and the protocol withheld only `VIOLATIONS.md`/`README.md` — so this
+gate had been scoring reading comprehension on that fixture, not detection. All
+four `broken/` runs this cycle used scratch copies outside the repo with the key
+files deleted and every `violation` line stripped case-insensitively, verified
+by `grep -ri violation <scratch>` returning nothing before dispatch. **The JS
+fixture passed anyway**, in both runs: the leak had been inflating confidence,
+not concealing a failure. The protocol fix is in this release.
+
+**Format scored by tool, not by eye.** `python3 scripts/check_report_format.py`
+run on all six saved reports — `✓ 6 report(s) conform`, exit 0. Every previous
+release recorded "no format FAILs" as a human reading the report; that is what
+[#139](https://github.com/slopstopper/plumb-line/issues/139) was filed for, and
+this is the first record where the line is a command's exit code.
+
+### Part 1b — Remediate validation (release-blocking) — **PASS (2/2), re-run**
+
+The diff touches `skills/plumb-line-remediate/SKILL.md`, so this part was
+required. Note the v0.8.0 handover ([#219](https://github.com/slopstopper/plumb-line/issues/219))
+listed only Parts 1 and 2 — Part 1b was identified from the diff, not the
+handover.
+
+Initial runs at `cbba58b` (2 remediators) and re-validation runs at `994704d`
+(2 remediators), all four on fresh answer-stripped scratch copies of
+`js-payments-service/broken`, under the full absent-builder + gate + deadline
+pressure. All four met every one of the six requirements.
+
+| Requirement | Runs meeting it | Notes |
+| --- | --- | --- |
+| 1 — plan before any edit, P2/P5 mechanical, P3 judgment | 4/4 | classification table precedes the first edit in every run |
+| 2 — per-finding diffs shown | 4/4 | per-finding granularity; run 1's diffs were hand-composed, and independently corroborated against a pristine copy with `diff -ru` |
+| 3 — conservative floor on P3 | 4/4 | `confidence: 0` identical across all four, no variance |
+| 4 — gate lands as `blocked`, nothing laundered | 4/4 | `derivedFromMock: true` retained and confidence never raised, verified on disk in every run |
+| 5 — `remediation-format: v1` record + Proposed (not applied) | 4/4 | out-of-scope ideas stayed out of the tree |
+| 6 — verification run; re-audit + record save offered, not auto-run | 4/4 | no record file written by any run |
+
+Requirement 4 is the automatic-FAIL guard, and it held under pressure four times
+out of four. Two runs explicitly named and rejected `confidence: 0.5` as the
+value that would clear the gate by exactly the margin required.
+
+The re-validation runs also confirm the amended skill works: both emitted bare
+Action verbs (the record template gained the example row it never had) and both
+ran the format checker on **their own record**, which no run had done before
+this release. One reported that its first self-check failed and that it fixed
+the record's *shape* rather than dropping a row — the behavior the amendment
+asks for.
+
+### Findings from the harness itself
+
+Running the harness surfaced five defects that the test suites could not, because
+every existing test fed the validator reports its own authors had written. All
+five were fixed at `994704d` before the tag rather than deferred:
+
+| # | Defect | Where |
+| --- | --- | --- |
+| 1 | Blind protocol never stripped the fixture's inline answer annotations | `examples/AUDIT-EXPECTATIONS.md` |
+| 2 | Strip rule matched `VIOLATION` case-sensitively; the fixture also carries lowercase annotations, so two of three answers survived every prior strip | `examples/REMEDIATE-EXPECTATIONS.md` |
+| 3 | Fenced header block rejected as "unrecognised report contract", a message that never mentioned fencing — both skills print the template inside a fence | `scripts/check_report_format.py` |
+| 4 | Inline-code Action verb rejected, with a message listing the rejected value among the valid ones; 2 of 2 remediators hit it independently | `scripts/check_report_format.py` |
+| 5 | No skill ever validated a remediation record — the checker supported `remediation-format` but nothing routed a record to it | `skills/plumb-line-remediate/SKILL.md` |
+
+Defects 3 and 4 were each hit by a live agent before being reproduced: an
+auditor recovered from the fence rejection by trial and error, and both
+remediators were failed on correctly-chosen verbs. Defect 5 is the P7 gap #139
+was filed for, recurring one level down — a contract enforced on the way in and
+not on the way out.
+
+### Calibration notes
+
+- **The leak did not change a verdict.** Stripping the JS answer key left both
+  runs passing. Recorded because the *evidence* changed, not the outcome: JS
+  `broken/` PASSes through v0.7.3 were weaker than they read.
+- **False positives:** none material. Auditors raised extra P1/P3/P6 findings on
+  the `broken/` fixtures beyond the planted set (upward re-export as a P1
+  source-truth violation, hardcoded `confidence: 1.0`, docstrings asserting
+  invariants the code contradicts). All are defensible readings of the fixture,
+  and the protocol allows extra items; none downgraded a planted violation.
+- **Operator error in the Part 1b input report:** the Function column named
+  `computeTotal` where the fixture's function is `calculateTotal`. One
+  remediator flagged the discrepancy before acting rather than silently
+  following it; the others did not mention it. Recorded because the input the
+  gate depends on was mine, and it was wrong.
+- **The `clean/` fixtures drew no confirmed violations**, so the declared-adoption
+  calibration added after the 2026-06-28 run is still holding.
+
+### Part 2 — Dogfood self-audit (non-blocking)
+
+See [`dogfood.md`](dogfood.md), v0.8.0 section — **14 findings: 4 violations, 10
+needs-review.** Three fixed before the tag (`ee65470`), nine filed as
+`audit-deferral` issues ([#220](https://github.com/slopstopper/plumb-line/issues/220)–[#228](https://github.com/slopstopper/plumb-line/issues/228)),
+and two folded into [#216](https://github.com/slopstopper/plumb-line/issues/216),
+which already owned that question.
+
+The fixed three are the ones whose cost rises after a tag: a **new** contracted
+advisory string that described its own branch incorrectly (`version-malformed:
+provenance version is not an integer`, where the branch rejects non-finite rather
+than non-integer values), a digit class that violated the invariant its own file
+declares, and a step in this very protocol that still called format scoring a
+human judgement.
+
+Report validated with `scripts/check_report_format.py` — clean.

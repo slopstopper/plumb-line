@@ -151,6 +151,26 @@ describe("auditMeta", () => {
     expect(issues.some((i) => i.startsWith("version-future:"))).toBe(true);
   });
 
+  it("pins the version-malformed advisory string SPEC.md documents verbatim", () => {
+    // SPEC.md §5 quotes this sentence exactly, and consumers prefix-match the
+    // code. Python asserts the full string in test_audit.py; conformance only
+    // matches the `version-malformed:` prefix, so without this the JS wording
+    // could drift from the SPEC and from Python with every gate still green.
+    for (const bad of ["2", null, [], {}, true, Infinity, -Infinity, NaN]) {
+      expect(
+        auditMeta({ provenanceVersion: bad, source: "real", confidence: "high", derivedFromMock: false, lineage: [] }),
+      ).toEqual(["version-malformed: provenance version is not a finite number"]);
+    }
+  });
+
+  it("a fractional version is finite, so it is compared not rejected (#216)", () => {
+    // The malformed branch is about finiteness, not integer-ness — 2.5 routes
+    // to version-future and 1.5 to version-legacy, in both languages.
+    const at = (v) => auditMeta({ provenanceVersion: v, source: "real", confidence: "high", derivedFromMock: false, lineage: [] });
+    expect(at(2.5).some((i) => i.startsWith("version-future:"))).toBe(true);
+    expect(at(1.5).some((i) => i.startsWith("version-legacy:"))).toBe(true);
+  });
+
   it("audits a non-plain object as missing meta (#96 parity with Python)", () => {
     expect(auditMeta(new Date())).toEqual(["missing meta"]);
     expect(auditMeta(new Map())).toEqual(["missing meta"]);

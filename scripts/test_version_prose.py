@@ -156,3 +156,24 @@ def test_historical_paths_are_exempt():
     assert cvp.is_exempt_path("docs/validation-results.md")
     assert not cvp.is_exempt_path("README.md")
     assert not cvp.is_exempt_path("ROADMAP.md")
+
+
+def test_version_digits_are_ascii_only():
+    """This file declares "Every digit class is [0-9], never \\d ... this file is
+    the one that must not accept a version it cannot compare", but the
+    PROVENANCE_VERSION parser used \\d until v0.8.0. Python's \\d matches any
+    Unicode decimal digit, so a version written in non-ASCII digits parsed as a
+    real version instead of failing loudly."""
+    import pytest
+    with pytest.raises(ValueError):
+        cvp.read_current_version("PROVENANCE_VERSION = ٢\n")   # Arabic-Indic 2
+
+
+def test_version_assignment_must_be_on_one_line():
+    """The same fix narrowed the surrounding whitespace class from \\s (which
+    matches newlines) to [ \\t]. A value on the next line is not an assignment
+    this checker should silently accept."""
+    import pytest
+    with pytest.raises(ValueError):
+        cvp.read_current_version("PROVENANCE_VERSION =\n2\n")
+    assert cvp.read_current_version("PROVENANCE_VERSION\t=\t2\n") == 2

@@ -21,6 +21,17 @@ planted violation blocks the release.
 2. **Withhold the answer keys.** The auditor must NOT read `VIOLATIONS.md` or
    `README.md` for the fixture under audit — both list the planted violations.
    Reading either invalidates the run.
+
+   **Strip the inline annotations too.** The `js-payments-service/broken`
+   sources carry comments naming the planted violation *and its principle
+   number* (`// VIOLATION P2: upward import …`), so an auditor reading the
+   fixture is handed the answer key even with both files withheld. Run the
+   auditor against a scratch copy outside the repo with the key files deleted
+   and every line matching `violation` **case-insensitively** removed — the
+   same treatment `REMEDIATE-EXPECTATIONS.md` step 1 applies. Verify the copy is
+   clean (`grep -ri violation <scratch>` returns nothing) before dispatching:
+   until v0.8.0 this step did not exist, and the JS `broken/` runs recorded
+   through v0.7.3 were scored on an annotated fixture.
 3. Supply the declared architecture the way a real project owner would (the
    auditor cannot infer a project's own rules): one-way direction
    `ui → services → engine → data` (non-adjacent downward skips allowed);
@@ -40,6 +51,17 @@ planted violation blocks the release.
    full coverage without the map, is a **format FAIL**, scored independently of
    finding accuracy — a report that can't be reproduced fails even if every
    finding is correct.
+
+   **Score this with the checker, not by reading.** Save each report and run:
+
+   ```
+   python3 scripts/check_report_format.py <each saved report>
+   ```
+
+   Record the command and its exit code in `docs/validation-results.md`, not an
+   impression. Up to v0.7.3 every "no format FAILs" line here was a human reading
+   the report and deciding — the P7 gap
+   [#139](https://github.com/slopstopper/plumb-line/issues/139) was filed for.
 
 ## Expected findings
 
