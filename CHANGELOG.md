@@ -35,14 +35,34 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   had. Bootstrap reports — which share the v3 header block and deliberately no
   more — are recognised by their `adapter:` key and checked on the header alone.
 
-### Fixed
-- **The `scripts/` test suites now run in CI.** Every other pytest step is scoped
-  to a package directory, so `scripts/` was never collected — meaning the
-  wire-version prose checker's tests (#160) had never run on a PR since they
-  landed, and could have regressed silently. Named explicitly alongside the new
-  report-format suite.
+- **`require-provenance-output` is now visible on the onboarding path**
+  ([#164](https://github.com/slopstopper/plumb-line/issues/164)). The rule shipped
+  in 0.7.1 but was invisible to `plumb-line-bootstrap`, so a user on the
+  recommended path would never learn it existed. The template now carries an
+  `__OUTPUT_GLOBS__` block for the declared surface (ADR-0011), bootstrap gains
+  **Step 4c** offering it — opt-in, and only after the Step 4b primitive offer was
+  accepted, since with no primitive in the project every trust-bearing function
+  returns raw and the rule would fire across the surface on day one — and the
+  root README, adapter contract, and `plumb-line-remediate` name it.
+
+  **Scope, stated honestly:** this makes the rule *discoverable and documented*,
+  not *installed*. A retrospective review found that no bootstrap step copies the
+  provenance ESLint config into a target repo at all — `__GLOBS__` has never been
+  filled by any step, predating this change — so Step 4c currently describes an
+  offer the skill cannot yet carry out. Tracked as
+  [#214](https://github.com/slopstopper/plumb-line/issues/214); wiring the rule is
+  manual until it lands.
 
 ### Changed
+- **Minimum Python is now 3.11** (was 3.8; 3.9/3.10 are EOL or near-EOL). Adopted
+  an EOL-tracking [support policy](SUPPORT.md): the floor follows Python's EOL
+  calendar rather than whatever a dependency last dropped. This collapses the
+  `requirements-test.txt` universal py3.9/≥3.10 lock split into a single flat
+  hashed lock, so the recurring per-cycle lock reconciliation (and the
+  `check-lock-sync` guard + pip Dependabot special-casing) is gone; held test-dep
+  bumps (pytest 9, import-linter 2.13, ruff 0.15.22, build 1.5.0) are taken. The
+  **runtime library API is unchanged** — this only moves the supported/tested
+  interpreter floor. `PROVENANCE_VERSION` stays `2`.
 - **Audit gains a `version-malformed:` advisory, and two cross-language
   divergences are closed** — the parity batch
   ([#156](https://github.com/slopstopper/plumb-line/issues/156),
@@ -92,6 +112,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   in both directions.
 
 ### Fixed
+- **The `scripts/` test suites now run in CI.** Every other pytest step is scoped
+  to a package directory, so `scripts/` was never collected — meaning the
+  wire-version prose checker's tests (#160) had never run on a PR since they
+  landed, and could have regressed silently. Named explicitly alongside the new
+  report-format suite.
 - **`eslint-provenance.template.cjs` never loaded.** The bootstrap-installable
   ESLint config did `require("./provenance-lint")`, but Node's directory-index
   resolution tries `index.js`/`.json`/`.node` and **not** `index.cjs`, so the
@@ -105,36 +130,6 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   require was left in the plugin README's two copy-paste examples and in
   `index.cjs`'s header — corrected in
   [#213](https://github.com/slopstopper/plumb-line/pull/213).
-
-### Added
-- **`require-provenance-output` is now visible on the onboarding path**
-  ([#164](https://github.com/slopstopper/plumb-line/issues/164)). The rule shipped
-  in 0.7.1 but was invisible to `plumb-line-bootstrap`, so a user on the
-  recommended path would never learn it existed. The template now carries an
-  `__OUTPUT_GLOBS__` block for the declared surface (ADR-0011), bootstrap gains
-  **Step 4c** offering it — opt-in, and only after the Step 4b primitive offer was
-  accepted, since with no primitive in the project every trust-bearing function
-  returns raw and the rule would fire across the surface on day one — and the
-  root README, adapter contract, and `plumb-line-remediate` name it.
-
-  **Scope, stated honestly:** this makes the rule *discoverable and documented*,
-  not *installed*. A retrospective review found that no bootstrap step copies the
-  provenance ESLint config into a target repo at all — `__GLOBS__` has never been
-  filled by any step, predating this change — so Step 4c currently describes an
-  offer the skill cannot yet carry out. Tracked as
-  [#214](https://github.com/slopstopper/plumb-line/issues/214); wiring the rule is
-  manual until it lands.
-
-### Changed
-- **Minimum Python is now 3.11** (was 3.8; 3.9/3.10 are EOL or near-EOL). Adopted
-  an EOL-tracking [support policy](SUPPORT.md): the floor follows Python's EOL
-  calendar rather than whatever a dependency last dropped. This collapses the
-  `requirements-test.txt` universal py3.9/≥3.10 lock split into a single flat
-  hashed lock, so the recurring per-cycle lock reconciliation (and the
-  `check-lock-sync` guard + pip Dependabot special-casing) is gone; held test-dep
-  bumps (pytest 9, import-linter 2.13, ruff 0.15.22, build 1.5.0) are taken. The
-  **runtime library API is unchanged** — this only moves the supported/tested
-  interpreter floor. `PROVENANCE_VERSION` stays `2`.
 
 ## [0.7.3] — 2026-07-19
 
