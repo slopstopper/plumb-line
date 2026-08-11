@@ -30,7 +30,7 @@ curl -s https://api.scorecard.dev/projects/github.com/slopstopper/plumb-line
 | Maintained | 0 | self-resolving |
 | Code-Review | 0 | structural |
 | Fuzzing | 0 | out of scope |
-| CII-Best-Practices | 0 | **actionable — see below** |
+| CII-Best-Practices | 0 | **fix applied, awaiting re-scan** |
 | Signed-Releases | −1 | not applicable |
 
 ## Resolved since #77 was filed
@@ -183,10 +183,12 @@ Scorecard resolves a Best Practices entry by the repository URL it is scanning
 scores 0. The badge work is complete; the *registration* was left behind by the
 organisation rename.
 
-**Not accepted — actionable.** The fix is to update `repo_url` (and
-`homepage_url`) on entry 13453 to the current URL, which requires the badge
-account and so cannot be done from the repository. Tracked as
-[#217](https://github.com/slopstopper/plumb-line/issues/217).
+**Not accepted — fix applied 2026-08-11.** Entry 13453 now records
+`repo_url` and `homepage_url` as `https://github.com/slopstopper/plumb-line`.
+The change is on the badge account, not in this repository, so nothing here
+proves it: the score is expected to move on the next scheduled `scorecard.yml`
+run, and [#217](https://github.com/slopstopper/plumb-line/issues/217) stays open
+until it is observed rather than closed on the strength of having acted.
 
 Worth naming the class: an organisation rename updates everything *inside* the
 repository, and silently strands every **external registration that points back
