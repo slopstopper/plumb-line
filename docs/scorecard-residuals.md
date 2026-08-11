@@ -141,18 +141,26 @@ since the ruleset says 0.
 
 **What is actually true:** `enforce_admins` is `false`, so none of it binds the
 maintainer who merges. Scorecard measured **0 of 9 changesets approved** — that
-is the honest picture, and issue #77 stated it plainly ("solo maintainer
-admin-merges own PRs") before this record twice reached for a more flattering
-mechanism.
+is the honest picture. Issue #77 said as much in one clause when the project had
+a single maintainer ("solo maintainer admin-merges own PRs"); this record twice
+replaced that plain account with a more architectural and less true one. The
+maintainer count has since changed (see below); the merge behaviour has not.
 
-**Why accepted:** a single-maintainer project cannot require an approval it has
-nobody to obtain. Requiring one would stop all merging; requiring two (what
-Scorecard wants for full marks) is further still. Code-owner review is enabled
-because it costs nothing today and becomes meaningful the moment a second person
-exists.
+**Why accepted:** the `slopstopper` org has two members, but they work on separate
+projects. The second member contributes to plumb-line by **testing it against
+real repositories and giving feedback directly**, not by reviewing pull requests.
+So there is a second person, and there is still nobody in the PR-approval loop —
+requiring an approval would block merging without adding a reviewer.
 
-**Revisit when:** a second maintainer joins. Note which system each setting lives
-in, because they are not interchangeable:
+That distinction matters for the revisit trigger below: the constraint is not
+"only one person exists" (untrue), it is "review is not how this project
+collaborates" (true, and a choice rather than a limitation). Code-owner review is
+enabled because it costs nothing and becomes binding the moment that changes.
+
+**Revisit when:** PR review becomes part of how this project is worked on —
+*not* "when a second maintainer joins", which has already happened and changed
+nothing here. Note which system each setting lives in, because they are not
+interchangeable:
 
 - **Ruleset `protect-main`:** raise `required_approving_review_count` to 1 (2 for
   full marks), enable `dismiss_stale_reviews_on_push` and
@@ -177,9 +185,20 @@ GitHub does not permit approving your own pull request. The zero comes from PRs
 being merged with **no approval at all** — the ruleset requires zero, and
 `enforce_admins` is `false`, so an admin merge is unobstructed.
 
-**Why accepted:** structural to a single-maintainer project, and the same
-condition as Branch-Protection above. It moves when someone else reviews, not
-through configuration.
+**Why accepted:** same condition as Branch-Protection above — the project has a
+second org member, but they contribute through direct testing and feedback rather
+than PR approval, so no changeset acquires one.
+
+Worth being honest about what this check does and does not see. Every PR in this
+cycle *was* independently reviewed, by a separate agent, and that review found
+real defects in three of four previously-unreviewed PRs — including in this very
+document, three rounds running. None of that is visible to Scorecard, which
+counts GitHub approvals. Equally, an agent review is not a human approval and
+should not be presented as satisfying the check: the score is 0 and the record
+says so. The point is that "0/10 Code-Review" measures a specific artifact, not
+whether the code was looked at.
+
+It moves when someone else approves changesets, not through configuration.
 
 ### Fuzzing — 0/10
 
