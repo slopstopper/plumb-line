@@ -269,7 +269,7 @@ other issue in §5's table:
 | equal to the checker's `PROVENANCE_VERSION` (current) | none |
 | greater than the checker's `PROVENANCE_VERSION` (unknown future) | `version-future: envelope version N is newer than supported <PROVENANCE_VERSION>` |
 | absent, or less than the checker's `PROVENANCE_VERSION` (legacy) | `version-legacy: envelope predates version <PROVENANCE_VERSION>` |
-| present but not a finite number — a string, `null`, a list, an object, a boolean | `version-malformed: provenance version is not an integer` |
+| present but not a finite number — a string, `null`, a list, an object, a boolean, an infinity/NaN, or an integer past IEEE754 range | `version-malformed: provenance version is not a finite number` |
 
 **Absent and malformed are different states.** An absent field is *legacy*: the
 envelope predates the field, which is a true statement about it. A field holding

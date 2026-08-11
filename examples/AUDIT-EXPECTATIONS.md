@@ -52,6 +52,17 @@ planted violation blocks the release.
    finding accuracy — a report that can't be reproduced fails even if every
    finding is correct.
 
+   **Score this with the checker, not by reading.** Save each report and run:
+
+   ```
+   python3 scripts/check_report_format.py <each saved report>
+   ```
+
+   Record the command and its exit code in `docs/validation-results.md`, not an
+   impression. Up to v0.7.3 every "no format FAILs" line here was a human reading
+   the report and deciding — the P7 gap
+   [#139](https://github.com/slopstopper/plumb-line/issues/139) was filed for.
+
 ## Expected findings
 
 ### `broken/` — exactly the planted set must appear as VIOLATIONS
