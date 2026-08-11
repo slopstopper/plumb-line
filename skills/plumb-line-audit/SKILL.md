@@ -195,6 +195,23 @@ The omission-pass enumeration table (defined in the Method section) is a separat
 report artifact with its own columns; when the auditor emits it, its principle
 references are inline-named too, exactly like the findings table above.
 
+**Validate the report against its own contract before emitting it.** P7 applies
+to this skill's own output: a contract with a version and a key list but no
+check is a claim, not a contract. When `scripts/check_report_format.py` is
+available (it ships in the plumb-line repo), run it on the report — writing the
+report to a temp file if it has not been saved — and fix any violation before
+printing. If the script is not reachable (the common case in a consumer repo,
+which has the skills but not this repo's `scripts/`), say so in one line rather
+than implying the report was mechanically checked:
+
+```
+report-format: validated by scripts/check_report_format.py
+report-format: not mechanically validated (checker unavailable)
+```
+
+Never suppress a finding to make the report validate — the contract describes the
+report's *shape*, and a shape violation is fixed by fixing the shape.
+
 **Report file — always offer, never auto-write.** Print the full report
 (header + glossary + table + summary) to the conversation every run. Then, and
 only then, ask whether to save it to `plumb-line-audit.md`; write the file solely
