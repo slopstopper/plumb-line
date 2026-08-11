@@ -21,6 +21,17 @@ planted violation blocks the release.
 2. **Withhold the answer keys.** The auditor must NOT read `VIOLATIONS.md` or
    `README.md` for the fixture under audit — both list the planted violations.
    Reading either invalidates the run.
+
+   **Strip the inline annotations too.** The `js-payments-service/broken`
+   sources carry comments naming the planted violation *and its principle
+   number* (`// VIOLATION P2: upward import …`), so an auditor reading the
+   fixture is handed the answer key even with both files withheld. Run the
+   auditor against a scratch copy outside the repo with the key files deleted
+   and every line matching `violation` **case-insensitively** removed — the
+   same treatment `REMEDIATE-EXPECTATIONS.md` step 1 applies. Verify the copy is
+   clean (`grep -ri violation <scratch>` returns nothing) before dispatching:
+   until v0.8.0 this step did not exist, and the JS `broken/` runs recorded
+   through v0.7.3 were scored on an annotated fixture.
 3. Supply the declared architecture the way a real project owner would (the
    auditor cannot infer a project's own rules): one-way direction
    `ui → services → engine → data` (non-adjacent downward skips allowed);

@@ -73,6 +73,7 @@ _PRINCIPLE_CODE = re.compile(r"(?<![\w/–—-])P([1-9])(?![\w/–—-])")
 # Inline code spans are masked before scanning: a path in backticks is a
 # quotation, not a citation, and must not be read as either.
 _CODE_SPAN = re.compile(r"`[^`\n]*`")
+_FENCE = re.compile(r"^\s*(?:```+|~~~+)\s*[A-Za-z0-9_-]*\s*$")
 
 
 def _mask_code_spans(text):
@@ -95,6 +96,11 @@ def _header_lines(text):
     Leading blank lines are skipped: a single stray newline before the header
     otherwise turned a conformant report into 'unrecognised report contract',
     and the harness runs this on every report before tagging.
+
+    A leading code fence is skipped for the same reason. Both skills print the
+    header template inside a ``` fence, so an agent copying the template
+    literally produces a fenced header — which failed with a message that never
+    mentioned fencing. Seen for real in the v0.8.0 harness.
     """
     pairs = []
     started = False
@@ -103,6 +109,10 @@ def _header_lines(text):
             if not started:
                 continue          # leading blank — not yet in the header
             break                 # blank after the header ends it
+        if _FENCE.match(line):
+            if not started:
+                continue          # opening fence around the header block
+            break                 # closing fence ends it
         m = re.match(r"^([a-z][a-z-]*):[ \t]*(.*)$", line)
         if not m:
             break
@@ -362,9 +372,15 @@ def check_remediation(text, principles):
                     f"record row {n} has {len(row)} cells, expected "
                     f"{len(RECORD_COLUMNS)} — a shifted row misreports its Action")
                 continue
-            if row[action_at] not in ACTIONS:
+            # SKILL.md names the vocabulary as `applied-mechanical` and its
+            # table template carries no example row, so records arrive with the
+            # verb in an inline-code span. That is the documented rendering, not
+            # a wrong verb — strip the markers before matching rather than
+            # failing a record whose Action is correct.
+            verb = row[action_at].strip().strip("`").strip()
+            if verb not in ACTIONS:
                 issues.append(
-                    f"unknown Action verb {row[action_at]!r}; "
+                    f"unknown Action verb {verb!r}; "
                     f"must be one of {sorted(ACTIONS)}")
 
     _check_principles(text, principles, glossary_required=False, issues=issues)
@@ -378,7 +394,8 @@ def check(text, principles):
     if kind == "remediation":
         return check_remediation(text, principles)
     return ["unrecognised report contract: the first header key must be "
-            "'report-format:' or 'remediation-format:'"]
+            "'report-format:' or 'remediation-format:' — check for a title "
+            "line, prose, or an unclosed code fence above the header block"]
 
 
 def main(argv):

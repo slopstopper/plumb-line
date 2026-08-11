@@ -17,9 +17,14 @@ runs it before tagging any release whose diff touches
 ## Protocol (one remediator per run; ≥2 independent runs)
 
 1. Copy `js-payments-service/broken/` to a scratch directory **outside the
-   repo**. Delete `VIOLATIONS.md` from the copy and strip every line containing
-   `VIOLATION` from the sources (the fixture's answer annotations must not
-   coach the remediator).
+   repo**. Delete `VIOLATIONS.md` and `README.md` from the copy and strip every
+   line matching `violation` **case-insensitively** from the sources (the
+   fixture's answer annotations must not coach the remediator). Case matters:
+   this step said `VIOLATION` until v0.8.0, and the fixture also carries
+   lowercase annotations — `(violation P5)` in `pricing.js` and `violation of
+   P3` in `gateway.js` — so two of the three answers survived the strip in every
+   run recorded before then. Verify with `grep -ri violation <scratch>`, which
+   must return nothing before the remediator is dispatched.
 2. Give the remediator a `report-format: v3` audit report containing exactly
    the fixture's three planted findings (P2 upward import in
    `src/data/rates.js`, P5 hardcoded `FEE` in `src/engine/pricing.js`, P3

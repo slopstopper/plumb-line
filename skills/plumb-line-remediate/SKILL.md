@@ -154,6 +154,11 @@ commit:              <git SHA before remediation, or "working tree (uncommitted)
 
 | Finding | Path | Class | Action | Change summary |
 | ------- | ---- | ----- | ------ | -------------- |
+| 1 — mock given a real source | `src/foo.py` | Judgment | applied-conservative | tagged `derivedFromMock`, confidence at the floor — needs builder review (P3 — Confidence + provenance) |
+
+The Action cell carries the bare verb, as above. Everywhere else this file names
+the vocabulary in prose it renders as `applied-conservative`, which is markdown
+emphasis, not part of the value.
 
 - **Action** is one of: `applied-mechanical`, `applied-judgment` (builder said
   yes), `applied-conservative` (default taken, needs review), `proposed`
@@ -167,6 +172,29 @@ commit:              <git SHA before remediation, or "working tree (uncommitted)
 A run where every finding lands as `applied-mechanical` still emits the full
 record — the record is the lineage of the remediation, not a summary of its
 difficulties.
+
+**Validate the record against its own contract before emitting it.** The same
+check this skill runs on its input applies to its output: `remediation-format`
+has a version, a key list, and a validator, and a contract enforced only on the
+way in is half a contract. When `scripts/check_report_format.py` is reachable,
+run it on the record — writing it to a temp file if it has not been saved — and
+fix any violation before printing:
+
+```
+python3 scripts/check_report_format.py <the record>
+```
+
+If the checker is not reachable (the common case in a consumer repo, which has
+the skills but not this repo's `scripts/`), say so in one line rather than
+implying the record was mechanically checked:
+
+```
+format-validation: scripts/check_report_format.py — clean
+format-validation: not run (checker unavailable in this repo)
+```
+
+Never drop or soften a row to make the record validate — the contract describes
+the record's *shape*, and a shape violation is fixed by fixing the shape.
 
 ## Quick reference
 
