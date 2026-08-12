@@ -26,9 +26,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   Two gaps found and filed rather than papered over: the Spine board had no
   auto-add workflow and had silently drifted to 15 of 41 open issues
   ([#230](https://github.com/slopstopper/plumb-line/issues/230), backfilled
-  to 41/41), and `feedback.yml` references a `feedback` label that does not
-  exist, so every feedback issue has filed unlabelled
-  ([#231](https://github.com/slopstopper/plumb-line/issues/231)).
+  to 41/41), and `feedback.yml` referenced a `feedback` label that did not
+  exist, which GitHub would have dropped silently on the first real report
+  ([#231](https://github.com/slopstopper/plumb-line/issues/231), fixed —
+  the defect was latent, with zero issues ever filed through the form, so
+  no backfill was needed).
 
 ## [0.8.0] — 2026-08-11
 

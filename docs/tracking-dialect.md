@@ -65,12 +65,18 @@ change, failing-test-first, DCO sign-off, `CHANGELOG.md` under
   These were previously modelled as *milestones*, which made them
   permanently "stalled" by construction and trained the eye to ignore the
   stalled signal — the reason the milestone namespace is now releases only.
-- **`feedback`** — referenced by `.github/ISSUE_TEMPLATE/feedback.yml` but
-  **not created**; GitHub silently drops unknown labels, so feedback issues
-  have been filed unlabelled. Filed as
-  [#231](https://github.com/slopstopper/plumb-line/issues/231) at the stamp
-  rather than fixed in passing, since the label's colour and description
-  are the owner's call.
+- **`feedback`** — `006B75`, "Use-case report from someone running
+  plumb-line on their own code". Referenced by
+  `.github/ISSUE_TEMPLATE/feedback.yml` but **not created** until
+  2026-08-12; GitHub silently drops labels a form references but that do
+  not exist. Found at the stamp
+  ([#231](https://github.com/slopstopper/plumb-line/issues/231), fixed).
+
+  **Honest denominator:** the defect was **latent, not realised** — zero
+  issues have ever been filed through the form, so nothing actually lost a
+  label and no backfill was needed. What the bug threatened was the query:
+  `--label feedback` returns empty both when no feedback exists and when
+  feedback exists but was mislabelled, and those are very different states.
 
 ### Milestones
 
