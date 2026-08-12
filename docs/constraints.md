@@ -10,9 +10,20 @@ instead of restating them**, and CI fails any copy that has been altered.
 1. Writing a spec, plan, or handover comment that states one of these
    values? Copy the whole block between the markers, verbatim.
 2. Put a provenance line above it naming the commit you copied from:
-   `<!-- constraints-copy: docs/constraints.md @ <sha> -->`
+
+   ```
+   <!-- constraints-copy: docs/constraints.md @ 4ef30ce -->
+   <!-- constraints:begin -->
+   ...the copied block...
+   <!-- constraints:end -->
+   ```
+
 3. Done. `scripts/check-constraints-drift.sh` runs in CI and compares your
    copy against this file *at that sha*.
+
+The example above is inside a code fence deliberately: the gate treats a
+marker inside a fence as a worked example rather than a real provenance
+claim, so documentation like this does not register as a copy to check.
 
 **What it catches:** a copy someone hand-edited, so a document states a
 value this repo does not hold. **What it deliberately does not catch:** a
@@ -24,9 +35,8 @@ the copy mechanism is for documents that must carry the values with them.
 
 <!-- Canonical source for this repo's global constraints (connective
      tissue). Downstream docs — specs, plans, handover comments — copy
-     the block below verbatim under a provenance line:
-
-       constraints-copy: docs/constraints.md @ <commit sha>
+     the block below verbatim under a sha-pinned provenance line; the
+     exact marker format is shown in the fenced example above.
 
      The drift gate (scripts/check-constraints-drift.sh) fails any copy
      that does not match this file at its pinned sha. Only the block

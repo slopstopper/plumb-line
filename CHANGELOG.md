@@ -36,7 +36,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   repo's exact-valued constraints — the three-manifest release version,
   `PROVENANCE_VERSION`, the Python and Node floors, the report contracts,
   the package name — now have one canonical home. Downstream docs copy the
-  block under `constraints-copy: docs/constraints.md @ <sha>`, and
+  block under a sha-pinned provenance line, and
   `scripts/check-constraints-drift.sh` fails any copy that does not match
   this file at its pinned sha. Sha-pinning keeps merged docs green as
   constraints evolve; a stale-but-consistent pin passes CI and surfaces in
