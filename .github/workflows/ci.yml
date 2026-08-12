@@ -18,7 +18,11 @@ jobs:
     permissions:
       contents: read
     steps:
+      # fetch-depth: 0 — the constraints drift gate reads blocks at the sha each
+      # downstream copy pins; pinned-sha reads fail on a shallow clone.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: "20"
@@ -34,6 +38,12 @@ jobs:
       # test deps. Shells out to node for the badge diff — this job has node.
       - name: Live docs must not state a stale envelope wire version
         run: python3 scripts/check_version_prose.py
+      # Checks copies of the docs/constraints.md block against this file at the
+      # sha each copy pins. Sha-pinning keeps merged docs green as constraints
+      # evolve; a stale-but-consistent pin passes here and surfaces in the
+      # digest instead. Needs the full history fetched above.
+      - name: Copied constraint blocks must match docs/constraints.md
+        run: bash scripts/check-constraints-drift.sh
 
   javascript:
     name: JavaScript (Node ${{ matrix.node }})

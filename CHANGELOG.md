@@ -9,7 +9,55 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **The recursive-spine tracking convention is stamped on this repo**
+  ([#215](https://github.com/slopstopper/plumb-line/issues/215)). plumb-line
+  originated the deferral-label discipline the convention later generalised,
+  but was never formally stamped — so `recursive-spine-digest` could not run
+  its convention checks and `recursive-spine-pollinate` had no recorded hive
+  config. Adds `docs/tracking-dialect.md` (the dialect note: modules, local
+  label conventions, the deferral outbox rule, board coordinates, and what
+  was *not* stamped and why), a committed `AGENTS.md` carrying the tracking
+  section, and `work-item` / `deferral` issue templates plus a PR template
+  that cites the record. Labels: `gap` and `inherited-debt` added;
+  `audit-deferral` broadened from audit-only findings to any postponement,
+  per principle 3. No package, plugin, or wire-format change.
+
+  Two gaps found and filed rather than papered over: the Spine board had no
+  auto-add workflow and had silently drifted to 15 of 41 open issues
+  ([#230](https://github.com/slopstopper/plumb-line/issues/230), backfilled
+  to 41/41), and `feedback.yml` referenced a `feedback` label that did not
+  exist, which GitHub would have dropped silently on the first real report
+  ([#231](https://github.com/slopstopper/plumb-line/issues/231), fixed —
+  the defect was latent, with zero issues ever filed through the form, so
+  no backfill was needed).
+- **`docs/constraints.md` and a drift gate for copies of it**
+  ([#215](https://github.com/slopstopper/plumb-line/issues/215)). The
+  repo's exact-valued constraints — the three-manifest release version,
+  `PROVENANCE_VERSION`, the Python and Node floors, the report contracts,
+  the package name — now have one canonical home. Downstream docs copy the
+  block under a sha-pinned provenance line, and
+  `scripts/check-constraints-drift.sh` fails any copy that does not match
+  this file at its pinned sha. Sha-pinning keeps merged docs green as
+  constraints evolve; a stale-but-consistent pin passes CI and surfaces in
+  the digest instead. Wired as one step in the existing `versions` job,
+  whose checkout moves to `fetch-depth: 0`.
+  `scripts/check_version_prose.py` is the narrower ancestor of the same
+  idea and is unchanged — the two check different things.
+
+  The file records the Node floor disagreement rather than flattening it:
+  `engines.node >= 16` is published while CI tests Node 20 only, so 16–19
+  are supported-by-declaration and unverified-by-test.
+- **`AGENTS.md` extended into the repo's rules codex.** Adds a map of
+  which document holds what, four load-bearing warnings an agent gets
+  wrong by default (no root test command; parity is the invariant; this
+  repo is held to its own principles; failing test first), a moments map,
+  and two working conventions this repo proved and had never adopted
+  itself — the independent review layer (from #213) and the
+  `## Decisions needed` block. It points rather than copies: restating
+  values already in `CONTRIBUTING.md`, `DEVELOPMENT.md`, `RELEASING.md`,
+  `docs/api.md` or `primitives/PARITY.md` would create the second source
+  of truth this project exists to prevent.
 
 ## [0.8.0] — 2026-08-11
 
