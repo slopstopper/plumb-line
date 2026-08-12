@@ -9,7 +9,26 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **The recursive-spine tracking convention is stamped on this repo**
+  ([#215](https://github.com/slopstopper/plumb-line/issues/215)). plumb-line
+  originated the deferral-label discipline the convention later generalised,
+  but was never formally stamped — so `recursive-spine-digest` could not run
+  its convention checks and `recursive-spine-pollinate` had no recorded hive
+  config. Adds `docs/tracking-dialect.md` (the dialect note: modules, local
+  label conventions, the deferral outbox rule, board coordinates, and what
+  was *not* stamped and why), a committed `AGENTS.md` carrying the tracking
+  section, and `work-item` / `deferral` issue templates plus a PR template
+  that cites the record. Labels: `gap` and `inherited-debt` added;
+  `audit-deferral` broadened from audit-only findings to any postponement,
+  per principle 3. No package, plugin, or wire-format change.
+
+  Two gaps found and filed rather than papered over: the Spine board had no
+  auto-add workflow and had silently drifted to 15 of 41 open issues
+  ([#230](https://github.com/slopstopper/plumb-line/issues/230), backfilled
+  to 41/41), and `feedback.yml` references a `feedback` label that does not
+  exist, so every feedback issue has filed unlabelled
+  ([#231](https://github.com/slopstopper/plumb-line/issues/231)).
 
 ## [0.8.0] — 2026-08-11
 
