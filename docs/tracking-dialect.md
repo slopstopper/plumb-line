@@ -93,6 +93,32 @@ release or closed with a written waiver. No third option, no silent aging.
 Same shape as the provenance ratchet (#26) — don't demand zero, refuse
 regression. Stated in [`ROADMAP.md`](../ROADMAP.md).
 
+### Historical URLs are not updated
+
+The repo moved from `effythealien/plumb-line` to `slopstopper/plumb-line`.
+The rename was applied to **live** documents only. Records keep the URLs
+they were written with, because a record states what was true when it was
+written:
+
+| File | Old-org links | Why they stay |
+| --- | --- | --- |
+| `CHANGELOG.md` | 37 | released sections describe past releases (the `[Unreleased]` section carries none) |
+| `docs/dogfood.md` | 13 | versioned sections record dated dogfood passes |
+| `docs/validation-results.md` | 3 | dated validation runs |
+| `docs/adr/0009-…` | 2 | ADRs are append-only |
+
+**Do not "fix" these.** GitHub redirects the old paths, so they resolve;
+rewriting them would make a record claim a URL that did not exist when the
+record was made.
+
+Live documents — README, ROADMAP, CONTRIBUTING, the specs, this note — use
+`slopstopper/plumb-line`. `ROADMAP.md` was corrected on 2026-08-12: seven
+links in § Planned pointed at the old org while describing *open* work in
+the future tense, which is a live claim wearing a stale URL, not a record.
+
+The test: **is this sentence describing what is true now, or what was true
+then?** Now → current org. Then → leave it.
+
 ### Depth (sub-issues)
 
 None in use as of the stamp — verified, not assumed. Depth is
@@ -129,6 +155,33 @@ had already drifted to 15/41 before this stamp. Tracked as
 [#230](https://github.com/slopstopper/plumb-line/issues/230) — a filed issue,
 not a memory. Settings:
 <https://github.com/orgs/slopstopper/projects/3/settings/workflows>
+
+**This board is plumb-line-only, and that is now a deliberate choice.** A
+cross-project board was investigated on 2026-08-12 and found unbuildable
+with auto-add, on two independent limits confirmed in the UI:
+
+1. **Auto-add cannot cross an owner boundary.** A user-owned project's
+   auto-add repository picker does not list organisation repositories at
+   all — so a personal aggregate board cannot pull in `slopstopper/*`,
+   even though issues from those repos can be added to it manually via
+   `gh project item-add` (a different code path, and one that works).
+2. **The workflow count is capped per project by plan.** `slopstopper` is
+   on GitHub Free: **one** auto-add workflow per project. Each workflow
+   targets one repository, so one board can automatically track exactly
+   one repo.
+
+Together these mean **a self-maintaining cross-project board is not
+achievable on this plan** — not merely unconfigured. One board per repo is
+the only shape auto-add supports, and cross-project aggregation needs
+either manual `item-add` calls or a scheduled job. Recorded here so the
+constraint is not rediscovered; filed upstream as
+[recursive-spine#128](https://github.com/slopstopper/recursive-spine/issues/128),
+since the "Spine board" is a spine concept and not specific to this repo.
+
+plumb-line is unaffected in practice: this board is already single-repo,
+so its one available auto-add slot is sufficient, and
+[#230](https://github.com/slopstopper/plumb-line/issues/230) remains
+achievable as written.
 
 ## Kin offers, as answered
 
