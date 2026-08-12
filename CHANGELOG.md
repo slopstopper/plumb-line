@@ -31,6 +31,33 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   ([#231](https://github.com/slopstopper/plumb-line/issues/231), fixed —
   the defect was latent, with zero issues ever filed through the form, so
   no backfill was needed).
+- **`docs/constraints.md` and a drift gate for copies of it**
+  ([#215](https://github.com/slopstopper/plumb-line/issues/215)). The
+  repo's exact-valued constraints — the three-manifest release version,
+  `PROVENANCE_VERSION`, the Python and Node floors, the report contracts,
+  the package name — now have one canonical home. Downstream docs copy the
+  block under `constraints-copy: docs/constraints.md @ <sha>`, and
+  `scripts/check-constraints-drift.sh` fails any copy that does not match
+  this file at its pinned sha. Sha-pinning keeps merged docs green as
+  constraints evolve; a stale-but-consistent pin passes CI and surfaces in
+  the digest instead. Wired as one step in the existing `versions` job,
+  whose checkout moves to `fetch-depth: 0`.
+  `scripts/check_version_prose.py` is the narrower ancestor of the same
+  idea and is unchanged — the two check different things.
+
+  The file records the Node floor disagreement rather than flattening it:
+  `engines.node >= 16` is published while CI tests Node 20 only, so 16–19
+  are supported-by-declaration and unverified-by-test.
+- **`AGENTS.md` extended into the repo's rules codex.** Adds a map of
+  which document holds what, four load-bearing warnings an agent gets
+  wrong by default (no root test command; parity is the invariant; this
+  repo is held to its own principles; failing test first), a moments map,
+  and two working conventions this repo proved and had never adopted
+  itself — the independent review layer (from #213) and the
+  `## Decisions needed` block. It points rather than copies: restating
+  values already in `CONTRIBUTING.md`, `DEVELOPMENT.md`, `RELEASING.md`,
+  `docs/api.md` or `primitives/PARITY.md` would create the second source
+  of truth this project exists to prevent.
 
 ## [0.8.0] — 2026-08-11
 

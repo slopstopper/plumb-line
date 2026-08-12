@@ -142,16 +142,105 @@ not a memory. Settings:
 
 ## pollinate: hives
 
-**Not recorded at the stamp** — outside the bootstrap's interview, and the
-open question that motivated half of #215. Until a `pollinate:` section
-exists here, `recursive-spine-pollinate` will fall back to its documented
-default hive (`slopstopper/recursive-spine`, public), which is an
-assumption rather than a recorded answer. The public/private hive split is
-precisely the thing that should not be assumed, so the gap is named here
-rather than papered over.
+Recorded 2026-08-12 at the scaffold run. This was the open question behind
+half of #215: the bootstrap left it unanswered rather than assuming, and
+`recursive-spine-pollinate` was falling back to its default hive — which
+happened to be right, but as an assumption rather than an answer.
 
-Run `recursive-spine-pollinate` (it interviews for hives) or
-`recursive-spine-scaffold` to record it.
+- **Public hive:** `slopstopper/recursive-spine` (`pollen/`) — pollen whose
+  proof is public. plumb-line is a public repo, so its proofs route here by
+  default. Records must stay self-contained: no reference a reader cannot
+  resolve.
+- **Private hive:** `effythealien/private-hive` — pollen whose proof is
+  personal or private-scope. Nothing from this repo routes there unless a
+  specific proof is private.
+
+Routing rule: **pollen inherits the visibility scope of its proof**, not the
+visibility of the repo it is captured from. Declassification into the public
+hive is a deliberate, scrubbed act.
+
+### Pollen sourced from this repo
+
+Four records in the public hive name plumb-line as their source. All are
+schema-conformant and paired with `pollen`-labelled issues:
+
+| Record | Source | Stage |
+| --- | --- | --- |
+| `deferral-outbox` | [#203](https://github.com/slopstopper/plumb-line/pull/203) | seedling |
+| `milestones-are-releases-only` | [#203](https://github.com/slopstopper/plumb-line/pull/203) | seedling |
+| `decisions-block` | [#213](https://github.com/slopstopper/plumb-line/pull/213) | seedling → **adopted here 2026-08-12** |
+| `independent-review-layer` | [#213](https://github.com/slopstopper/plumb-line/pull/213) | seedling → **adopted here 2026-08-12** |
+
+**The gap the scaffold run found.** `decisions-block` and
+`independent-review-layer` were proved in this repo, exported to the hive,
+and never adopted *here* — `decisions-block`'s own transplant instructions
+say to put it in the repo's agent-instructions file "so it survives across
+sessions rather than living in one conversation's memory", and in the
+source repo it lived only in the pollen record. Both are now in
+`AGENTS.md`.
+
+Note this is **not** a `transplants:` entry: a transplant is another
+project taking a pattern up, and a source repo adopting its own proof is
+not that. It is a source-side adoption gap, recorded here.
+
+The first two remain unadopted-as-text because they are already *in force*
+here structurally — the outbox rule and the releases-only milestone
+namespace are live in `ROADMAP.md` and this note. They were extracted from
+practice, not imported into it.
+
+## scaffold (this installation)
+
+Recorded per the scaffold skill's interview, run 2026-08-12 immediately
+after the tracking stamp. Four of the six parts were **already present**
+under this repo's own names — the stamp records them rather than adding
+machinery.
+
+- **Rules codex:** accepted — `AGENTS.md` extended. It deliberately
+  **points rather than copies**: every durable fact already lives in a
+  committed doc, so restating values would create the second source of
+  truth this repo exists to prevent. What it adds is the map (which file
+  holds what), four load-bearing warnings an agent gets wrong by default,
+  the moments map, and the two adopted pollen patterns.
+
+  Requested at the interview: `AGENTS.md` must be usable if the owner's
+  local `CLAUDE.md` is ever lost. Satisfied by the map, not by
+  duplication — a map goes stale far more slowly than a copy, since paths
+  change rarely and version numbers change constantly. Audited before
+  writing: every durable CLAUDE.md fact was already covered in
+  `CONTRIBUTING.md`, `DEVELOPMENT.md`, `RELEASING.md`, `docs/api.md`,
+  `primitives/PARITY.md`, or `docs/threat-model.md`.
+- **ADR directory:** **already present** — `docs/adr/` with 13 real ADRs
+  and a README, append-only. Nothing stamped, nothing backfilled; an
+  invented example ADR is banned and no real decision was un-recorded.
+- **CI gates:** **already present** — `.github/workflows/ci.yml` carries a
+  named gate set (manifest agreement, bundle sync, wire-version prose,
+  conformance, lint, per-language suites). This repo is the source proof
+  of the `truth-gate-ci` pollen. Extended by one step, not replaced.
+- **Session memory:** **declined** — repo-level session memory is not in
+  use here; the owner's memory convention lives at the environment level.
+  Same answer recursive-spine recorded for itself.
+- **Constraints file + drift gate:** accepted — `docs/constraints.md`
+  plus `scripts/check-constraints-drift.sh`, wired as one named step in
+  the existing `versions` job (checkout moved to `fetch-depth: 0`; pinned
+  sha reads fail on a shallow clone). `scripts/check_version_prose.py` is
+  the hand-rolled ancestor of the same idea applied to one constraint and
+  stays as-is; the two check different things.
+
+  The file records a real disagreement rather than flattening it:
+  `engines.node >= 16` is the published floor while CI tests Node 20
+  only, so 16–19 are supported-by-declaration and unverified-by-test.
+- **The loop:** **already present elsewhere** — declined *locally*.
+  `slopstopper/recursive-spine`'s `spine-loop.yml` already sweeps this
+  repo (`repos: "… slopstopper/plumb-line …"`). A local workflow would
+  double the sweep and the nudges.
+
+### Kin offers, as answered at the scaffold run
+
+- **plumb-line guard wiring** for the stamped gates: **not applicable** —
+  this repo is plumb-line (see "Kin offers, as answered" above).
+- **tokenomics playbook pointer**: **declined**, unchanged from the
+  bootstrap — still no playbook in this repo and still no `lane:*` labels
+  to give semantics to.
 
 ## Not stamped, and why
 
@@ -161,7 +250,6 @@ Run `recursive-spine-pollinate` (it interviews for hives) or
   their absence is why `recursive-spine-digest` skipped those checks in the
   session that opened #215. The deferral and milestone halves of the digest
   work without them.
-- **Scaffold parts** — this repo already has several under its own names
-  (ADRs in `docs/adr/`, a rules codex in `reference/portable-principles.md`,
-  CI gates in `.github/workflows/`, session memory). Recording them as
-  scaffold parts is `recursive-spine-scaffold`'s job, not the bootstrap's.
+- **Scaffold parts** — no longer outstanding. Recorded in the `scaffold`
+  section above at the 2026-08-12 run; four of six were already present
+  under this repo's own names.
