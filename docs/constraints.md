@@ -1,5 +1,27 @@
 # Global constraints — plumb-line
 
+**What this file does:** it is the one place this repo's exact values are
+written down — version floors, wire version, package name, report
+contracts. Other documents that need those values **copy the block below
+instead of restating them**, and CI fails any copy that has been altered.
+
+**How to use it, in three lines:**
+
+1. Writing a spec, plan, or handover comment that states one of these
+   values? Copy the whole block between the markers, verbatim.
+2. Put a provenance line above it naming the commit you copied from:
+   `<!-- constraints-copy: docs/constraints.md @ <sha> -->`
+3. Done. `scripts/check-constraints-drift.sh` runs in CI and compares your
+   copy against this file *at that sha*.
+
+**What it catches:** a copy someone hand-edited, so a document states a
+value this repo does not hold. **What it deliberately does not catch:** a
+copy that is simply old — see "Sha-pinning" below for why, and where
+staleness is caught instead.
+
+If you are only reading values, read them here and do not copy anything;
+the copy mechanism is for documents that must carry the values with them.
+
 <!-- Canonical source for this repo's global constraints (connective
      tissue). Downstream docs — specs, plans, handover comments — copy
      the block below verbatim under a provenance line:

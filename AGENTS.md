@@ -119,6 +119,13 @@ anywhere else in the message.
 
 - It is a **running backlog** — anything still unanswered from earlier
   turns is carried forward, not dropped.
+- **A decision, once made, never reappears.** Answered items leave the
+  block permanently; do not re-list them for confirmation, as a summary,
+  or "for completeness". Re-asking a settled question is the same failure
+  as burying a live one — it trains the reader to skim the block, which
+  is exactly what the block exists to prevent. If a decision genuinely
+  needs revisiting because something changed, say what changed and treat
+  it as a new item.
 - When no decision is genuinely needed, **say so** rather than omitting
   the block; a silently absent block is ambiguous on exactly the turns
   where it matters.
