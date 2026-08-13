@@ -169,38 +169,77 @@ Version themes for the near-term releases, and the GitHub issues under each.
   Class column (GH #222), and keeps six copies of lists the skills already
   define (GH #223). One file, one unit of work.
 
-- **v1.0.0 — Passes its own audit** (no due date; sequenced after v0.10.0).
-  1.0 here is not a feature list. The thesis is epistemic honesty enforced by
-  tooling, and this repo is held to its own principles — so the test is the
-  state of the repo, not its surface area: **plumb-line runs its own audit
-  against itself, the report comes back empty, and the coverage claim is
-  "everything" rather than "here is what I checked".**
+- **v1.0.0 — A contract you can build on** (no due date; sequenced after
+  v0.10.0; gated on state, not a date).
+
+  **What makes it a major:** not size, and not any particular breaking change
+  — SemVer requires neither. It is what the bump *forecloses*. Pre-1.0 the
+  rule here is "breaking → minor", which is cheap; after 1.0 a break costs a
+  **2.0**. So 1.0 is **the last cheap window for breaking changes**, and the
+  question to ask of every candidate is *"would we regret not being able to
+  change this afterwards?"* Exact precedent: v0.7.0 was scoped as the one-shot
+  schema window, and the ladder decision (#23 / GH #116) was forced into it as
+  the last cheap chance to touch the ladder. This is that shape one level up.
+
+  **The commitment:** envelopes written under 1.0 stay readable across every
+  1.x, the primitive API stays put, and the report contracts stop moving.
+
+  **The entry gate — passes its own audit.** The thesis is epistemic honesty
+  enforced by tooling and this repo is held to its own principles, so 1.0
+  cannot ship until plumb-line runs its own audit against itself, the report
+  comes back empty, and the coverage claim is "everything" rather than "here
+  is what I checked".
+
+  **The bar for the format:** could someone write a conforming implementation
+  in a third language from `SPEC.md` alone? If the Go/Rust ports (backlog #7)
+  cannot be built without reading the JS source, the spec is not 1.0-ready —
+  and the ecosystem track depends on it being so. 1.0 is less "the library is
+  finished" than **"the format is stable enough for someone else to
+  implement"**, which is what unlocks the tracks rather than competing with
+  them.
 
   Gates:
   1. **Audit coverage becomes a guarantee, not a denominator** — total sweep
      via subagent fan-out (#22 / GH #90), adversarial verification of findings
      (GH #211), and the coverage-map/honest-denominator spec (#34 / GH #127),
-     which was filed under `track:agent-state` but is the same concern. These
-     three are the milestone's initial contents. For a tool whose job is
-     catching what you missed, "I may have missed things" is the weakest
-     possible 1.0 claim.
-  2. **Wire format frozen** — `PROVENANCE_VERSION` 2 becomes a commitment that
-     every 1.x reads envelopes written by any other 1.x. This is most of what
-     1.0 means to a consumer.
-  3. **Unenforced claims become impossible, not merely fixed** — v0.8.1 drains
+     which was filed under `track:agent-state` but is the same concern. For a
+     tool whose job is catching what you missed, "I may have missed things" is
+     the weakest possible 1.0 claim.
+  2. **The public API is defined, then frozen** (GH #236) — gate zero. Nothing
+     in this repo currently states what is public versus internal, so the 1.0
+     promise would be unfalsifiable: no one could point at a change and say
+     whether it broke the contract. You cannot freeze an API nobody wrote down.
+  3. **Wire format frozen** — `PROVENANCE_VERSION` 2 readable by every 1.x.
+  4. **Canonical serialization is normative in SPEC** (#31 / GH #124, **moved
+     here from `track:boundaries`**) — both because it is normative wire text
+     and 1.0 freezes the spec, and because today the guarantee only holds
+     inside one process: taint evaporates at every HTTP response, DB write,
+     file and queue. Shipping "depend on this" while the central promise stops
+     at the process boundary is the largest maturity claim available.
+  5. **Unenforced claims become impossible, not merely fixed** — v0.8.1 drains
      five; 1.0 means that milestone cannot refill, via a gate that fails when a
-     manifest claims support nothing tests. No issue filed yet.
-  4. **The deferral outbox is drained, not merely recorded.**
-  5. **Report contracts stop moving** — consumers parse output without
+     manifest claims support nothing tests.
+  6. **The deferral outbox is drained, not merely recorded.**
+  7. **Report contracts stop moving** — consumers parse output without
      version-sniffing across majors.
-  6. **Cross-language parity is total** — *already met*: GH #96 closed in
+  8. **A deprecation policy exists** (GH #237) — how anything leaves the public
+     surface during 1.x without forcing a 2.0.
+  9. **Cross-language parity is total** — *already met*: GH #96 closed in
      v0.7.0 and `primitives/PARITY.md` records no remaining divergence. Listed
      so a satisfied gate is visible rather than silently dropped.
 
-  **Explicitly not required for 1.0:** the parallel tracks below. That is
-  surface area, and deliberately unscheduled. 1.0 is about the core being
-  trustworthy, not large — treating breadth as maturity is the mistake this
-  project's own maturity vocabulary rejects.
+  Also carried: a portable conformance suite so `cases.json` is runnable by a
+  third-language implementation (GH #238) — the mechanism by which spec gaps
+  surface — and the last-call pass over the public surface for breaking
+  changes that must ride 1.0 (GH #239), sequenced after #236 since the surface
+  document is its input.
+
+  **Explicitly not required for 1.0:** ecosystem docking, PROV-O, dbt, MCP,
+  per-host packs, sidecars (#32 / GH #125), the HTTP header (#33 / GH #126),
+  type-level enforcement. That is surface area. 1.0 is about the core being
+  trustworthy and the format implementable — treating breadth as maturity is
+  the mistake this project's own vocabulary rejects. #124 is the exception
+  among the boundaries work precisely because it is spec, not application.
 
 - **Portable beyond Claude** (label `track:portable`). Agent-neutral method
   core + agent-adapter contract (#12 / GH #58), MCP server exposing the three
@@ -209,9 +248,13 @@ Version themes for the near-term releases, and the GitHub issues under each.
 
 - **Provenance across boundaries** (label `track:boundaries`; starts after
   wire v2). Taint must survive process boundaries or the guarantee only holds
-  in-memory: canonical JSON serialization convention (#31 / GH #124),
-  file-artifact sidecars (#32 / GH #125, deps #31), HTTP provenance-context
-  header (#33 / GH #126, deps #31).
+  in-memory: file-artifact sidecars (#32 / GH #125, deps #31), HTTP
+  provenance-context header (#33 / GH #126, deps #31).
+
+  The canonical JSON serialization convention (#31 / GH #124) **moved to
+  v1.0.0** — it is normative spec text rather than an application of the
+  convention, and 1.0 freezes the spec. #32 and #33 build on it and stay
+  here; they can land anywhere in 1.x.
 
 - **Agent epistemic state** (label `track:agent-state`; the identity track —
   can start early, it is skill-surface with no runtime dependency beyond the
@@ -256,8 +299,10 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
    prerequisite (#1 / GH #91) closed in v0.7.0, so the milestone is unblocked.
 4. **Then:** v0.10.0 — sequenced after wire v2 so the envelope fields it adds
    are settled.
-5. **After that:** v1.0.0 — the coverage guarantee plus the wire-format
-   freeze. No due date; it is gated on state, not on a date.
+5. **After that:** v1.0.0 — the coverage guarantee, the API-surface
+   definition (GH #236) that everything else freezes against, canonical
+   serialization (GH #124), and the last-call breaking-change pass (GH #239,
+   after #236). No due date; gated on state, not on a date.
 6. **Parallel, start early:** `track:portable` — skill-surface, no runtime
    dependency. (`track:agent-state` is now #35 alone, which waits on the
    ladder decision and on #34, so it no longer starts early.)
