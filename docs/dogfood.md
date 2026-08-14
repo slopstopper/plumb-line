@@ -468,3 +468,30 @@ zero-FP false positive, v0.7.2 a ROADMAP describing an ADR-rejected design,
 v0.7.3 an ADR promising test discipline the tests didn't carry, and now v0.8.0's
 recurring shape: **a claim stated more precisely than the code enforces it.**
 Findings 1, 2, 3, 4 and 11 are all that same defect in different files.
+
+## v0.8.1 dogfood self-audit — 2026-08-14
+
+Scope: `git diff v0.8.0..HEAD` at `dfdabb8` (18 files — the PR #247 fixes,
+the PR #232 spine-stamping, the PR #235 roadmap update). Auditor read every
+diff hunk; 12/18 files fully read, 6 partial (recorded in the report's
+coverage map). Report: validated clean by `scripts/check_report_format.py`
+on first pass.
+
+**7 findings: 1 violation, 6 needs-review. Five fixed in the release-bump
+branch, two deferred as issues.**
+
+| # | Where | Principle | Finding | Action |
+| --- | --- | --- | --- | --- |
+| 1 | `ROADMAP.md:303` | P6 — Maturity vocabulary | **Violation.** Priority list still said v0.8.1 is "five fix-only gaps" after this same diff moved #233 out — the reconcile commit (5c89feb) fixed two of three restatements and missed this one. | **Fixed** — now "four", with the move noted. |
+| 2 | `docs/api.md:263` | P9 — Golden baseline + explain-the-drift | The new "a 404 with `Age: 60` is still `unavailable`" claim was true by code reading but pinned by no conformance row. | **Fixed** — row added to `http-cases.json` `classify`; passes both suites. |
+| 3 | `primitives/conformance/http-cases.json` | P7 — Contracted outputs | Sibling `cases.json` carries `"version": 1`; this table had no version field while this diff doubled its surface (`parseAge` section). | **Fixed** — `"version": 1` added. |
+| 4 | `.github/ISSUE_TEMPLATE/deferral.md:3` | P6 — Maturity vocabulary | Unqualified "Principle 3" names the recursive-spine convention's principle, but in this repo P3 is Confidence + provenance. | **Fixed** — qualified. |
+| 5 | `.github/ISSUE_TEMPLATE/work-item.md:9` | P6 — Maturity vocabulary | "principles.md" is a dangling pointer — no such file in this repo (it means the spine repo's). | **Fixed** — qualified. |
+| 6 | `scripts/check-constraints-drift.sh` | spine — null-result expressibility | Exit 0 with empty output is identical for "verified N copies" and "found zero markers"; a marker rename silently no-ops the gate. | **Deferred** — [#249](https://github.com/slopstopper/plumb-line/issues/249). |
+| 7 | `docs/constraints.md:102` | P6 — Maturity vocabulary | "aging pins surface in the sweep" asserts digest behavior nothing verifies. | **Deferred** — [#250](https://github.com/slopstopper/plumb-line/issues/250). |
+
+Calibration notes: the auditor verified claims against live state (issues
+#212/#246/#233 checked via `gh`, the drift gate actually run) rather than
+prose alone — the misattribution class of finding (a comment crediting a
+test that does not exist) did not recur in this diff after the PR #247
+review caught one pre-merge.

@@ -1,6 +1,6 @@
 ---
 name: Deferral
-about: 'Principle 3: nothing is postponed without a record'
+about: 'Recursive-spine principle 3: nothing is postponed without a record (not P3 of portable-principles.md)'
 labels: audit-deferral
 ---
 **What is deferred:**
