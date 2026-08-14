@@ -58,7 +58,7 @@ const reply = ok
   ? mark(completion, { source: "real", confidence: "high" })
   : mark(FALLBACK_TEXT, { source: "mock", confidence: "low" });
 
-const rendered = derive([reply, template], (r, t) => t.format(r));
+const rendered = derive([reply], (r) => template.format(r));
 // metaOf(rendered).derivedFromMock — true on the fallback path, and no
 // API exists to clear it.
 ```
@@ -68,7 +68,7 @@ from plumb_line_provenance import mark, derive, meta_of
 
 reply = (mark(completion, source="real", confidence="high") if ok
          else mark(FALLBACK_TEXT, source="mock", confidence="low"))
-rendered = derive([reply, template], lambda r, t: t.format(r))
+rendered = derive([reply], lambda r: template.format(r))
 # meta_of(rendered)["derived_from_mock"] is True on the fallback path.
 ```
 
@@ -95,16 +95,17 @@ the exit.
 ```python
 from plumb_line_provenance import mark, derive, meta_of, audit_meta
 
-drafted = mark(agent_row, source="symbolic", confidence="low",
-               provenance="agent run 2026-08-14, unreviewed")
+drafted = mark(agent_row, source="inferred", confidence="low",
+               basis="agent run 2026-08-14, unreviewed")
 merged = derive([drafted, verified], combine_rows)
 problems = audit_meta(meta_of(merged))   # [] or a list of named defects
 ```
 
 **What the audit catches afterwards.** Agent output marked `real`;
-combined values whose confidence exceeds their weakest input (impossible
-via `derive` — so its presence proves a bypass); outputs with no lineage
-back to the run that produced them.
+combined values whose confidence over-claims their weakest input —
+`derive` accepts an explicit confidence override, and `audit_meta` flags
+the over-claim; outputs with no lineage back to the run that produced
+them.
 
 ## Profile 3 — dataframes with fixtures or samples near production paths
 
@@ -128,14 +129,17 @@ real = PlumbDataFrame(load_feed(), source="real", confidence="high")
 demo = PlumbDataFrame(load_fixture(), source="mock", confidence="low")
 
 combined = plumb_concat([real, demo])
-combined.audit()   # names the taint; combined's meta has derived_from_mock=True
+combined.meta["derived_from_mock"]   # True — the fixture taint is recorded
+combined.audit()   # [] — an honestly-recorded mixture is a consistent
+                   # envelope; audit findings appear only when someone
+                   # tries to launder the taint
 ```
 
 `PlumbArray` / `plumb_concatenate` / `plumb_stack` are the numpy
 equivalents. Note the design is explicit combinators, not operator
-overloading — a raw `pd.concat` on unwrapped values bypasses nothing
-silently, because you never had envelopes on those values to lose
-(ADR-0013 records the trade-off).
+overloading — a raw pandas op on the wrapped object fails loudly instead
+of silently dropping the envelope; the risk to avoid is unwrapping early
+and continuing in raw pandas (ADR-0013 records the trade-off).
 
 **What the audit catches afterwards.** `.unwrap()` early followed by raw
 pandas ops on previously-enveloped data; a fixture-derived frame written

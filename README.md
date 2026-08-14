@@ -40,7 +40,7 @@ plumb-line enforces the same discipline at two moments. The **provenance primiti
 /plugin install plumb-line@plumb-line
 ```
 
-The first command registers the repo as a marketplace; the second installs the five skills. **Then get oriented: run `plumb-line-method`** — it teaches the discipline in a few minutes and hands you straight into `plumb-line-bootstrap` when you're ready to set your project up. Updates come through `/plugin`. To install manually instead, clone the repository and point Claude Code at the plugin directory, or add it under `plugins` in your `.claude/settings.json`:
+The first command registers the repo as a marketplace; the second installs the five skills. **Then get oriented: run `plumb-line-adopt`** — it looks at your repository and tells you which parts fit and what to run first. (Or go straight to `plumb-line-method`, which teaches the discipline in a few minutes and hands you into `plumb-line-bootstrap` when you're ready to set your project up.) Updates come through `/plugin`. To install manually instead, clone the repository and point Claude Code at the plugin directory, or add it under `plugins` in your `.claude/settings.json`:
 
 ```bash
 git clone https://github.com/slopstopper/plumb-line.git
@@ -75,7 +75,7 @@ The envelope and the law are a **specification, not just an implementation**: [`
 - **HTTP ingestion adapters** — auto-tag `requests`/`httpx`/`fetch` responses with provenance by status and cache state (optional extras; zero-dep core unaffected). See [ADR-0012](docs/adr/0012-ecosystem-adapters-optional-deps-and-mapping.md).
 - **Dataframe adapters** — `PlumbDataFrame`/`PlumbArray` wrap pandas/numpy with provenance and propagate taint through explicit combinators (optional extras; zero-dep core unaffected). See [ADR-0013](docs/adr/0013-dataframe-adapters-explicit-combinators.md).
 
-## The skills (review-time)
+## The skills
 
 **plumb-line-adopt** — the front door: inspects your repository, tells you which skills to run and — using the [fit map](reference/fit-map.md) — whether the run-time primitives fit your codebase and what the smallest useful integration looks like in *your* code. Says "you don't need the primitives" plainly when that is the answer. Read-only; recommends and hands off, never edits.
 

@@ -84,9 +84,11 @@ them for you — a Claude Code marketplace plugin cannot auto-execute a skill on
 install. The intended first-run flow is therefore explicit and manual:
 
 1. Install the plugin (`/plugin install plumb-line@plumb-line`).
-2. Run `plumb-line-method` (this skill) to learn the discipline.
-3. Run `plumb-line-bootstrap` to set your project up.
-4. Run `plumb-line-audit` whenever you review a change.
+2. Run `plumb-line-adopt` to find which parts fit your repo — or skip
+   straight to the next step if you already know.
+3. Run `plumb-line-method` (this skill) to learn the discipline.
+4. Run `plumb-line-bootstrap` to set your project up.
+5. Run `plumb-line-audit` whenever you review a change.
 5. Run `plumb-line-remediate` when an audit's findings should be applied.
 
 This one teaches the *why*; bootstrap, audit, and remediate are where it becomes
