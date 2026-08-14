@@ -21,7 +21,7 @@
 
 A plumb line measures true vertical by gravity alone; plumb-line does the same for a codebase, keeping it epistemically honest (including about what it doesn't know). It gives a repository a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and boundaries checked by machines (not *vibes*).
 
-plumb-line is a small, standalone provenance library for JavaScript and Python, paired with a Claude Code plugin (four skills). The library enforces the discipline while your code runs; the skills enforce it when you review — and now when you fix — code. What it is building toward (**planned** — see [where this is going](#where-this-is-going)): an epistemic honesty layer for agent-built software, where every value, artifact, and agent-produced claim carries where it came from and how sure anyone should be.
+plumb-line is a small, standalone provenance library for JavaScript and Python, paired with a Claude Code plugin (five skills). The library enforces the discipline while your code runs; the skills enforce it when you review — and now when you fix — code. What it is building toward (**planned** — see [where this is going](#where-this-is-going)): an epistemic honesty layer for agent-built software, where every value, artifact, and agent-produced claim carries where it came from and how sure anyone should be.
 
 ## Who it's for
 
@@ -40,7 +40,7 @@ plumb-line enforces the same discipline at two moments. The **provenance primiti
 /plugin install plumb-line@plumb-line
 ```
 
-The first command registers the repo as a marketplace; the second installs the four skills. **Then get oriented: run `plumb-line-method`** — it teaches the discipline in a few minutes and hands you straight into `plumb-line-bootstrap` when you're ready to set your project up. Updates come through `/plugin`. To install manually instead, clone the repository and point Claude Code at the plugin directory, or add it under `plugins` in your `.claude/settings.json`:
+The first command registers the repo as a marketplace; the second installs the five skills. **Then get oriented: run `plumb-line-method`** — it teaches the discipline in a few minutes and hands you straight into `plumb-line-bootstrap` when you're ready to set your project up. Updates come through `/plugin`. To install manually instead, clone the repository and point Claude Code at the plugin directory, or add it under `plugins` in your `.claude/settings.json`:
 
 ```bash
 git clone https://github.com/slopstopper/plumb-line.git
@@ -77,6 +77,8 @@ The envelope and the law are a **specification, not just an implementation**: [`
 
 ## The skills (review-time)
 
+**plumb-line-adopt** — the front door: inspects your repository, tells you which skills to run and — using the [fit map](reference/fit-map.md) — whether the run-time primitives fit your codebase and what the smallest useful integration looks like in *your* code. Says "you don't need the primitives" plainly when that is the answer. Read-only; recommends and hands off, never edits.
+
 **plumb-line-method** — loads the [portable principles](reference/portable-principles.md): thesis, nine principles, maturity vocabulary, and the one-line test. Pure knowledge; takes no actions.
 
 **plumb-line-bootstrap** — interviews the builder, generates a domain-neutral ruleset, and installs enforcement adapters tailored to your project's structure and language.
@@ -90,9 +92,9 @@ The envelope and the law are a **specification, not just an implementation**: [`
 | Path          | What's there                                                       |
 | ------------- | ----------------------------------------------------------------- |
 | `primitives/` | Run-time provenance library (JS + Python), the `SPEC.md`, and the conformance suite |
-| `skills/`     | The four Claude Code skills — method, bootstrap, audit, remediate |
+| `skills/`     | The five Claude Code skills — adopt, method, bootstrap, audit, remediate |
 | `adapters/`   | Enforcement adapters — ESLint / import-linter boundaries, git hooks |
-| `reference/`  | Portable principles and the ruleset template                      |
+| `reference/`  | Portable principles, the fit map, and the ruleset template        |
 | `examples/`   | Worked clean / broken fixtures for JavaScript and Python          |
 | `docs/adr/`   | Architecture decision records                                     |
 
@@ -106,7 +108,7 @@ The provenance envelope is a trust claim, so plumb-line states plainly what it g
 
 ## Status
 
-plumb-line ships the run-time provenance primitive with JS/Python parity, the four skills, and enforcement adapters for JavaScript/TypeScript and Python — published to npm and PyPI as `plumb-line-provenance` (the badges above track the current version; the [changelog](CHANGELOG.md) has the per-release detail). The primitive's envelope and law are pinned by a versioned [specification](primitives/SPEC.md) (envelope schema version 2) and a cross-language [conformance suite](primitives/conformance/). The deterministic adapters — boundary checks and the `no-provenance-bypass` static lint (JS + Python) — are validated against the worked fixtures in `examples/`, catching every planted violation with no false positives; see the [validation results](docs/validation-results.md). A second lint, `require-provenance-output`, inverts the default inside a surface you declare: a trust-bearing function returning a provably raw computation becomes a mechanical error rather than something review must notice ([ADR-0011](docs/adr/0011-enforcement-rule-scoping.md)). It is opt-in once at the boundary and a no-op until you draw one. Wiring it is currently **manual** — see the adapter README; `plumb-line-bootstrap` describes the offer but does not yet install the config ([#214](https://github.com/slopstopper/plumb-line/issues/214)). plumb-line is held to its own principles, too: the auditor is run on plumb-line's own code before each method-surface release, and the [dogfooding report](docs/dogfood.md) and validation results record what it finds — including its own false-positive rate, since an LLM audit is a review aid, not a gate. Everything beyond that is **planned**, not current — the [roadmap](ROADMAP.md) is the authoritative index.
+plumb-line ships the run-time provenance primitive with JS/Python parity, the five skills, and enforcement adapters for JavaScript/TypeScript and Python — published to npm and PyPI as `plumb-line-provenance` (the badges above track the current version; the [changelog](CHANGELOG.md) has the per-release detail). The primitive's envelope and law are pinned by a versioned [specification](primitives/SPEC.md) (envelope schema version 2) and a cross-language [conformance suite](primitives/conformance/). The deterministic adapters — boundary checks and the `no-provenance-bypass` static lint (JS + Python) — are validated against the worked fixtures in `examples/`, catching every planted violation with no false positives; see the [validation results](docs/validation-results.md). A second lint, `require-provenance-output`, inverts the default inside a surface you declare: a trust-bearing function returning a provably raw computation becomes a mechanical error rather than something review must notice ([ADR-0011](docs/adr/0011-enforcement-rule-scoping.md)). It is opt-in once at the boundary and a no-op until you draw one. Wiring it is currently **manual** — see the adapter README; `plumb-line-bootstrap` describes the offer but does not yet install the config ([#214](https://github.com/slopstopper/plumb-line/issues/214)). plumb-line is held to its own principles, too: the auditor is run on plumb-line's own code before each method-surface release, and the [dogfooding report](docs/dogfood.md) and validation results record what it finds — including its own false-positive rate, since an LLM audit is a review aid, not a gate. Everything beyond that is **planned**, not current — the [roadmap](ROADMAP.md) is the authoritative index.
 
 ## Where this is going
 

@@ -5,9 +5,9 @@ description: Use when setting up a project with the plumb-line discipline — in
 
 # Bootstrap a project with plumb-line
 
-Part of the four-skill flow: learn the discipline with `plumb-line-method`, set
-the project up here, review changes with `plumb-line-audit`, and apply findings
-with `plumb-line-remediate`.
+Part of the five-skill flow: find your fit with `plumb-line-adopt`, learn the
+discipline with `plumb-line-method`, set the project up here, review changes
+with `plumb-line-audit`, and apply findings with `plumb-line-remediate`.
 
 REQUIRED READING FIRST: `reference/portable-principles.md` and
 `adapters/adapter-contract.md` (plugin root).
