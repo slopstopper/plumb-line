@@ -122,6 +122,20 @@ Version themes for the near-term releases, and the GitHub issues under each.
   (GH #172) — plus the accepted Scorecard residuals record (GH #77).
   Deliberately small; the point is that deferrals now have an outbox.
 
+- **v0.8.1 — Say only what is checked** (patch, fix-only). Every issue here is
+  the same defect shape: a claim this repo makes with nothing enforcing it — a
+  supported runtime no job tests (`engines.node >= 16` published while CI tests
+  Node 20 only, GH #233; `pyproject` naming Python 3.12 outside the matrix,
+  GH #227), a public export with no SPEC section or unit test (`parseAge`,
+  GH #224), a parity guarantee living only in a docstring (GH #225), and test
+  comments calling a defect "tracked" while naming no issue (GH #226).
+
+  That shape is exactly what `plumb-line-audit` flags in other people's code,
+  so carrying it here is an overstated-maturity claim about this project — the
+  recursion doctrine, applied. Fix-only, hence a patch rather than a minor.
+  Scoped small on purpose so it drains the outbox quickly instead of riding
+  v0.9.0's feature work.
+
 - **v0.9.0 — Honest over time** (P9 tooling + CI-native) · *renumbered from
   v0.8.0.* Principle 9 finally gets an implementation: `plumb-line baseline`
   CLI — golden baseline with lineage-attributed drift (#24 / GH #117); a GitHub
@@ -130,7 +144,12 @@ Version themes for the near-term releases, and the GitHub issues under each.
   adoption on legacy codebases (#26 / GH #119, deps #1, closed in v0.7.0). Also
   takes the bundle vendor-set enumeration footgun (GH #157), which needs a
   glob-vs-enumerate ADR rather than a scope-filler fix. Deterministic-only, no
-  wire-format dependency.
+  wire-format dependency. Also picks up the second half of bootstrap Step 4c —
+  the step describes an offer the skill cannot carry out (GH #228) alongside
+  the already-scheduled missing install step (GH #214); they are one piece of
+  code and belong in one milestone. Plus the board auto-add chore (GH #230),
+  which is repo infrastructure rather than shipped surface but has to carry a
+  milestone under the one-of-two rule.
 
 - **v0.10.0 — Refuse and explain** (runtime gates + legibility) · *renumbered
   from v0.9.0.* The runtime learns to say no and to explain itself: egress guard
@@ -142,7 +161,85 @@ Version themes for the near-term releases, and the GitHub issues under each.
   decisions this milestone has to settle anyway: the `http.py` stdlib-shadow
   rename (GH #171, which breaks the documented flat copy-paste path) and the
   wrapper/`mark` default `source='derived'` producing an audit-dirty leaf
-  (GH #177, inherited from the primitive's own default).
+  (GH #177, inherited from the primitive's own default). Also takes the
+  `check_report_format.py` cluster — the validator shipped in v0.8.0, now with
+  four findings against it: it accepts any principles-revision without
+  comparing it to the ruleset (GH #220), records nothing about what produced
+  its own output (GH #221), checks the record's Action column but not its
+  Class column (GH #222), and keeps six copies of lists the skills already
+  define (GH #223). One file, one unit of work.
+
+- **v1.0.0 — A contract you can build on** (no due date; sequenced after
+  v0.10.0; gated on state, not a date).
+
+  **What makes it a major:** not size, and not any particular breaking change
+  — SemVer requires neither. It is what the bump *forecloses*. Pre-1.0 the
+  rule here is "breaking → minor", which is cheap; after 1.0 a break costs a
+  **2.0**. So 1.0 is **the last cheap window for breaking changes**, and the
+  question to ask of every candidate is *"would we regret not being able to
+  change this afterwards?"* Exact precedent: v0.7.0 was scoped as the one-shot
+  schema window, and the ladder decision (#23 / GH #116) was forced into it as
+  the last cheap chance to touch the ladder. This is that shape one level up.
+
+  **The commitment:** envelopes written under 1.0 stay readable across every
+  1.x, the primitive API stays put, and the report contracts stop moving.
+
+  **The entry gate — passes its own audit.** The thesis is epistemic honesty
+  enforced by tooling and this repo is held to its own principles, so 1.0
+  cannot ship until plumb-line runs its own audit against itself, the report
+  comes back empty, and the coverage claim is "everything" rather than "here
+  is what I checked".
+
+  **The bar for the format:** could someone write a conforming implementation
+  in a third language from `SPEC.md` alone? If the Go/Rust ports (backlog #7)
+  cannot be built without reading the JS source, the spec is not 1.0-ready —
+  and the ecosystem track depends on it being so. 1.0 is less "the library is
+  finished" than **"the format is stable enough for someone else to
+  implement"**, which is what unlocks the tracks rather than competing with
+  them.
+
+  Gates:
+  1. **Audit coverage becomes a guarantee, not a denominator** — total sweep
+     via subagent fan-out (#22 / GH #90), adversarial verification of findings
+     (GH #211), and the coverage-map/honest-denominator spec (#34 / GH #127),
+     which was filed under `track:agent-state` but is the same concern. For a
+     tool whose job is catching what you missed, "I may have missed things" is
+     the weakest possible 1.0 claim.
+  2. **The public API is defined, then frozen** (GH #236) — gate zero. Nothing
+     in this repo currently states what is public versus internal, so the 1.0
+     promise would be unfalsifiable: no one could point at a change and say
+     whether it broke the contract. You cannot freeze an API nobody wrote down.
+  3. **Wire format frozen** — `PROVENANCE_VERSION` 2 readable by every 1.x.
+  4. **Canonical serialization is normative in SPEC** (#31 / GH #124, **moved
+     here from `track:boundaries`**) — both because it is normative wire text
+     and 1.0 freezes the spec, and because today the guarantee only holds
+     inside one process: taint evaporates at every HTTP response, DB write,
+     file and queue. Shipping "depend on this" while the central promise stops
+     at the process boundary is the largest maturity claim available.
+  5. **Unenforced claims become impossible, not merely fixed** — v0.8.1 drains
+     five; 1.0 means that milestone cannot refill, via a gate that fails when a
+     manifest claims support nothing tests.
+  6. **The deferral outbox is drained, not merely recorded.**
+  7. **Report contracts stop moving** — consumers parse output without
+     version-sniffing across majors.
+  8. **A deprecation policy exists** (GH #237) — how anything leaves the public
+     surface during 1.x without forcing a 2.0.
+  9. **Cross-language parity is total** — *already met*: GH #96 closed in
+     v0.7.0 and `primitives/PARITY.md` records no remaining divergence. Listed
+     so a satisfied gate is visible rather than silently dropped.
+
+  Also carried: a portable conformance suite so `cases.json` is runnable by a
+  third-language implementation (GH #238) — the mechanism by which spec gaps
+  surface — and the last-call pass over the public surface for breaking
+  changes that must ride 1.0 (GH #239), sequenced after #236 since the surface
+  document is its input.
+
+  **Explicitly not required for 1.0:** ecosystem docking, PROV-O, dbt, MCP,
+  per-host packs, sidecars (#32 / GH #125), the HTTP header (#33 / GH #126),
+  type-level enforcement. That is surface area. 1.0 is about the core being
+  trustworthy and the format implementable — treating breadth as maturity is
+  the mistake this project's own vocabulary rejects. #124 is the exception
+  among the boundaries work precisely because it is spec, not application.
 
 - **Portable beyond Claude** (label `track:portable`). Agent-neutral method
   core + agent-adapter contract (#12 / GH #58), MCP server exposing the three
@@ -151,16 +248,23 @@ Version themes for the near-term releases, and the GitHub issues under each.
 
 - **Provenance across boundaries** (label `track:boundaries`; starts after
   wire v2). Taint must survive process boundaries or the guarantee only holds
-  in-memory: canonical JSON serialization convention (#31 / GH #124),
-  file-artifact sidecars (#32 / GH #125, deps #31), HTTP provenance-context
-  header (#33 / GH #126, deps #31).
+  in-memory: file-artifact sidecars (#32 / GH #125, deps #31), HTTP
+  provenance-context header (#33 / GH #126, deps #31).
+
+  The canonical JSON serialization convention (#31 / GH #124) **moved to
+  v1.0.0** — it is normative spec text rather than an application of the
+  convention, and 1.0 freezes the spec. #32 and #33 build on it and stay
+  here; they can land anywhere in 1.x.
 
 - **Agent epistemic state** (label `track:agent-state`; the identity track —
   can start early, it is skill-surface with no runtime dependency beyond the
-  ladder decision). Generalize the audit skill's coverage-map / honest-
-  denominator machinery into a versioned spec for honest agent self-reporting
-  (#34 / GH #127), and a convention + Claude Code hook so agent-produced claims
+  ladder decision). A convention + Claude Code hook so agent-produced claims
   and code carry envelopes (#35 / GH #128, deps #23, #34).
+
+  The coverage-map / honest-denominator spec (#34 / GH #127) **moved to
+  v1.0.0**: it is part of the coverage guarantee that gates 1.0, not a
+  research direction, and leaving it here kept the same concern split across
+  two tracks.
 
 - **Ecosystem docking** (label `track:ecosystem`, demand-driven — design notes
   first, code when a real user asks). OpenLineage exporter (#36 / GH #129), W3C
@@ -168,9 +272,12 @@ Version themes for the near-term releases, and the GitHub issues under each.
   DAG (#38 / GH #131).
 
 - **Skills surface** (label `track:skills`). The review-time half of the product,
-  which no track previously covered: guaranteed total-sweep audit via subagent
-  fan-out, with a token-cost warning (#22 / GH #90); an adoption guide skill for
-  less-technical users taking on the ecosystem adapters (GH #176).
+  which no track previously covered: an adoption guide skill for less-technical
+  users taking on the ecosystem adapters (GH #176).
+
+  The guaranteed total-sweep audit (#22 / GH #90) and its adversarial-
+  verification companion (GH #211) **moved to v1.0.0** — they are the coverage
+  guarantee, which is a 1.0 gate rather than an unscheduled direction.
 
 - **Runtime enforcement direction** (label `track:runtime`). Type-level
   enforcement — `Marked<T>` branded type + mypy plugin (#39 / GH #132).
@@ -181,20 +288,26 @@ Version themes for the near-term releases, and the GitHub issues under each.
 ### Priority order
 
 The audit-trust arc (v0.5.1 → v0.6.0) and the one-shot schema window (v0.7.0 +
-the ladder decision) are **shipped**. The sequencing rule from here: **drain the
-deferral backlog before adding surface**, then the two deepening milestones.
-Tracks interleave by their stated dependencies.
+the ladder decision) are **shipped**, as is v0.8.0. The sequencing rule from
+here: **drain the deferral backlog before adding surface**, then the two
+deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
 
-1. **Now:** v0.8.0 — the merged Python 3.11 floor forces a minor release, so it
-   carries the first scheduled deferral drain with it. Nothing in it is large.
-2. **Next:** v0.9.0 (P9 tooling + CI-native). No wire dependency; #119's
+1. ~~**Now:** v0.8.0~~ — **shipped 2026-08-11**, 18 issues closed.
+2. **Now:** v0.8.1 — five fix-only claim-enforcement gaps. Small by design;
+   it drains rather than builds, and it should not wait behind v0.9.0.
+3. **Next:** v0.9.0 (P9 tooling + CI-native). No wire dependency; #119's
    prerequisite (#1 / GH #91) closed in v0.7.0, so the milestone is unblocked.
-3. **Then:** v0.10.0 — sequenced after wire v2 so the envelope fields it adds
+4. **Then:** v0.10.0 — sequenced after wire v2 so the envelope fields it adds
    are settled.
-4. **Parallel, start early:** `track:agent-state` (#34 first; #35 after the
-   ladder decision) and `track:portable` — both skill-surface.
-5. **Parallel, after wire v2:** `track:boundaries` (#31 → #32/#33).
-6. **Opportunistic:** `track:ecosystem` — PROV-O mapping (#37) is cheap and
+5. **After that:** v1.0.0 — the coverage guarantee, the API-surface
+   definition (GH #236) that everything else freezes against, canonical
+   serialization (GH #124), and the last-call breaking-change pass (GH #239,
+   after #236). No due date; gated on state, not on a date.
+6. **Parallel, start early:** `track:portable` — skill-surface, no runtime
+   dependency. (`track:agent-state` is now #35 alone, which waits on the
+   ladder decision and on #34, so it no longer starts early.)
+7. **Parallel, after wire v2:** `track:boundaries` (#31 → #32/#33).
+8. **Opportunistic:** `track:ecosystem` — PROV-O mapping (#37) is cheap and
    credibility-bearing, do it whenever; OpenLineage/dbt wait for a pilot user.
 
 A note on the numbering: v0.9.0 and v0.10.0 were previously v0.8.0 and v0.9.0.
