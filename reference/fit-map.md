@@ -45,6 +45,25 @@ adoption ("no *new* untagged outputs") is **planned**, not current
 (GH #119). Adopt the envelopes per-path now; draw enforcement boundaries
 if and when you want them.
 
+**Worried about using it wrong?** The same user signal, in full: *"I
+didn't understand enough how the primitives would work, and since I had
+already started the project I didn't want to introduce bugs by using it
+wrong."* The mechanics bound that risk tightly:
+
+- The library never computes or modifies a value. `derive` unwraps the
+  inputs, runs **your** function on them, and attaches combined metadata
+  to the result. A wrong `source` or `confidence` label misdescribes your
+  data; it cannot change it.
+- A forgotten `mark` does not silently corrupt anything: in Python,
+  passing a bare value where a marked one is expected raises `TypeError`
+  immediately; in JS it feeds `undefined` into your function — visible in
+  the first test run, not weeks later.
+- Consistency is checkable, not assumed: `audit_meta` / `auditMeta`
+  returns `[]` for a well-formed envelope and names the defect otherwise,
+  and `plumb-line-bootstrap`'s scaffold step ends with a test asserting
+  your key output audits clean, wired into the pre-commit gate — so
+  "did I use it wrong?" has a mechanical answer from day one.
+
 ## How to read a profile
 
 Each profile gives: **signals** (what you would see in the repo or say

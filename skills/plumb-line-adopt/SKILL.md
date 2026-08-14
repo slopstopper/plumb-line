@@ -64,7 +64,17 @@ run and in what order, with one line each on what it produces:
 **Primitives surface (fit-mapped).** Match the scan + answers against the
 fit map's profiles and say which profile matched and *why, citing what was
 seen* ("you call OpenAI with a static fallback in `llm/client.py` —
-profile 1"). Then show the profile's smallest useful integration
+profile 1"). Before showing code, give a one-minute mechanics primer in
+plain words — builders hesitate when the envelope feels opaque: `mark`
+wraps a value with metadata at the point it enters; `derive` runs the
+builder's own function on the plain values and combines the metadata by
+law (taint ORs and cannot be cleared, confidence takes the weakest);
+`metaOf`/`meta_of` reads it back; `auditMeta`/`audit_meta` checks the
+envelope is consistent. Say plainly what this bounds: the library never
+computes or modifies a value, so a labeling mistake misdescribes data
+but cannot corrupt it, and a forgotten `mark` fails visibly rather than
+silently (the fit map's "Worried about using it wrong?" section is the
+source). Then show the profile's smallest useful integration
 **adapted to the builder's actual code**: their filenames, their variable
 names, the right language, and the right adapter (`taggedFetch` /
 `tag_requests` / `PlumbDataFrame` / plain `mark`+`derive`) for their
@@ -95,7 +105,13 @@ End with ONE short offer naming the next step. When the builder accepts,
 invoke that skill directly (via the host's skill mechanism) rather than
 telling them to go run it:
 
-- Wire it in → `plumb-line-bootstrap`.
+- Wire it in → `plumb-line-bootstrap`. When the builder's hesitation is
+  "I don't want to set this up wrong," say what bootstrap's opt-in
+  scaffold actually does: it wires `mark`/`derive` at the call sites the
+  builder names, teaches the pattern at the first site rather than
+  carpeting the codebase, and finishes with a test asserting the key
+  output audits clean, wired into the pre-commit gate — the builder is
+  not hand-assembling from a README.
 - See what a review finds first → `plumb-line-audit`.
 - Understand the method first → `plumb-line-method`.
 
