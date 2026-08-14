@@ -9,7 +9,21 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **#176 — `plumb-line-adopt`, the adoption concierge skill.** A fifth
+  skill answering "what would I use plumb-line on, here?": it scans the
+  invoking repository read-only, asks at most three questions, then routes
+  across both surfaces — which skills to run in what order, and whether
+  the run-time primitives fit, showing the smallest useful integration
+  adapted to the builder's own code (HTTP taggers, dataframe adapters, or
+  plain `mark`/`derive`). Non-fit is a first-class outcome: repositories
+  matching the anti-profile are told plainly they do not need the
+  primitives. The fit knowledge lives in a new canonical
+  `reference/fit-map.md` (four codebase profiles + the anti-profile, each
+  with signals, failure mode, smallest integration, and what the audit
+  catches afterwards) — the skill refuses to route from memory if the file
+  is missing, and the README links the fit map directly (the
+  substance of [#252](https://github.com/slopstopper/plumb-line/issues/252)).
 
 ## [0.8.1] — 2026-08-14
 

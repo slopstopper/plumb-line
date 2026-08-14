@@ -43,10 +43,15 @@ this remains a skill that never edits files or installs anything; the builder
 runs the install themselves, or takes it up when `plumb-line-bootstrap` offers
 to scaffold it.
 
-## Where to go next (the four skills)
+## Where to go next (the five skills)
 
-plumb-line is four skills, meant to be used in this order:
+plumb-line is five skills, meant to be used in this order:
 
+- **plumb-line-adopt** — *find your fit*: it inspects the builder's repo,
+  says which skills to run, and matches the codebase against
+  `reference/fit-map.md` to answer "do I need the primitives, and on what?"
+  — including a plain "no" when the answer is no. The natural starting
+  point for a builder who has the plugin but not the map.
 - **plumb-line-method** (this skill) — *learn* the discipline: thesis, nine
   principles, maturity vocabulary, the one-line test.
 - **plumb-line-bootstrap** — *set a project up*: it interviews you for your
@@ -74,14 +79,16 @@ expressibility, see the principles) is unrelated to the recursive-spine plugin.
 
 ## First run (there is no auto-run)
 
-Installing the plugin registers these four skills; it does **not** run any of
+Installing the plugin registers these five skills; it does **not** run any of
 them for you — a Claude Code marketplace plugin cannot auto-execute a skill on
 install. The intended first-run flow is therefore explicit and manual:
 
 1. Install the plugin (`/plugin install plumb-line@plumb-line`).
-2. Run `plumb-line-method` (this skill) to learn the discipline.
-3. Run `plumb-line-bootstrap` to set your project up.
-4. Run `plumb-line-audit` whenever you review a change.
+2. Run `plumb-line-adopt` to find which parts fit your repo — or skip
+   straight to the next step if you already know.
+3. Run `plumb-line-method` (this skill) to learn the discipline.
+4. Run `plumb-line-bootstrap` to set your project up.
+5. Run `plumb-line-audit` whenever you review a change.
 5. Run `plumb-line-remediate` when an audit's findings should be applied.
 
 This one teaches the *why*; bootstrap, audit, and remediate are where it becomes
