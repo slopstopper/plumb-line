@@ -47,7 +47,7 @@ the copy mechanism is for documents that must carry the values with them.
 - `PROVENANCE_VERSION` is **2**, identical in `primitives/js/provenance.mjs` and `primitives/python/provenance.py`. It is the envelope wire version and moves independently of the release version; `bump-version` does not touch it.
 - Published package name is **`plumb-line-provenance`**, identical on npm and PyPI.
 - License is **Apache-2.0** in both manifests.
-- Python floor is **`requires-python = ">=3.11"`**; the CI matrix tests **3.11 and 3.13**.
+- Python floor is **`requires-python = ">=3.11"`**; the CI matrix tests **3.11, 3.12 and 3.13**.
 - Node floor as published is **`engines.node >= 16`**; CI tests **Node 20 only**.
 - Report contracts are **report-format v3** and **remediation-format v1**, validated by `scripts/check_report_format.py`.
 - JS envelopes are flat/spread and camelCase; Python envelopes are nested under `meta` and snake_case. Both must behave identically against `primitives/conformance/cases.json`.
