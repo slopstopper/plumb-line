@@ -10,6 +10,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Added
+- **Executable guard for fit-map snippets**
+  ([#262](https://github.com/slopstopper/plumb-line/issues/262), from the
+  PR #261 review): `scripts/test_fit_map_snippets.py` extracts every
+  ```` ```python ```` block from `reference/fit-map.md` and runs it against
+  `primitives/python` under the published import name, with per-snippet
+  postconditions asserting what the surrounding prose claims (taint on the
+  fallback path, weakest-confidence propagation, recorded-taint-audits-clean,
+  fresh-2xx classification). A snippet without a matching prelude — or a
+  prelude whose marker no longer matches — fails loudly (the #249 lesson:
+  zero-found must not look like verified-clean), and a self-test pins that
+  the harness catches the review's original defect class. Wired into the
+  repo-infrastructure checkers CI step.
 - **#176 — `plumb-line-adopt`, the adoption concierge skill.** A fifth
   skill answering "what would I use plumb-line on, here?": it scans the
   invoking repository read-only, asks at most three questions, then routes
