@@ -3,7 +3,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { classifyResponse, tagResponse, taggedFetch } from "./http.mjs";
+import { parseAge, classifyResponse, tagResponse, taggedFetch } from "./http.mjs";
 import { metaOf, unwrap } from "./marked.mjs";
 
 const cases = JSON.parse(
@@ -14,6 +14,26 @@ describe("classifyResponse — shared fixture", () => {
   for (const c of cases.classify) {
     it(c.name, () => {
       expect(classifyResponse(c.status, c.headers, c.fromCache)).toEqual(c.expect);
+    });
+  }
+});
+
+// #224: parseAge parity is table-driven — primitives/conformance/http-cases.json
+// carries the shared list (its Python consumer is python/tests/test_http.py).
+// Each rejected entry is a header value some built-in coercion would accept
+// (Number("") is 0, Number("0x10") is 16, Number("1e3") is 1000,
+// Number("Infinity") is Infinity) but the shared AGE_DECIMAL pattern must
+// reject, or cache detection becomes language-dependent (#172).
+describe("parseAge — shared fixture", () => {
+  for (const c of cases.parseAge) {
+    it(c.name, () => {
+      expect(parseAge(c.raw)).toBe(c.expect);
+      // ...and the whole classification path stays total on the same input:
+      // a rejected or zero Age reads as fresh, a positive one as cached.
+      if (c.raw !== null) {
+        const confidence = c.expect !== null && c.expect > 0 ? "medium" : "high";
+        expect(classifyResponse(200, { Age: c.raw })).toEqual({ source: "real", confidence });
+      }
     });
   }
 });

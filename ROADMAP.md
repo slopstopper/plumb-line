@@ -123,12 +123,15 @@ Version themes for the near-term releases, and the GitHub issues under each.
   Deliberately small; the point is that deferrals now have an outbox.
 
 - **v0.8.1 — Say only what is checked** (patch, fix-only). Every issue here is
-  the same defect shape: a claim this repo makes with nothing enforcing it — a
-  supported runtime no job tests (`engines.node >= 16` published while CI tests
-  Node 20 only, GH #233; `pyproject` naming Python 3.12 outside the matrix,
-  GH #227), a public export with no SPEC section or unit test (`parseAge`,
-  GH #224), a parity guarantee living only in a docstring (GH #225), and test
-  comments calling a defect "tracked" while naming no issue (GH #226).
+  the same defect shape: a claim this repo makes with nothing enforcing it —
+  `pyproject` naming Python 3.12 outside the matrix (GH #227), a public export
+  with no doc section or unit test (`parseAge`, GH #224), a parity guarantee
+  living only in a docstring (GH #225), and test comments calling a defect
+  "tracked" while naming no issue (GH #226). The fifth of the original five,
+  the Node floor no job tests (`engines.node >= 16` published while CI tests
+  Node 20 only, GH #233), moved to v0.9.0 once assessing it showed the only
+  honest resolution is raising the floor — a supported-runtime change, which
+  is a minor by this repo's rule and cannot ride a fix-only patch.
 
   That shape is exactly what `plumb-line-audit` flags in other people's code,
   so carrying it here is an overstated-maturity claim about this project — the
@@ -149,7 +152,10 @@ Version themes for the near-term releases, and the GitHub issues under each.
   the already-scheduled missing install step (GH #214); they are one piece of
   code and belong in one milestone. Plus the board auto-add chore (GH #230),
   which is repo infrastructure rather than shipped surface but has to carry a
-  milestone under the one-of-two rule.
+  milestone under the one-of-two rule. Also takes the Node floor resolution
+  (GH #233, moved from v0.8.1): `engines.node` rises to `>= 20` with the floor
+  exercised in the matrix — the supported-runtime change that made it a minor,
+  decided and recorded on the issue.
 
 - **v0.10.0 — Refuse and explain** (runtime gates + legibility) · *renumbered
   from v0.9.0.* The runtime learns to say no and to explain itself: egress guard
@@ -217,8 +223,9 @@ Version themes for the near-term releases, and the GitHub issues under each.
      file and queue. Shipping "depend on this" while the central promise stops
      at the process boundary is the largest maturity claim available.
   5. **Unenforced claims become impossible, not merely fixed** — v0.8.1 drains
-     five; 1.0 means that milestone cannot refill, via a gate that fails when a
-     manifest claims support nothing tests.
+     four and v0.9.0 takes the Node floor (GH #233); 1.0 means that milestone
+     cannot refill, via a gate that fails when a manifest claims support
+     nothing tests.
   6. **The deferral outbox is drained, not merely recorded.**
   7. **Report contracts stop moving** — consumers parse output without
      version-sniffing across majors.

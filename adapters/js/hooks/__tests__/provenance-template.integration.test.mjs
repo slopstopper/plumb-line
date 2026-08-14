@@ -16,7 +16,7 @@
  *
  * Not covered: no test lints a `no-provenance-bypass` violation through the
  * template, so the rule whose breakage motivated this fix is only proven to be
- * REGISTERED, not to fire. Tracked rather than overstated here.
+ * REGISTERED, not to fire. Tracked (#246) rather than overstated here.
  */
 
 import { describe, it, expect, afterAll } from "vitest";

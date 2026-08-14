@@ -119,7 +119,7 @@ describe("require-provenance-output wired into pre-commit-gate", () => {
     // `localClass` is set to "tagged" but the only read tests for "raw", and
     // the two classifications are mutually exclusive anyway. Verified by
     // mutation: disabling PRIMITIVE_SOURCE matching leaves every test green.
-    // Tracked as its own defect rather than papered over here.
+    // Tracked as its own defect (#212) rather than papered over here.
     const raw = writeSource(
       "local-raw.mjs",
       `export function f(x, r) { const t = x * r; return t; }`,
