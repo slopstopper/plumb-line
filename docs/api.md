@@ -222,6 +222,75 @@ Booleans are excluded in Python.
 
 ---
 
+## HTTP adapter
+
+Auto-tags HTTP responses with a provenance envelope by status + cache state
+(see ADR-0012). In JavaScript this is the `plumb-line-provenance/http`
+subpath; in Python it is the `http` module of the package. The
+classification core is dependency-free in both languages; the taggers need a
+response object (`fetch`'s native `Response` in JS — Node >= 18 or a browser;
+`requests`/`httpx` extras in Python).
+
+The two languages expose different tagger names because they tag different
+client libraries; which Python defs are public surface is a 1.0 question
+tracked in [#236](https://github.com/slopstopper/plumb-line/issues/236).
+This section documents what each module ships today.
+
+### `parseAge(raw)` / `parse_age(raw)`
+
+Parses an RFC 7234 `Age` header value (delta-seconds). Accepts only
+OWS-wrapped ASCII digits with an optional fractional part; **returns a
+number, or `null`/`None` when the header is not a decimal value** — it never
+throws, because header bytes are remote-controlled. Built-in coercions
+(`Number()`, `float()`) are deliberately not used: the two languages disagree
+on non-decimal strings, which would make cache detection language-dependent.
+
+```js
+parseAge("60");    // 60
+parseAge(" 60 ");  // 60 (OWS is SP/HTAB only)
+parseAge("1e3");   // null — Number("1e3") would be 1000
+```
+
+---
+
+### `classifyResponse(status, headers, fromCache?)` / `classify_response(status, headers, from_cache=False)`
+
+Maps an HTTP response to `(source, confidence)`: source is origin trust,
+confidence is freshness. A fresh 2xx is `real`/`high`; a cache hit (a 304,
+a positive `Age`, an `x-cache` HIT, or an explicit `fromCache`) stays `real`
+with confidence dropped to `medium`; anything else is `unavailable`/`none`.
+Never emits `fallback` (reserved for caller-supplied substitutes). Returns
+`{ source, confidence }` in JS and a `(source, confidence)` tuple in Python.
+`headers` may be a `Headers`-like object (`.get`) or a plain object / dict;
+lookup is case-insensitive.
+
+The classification behaviour is pinned cross-language by
+[`primitives/conformance/http-cases.json`](../primitives/conformance/http-cases.json).
+
+---
+
+### `tagResponse(response, fromCache?)` — JS / `tag_requests(response)`, `tag_httpx(response)` — Python
+
+Tags a client-native response object (`fetch` `Response`; `requests.Response`;
+`httpx.Response`) with a provenance envelope via `classifyResponse` /
+`classify_response`. The marked value is the response itself — extract with
+`derive([tagged], (r) => r.json())`.
+
+```js
+import { tagResponse } from "plumb-line-provenance/http";
+const m = tagResponse(await fetch(url));
+metaOf(m); // { source: "real", confidence: "high", ... }
+```
+
+---
+
+### `taggedFetch(url, options?)` — JS / `tagged_get(url, **kwargs)`, `tagged_httpx_get(url, **kwargs)` — Python
+
+Convenience wrappers: perform the request with the client's own function and
+tag the response in one call.
+
+---
+
 ## Envelope schema
 
 The envelope schema is defined normatively in

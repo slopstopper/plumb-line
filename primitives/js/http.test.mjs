@@ -3,7 +3,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { classifyResponse, tagResponse, taggedFetch } from "./http.mjs";
+import { parseAge, classifyResponse, tagResponse, taggedFetch } from "./http.mjs";
 import { metaOf, unwrap } from "./marked.mjs";
 
 const cases = JSON.parse(
@@ -16,6 +16,36 @@ describe("classifyResponse — shared fixture", () => {
       expect(classifyResponse(c.status, c.headers, c.fromCache)).toEqual(c.expect);
     });
   }
+});
+
+// #224: mirrors test_parse_age_* in python/tests/test_http.py. The hostile
+// list is byte-identical to Python's — each entry is a header value that some
+// built-in coercion would accept (Number("") is 0, Number("0x10") is 16,
+// Number("1e3") is 1000, Number("Infinity") is Infinity) but the shared
+// AGE_DECIMAL pattern must reject, or cache detection becomes
+// language-dependent (#172).
+describe("parseAge", () => {
+  it("rejects hostile header bytes and stays total through classification", () => {
+    const hostile = [
+      "\u001c60", "\u001d60", "\u001e60", "\u001f60", "\u008560", "\ufeff60",
+      "\u00a060", "\u168060", "\u300060", "\u0666\u0660", "0x10", "1_000",
+      "1e3", "abc", "", "   ", "-5", "+60", ".5", "60.", "Infinity", "NaN",
+    ];
+    for (const raw of hostile) {
+      expect(parseAge(raw), JSON.stringify(raw)).toBe(null);
+      // ...and the whole classification path stays total on the same input
+      expect(classifyResponse(200, { Age: raw }), JSON.stringify(raw))
+        .toEqual({ source: "real", confidence: "high" });
+    }
+  });
+  it("accepts only OWS-wrapped ASCII digits", () => {
+    // RFC 7230 OWS is SP/HTAB only; RFC 7234 delta-seconds is ASCII digits.
+    expect(parseAge("60")).toBe(60);
+    expect(parseAge(" 60 ")).toBe(60);
+    expect(parseAge("\t60\t")).toBe(60);
+    expect(parseAge("60.5")).toBe(60.5);
+    expect(parseAge(null)).toBe(null);
+  });
 });
 
 describe("classifyResponse — header access", () => {
