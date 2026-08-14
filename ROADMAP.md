@@ -300,8 +300,9 @@ here: **drain the deferral backlog before adding surface**, then the two
 deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
 
 1. ~~**Now:** v0.8.0~~ — **shipped 2026-08-11**, 18 issues closed.
-2. **Now:** v0.8.1 — five fix-only claim-enforcement gaps. Small by design;
-   it drains rather than builds, and it should not wait behind v0.9.0.
+2. **Now:** v0.8.1 — four fix-only claim-enforcement gaps (the fifth, GH #233,
+   moved to v0.9.0 — see the milestone note). Small by design; it drains
+   rather than builds, and it should not wait behind v0.9.0.
 3. **Next:** v0.9.0 (P9 tooling + CI-native). No wire dependency; #119's
    prerequisite (#1 / GH #91) closed in v0.7.0, so the milestone is unblocked.
 4. **Then:** v0.10.0 — sequenced after wire v2 so the envelope fields it adds

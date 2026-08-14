@@ -9,6 +9,46 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.8.1] — 2026-08-14
+
+### Fixed
+- **Every claim in the v0.8.1 outbox now has enforcement behind it**
+  (the milestone's four issues, all found by the v0.8.0 dogfood self-audit):
+  - The `./http` subpath's four public exports (`parseAge`,
+    `classifyResponse`, `tagResponse`, `taggedFetch` — one more than the
+    issue counted) are documented in `docs/api.md`, and `parseAge` parity is
+    table-driven: a new `parseAge` section in
+    `primitives/conformance/http-cases.json` (27 cases, hostile Unicode
+    headers included) drives both languages' unit tests, replacing a
+    hand-mirrored list held in sync by a comment
+    ([#224](https://github.com/slopstopper/plumb-line/issues/224)).
+  - The JSON.parse half of the huge-integer-version parity claim
+    (`JSON.parse` of a 400-digit literal → `Infinity` → `version-malformed`)
+    is pinned by a JS unit test instead of living only in a Python docstring
+    ([#225](https://github.com/slopstopper/plumb-line/issues/225)).
+  - The two adapter test comments claiming a defect was "tracked" now name
+    their issues (#212 and the newly filed
+    [#246](https://github.com/slopstopper/plumb-line/issues/246))
+    ([#226](https://github.com/slopstopper/plumb-line/issues/226)).
+  - CI tests Python 3.12, so every version the `pyproject` classifiers
+    advertise runs the suite
+    ([#227](https://github.com/slopstopper/plumb-line/issues/227)).
+
+  The fifth original issue — the `engines.node >= 16` floor CI never tests
+  ([#233](https://github.com/slopstopper/plumb-line/issues/233)) — moved to
+  v0.9.0: assessment showed the only honest resolution is raising the floor
+  (the `./http` subpath needs Node 18+ for native `fetch`, and vitest 4
+  cannot run below Node 20), and a supported-runtime change is a minor, not
+  a patch.
+- **`classifyResponse` docs match the code, cache-signal scope included**
+  (from the pre-merge review of the above): cache signals are consulted only
+  inside the 2xx branch — a 404 with `Age: 60` stays `unavailable`/`none`,
+  now pinned by a conformance row; header-lookup case-insensitivity is
+  qualified (the `.get` path delegates casing to the object); and the Python
+  taggers' `response.from_cache` attribute sniff is documented.
+
 ### Added
 - **The recursive-spine tracking convention is stamped on this repo**
   ([#215](https://github.com/slopstopper/plumb-line/issues/215)). plumb-line
@@ -603,7 +643,8 @@ These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes th
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/slopstopper/plumb-line/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/slopstopper/plumb-line/compare/v0.7.3...v0.8.0
 [0.7.3]: https://github.com/effythealien/plumb-line/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/effythealien/plumb-line/compare/v0.7.1...v0.7.2

@@ -780,3 +780,62 @@ declares, and a step in this very protocol that still called format scoring a
 human judgement.
 
 Report validated with `scripts/check_report_format.py` — clean.
+
+## v0.8.1 release-harness record — 2026-08-14
+
+Release: **v0.8.1** "Say only what is checked" — patch, fix-only (GH #224 #225
+#226 #227; #233 moved to v0.9.0 during assessment). Diff since v0.8.0 touches
+`primitives/` and `adapters/` (tests, conformance fixture, and two test
+comments — no shipped source), so the harness ran on the path rule.
+`PROVENANCE_VERSION` stays 2.
+
+Base commit: `dfdabb8`. Fixtures were audited as answer-stripped scratch
+copies per the v0.8.0 protocol addition (keys deleted, every line matching
+`violation` case-insensitively removed, `grep -ri violation` verified empty
+before dispatch).
+
+### Part 1 — Blind validation (release-blocking) — **PASS (6/6)**
+
+Six independent auditors (2× each `broken/`, 1× each `clean/`), plain
+identical prompts, declared architecture supplied verbatim from
+`AUDIT-EXPECTATIONS.md` step 3.
+
+| Run | Planted found | Verdict |
+| --- | --- | --- |
+| js-broken A | P2 upward import, P5 hardcoded `FEE`, P3 missing provenance/confidence — all confirmed | PASS |
+| js-broken B | same 3/3 confirmed | PASS |
+| py-broken A | P2 upward import, P5 `SIGNAL_THRESHOLD`, P8 missing lineage — all confirmed | PASS |
+| py-broken B | same 3/3 confirmed | PASS |
+| js-clean | 0 confirmed violations; P7/P9 as advisory adoption gaps only | PASS |
+| py-clean | 0 confirmed violations; P7/P9 as advisory adoption gaps only | PASS |
+
+The P8 omission row — the regression this harness exists to guard — was
+confirmed in both python runs.
+
+**Format scoring (tool, not impression):** `python3
+scripts/check_report_format.py <report>` on all six saved reports.
+**First-pass compliance was 1/6.** Five reports opened with a markdown title
+and/or fenced the header block (the orchestrator stripped these
+mechanically), and after that four still failed on: bare `P#` codes not
+inline-named (3 reports), an extra `Status` findings column (1), and one
+pipe-split row (1). Each failing auditor corrected its own report — format
+only, findings frozen — and all six now exit 0. Calibration note: 5/6
+writers producing the same envelope violations is a skill-instruction
+signal, not five coincidences; the SKILL.md report section shows the header
+inside a code fence (as markdown documentation) and writers copied the
+framing literally. Recorded here for the next skill revision; finding
+accuracy was unaffected.
+
+### Part 1b — Remediate validation
+
+Skipped: `skills/plumb-line-remediate/SKILL.md` is untouched in this diff.
+
+### Part 2 — Dogfood self-audit (non-blocking)
+
+See [`dogfood.md`](dogfood.md), v0.8.1 section — **7 findings: 1 violation,
+6 needs-review.** Five fixed before the tag, two filed as `audit-deferral`
+issues ([#249](https://github.com/slopstopper/plumb-line/issues/249),
+[#250](https://github.com/slopstopper/plumb-line/issues/250)).
+
+Report validated with `scripts/check_report_format.py` — clean (exit 0,
+first pass).

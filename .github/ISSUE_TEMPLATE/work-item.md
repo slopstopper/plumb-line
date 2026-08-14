@@ -6,4 +6,5 @@ about: One unit of work, sized to roughly one working session
 **Spec / plan link:** <!-- in-repo doc if one exists; issues point, docs think -->
 **Done means:** <!-- observable outcome, not activity -->
 **Children:** <!-- when an implementation plan lands, file its tasks as
-sub-issues of this unit, in plan order — depth principle, principles.md -->
+sub-issues of this unit, in plan order — the recursive-spine convention's
+depth principle (its principles.md; not a file in this repo) -->
