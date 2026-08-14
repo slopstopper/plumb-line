@@ -163,6 +163,18 @@ describe("auditMeta", () => {
     }
   });
 
+  it("a huge integer version arriving via JSON lands in the malformed branch (#225)", () => {
+    // Python's test_audit_meta_is_total_on_a_huge_integer_version asserts the
+    // cross-language claim that JSON.parse turns the same 400-digit literal
+    // into Infinity here. cases.json cannot express non-finite numbers, so the
+    // claim is pinned by a unit test on each side instead.
+    const meta = JSON.parse(
+      `{"provenanceVersion": ${"9".repeat(400)}, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": []}`,
+    );
+    expect(meta.provenanceVersion).toBe(Infinity);
+    expect(auditMeta(meta)).toEqual(["version-malformed: provenance version is not a finite number"]);
+  });
+
   it("a fractional version is finite, so it is compared not rejected (#216)", () => {
     // The malformed branch is about finiteness, not integer-ness — 2.5 routes
     // to version-future and 1.5 to version-legacy, in both languages.
