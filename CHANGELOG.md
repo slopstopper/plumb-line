@@ -9,6 +9,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Changed
+- **Node floor raised to `engines.node >= 20`**
+  ([#233](https://github.com/slopstopper/plumb-line/issues/233)) — a
+  supported-runtime change, hence a minor. The published `>= 16` claim was
+  partly false (the `./http` subpath needs native `fetch`, Node ≥ 18) and
+  untestable (vitest 4 cannot run below Node 20), so the floor rises to the
+  lowest version CI can exercise. The CI matrix now tests Node 20 and 22, so
+  the floor itself is exercised — matching the Python pair — and
+  `docs/constraints.md` records the resolution.
+
 ### Added
 - **#176 — `plumb-line-adopt`, the adoption concierge skill.** A fifth
   skill answering "what would I use plumb-line on, here?": it scans the
