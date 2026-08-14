@@ -9,6 +9,19 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Changed
+- **README + marketplace listing positioning pass**
+  ([#258](https://github.com/slopstopper/plumb-line/issues/258)): the lead
+  now frames the funnel — skills as the front door, the primitive as the
+  differentiated core, neither demoted — and leads with the full
+  collision-aware identity ("plumb-line provenance"; unrelated "plumbline"
+  projects exist in the same channels). The fit map is linked as the answer
+  to "do I need the run-time half?". Listing copy (plugin.json,
+  marketplace.json) points newcomers at `plumb-line-adopt` first. The copy
+  was audited by `plumb-line-audit` before commit; its three findings (a
+  "review-time" mislabel on the adopt skill and two zero-install universals
+  that overstated bootstrap) were fixed in the same pass.
+
 ### Added
 - **#176 — `plumb-line-adopt`, the adoption concierge skill.** A fifth
   skill answering "what would I use plumb-line on, here?": it scans the

@@ -1,6 +1,6 @@
 {
   "name": "plumb-line",
-  "description": "Give any repository the discipline of epistemic honesty enforced by tooling: a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and rules enforced by machines rather than goodwill. New here? Run plumb-line-method first to get oriented — it teaches the discipline, then hands you into setup.",
+  "description": "plumb-line provenance: epistemic honesty enforced by tooling. Five skills give any repository a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and rules enforced by machines rather than goodwill. New here? Run plumb-line-adopt first — it looks at your repo and tells you which parts fit and what to run.",
   "version": "0.8.1",
   "author": { "name": "Aoife Okonedo Martin" },
   "homepage": "https://github.com/slopstopper/plumb-line",
