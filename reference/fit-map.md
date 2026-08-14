@@ -21,6 +21,30 @@ computation that erases where they came from.
 
 If no path in your codebase can do that, you do not need the primitives.
 
+## Mid-project is the normal case
+
+A worry reported by a real user: *"can you start using primitives on a
+project that is already started? I was nervous to try without it being at
+the start."* Yes — and starting mid-project is how adoption is designed to
+work, not a degraded version of it.
+
+Envelopes attach at **boundaries**, not across a codebase. You mark values
+where mixed trust *enters* — the fetch call, the fallback branch, the
+fixture load — and `derive` through the one path you care about. Every
+"smallest useful integration" below is a handful of lines at one call
+site; the rest of the project does not change, and there is nothing to
+retrofit. Start with the single path that worries you most and stop there
+until it earns more.
+
+What *is* harder mid-project is repo-wide **enforcement** — a lint
+demanding provenance on every output would fail everywhere at once on an
+existing codebase. That is why enforcement is opt-in and scoped: the
+`require-provenance-output` lint inverts the default only inside a
+boundary you explicitly draw, and a ratchet mode for incremental legacy
+adoption ("no *new* untagged outputs") is **planned**, not current
+(GH #119). Adopt the envelopes per-path now; draw enforcement boundaries
+if and when you want them.
+
 ## How to read a profile
 
 Each profile gives: **signals** (what you would see in the repo or say

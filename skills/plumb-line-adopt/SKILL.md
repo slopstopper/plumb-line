@@ -77,6 +77,14 @@ the verdict (the fit map's anti-profile section closes the same way). Do
 not soften the no; a wrong-fit adoption costs the builder more than an
 honest walk-away.
 
+**Defuse the greenfield misconception.** Builders commonly assume
+provenance must be adopted at a project's start and hesitate on an
+existing codebase. When that worry appears — or when the repo is clearly
+mature — say what the fit map's "Mid-project is the normal case" section
+says: envelopes attach at boundaries, the smallest integration is a few
+lines at one call site, nothing is retrofitted, and repo-wide enforcement
+is a separate, opt-in, later decision.
+
 **Mixed or uncertain fit is stated as such.** If signals are ambiguous,
 say what would settle it, with the builder's own code as the test — never
 present a guessed fit as a match.
