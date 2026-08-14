@@ -256,13 +256,18 @@ parseAge("1e3");   // null — Number("1e3") would be 1000
 ### `classifyResponse(status, headers, fromCache?)` / `classify_response(status, headers, from_cache=False)`
 
 Maps an HTTP response to `(source, confidence)`: source is origin trust,
-confidence is freshness. A fresh 2xx is `real`/`high`; a cache hit (a 304,
-a positive `Age`, an `x-cache` HIT, or an explicit `fromCache`) stays `real`
-with confidence dropped to `medium`; anything else is `unavailable`/`none`.
+confidence is freshness. A 304 is `real`/`medium`. A 2xx is `real`/`high`
+when fresh, dropping to `real`/`medium` when a cache signal is present (a
+positive `Age`, an `x-cache` HIT, or an explicit `fromCache`). Any other
+status is `unavailable`/`none` — cache signals are not consulted outside
+the 2xx and 304 paths, so a 404 with `Age: 60` is still `unavailable`.
 Never emits `fallback` (reserved for caller-supplied substitutes). Returns
 `{ source, confidence }` in JS and a `(source, confidence)` tuple in Python.
-`headers` may be a `Headers`-like object (`.get`) or a plain object / dict;
-lookup is case-insensitive.
+`headers` may be a plain object / dict, which is scanned case-insensitively,
+or a `.get()`-bearing object, which is queried as `.get("age")` /
+`.get("x-cache")` — casing is then the object's responsibility (`fetch`'s
+`Headers`, `requests`' `CaseInsensitiveDict` and `httpx.Headers` all
+normalize; a bare `Map` does not).
 
 The classification behaviour is pinned cross-language by
 [`primitives/conformance/http-cases.json`](../primitives/conformance/http-cases.json).
@@ -275,6 +280,13 @@ Tags a client-native response object (`fetch` `Response`; `requests.Response`;
 `httpx.Response`) with a provenance envelope via `classifyResponse` /
 `classify_response`. The marked value is the response itself — extract with
 `derive([tagged], (r) => r.json())`.
+
+Cache state is signaled differently per language: JS takes an explicit
+`fromCache` argument, while the Python taggers have no cache parameter and
+instead read a `from_cache` attribute off the response when one is present
+(`bool(getattr(response, "from_cache", False))` — the convention
+`requests-cache` uses). An unrelated truthy `from_cache` attribute on a
+response-like object will therefore read as a cache hit.
 
 ```js
 import { tagResponse } from "plumb-line-provenance/http";
