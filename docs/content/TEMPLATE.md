@@ -43,8 +43,20 @@ draft must trace to one of these or to a recorded number.
 ## Publishing
 
 Home is this directory: `docs/content/YYYY-MM-DD-<slug>.md`, merged via PR
-like anything else. Publishing anywhere beyond the repository is the owner's
-manual act and counts against the cap.
+like anything else. Once the piece merges, put it where readers already look
+(one PR / edit each, part of closing the draft-due issue — these three are
+rendering the approved piece, not new outbound):
+
+1. **Release notes** — prepend a "The write-up:" link to the matching GitHub
+   release body (`gh release edit <tag> --notes-file …`).
+2. **Site** — add a dated row to the §writing list on
+   `slopstopper/slopstopper.github.io` (static list by design; a row per
+   piece, capped at 4/month, cannot rot against an API).
+3. **README** — nothing per-piece; the Status section already links this
+   directory.
+
+Publishing anywhere beyond these owned surfaces is the owner's manual act
+and counts against the cap.
 
 ## First worked example
 
