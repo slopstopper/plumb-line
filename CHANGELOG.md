@@ -37,6 +37,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   is missing, and the README links the fit map directly (the
   substance of [#252](https://github.com/slopstopper/plumb-line/issues/252)).
 
+### Changed
+- **Node floor raised to `engines.node >= 20`**
+  ([#233](https://github.com/slopstopper/plumb-line/issues/233)) — a
+  supported-runtime change, hence a minor. The published `>= 16` claim was
+  partly false (the `./http` subpath needs native `fetch`, Node ≥ 18) and
+  untestable (vitest 4 cannot run below Node 20), so the floor rises to the
+  lowest version CI can exercise. The CI matrix now tests Node 20 and 22, so
+  the floor itself is exercised — matching the Python pair — and
+  `docs/constraints.md` records the resolution.
+
 ## [0.8.1] — 2026-08-14
 
 ### Fixed

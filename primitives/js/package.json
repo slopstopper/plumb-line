@@ -41,7 +41,7 @@
     "directory": "primitives/js"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=20"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
