@@ -29,7 +29,7 @@ draft must trace to one of these or to a recorded number.
 
    > *Written by a machine, audited like everything else here.*
    >
-   > *Drafted by Claude (<model>),*
+   > *Drafted by Claude,*
    > *Reviewed, edited and approved by @effythealien.*
    >
    > *Sources: <artifacts and issues the claims trace to>.*
