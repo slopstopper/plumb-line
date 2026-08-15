@@ -130,4 +130,4 @@ jobs:
       # to a package directory, so scripts/ was never collected — both suites
       # could have regressed silently.
       - name: repo-infrastructure checkers (scripts/)
-        run: python -m pytest -q scripts/test_version_prose.py scripts/test_report_format.py
+        run: python -m pytest -q scripts/test_version_prose.py scripts/test_report_format.py scripts/test_fit_map_snippets.py
