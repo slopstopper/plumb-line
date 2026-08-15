@@ -9,7 +9,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **Release-to-content routine**
+  ([#255](https://github.com/slopstopper/plumb-line/issues/255), first child
+  of the outreach engine #260): on every published release,
+  `.github/workflows/release-content.yml` opens a "content draft due" issue;
+  the draft is written in-session from shipped artifacts, passes the four
+  gates in `docs/content/TEMPLATE.md` (plumb-line-audit, the language
+  flagger `scripts/check_content_language.py` — a flagger by recorded
+  decision, not a CI gate — the owner-approved disclosure block, and the
+  ≤4/month cap), and publishes to `docs/content/`. Ships with the first
+  worked example, drafted from the v0.9.0 release, edited and approved by
+  the owner.
 
 ## [0.9.0] — 2026-08-15
 
