@@ -78,6 +78,8 @@ total.derivedFromMock; // true   inherited from rate, and impossible to clear
 total.confidence;      // 'low'  only as certain as the weakest input
 ```
 
+`mark` takes a value and attaches a label saying where it came from and how much to trust it. `derive` runs your own function on the values and carries the labels through, always keeping the weakest one. `metaOf` reads a value's label back, and `auditMeta` checks that a label is consistent. The library never does the arithmetic and never changes a value. It only keeps the labels honest as values combine.
+
 The envelope carries `source`, `confidence`, `derivedFromMock`, and `lineage`, plus two optional resolution-bearing fields: a numeric `confidenceScore` (a finer-grained companion to the four-bucket ordinal) and a `weakestSource` (the least-trustworthy source anywhere in a value's ancestry). A runtime checker (`auditMeta` / `audit_meta`) flags laundering, ordinal and numeric over-claiming, source over-claims, dropped taint, and unreproducible outputs.
 
 The envelope and the law are specified. [`primitives/SPEC.md`](primitives/SPEC.md) defines schema version 2, and a single cross-language [conformance suite](primitives/conformance/) pins JS and Python to identical behavior: parity is enforced by data, not prose. See [`primitives/README.md`](primitives/README.md) for the model, the law, and worked examples.
