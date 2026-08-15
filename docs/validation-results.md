@@ -839,3 +839,69 @@ issues ([#249](https://github.com/slopstopper/plumb-line/issues/249),
 
 Report validated with `scripts/check_report_format.py` — clean (exit 0,
 first pass).
+
+## v0.9.0 release-harness record — 2026-08-15
+
+Release: **v0.9.0** "The front door" — minor (GH #176 #252 #258 #262 #233).
+Diff since v0.8.1 touches `skills/` (new `plumb-line-adopt`, count updates in
+method/bootstrap), `reference/` (new `fit-map.md`), and `primitives/js`
+(engines floor), so the harness ran on the path rule. `PROVENANCE_VERSION`
+stays 2.
+
+Base commit: `84ffb5c`. Fixtures were audited as answer-stripped scratch
+copies per protocol (keys deleted, every line matching `violation`
+case-insensitively removed, `grep -ri violation` verified empty before
+dispatch).
+
+### Part 1 — Blind validation (release-blocking) — **PASS (6/6)**
+
+Six independent auditors (2× each `broken/`, 1× each `clean/`), plain
+identical prompts, declared architecture supplied verbatim from
+`AUDIT-EXPECTATIONS.md` step 3.
+
+| Run | Planted found | Verdict |
+| --- | --- | --- |
+| js-broken A | P2 upward import, P5 hardcoded `FEE`, P3 missing provenance/confidence — all confirmed | PASS |
+| js-broken B | same 3/3 confirmed | PASS |
+| py-broken A | P2 upward import, P5 `SIGNAL_THRESHOLD`, P8 missing lineage — all confirmed | PASS |
+| py-broken B | same 3/3 confirmed | PASS |
+| js-clean | 0 confirmed violations; P7/P9 as advisory adoption gaps, spine stub-rejection needs-review | PASS |
+| py-clean | 0 confirmed violations; P7/P9 as advisory adoption gaps only | PASS |
+
+The P8 omission row — the regression this harness exists to guard — was
+confirmed as a violation in both python runs. Both `broken/` runs per fixture
+also surfaced the same extra true defects (JS: P4 unlabelled mock, P6
+doc-vs-code, P8 gateway/ui; PY: P1 presentation-in-data, P3 confidence
+overwrite, P6 docstring claims) — consistent across independent runs, and all
+present in the fixtures by design or by honest reading; no false positives
+were observed against fixture reality.
+
+**Format scoring (tool, not impression):** `python3
+scripts/check_report_format.py <report>` on all six saved reports — all exit
+0. First-pass auditor compliance was 6/6 (v0.8.1 was 1/6; the skill's format
+instructions appear to have bedded in). One transcription defect was the
+orchestrator's own: while saving py-clean, a Suggested Fix cell was
+abbreviated to a bare `P7`, failing the checker; restored to the auditor's
+original inline-named wording and re-checked clean. Calibration note: reports
+arrive as message text and are saved by the orchestrator — the failure mode
+this run was transcription, not authorship.
+
+### Part 1b — Remediate validation
+
+Skipped: `skills/plumb-line-remediate/SKILL.md` is untouched in this diff.
+
+### Part 2 — Dogfood self-audit (non-blocking)
+
+See [`dogfood.md`](dogfood.md), v0.9.0 section — **2 findings: 0 violations,
+2 needs-review.** One fixed before the tag (DEVELOPMENT.md pointer), one
+filed as `audit-deferral`
+([#269](https://github.com/slopstopper/plumb-line/issues/269)), plus a
+policy-gap deferral
+([#270](https://github.com/slopstopper/plumb-line/issues/270)). Report
+validated with `scripts/check_report_format.py` — clean (exit 0).
+
+### Deterministic pre-tag checks
+
+- `python3 scripts/check_report_format.py` on all 7 reports (6 blind + 1
+  dogfood) — exit 0 after the transcription fix noted above.
+- `python3 scripts/check_version_prose.py` — exit 0.
