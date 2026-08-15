@@ -8,10 +8,10 @@ at the end, stated plainly.
 
 Scope note: this file covers the **run-time primitives** (the
 `plumb-line-provenance` library and its ecosystem adapters). The
-**review-time skills** need no fit test — `plumb-line-audit` reads any
-repository. The primitives earn their keep only in codebases with a
-specific shape: values of mixed trustworthiness flowing through
-computation that erases where they came from.
+**skills** need no fit test; `plumb-line-audit` reads any repository.
+The primitives earn their keep only in codebases with a specific shape:
+values of mixed trustworthiness flowing through computation that erases
+where they came from.
 
 ## The one-line test
 
