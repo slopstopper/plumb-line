@@ -43,7 +43,7 @@ the copy mechanism is for documents that must carry the values with them.
      between the markers is the copyable unit. -->
 
 <!-- constraints:begin -->
-- Release version is **0.8.0**, and the three manifests must always agree: `primitives/js/package.json`, `primitives/python/pyproject.toml`, `.claude-plugin/plugin.json`. Bump only via `node scripts/bump-version.mjs <version>`.
+- Release version is **0.9.0**, and the three manifests must always agree: `primitives/js/package.json`, `primitives/python/pyproject.toml`, `.claude-plugin/plugin.json`. Bump only via `node scripts/bump-version.mjs <version>`.
 - `PROVENANCE_VERSION` is **2**, identical in `primitives/js/provenance.mjs` and `primitives/python/provenance.py`. It is the envelope wire version and moves independently of the release version; `bump-version` does not touch it.
 - Published package name is **`plumb-line-provenance`**, identical on npm and PyPI.
 - License is **Apache-2.0** in both manifests.

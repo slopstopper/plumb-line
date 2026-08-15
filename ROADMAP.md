@@ -317,19 +317,26 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
 3. **Now:** v0.9.0 — The front door (distribution: adopt skill + fit-map,
    README pass, snippet guard, Node floor). Sequenced ahead because the adopt
    skill is finished, user-facing, and must not sit behind a stale tag.
-4. **Next:** v0.10.0 (P9 tooling + CI-native). No wire dependency; #119's
+4. **After the v0.9.0 tag, before any v0.10.0 work:** the outreach automation
+   engine (GH #260: #255 release-to-content first, run on the fresh v0.9.0
+   release as its first live input, then #256 watcher, #257 digest), then
+   GH #128 in the same distribution lane. Owner-sequenced 2026-08-15,
+   recorded on #260: the renumber made distribution the current phase, and
+   the engine is part of it — the milestones only track versioned scope, so
+   this ordering lives here and on the parent issue.
+5. **Next:** v0.10.0 (P9 tooling + CI-native). No wire dependency; #119's
    prerequisite (#1 / GH #91) closed in v0.7.0, so the milestone is unblocked.
-5. **Then:** v0.11.0 — sequenced after wire v2 so the envelope fields it adds
+6. **Then:** v0.11.0 — sequenced after wire v2 so the envelope fields it adds
    are settled.
-6. **After that:** v1.0.0 — the coverage guarantee, the API-surface
+7. **After that:** v1.0.0 — the coverage guarantee, the API-surface
    definition (GH #236) that everything else freezes against, canonical
    serialization (GH #124), and the last-call breaking-change pass (GH #239,
    after #236). No due date; gated on state, not on a date.
-7. **Parallel, start early:** `track:portable` — skill-surface, no runtime
+8. **Parallel, start early:** `track:portable` — skill-surface, no runtime
    dependency. (`track:agent-state` is now #35 alone, which waits on the
    ladder decision and on #34, so it no longer starts early.)
-8. **Parallel, after wire v2:** `track:boundaries` (#31 → #32/#33).
-9. **Opportunistic:** `track:ecosystem` — PROV-O mapping (#37) is cheap and
+9. **Parallel, after wire v2:** `track:boundaries` (#31 → #32/#33).
+10. **Opportunistic:** `track:ecosystem` — PROV-O mapping (#37) is cheap and
    credibility-bearing, do it whenever; OpenLineage/dbt wait for a pilot user.
 
 A note on the numbering: the P9 and runtime-gates milestones have been

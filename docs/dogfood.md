@@ -495,3 +495,29 @@ Calibration notes: the auditor verified claims against live state (issues
 prose alone — the misattribution class of finding (a comment crediting a
 test that does not exist) did not recur in this diff after the PR #247
 review caught one pre-merge.
+
+## v0.9.0 dogfood self-audit — 2026-08-15
+
+Scope: method-surface diff v0.8.1..`84ffb5c` (new `plumb-line-adopt` skill,
+new `reference/fit-map.md`, count updates in the method/bootstrap skills, JS
+engines floor). Report format v3, validated with
+`scripts/check_report_format.py` — clean (exit 0). Coverage: 6/6 diff files
+read, plus DEVELOPMENT.md and SUPPORT.md read adjacently to confirm one
+finding.
+
+| Path | Issue | Principle | Resolution |
+| ---- | ----- | --------- | ---------- |
+| `DEVELOPMENT.md:78` | pointer claimed SUPPORT.md documents the Node floor; SUPPORT.md covers the Python policy only | P6 — Maturity vocabulary | **fixed in place** (pointer narrowed; policy question deferred as [#270](https://github.com/slopstopper/plumb-line/issues/270)) |
+| `skills/plumb-line-adopt/SKILL.md` | routing recommendation is a public skill output with no contracted shape, while sibling outputs (report-format v3, remediation-format v1) are versioned and checker-validated | P7 — Contracted outputs | **deferred** → [#269](https://github.com/slopstopper/plumb-line/issues/269) (needs-review: contract or recorded exemption) |
+
+Clean: the fit-map's claims (every Python snippet now executed by
+`scripts/test_fit_map_snippets.py`, added this cycle from the PR #261 review);
+the adopt skill's read-only boundary and denominator discipline; skill-count
+prose across method/bootstrap; the engines change against CI and constraints.
+
+Calibration notes: both findings were produced by the omission pass — the
+presence pass over this diff was quiet, consistent with the diff having been
+through three independent PR reviews plus an audit gate before the harness
+ran. The P6 pointer finding was introduced by one of those very review-fix
+commits (`bebd005`), which is the argument for running the harness on the
+final tree rather than trusting accumulated review.
