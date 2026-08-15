@@ -21,7 +21,9 @@
 
 A plumb line measures true vertical by gravity alone; plumb-line does the same for a codebase, keeping it epistemically honest (including about what it doesn't know). It gives a repository a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and boundaries checked by machines (not *vibes*).
 
-**plumb-line provenance** (the full name matters — unrelated projects called "plumbline" exist) is two things with one discipline. The **skills** — a five-skill Claude Code plugin — are the front door: point them at any repository and they teach, review, and fix against the principles. The entry skills (adopt, method, audit) need nothing installed in your code; bootstrap wires enforcement in only by explicit consent. The **provenance primitive** — a small, standalone, zero-dependency library for JavaScript and Python, published as `plumb-line-provenance` on npm and PyPI — is the differentiated core: it enforces the discipline while your code runs, so a tainted value cannot quietly become a clean one. Start with either; they meet in the middle. What it is building toward (**planned** — see [where this is going](#where-this-is-going)): an epistemic honesty layer for agent-built software, where every value, artifact, and agent-produced claim carries where it came from and how sure anyone should be.
+**plumb-line provenance** (the full name matters — unrelated projects called "plumbline" exist) is two things with one discipline. The **skills** — a five-skill Claude Code plugin — are the front door: point them at any repository and they teach, review, and fix against the principles. The entry skills (adopt, method, audit) need nothing installed in your code; bootstrap and remediate write only by explicit consent. The **provenance primitive** — a small, standalone, zero-dependency library for JavaScript and Python, published as `plumb-line-provenance` on npm and PyPI — is the differentiated core: it enforces the discipline while your code runs, so a tainted value cannot quietly become a clean one.
+
+Start with either half; bootstrap offers the primitive where the [fit map](reference/fit-map.md) says it belongs. What it is building toward (**planned** — see [where this is going](#where-this-is-going)): an epistemic honesty layer for agent-built software, where every value, artifact, and agent-produced claim carries where it came from and how sure anyone should be.
 
 ## Who it's for
 
@@ -29,7 +31,7 @@ plumb-line is for builders whose outputs are claims, where a silent mistake can 
 
 ## Two halves: run-time and review-time
 
-plumb-line enforces the same discipline at two moments. The **skills** apply it at review time, by loading the principles, generating a ruleset, and auditing a diff before it lands — the audit runs on any repository, today, with zero integration. The **provenance primitive** applies it at run time, through a small library that makes uncertainty propagate across your actual calculations, so a tainted value can't quietly become a clean one. Use either half alone, or both. Unsure whether your codebase needs the run-time half? The [fit map](reference/fit-map.md) answers with worked profiles — including a plain "you don't" where that's the truth.
+plumb-line enforces the same discipline at two moments. At review time, the **audit** skill checks a diff or repository against the principles — any repo, today, zero integration — and **remediate** applies its findings, opt-in; around them, adopt routes, method teaches, and bootstrap sets up. At run time, the **provenance primitive** makes uncertainty propagate across your actual calculations, so a tainted value can't quietly become a clean one. Use either half alone, or both. Unsure whether your codebase needs the run-time half? The [fit map](reference/fit-map.md) answers with worked profiles — including a plain "you don't" where that's the truth.
 
 ## Install
 
