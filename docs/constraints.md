@@ -67,7 +67,7 @@ The published floor and the tested floor are **not the same claim**: the
 first is what consumers are promised, the second is what CI actually
 exercises. This file once recorded them diverging — `engines.node >= 16`
 published while CI tested Node 20 only, leaving 16–19
-supported-by-declaration and unverified-by-test. Resolved in v0.9.0 by
+supported-by-declaration and unverified-by-test. Resolved on `main` (rides the v0.9.0 release, GH #233) by
 raising the floor rather than testing it (GH #233): the `./http` subpath
 needs native `fetch` (Node ≥ 18) so the `>= 16` claim was partly false,
 and the test runner cannot run below Node 20 — raising was the only
