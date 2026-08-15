@@ -15,8 +15,9 @@ so the snippets run exactly as written for a consumer.
 Each snippet's free names (the surrounding code a doc snippet elides) are
 supplied by a per-snippet prelude below, keyed by a marker string unique to
 that snippet. A snippet with no matching prelude, or a prelude whose marker no
-longer matches any snippet, fails the suite — additions and removals in the
-fit-map must be mirrored here, loudly.
+longer matches — or a fence tag the extractor does not recognize — fails the
+suite: additions, removals and renames in the fit-map must be mirrored here,
+loudly.
 """
 import importlib.util
 import os
@@ -39,21 +40,43 @@ if 'plumb_line_provenance' not in sys.modules:
     sys.modules['plumb_line_provenance'] = _pkg
     _spec.loader.exec_module(_pkg)
 
+# If some earlier import in this process planted a different copy (an
+# installed distribution, a sibling suite), we would silently test the wrong
+# code — assert the loaded copy is the repo's, never assume it.
+assert sys.modules['plumb_line_provenance'].__file__.startswith(_PKG_DIR), (
+    'plumb_line_provenance resolved outside primitives/python: '
+    + str(sys.modules['plumb_line_provenance'].__file__))
 
-def _extract_python_blocks(text):
-    """Return the ```python fenced blocks of the fit-map, in order."""
-    return re.findall(r'```python\n(.*?)```', text, re.DOTALL)
+# Fence tags this suite understands. ```python runs here; ```js is knowingly
+# unguarded (GH #265). Any OTHER tag (```py, ```python3, an info-string
+# suffix) fails test_no_unrecognized_fences instead of silently escaping the
+# guard.
+_RUN_TAGS = {'python'}
+_KNOWN_UNGUARDED_TAGS = {'js'}
+
+
+def _extract_blocks(text):
+    """Return (tag, body) for every fenced code block, in order."""
+    return re.findall(r'```([^\n]*)\n(.*?)```', text, re.DOTALL)
 
 
 with open(_FIT_MAP) as f:
     _TEXT = f.read()
-BLOCKS = _extract_python_blocks(_TEXT)
+ALL_BLOCKS = _extract_blocks(_TEXT)
+BLOCKS = [body for tag, body in ALL_BLOCKS if tag.strip() in _RUN_TAGS]
+
+
+def _run_snippet(block, ns, name='fit-map.md'):
+    """The one exec path every snippet goes through (also used by the
+    harness self-test, so the pipeline itself is what is pinned)."""
+    exec(compile(block, name, 'exec'), ns)  # noqa: S102
+    return ns
 
 
 def _fresh_response():
     """A real requests.Response (tag_requests type-checks isinstance), built
     offline — no network in this suite."""
-    import requests
+    requests = pytest.importorskip('requests')
     r = requests.models.Response()
     r.status_code = 200
     r._content = b'{"a": 1}'
@@ -65,13 +88,14 @@ class _Template:
         return f'[{r}]'
 
 
-# marker (unique substring of the snippet) -> (free names, postcondition).
-# The postcondition receives the snippet's namespace after exec and asserts
-# the behavior the surrounding prose claims.
+# marker (unique structural substring of the snippet) -> (free names,
+# postcondition). The postcondition receives the snippet's namespace after
+# exec and asserts the behavior the surrounding prose claims.
 def _check_profile1(ns):
+    # Prelude runs the snippet on the fallback path (ok=False): taint must be
+    # carried, as the snippet's comment claims. The real branch is exercised
+    # separately in test_profile1_real_branch.
     from plumb_line_provenance import meta_of
-    # Prelude sets ok=False: the fallback path must carry taint, as the
-    # snippet's comment claims.
     assert meta_of(ns['rendered'])['derived_from_mock'] is True
 
 
@@ -93,13 +117,14 @@ def _check_profile4(ns):
     assert ns['env']['meta']['confidence'] == 'high'
 
 
+def _profile1_names(ok):
+    return {'ok': ok, 'completion': 'real completion',
+            'FALLBACK_TEXT': 'canned', 'template': _Template()}
+
+
 PRELUDES = {
-    'FALLBACK_TEXT': (
-        lambda: {'ok': False, 'completion': 'real completion',
-                 'FALLBACK_TEXT': 'canned', 'template': _Template()},
-        _check_profile1,
-    ),
-    'agent run 2026-08-14': (
+    'FALLBACK_TEXT': (lambda: _profile1_names(ok=False), _check_profile1),
+    'basis="agent run': (
         lambda: (lambda m: {'agent_row': {'a': 1},
                             'verified': m.mark({'b': 2}, source='real',
                                                confidence='high'),
@@ -119,6 +144,18 @@ PRELUDES = {
         _check_profile4,
     ),
 }
+
+
+def test_no_unrecognized_fences():
+    # A ```py / ```python3 / info-string fence would otherwise be invisible
+    # to the extractor — a snippet (broken or not) escaping the guard is the
+    # drift class this suite exists to exclude.
+    tags = {tag.strip() for tag, _ in ALL_BLOCKS}
+    unknown = tags - _RUN_TAGS - _KNOWN_UNGUARDED_TAGS
+    assert not unknown, (
+        f'fit-map has fence tag(s) {sorted(unknown)!r} the snippet guard '
+        f'does not recognize — add to _RUN_TAGS (and a prelude) or the '
+        f'known-unguarded set, never let a fence escape silently')
 
 
 def test_extraction_found_the_snippets():
@@ -144,17 +181,32 @@ def test_every_python_block_has_a_prelude():
 
 @pytest.mark.parametrize('marker', sorted(PRELUDES))
 def test_snippet_executes_and_behaves(marker):
-    block = next(b for b in BLOCKS if marker in b)
+    block = next((b for b in BLOCKS if marker in b), None)
+    assert block is not None, (
+        f'marker {marker!r} matches no snippet — fit-map and preludes have '
+        f'drifted; update PRELUDES to match the doc')
     make_ns, check = PRELUDES[marker]
-    ns = make_ns()
-    exec(compile(block, f'fit-map.md[{marker}]', 'exec'), ns)  # noqa: S102
+    ns = _run_snippet(block, make_ns(), f'fit-map.md[{marker}]')
     check(ns)
 
 
+def test_profile1_real_branch():
+    # The snippet is a conditional expression; the parametrized run takes the
+    # fallback path only. Execute the same block with ok=True so a defect in
+    # the real branch (the pre-#261 class: a wrong kwarg) cannot hide behind
+    # lazy evaluation.
+    from plumb_line_provenance import meta_of
+    block = next((b for b in BLOCKS if 'FALLBACK_TEXT' in b), None)
+    assert block is not None, 'profile 1 snippet not found'
+    ns = _run_snippet(block, _profile1_names(ok=True), 'fit-map.md[real]')
+    assert meta_of(ns['rendered'])['derived_from_mock'] is False
+
+
 def test_harness_catches_a_broken_snippet():
-    # Self-test: the runner must fail loudly on the defect class it exists to
-    # catch — this is the pre-fix profile-2 bug (wrong kwarg) verbatim.
+    # Self-test through the same pipeline the real snippets use: a
+    # known-broken block (the pre-fix profile-2 bug verbatim) must raise out
+    # of _run_snippet, proving the guard's failure mode is loud.
     broken = ("from plumb_line_provenance import mark\n"
               "mark({'v': 1}, provenance='not a real kwarg')\n")
     with pytest.raises(TypeError):
-        exec(compile(broken, 'fit-map.md[broken]', 'exec'), {})
+        _run_snippet(broken, {}, 'fit-map.md[broken]')
