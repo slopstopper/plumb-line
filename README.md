@@ -19,13 +19,11 @@
 [![minzipped](https://img.shields.io/bundlephobia/minzip/plumb-line-provenance?label=minzipped&color=brightgreen)](https://bundlephobia.com/package/plumb-line-provenance)
 [![Socket](https://socket.dev/api/badge/npm/package/plumb-line-provenance)](https://socket.dev/npm/package/plumb-line-provenance)
 
-A plumb line measures true vertical by gravity alone. plumb-line does the same for a codebase: it keeps the code epistemically honest, including about what it doesn't know. A repository gets a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and boundaries checked by machines (not *vibes*).
+A plumb line measures true vertical by gravity alone. plumb-line does the same for a codebase: it keeps the code honest about what it knows and what it doesn't. A repository gets a clear source-truth layer, visible uncertainty, quarantined fakery, reproducible outputs, and boundaries checked by machines (not *vibes*).
 
-**plumb-line provenance** is the full name, and it matters: unrelated projects called "plumbline" exist. This one is two things with one discipline.
+The **skills** are a five-skill Claude Code plugin. Point them at any repository. Adopt, method, and audit install nothing in your code. Bootstrap and remediate write only when you say yes. The **provenance primitive** is a small, zero-dependency library for JavaScript and Python, published as `plumb-line-provenance` on npm and PyPI. It runs inside your calculations and makes uncertainty propagate. A tainted value cannot quietly become a clean one.
 
-The **skills** are a five-skill Claude Code plugin and the front door. Point them at any repository. Adopt, method, and audit install nothing in your code; bootstrap and remediate write only when you say yes. The **provenance primitive** is the core: a small, zero-dependency library for JavaScript and Python, published as `plumb-line-provenance` on npm and PyPI. It runs inside your calculations and makes uncertainty propagate, so a tainted value cannot quietly become a clean one.
-
-Start with either half. Bootstrap offers the primitive where the [fit map](reference/fit-map.md) says it belongs. The long-term aim is an epistemic honesty layer for agent-built software, where every value, artifact, and claim carries where it came from and how sure anyone should be. That aim is **planned**, not current, and [where this is going](#where-this-is-going) keeps the two straight.
+Start with either half. Bootstrap offers the primitive where the [fit map](reference/fit-map.md) says it belongs. The long-term aim, an epistemic honesty layer for agent-built software, is **planned**, not current; [where this is going](#where-this-is-going) tracks it.
 
 ## Who it's for
 
@@ -149,6 +147,8 @@ Tried it on a real codebase? Use-case feedback is welcome. Bug reports and false
 - **Private** — testing on an internal or confidential codebase? Use the [private feedback form](https://slopstopper.github.io/plumb-line/feedback.html); it goes straight to the maintainer.
 
 Raw output and one concrete "it caught something we'd otherwise have shipped" beat polished prose. Let me know if I may quote you or name you as an early user.
+
+The full name is **plumb-line provenance**. Unrelated projects called "plumbline" exist. This is the hyphenated one.
 
 ## License
 
