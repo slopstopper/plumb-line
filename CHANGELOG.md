@@ -23,6 +23,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   that overstated bootstrap) were fixed in the same pass.
 
 ### Added
+- **Executable guard for fit-map snippets**
+  ([#262](https://github.com/slopstopper/plumb-line/issues/262), from the
+  PR #261 review): `scripts/test_fit_map_snippets.py` extracts every
+  ```` ```python ```` block from `reference/fit-map.md` and runs it against
+  `primitives/python` under the published import name, with per-snippet
+  postconditions asserting what the surrounding prose claims (taint on the
+  fallback path, weakest-confidence propagation, recorded-taint-audits-clean,
+  fresh-2xx classification). A snippet without a matching prelude — or a
+  prelude whose marker no longer matches — fails loudly (the #249 lesson:
+  zero-found must not look like verified-clean), and a self-test pins that
+  the harness catches the review's original defect class. Wired into the
+  repo-infrastructure checkers CI step.
 - **#176 — `plumb-line-adopt`, the adoption concierge skill.** A fifth
   skill answering "what would I use plumb-line on, here?": it scans the
   invoking repository read-only, asks at most three questions, then routes
@@ -37,6 +49,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   catches afterwards) — the skill refuses to route from memory if the file
   is missing, and the README links the fit map directly (the
   substance of [#252](https://github.com/slopstopper/plumb-line/issues/252)).
+
+### Changed
+- **Node floor raised to `engines.node >= 20`**
+  ([#233](https://github.com/slopstopper/plumb-line/issues/233)) — a
+  supported-runtime change, hence a minor. The published `>= 16` claim was
+  partly false (the `./http` subpath needs native `fetch`, Node ≥ 18) and
+  untestable (vitest 4 cannot run below Node 20), so the floor rises to the
+  lowest version CI can exercise. The CI matrix now tests Node 20 and 22, so
+  the floor itself is exercised — matching the Python pair — and
+  `docs/constraints.md` records the resolution.
 
 ## [0.8.1] — 2026-08-14
 

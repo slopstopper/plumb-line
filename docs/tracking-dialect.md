@@ -279,9 +279,11 @@ machinery.
   the hand-rolled ancestor of the same idea applied to one constraint and
   stays as-is; the two check different things.
 
-  The file records a real disagreement rather than flattening it:
-  `engines.node >= 16` is the published floor while CI tests Node 20
-  only, so 16–19 are supported-by-declaration and unverified-by-test.
+  The file recorded a real disagreement rather than flattening it:
+  `engines.node >= 16` published while CI tested Node 20 only, leaving
+  16–19 supported-by-declaration and unverified-by-test. (Since
+  resolved — the floor was raised to `>= 20` and the matrix exercises
+  it, GH #233; kept here as the worked example it was.)
 - **The loop:** **already present elsewhere** — declined *locally*.
   `slopstopper/recursive-spine`'s `spine-loop.yml` already sweeps this
   repo (`repos: "… slopstopper/plumb-line …"`). A local workflow would

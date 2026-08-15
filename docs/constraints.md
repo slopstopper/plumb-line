@@ -48,7 +48,7 @@ the copy mechanism is for documents that must carry the values with them.
 - Published package name is **`plumb-line-provenance`**, identical on npm and PyPI.
 - License is **Apache-2.0** in both manifests.
 - Python floor is **`requires-python = ">=3.11"`**; the CI matrix tests **3.11, 3.12 and 3.13**.
-- Node floor as published is **`engines.node >= 16`**; CI tests **Node 20 only**.
+- Node floor as published is **`engines.node >= 20`**; the CI matrix tests **Node 20 and 22**.
 - Report contracts are **report-format v3** and **remediation-format v1**, validated by `scripts/check_report_format.py`.
 - JS envelopes are flat/spread and camelCase; Python envelopes are nested under `meta` and snake_case. Both must behave identically against `primitives/conformance/cases.json`.
 - Releases are **tag-triggered only** (`.github/workflows/release.yml`). Never hand-publish; the tag must equal the manifests.
@@ -61,18 +61,18 @@ restate** — the ones where a stale copy in a spec or plan silently
 contradicts the code. Rationale, history, and process live below the
 markers and are never checked.
 
-### The two floors that do not match
+### The two floors (resolved — both now exercised)
 
-`engines.node >= 16` and a CI matrix of Node 20 only are **not the same
-claim**, and the block records both rather than flattening them. The
-published floor is what consumers are promised; the tested floor is what
-is actually exercised. Node 16–19 are therefore supported-by-declaration
-and unverified-by-test. Recorded as a known gap, not resolved here —
-resolving it means either testing the floor or raising it, and that is a
-release decision.
-
-The Python pair does not have this problem: the floor is 3.11 and CI
-tests 3.11, so the floor itself is exercised.
+The published floor and the tested floor are **not the same claim**: the
+first is what consumers are promised, the second is what CI actually
+exercises. This file once recorded them diverging — `engines.node >= 16`
+published while CI tested Node 20 only, leaving 16–19
+supported-by-declaration and unverified-by-test. Resolved on `main` (rides the v0.9.0 release, GH #233) by
+raising the floor rather than testing it (GH #233): the `./http` subpath
+needs native `fetch` (Node ≥ 18) so the `>= 16` claim was partly false,
+and the test runner cannot run below Node 20 — raising was the only
+honest direction. Both pairs now match their matrices: Python floor 3.11
+tested at 3.11, Node floor 20 tested at 20.
 
 ### Relationship to the existing checkers
 
