@@ -47,8 +47,13 @@ like anything else. Once the piece merges, put it where readers already look
 (one PR / edit each, part of closing the draft-due issue — these three are
 rendering the approved piece, not new outbound):
 
-1. **Release notes** — prepend a "The write-up:" link to the matching GitHub
-   release body (`gh release edit <tag> --notes-file …`).
+1. **Release notes** — embed the piece in full at the top of the matching
+   GitHub release body, above the generated "What's Changed" list
+   (`gh release edit <tag> --notes-file …`). Convert the piece's
+   repo-relative links to absolute URLs (release bodies do not resolve
+   them), and end the embed with a "Canonical copy:" link to the file in
+   this directory so the release copy never becomes a second source of
+   truth.
 2. **Site** — add a dated row to the §writing list on
    `slopstopper/slopstopper.github.io` (static list by design; a row per
    piece, capped at 4/month, cannot rot against an API).
