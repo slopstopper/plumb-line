@@ -1,0 +1,14 @@
+[
+  {"query": "we just installed the plumb-line plugin. what would it actually do for our repo? it's a fastapi service with some LLM-generated enrichment columns, ~/work/enrichd", "should_trigger": true},
+  {"query": "i keep mixing cached api responses with live ones in dev and honestly i can't tell which numbers in the report are real anymore. is there something in plumb-line that fits this? repo is ~/src/pricefeed", "should_trigger": true},
+  {"query": "which part of plumb-line should we start with? we don't want the whole thing, just whatever pays off first for a small data pipeline", "should_trigger": true},
+  {"query": "im adding a fallback that returns yesterday's numbers when the upstream is down (src/loader.py) and it feels like the kind of thing that should be visibly marked as stale/fallback data, what do you recommend", "should_trigger": true},
+  {"query": "does plumb-line even make sense for a static docs site? tell me straight if it doesn't", "should_trigger": true},
+  {"query": "audit this repo against the plumb-line principles and give me the findings table", "should_trigger": false},
+  {"query": "teach me the plumb-line method, i want to actually understand the principles not just run the tools", "should_trigger": false},
+  {"query": "install plumb-line's enforcement into this repo - the boundary check and the pre-commit gate, we already know we want it", "should_trigger": false},
+  {"query": "apply the fixes from yesterday's audit report, it's in plumb-line-audit.md", "should_trigger": false},
+  {"query": "help me adopt typescript in this javascript project, incremental migration plan please", "should_trigger": false},
+  {"query": "we're evaluating whether to adopt langchain or write our own orchestration, pros and cons for our stack", "should_trigger": false},
+  {"query": "add provenance tracking to my ETL job - i literally just want a lineage column in the output table, postgres, dbt project at ~/analytics", "should_trigger": false}
+]
