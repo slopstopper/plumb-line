@@ -36,7 +36,10 @@ def audit_meta(meta):
     - ``"source over-claim:"`` — weakest_source cleaner than lineage proves
     - ``"taint dropped:"`` — a tainted lineage step but derived_from_mock is False
     - ``"unreproducible:"`` — source is ``"derived"`` but lineage is empty
-    - ``"missing meta"`` — meta is None or not a dict
+    - ``"missing meta"`` — None, a scalar, a list, or any object outside the
+      non-plain set (a class instance, a non-dict Mapping)
+    - ``"non-plain meta:"`` — the wrong container type for an envelope (#209):
+      a dict subclass (OrderedDict, defaultdict); rebuild with dict(meta)
     - ``"version-legacy:"`` — envelope predates the current provenance version, or omits it
     - ``"version-future:"`` — envelope reports a newer version than this checker supports
     - ``"version-malformed:"`` — the version field is present but is not a finite
@@ -55,6 +58,19 @@ def audit_meta(meta):
     # invariant this project sells. Deliberately stricter than validate_envelope
     # below, which mirrors the looser JS validateEnvelope.
     if type(meta) is not dict:
+        # "Wrong container type" is a different fact from "no envelope"
+        # (#209): a dict subclass (OrderedDict from json's object_pairs_hook,
+        # defaultdict, a user subclass) is what the JSON ecosystem hands
+        # back, and calling one that carries an envelope "missing" hides
+        # every real finding behind a wrong diagnostic. The split is judged
+        # on container type alone, scoped to what each language's JSON
+        # ecosystem actually produces around the plain type (JS:
+        # null-prototype objects from pollution-safe parsers). Class
+        # instances and non-dict Mappings stay 'missing meta' because no
+        # JSON parser yields them — not because they could not hold the
+        # fields.
+        if isinstance(meta, dict):
+            return ['non-plain meta: envelope is not a plain dict/object; rebuild it with dict(meta) / {...meta}']
         return ['missing meta']
     issues = []
 

@@ -23,14 +23,6 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the owner.
 
 ### Changed
-- **Audit: a fractional `provenanceVersion` is `version-malformed`, not
-  comparable** ([#216](https://github.com/slopstopper/plumb-line/issues/216)):
-  SPEC §5b carries an integer, so `1.5` no longer reads as "predates version
-  2" and `2.5` no longer reads as a future version — both now report
-  `version-malformed: provenance version is not an integer`, in both
-  languages. Integrality is judged on the value (JSON has no int/float
-  distinction), so `2.0` remains a valid current version. Audit-vocabulary
-  change only; no wire-format bump.
 - **HTTP adapters: an unreadable `Age` header degrades confidence instead of
   reading as absent**
   ([#208](https://github.com/slopstopper/plumb-line/issues/208), ADR-0014):
@@ -40,6 +32,23 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   never evidence of freshness. Absent `Age` and readable `Age: 0` still
   classify `high`; `source` is untouched. Behaviour change to the published
   packages (pre-1.0 breaking → minor); nine `http-cases.json` rows flip.
+- **Audit: a fractional `provenanceVersion` is `version-malformed`, not
+  comparable** ([#216](https://github.com/slopstopper/plumb-line/issues/216)):
+  SPEC §5b carries an integer, so `1.5` no longer reads as "predates version
+  2" and `2.5` no longer reads as a future version — both now report
+  `version-malformed: provenance version is not an integer`, in both
+  languages. Integrality is judged on the value (JSON has no int/float
+  distinction), so `2.0` remains a valid current version. Audit-vocabulary
+  change only; no wire-format bump.
+- **Audit: an envelope in a dict subclass / null-prototype object reports
+  `non-plain meta`, not `missing meta`**
+  ([#209](https://github.com/slopstopper/plumb-line/issues/209)): a populated
+  `OrderedDict` (json's `object_pairs_hook`) or null-prototype object
+  (pollution-safe JSON parsers) holds an envelope in the wrong container;
+  calling it missing named the wrong problem and hid the real findings. The
+  new diagnostic names the fix (`dict(meta)` / `{...meta}`); `Map`/`Date`/
+  class instances still read `missing meta` in both languages. Third
+  audit-vocabulary token this cycle, per the #209 decision; no wire bump.
 
 ## [0.9.0] — 2026-08-15
 

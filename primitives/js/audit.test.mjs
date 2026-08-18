@@ -193,7 +193,23 @@ describe("auditMeta", () => {
     expect(auditMeta(new Map())).toEqual(["missing meta"]);
     class Box {}
     expect(auditMeta(new Box())).toEqual(["missing meta"]);
-    expect(auditMeta(Object.create(null))).toEqual(["missing meta"]);
+  });
+
+  it("a null-prototype object is an envelope in the wrong container, not a missing one (#209)", () => {
+    // Pollution-safe JSON parsers hand back null-prototype objects. One
+    // holding a full envelope is not "missing"; saying so hid every real
+    // finding behind a wrong diagnostic. The named fix ({...meta}) must
+    // actually recover the envelope. Python's twin container is the dict
+    // subclass (object_pairs_hook); Map/Date/class instances stay
+    // "missing meta" in both languages because no JSON parser yields them —
+    // the split is container type, scoped to the JSON ecosystem.
+    const NON_PLAIN = "non-plain meta: envelope is not a plain dict/object; rebuild it with dict(meta) / {...meta}";
+    const bare = Object.assign(Object.create(null), {
+      provenanceVersion: 2, source: "real", confidence: "high", derivedFromMock: false, lineage: [],
+    });
+    expect(auditMeta(bare)).toEqual([NON_PLAIN]);
+    expect(auditMeta({ ...bare })).toEqual([]);
+    expect(auditMeta(Object.create(null))).toEqual([NON_PLAIN]);
   });
   it("still audits a plain object envelope normally", () => {
     // A structurally empty plain object has no claims to contradict — its

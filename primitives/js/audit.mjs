@@ -19,8 +19,10 @@ const CLEAN_SOURCES = ["real", "semiReal", "fallback"];
  * - `"source over-claim:"` — weakestSource cleaner than lineage proves
  * - `"taint dropped:"` — a tainted lineage step but derivedFromMock is false
  * - `"unreproducible:"` — source is "derived" but lineage is empty
- * - `"missing meta"` — input is not a plain object (null, undefined, a primitive,
- *   an array, or a non-plain object such as a Map/Date/class instance)
+ * - `"missing meta"` — null, undefined, a primitive, an array, or any object
+ *   outside the non-plain set (Map/Date/class instance)
+ * - `"non-plain meta:"` — the wrong container type for an envelope (#209): a
+ *   null-prototype object (pollution-safe JSON parsers); rebuild with {...meta}
  * - `"version-legacy:"` — envelope predates the current provenance version, or omits it
  * - `"version-future:"` — envelope reports a newer version than this checker supports
  * - `"version-malformed:"` — the version field is present but is not a finite
@@ -30,8 +32,21 @@ const CLEAN_SOURCES = ["real", "semiReal", "fallback"];
  * @returns {string[]} List of issue descriptions; empty means consistent
  */
 export function auditMeta(meta) {
-  if (meta === null || typeof meta !== "object" || Object.getPrototypeOf(meta) !== Object.prototype)
+  if (meta === null || typeof meta !== "object") return ["missing meta"];
+  if (Object.getPrototypeOf(meta) !== Object.prototype) {
+    // "Wrong container type" is a different fact from "no envelope" (#209):
+    // a null-prototype object is what pollution-safe JSON parsers hand back,
+    // and calling one that carries an envelope "missing" hides every real
+    // finding behind a wrong diagnostic. The split is judged on container
+    // type alone, scoped to what each language's JSON ecosystem actually
+    // produces around the plain type (Python: dict subclasses via
+    // object_pairs_hook). A Map/Date/class instance stays "missing meta" in
+    // both languages because no JSON parser yields one — not because it
+    // could not hold the fields.
+    if (!Array.isArray(meta) && Object.getPrototypeOf(meta) === null)
+      return ["non-plain meta: envelope is not a plain dict/object; rebuild it with dict(meta) / {...meta}"];
     return ["missing meta"];
+  }
   const issues = [];
 
   // Version read policy (#93): forgiving forward, honest backward. Advisory only.
