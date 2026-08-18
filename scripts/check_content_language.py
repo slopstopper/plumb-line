@@ -25,9 +25,21 @@ PATTERNS = [
     ("register: game-changer", re.compile(r"\bgame[- ]chang(?:er|ing)\b", re.I)),
     ("hollow superlative", re.compile(r"\b(?:blazingly|incredibly|revolutionary|cutting[- ]edge|state[- ]of[- ]the[- ]art|world[- ]class|seamless(?:ly)?|effortless(?:ly)?)\b", re.I)),
     ("unverifiable maturity claim", re.compile(r"\bbattle[- ]tested\b|\bproduction[- ](?:proven|grade|ready)\b", re.I)),
-    ("emoji header", re.compile(r"^#{1,6}\s*[^\w\s`\[]", re.U)),
+    ("emoji header", re.compile(r"^#{1,6}\s*[^\w\s`\[#]", re.U)),
     ("roll-on emphasis tail", re.compile(r",\s*and\s+(?:it|that)\s+(?:matters|shows|counts)\b", re.I)),
+    ("register: quiet part", re.compile(r"\bquiet part\b", re.I)),
+    ("bare contrast (X, not Y / not X but Y)",
+     re.compile(r",\s*not\s+\w|\bnot\s+(?:by\s+|a\s+|an\s+|the\s+)?[\w-]+(?:\s+[\w-]+){0,3}\s+but\b", re.I)),
 ]
+
+# Em dashes are counted, not flagged: kept to a bare minimum by owner ruling
+# (2026-08-18), but a hard flag would contradict allowing any at all.
+_EM_DASH = "—"
+
+
+def em_dashes(path):
+    with open(path, encoding="utf-8") as f:
+        return f.read().count(_EM_DASH)
 
 
 def check(path):
@@ -51,6 +63,9 @@ def main(argv):
         print(f"{args[0]}:{lineno}: [{label}] {line}")
     if not flags:
         print(f"{args[0]}: no language-standard flags")
+    dashes = em_dashes(args[0])
+    if dashes:
+        print(f"{args[0]}: {dashes} em dash(es) - informational, keep to a bare minimum")
     print(f"\n{len(flags)} flag(s). A flag is a prompt to reread, not a verdict.")
     return 1 if (strict and flags) else 0
 

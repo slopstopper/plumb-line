@@ -21,15 +21,19 @@ draft must trace to one of these or to a recorded number.
 2. **Language standard.** Run `python3 scripts/check_content_language.py
    <draft>` and review every flag. The flagger warns, a human decides — a
    flagged line is either rewritten or consciously kept. Banned outright:
-   "it is not X, it is Y" constructions, rhetorical triplets, the
-   delve/landscape/unlock/game-changer register, hollow superlatives, emoji
-   headers, roll-on emphasis tails. Plain, specific, dry; short sentences.
+   "it is not X, it is Y" constructions and their bare forms ("X, not Y" /
+   "not X but Y"), rhetorical triplets, the
+   delve/landscape/unlock/game-changer register, "the quiet part", hollow
+   superlatives, emoji headers, roll-on emphasis tails. Em dashes are
+   counted, not flagged: keep them to a bare minimum. Plain, specific, dry;
+   short sentences.
 3. **Disclosure.** The piece ends with the disclosure block, wording
-   owner-approved 2026-08-15:
+   owner-approved 2026-08-15 (model parenthetical dropped by owner ruling,
+   recorded 2026-08-18):
 
    > *Written by a machine, audited like everything else here.*
    >
-   > *Drafted by Claude (<model>),*
+   > *Drafted by Claude,*
    > *Reviewed, edited and approved by @effythealien.*
    >
    > *Sources: <artifacts and issues the claims trace to>.*

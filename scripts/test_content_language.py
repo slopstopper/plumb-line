@@ -55,6 +55,46 @@ def test_quiet_on_plain_prose(tmp_path):
     assert flags == []
 
 
+def test_h2_ascii_header_is_not_an_emoji_header(tmp_path):
+    # GH #286: `#{1,6}` backtracked so the second '#' satisfied the negated
+    # class, flagging every h2-or-deeper ASCII header as an emoji header.
+    flags = _flags_for(tmp_path, "## The one property\n### Deeper still\n")
+    assert flags == []
+
+
+def test_actual_emoji_header_still_flags(tmp_path):
+    flags = _flags_for(tmp_path, "## 🎯 Goals\n")
+    assert [label for _, label, _ in flags] == ["emoji header"]
+
+
+def test_flags_quiet_part(tmp_path):
+    # Barred 2026-08-18 after appearing in a design-note draft.
+    flags = _flags_for(tmp_path, "Its own header says the quiet part.\n")
+    assert "register: quiet part" in {label for _, label, _ in flags}
+
+
+def test_flags_bare_contrast_constructions(tmp_path):
+    # The existing pattern only caught "it is not X, it is Y"; drafts leaned
+    # on the bare forms instead. Barred 2026-08-18.
+    text = (
+        "The contract is a data file, not prose.\n"
+        "Parity is enforced not by prose but by data.\n"
+    )
+    flags = _flags_for(tmp_path, text)
+    labels = [label for _, label, _ in flags]
+    assert labels.count("bare contrast (X, not Y / not X but Y)") == 2
+
+
+def test_em_dashes_counted_but_not_flagged(tmp_path):
+    # Em dashes are reported as an informational count (keep to a bare
+    # minimum), never as flags: the published 0.9.0 piece uses one and must
+    # stay flag-free.
+    p = tmp_path / "draft.md"
+    p.write_text("One thing — and another — again.\n", encoding="utf-8")
+    assert ccl.check(str(p)) == []
+    assert ccl.em_dashes(str(p)) == 2
+
+
 def test_strict_exit_codes(tmp_path):
     bad = tmp_path / "bad.md"
     bad.write_text("A battle-tested toolkit.\n", encoding="utf-8")
