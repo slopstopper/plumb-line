@@ -40,8 +40,8 @@ def audit_meta(meta):
     - ``"version-legacy:"`` — envelope predates the current provenance version, or omits it
     - ``"version-future:"`` — envelope reports a newer version than this checker supports
     - ``"version-malformed:"`` — the version field is present but is not a finite
-      number (#156). A fractional version is finite, so it is compared like any
-      other, not rejected — the branch is about finiteness, not integer-ness.
+      number (#156), or is finite with a fractional part (#216) — SPEC §5b
+      carries an integer, judged on the value (2.0 is valid; 1.5 is not).
 
     Args:
         meta: Provenance metadata dict to audit, or None.
@@ -78,6 +78,14 @@ def audit_meta(meta):
         # malformed to keep parity — JSON.parse turns the same literal into
         # Infinity in JS, which lands in this branch there.
         issues.append('version-malformed: provenance version is not a finite number')
+    elif not float(v).is_integer():
+        # SPEC §5b: the field carries an integer. A fractional version is at
+        # least numerically comparable to the current one, but "predates
+        # version 2" said of 1.5 asserts contract-conformance it lacks (#216).
+        # Integrality of the VALUE, not the type: JSON has no int/float
+        # distinction, so 2.0 (a Python float, a JS number) must stay valid
+        # in both languages — Number.isInteger(2.0) is the JS mirror.
+        issues.append('version-malformed: provenance version is not an integer')
     elif v < PROVENANCE_VERSION:
         issues.append(f'version-legacy: envelope predates version {PROVENANCE_VERSION}')
     elif v > PROVENANCE_VERSION:

@@ -177,12 +177,15 @@ describe("auditMeta", () => {
     expect(auditMeta(meta)).toEqual(["version-malformed: provenance version is not a finite number"]);
   });
 
-  it("a fractional version is finite, so it is compared not rejected (#216)", () => {
-    // The malformed branch is about finiteness, not integer-ness — 2.5 routes
-    // to version-future and 1.5 to version-legacy, in both languages.
+  it("a fractional version is malformed; an integral float is valid (#216)", () => {
+    // SPEC §5b carries an integer, judged on the VALUE: "predates version 2"
+    // said of 1.5 asserts contract-conformance it lacks, and 2.5 is no more a
+    // future version than "3" is. JSON has no int/float distinction, so 2.0
+    // must stay a valid current version in both languages.
     const at = (v) => auditMeta({ provenanceVersion: v, source: "real", confidence: "high", derivedFromMock: false, lineage: [] });
-    expect(at(2.5).some((i) => i.startsWith("version-future:"))).toBe(true);
-    expect(at(1.5).some((i) => i.startsWith("version-legacy:"))).toBe(true);
+    expect(at(2.5)).toEqual(["version-malformed: provenance version is not an integer"]);
+    expect(at(1.5)).toEqual(["version-malformed: provenance version is not an integer"]);
+    expect(at(2.0)).toEqual([]);
   });
 
   it("audits a non-plain object as missing meta (#96 parity with Python)", () => {

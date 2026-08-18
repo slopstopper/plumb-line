@@ -174,9 +174,19 @@
       "expectContains": ["version-future:"]
     },
     {
-      "name": "version-future — a fractional version is finite, so it is routed to the comparison branches, not the malformed one (#216; the advisory wording itself is pinned by unit tests in both languages, not here — expectContains matches the prefix only)",
+      "name": "version-malformed — a fractional version is not an integer (#216; SPEC §5b carries an integer — this was routed to version-future while merely finite)",
       "meta": { "provenanceVersion": 2.5, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
-      "expectContains": ["version-future:"]
+      "expectContains": ["version-malformed:"]
+    },
+    {
+      "name": "version-malformed — a fractional version below current is not an integer either (#216; was version-legacy: 'predates version 2' said of 1.5)",
+      "meta": { "provenanceVersion": 1.5, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "expectContains": ["version-malformed:"]
+    },
+    {
+      "name": "integral float is an integer version (#216: JSON has no int/float distinction — 2.0 parses float in Python and number in JS; value integrality, not type, decides)",
+      "meta": { "provenanceVersion": 2.0, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "expectContains": []
     },
     {
       "name": "version-malformed — explicit null is not a version (#156; was the JS/Python divergence: JS silent, Python legacy)",

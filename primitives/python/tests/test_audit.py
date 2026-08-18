@@ -180,3 +180,16 @@ def test_legacy_absent_version():
 def test_future_version_advisory():
     m = {'provenance_version': 99, 'source': 'real', 'confidence': 'high', 'derived_from_mock': False, 'lineage': []}
     assert any(i.startswith('version-future:') for i in a.audit_meta(m))
+
+def test_fractional_version_is_malformed_integral_float_is_valid():
+    """#216: SPEC §5b carries an integer, judged on the VALUE — 'predates
+    version 2' said of 1.5 asserts contract-conformance it lacks. JSON has no
+    int/float distinction, so 2.0 must stay a valid current version; the JS
+    mirror is Number.isInteger."""
+    def at(v):
+        return a.audit_meta({'provenance_version': v, 'source': 'real',
+                             'confidence': 'high', 'derived_from_mock': False,
+                             'lineage': []})
+    assert at(2.5) == ['version-malformed: provenance version is not an integer']
+    assert at(1.5) == ['version-malformed: provenance version is not an integer']
+    assert at(2.0) == []

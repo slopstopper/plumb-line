@@ -270,6 +270,13 @@ other issue in §5's table:
 | greater than the checker's `PROVENANCE_VERSION` (unknown future) | `version-future: envelope version N is newer than supported <PROVENANCE_VERSION>` |
 | absent, or less than the checker's `PROVENANCE_VERSION` (legacy) | `version-legacy: envelope predates version <PROVENANCE_VERSION>` |
 | present but not a finite number — a string, `null`, a list, an object, a boolean, an infinity/NaN, or an integer past IEEE754 range | `version-malformed: provenance version is not a finite number` |
+| a finite number with a fractional part — `1.5`, `2.5` (#216) | `version-malformed: provenance version is not an integer` |
+
+Integrality is judged on the **value**, not the language type: JSON has no
+int/float distinction, so `2.0` (a Python `float`, a JS number) is a valid
+integer version. §5b's field is an integer; `1.5` is numerically comparable to
+2, but "predates version 2" said of it would assert contract-conformance the
+value lacks — the same reasoning that keeps `"2"` out of `version-legacy`.
 
 **Absent and malformed are different states.** An absent field is *legacy*: the
 envelope predates the field, which is a true statement about it. A field holding
