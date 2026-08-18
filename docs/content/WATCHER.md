@@ -24,7 +24,8 @@ week must be distinguishable from a partial sweep:
 ## Digest contract
 
 One GitHub issue per run, titled `Watcher digest YYYY-'W'WW`, labeled
-`track:distribution`. Sections:
+`track:distribution` and `digest` (the digest-specific label is what the
+"Open dispositions" search keys on). Sections:
 
 - **Denominator** — what was swept, what was skipped, and why.
 - **Observations** — findings with links; no action implied.
