@@ -61,6 +61,19 @@ def test_contested_selection_only_reruns_screen_failures():
     assert [r["query"] for r in contested] == ["b", "c"]
 
 
+def test_installed_locations_finds_target_and_reports_absence(tmp_path):
+    # The 2026-08-18 void run: the target skill did not exist in the probe
+    # environment (installed plugin predated it), and 0/10 read as a
+    # description gap. The preflight must find where the target is actually
+    # installed — and say "nowhere" loudly.
+    root = tmp_path / "cache"
+    (root / "slopstopper" / "plumb-line" / "0.7.3" / "skills" / "plumb-line-audit").mkdir(parents=True)
+    (root / "other" / "toolkit" / "1.0.0" / "skills" / "unrelated").mkdir(parents=True)
+    hits = tc.installed_locations("plumb-line-audit", str(root))
+    assert hits == [{"plugin": "slopstopper/plumb-line", "version": "0.7.3"}]
+    assert tc.installed_locations("plumb-line-adopt", str(root)) == []
+
+
 def test_merge_labels_rates_by_model_tier():
     screen = [
         {"query": "a", "should_trigger": True, "pass": True, "trigger_rate": 1.0},

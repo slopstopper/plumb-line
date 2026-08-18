@@ -102,6 +102,36 @@ def merge(screen, confirm, screen_model, confirm_model):
     return merged
 
 
+PLUGINS_ROOT = os.path.expanduser("~/.claude/plugins/cache")
+
+
+def installed_locations(target, plugins_root=PLUGINS_ROOT):
+    """Where the target skill is actually installed: [{plugin, version}].
+
+    The probe sessions see only installed plugins, so a target missing here
+    yields structural zeros that say nothing about its description. The
+    2026-08-18 run measured exactly that and read as a trigger gap; this
+    preflight makes absence loud and stamps results with what was probed.
+    """
+    hits = []
+    if not os.path.isdir(plugins_root):
+        return hits
+    for owner in sorted(os.listdir(plugins_root)):
+        owner_dir = os.path.join(plugins_root, owner)
+        if not os.path.isdir(owner_dir):
+            continue
+        for plugin in sorted(os.listdir(owner_dir)):
+            plugin_dir = os.path.join(owner_dir, plugin)
+            if not os.path.isdir(plugin_dir):
+                continue
+            for version in sorted(os.listdir(plugin_dir)):
+                if os.path.isdir(os.path.join(plugin_dir, version,
+                                              "skills", target)):
+                    hits.append({"plugin": f"{owner}/{plugin}",
+                                 "version": version})
+    return hits
+
+
 # ---------- probing ----------
 
 def probe(query, target, model, workdir, timeout):
@@ -179,7 +209,18 @@ def main(argv=None):
     ap.add_argument("--confirm-runs", type=int, default=2)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--timeout", type=int, default=150)
+    ap.add_argument("--force", action="store_true",
+                    help="probe even if the target skill is not installed")
     args = ap.parse_args(argv)
+
+    installs = installed_locations(args.target)
+    if not installs and not args.force:
+        print(f"ABORT: skill '{args.target}' is not installed in any plugin "
+              f"under {PLUGINS_ROOT} — probes would measure its absence, not "
+              f"its description. Install/update the plugin, or pass --force "
+              f"to measure anyway.", file=sys.stderr)
+        return 2
+    print(f"probing installs: {installs or 'NONE (--force)'}", file=sys.stderr)
 
     evals = json.load(open(args.eval_set))
     screen = run_tier(evals, args.target, args.screen_model, args.screen_runs,
@@ -198,6 +239,7 @@ def main(argv=None):
 
     passed = sum(1 for r in merged if r["pass"])
     json.dump({"target": args.target,
+               "probed_installs": installs,
                "tiers": {"screen": args.screen_model,
                          "confirm": args.confirm_model},
                "summary": {"passed": passed, "total": len(merged)},
