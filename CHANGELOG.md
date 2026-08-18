@@ -23,6 +23,14 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the owner.
 
 ### Changed
+- **Audit: a fractional `provenanceVersion` is `version-malformed`, not
+  comparable** ([#216](https://github.com/slopstopper/plumb-line/issues/216)):
+  SPEC §5b carries an integer, so `1.5` no longer reads as "predates version
+  2" and `2.5` no longer reads as a future version — both now report
+  `version-malformed: provenance version is not an integer`, in both
+  languages. Integrality is judged on the value (JSON has no int/float
+  distinction), so `2.0` remains a valid current version. Audit-vocabulary
+  change only; no wire-format bump.
 - **HTTP adapters: an unreadable `Age` header degrades confidence instead of
   reading as absent**
   ([#208](https://github.com/slopstopper/plumb-line/issues/208), ADR-0014):
