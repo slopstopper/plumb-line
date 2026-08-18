@@ -1,0 +1,22 @@
+[
+  {"query": "can you check this diff before I merge? I'm worried we're claiming confidence values we never actually compute. the branch is feature/scoring-v2, repo is ~/work/mlpipe", "should_trigger": true},
+  {"query": "my teammate hardcoded a 0.7 threshold in engine/detect.py again instead of reading it from config. can you sweep the repo for stuff like that, magic numbers pretending to be measurements", "should_trigger": true},
+  {"query": "we ship a report generator and I think some outputs are built from cached fixtures but labelled like real data. audit ~/src/reportgen for anything like that", "should_trigger": true},
+  {"query": "review this PR for epistemic honesty issues - laundered uncertainty, that kind of thing. PR #88 in the current repo", "should_trigger": true},
+  {"query": "our golden baseline numbers changed in tests/baselines.json last sprint and nobody wrote down why. can you look at whether anything else drifted without explanation", "should_trigger": true},
+  {"query": "run the plumb-line audit on the last 3 commits", "should_trigger": true},
+  {"query": "before we tag v2.0 i want a pass over the repo checking the README and docs don't overstate what's actually implemented, we have a bunch of half-finished features", "should_trigger": true},
+  {"query": "something feels off in our data pipeline, outputs claim source=real but half the loaders fall back to synthetic rows silently. ~/code/ingestd, have a look", "should_trigger": true},
+  {"query": "can you fix the findings from the audit report? it's saved as plumb-line-audit.md in the repo root, just apply the suggested fixes", "should_trigger": false},
+  {"query": "set up my new project ~/code/flowlab with the plumb-line discipline, we need the boundary checks and the pre-commit gate installed", "should_trigger": false},
+  {"query": "what are the nine plumb-line principles again? explain the maturity vocabulary bit, I keep forgetting current vs planned", "should_trigger": false},
+  {"query": "would plumb-line even help my codebase? it's a little CLI tool, no data pipeline, tell me which parts fit if any. ~/dev/tinytool", "should_trigger": false},
+  {"query": "review PR #142 for style and naming consistency, our linter doesn't catch naming stuff", "should_trigger": false},
+  {"query": "audit our npm dependencies for known CVEs, package.json is in the repo root", "should_trigger": false},
+  {"query": "check my SQL migration for correctness before I run it on prod, it's migrations/0042_add_index.sql", "should_trigger": false},
+  {"query": "write me a unit test that pins the aggregate output as a golden baseline so future drift fails CI", "should_trigger": false},
+  {"query": "profile why the scoring endpoint is slow, i think it's the confidence calculation loop in scorer.py", "should_trigger": false},
+  {"query": "hey can you do a security review of the auth module, we're worried about session fixation", "should_trigger": false},
+  {"query": "summarize what changed in the repo since the v1.3 tag, just a changelog draft", "should_trigger": false},
+  {"query": "my mock data is leaking into prod reports and I want machine-enforced boundaries so it can't happen again - install whatever hooks plumb-line has for that in this repo", "should_trigger": false}
+]

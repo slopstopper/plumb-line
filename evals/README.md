@@ -38,6 +38,25 @@ claude plugin eval --case "audit-py-*"   # one fixture
 claude plugin eval --json results.json --report report.html
 ```
 
+## trigger/ — tiered trigger-quality checks (runnable today)
+
+`evals/trigger/` holds description trigger-quality query sets
+(`audit-queries.json`, `adopt-queries.json`: realistic should-trigger queries
+plus near-miss should-NOT-trigger queries), run by
+`scripts/trigger_check.py` against the *installed* plugin — no early access
+needed. The harness is tiered by design: a small-model screen over every
+query, then a session-tier confirm pass over only the contested ones, with
+every reported rate labeled by the model that measured it (a haiku-measured
+trigger rate is a haiku claim). Triggering is detected on the Skill tool's
+`skill` field, never by substring. Born from the 2026-08-18 incident where an
+untiered run consumed a full usage window in minutes (#291).
+
+```sh
+python3 scripts/trigger_check.py evals/trigger/audit-queries.json \
+    plumb-line-audit results.json            # cheap screen only
+# add --confirm-model <session model> to re-measure contested queries
+```
+
 ## Status and honest caveats
 
 - `claude plugin eval` is early access and org-gated. This suite was authored
