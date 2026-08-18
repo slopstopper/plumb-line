@@ -29,9 +29,11 @@ describe("parseAge — shared fixture", () => {
     it(c.name, () => {
       expect(parseAge(c.raw)).toBe(c.expect);
       // ...and the whole classification path stays total on the same input:
-      // a rejected or zero Age reads as fresh, a positive one as cached.
+      // Age=0 reads as fresh; a positive Age as cached; a rejected-but-present
+      // Age degrades — a signal we can see but cannot read is a statement
+      // about our uncertainty, never evidence of freshness (#208).
       if (c.raw !== null) {
-        const confidence = c.expect !== null && c.expect > 0 ? "medium" : "high";
+        const confidence = c.expect === 0 ? "high" : "medium";
         expect(classifyResponse(200, { Age: c.raw })).toEqual({ source: "real", confidence });
       }
     });

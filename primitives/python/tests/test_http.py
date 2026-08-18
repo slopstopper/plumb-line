@@ -102,8 +102,10 @@ def test_parse_age_fixture(c):
         assert got is None, repr(c["raw"])
     else:
         assert got == c["expect"], repr(c["raw"])
-    # ...and the whole classification path stays total on the same input: a
-    # rejected or zero Age reads as fresh, a positive one as cached.
+    # ...and the whole classification path stays total on the same input:
+    # Age=0 reads as fresh; a positive Age as cached; a rejected-but-present
+    # Age degrades — a signal we can see but cannot read is a statement about
+    # our uncertainty, never evidence of freshness (#208).
     if c["raw"] is not None:
-        confidence = "medium" if c["expect"] is not None and c["expect"] > 0 else "high"
+        confidence = "high" if c["expect"] == 0 else "medium"
         assert plumb_http.classify_response(200, {"Age": c["raw"]}) == ("real", confidence), repr(c["raw"])
