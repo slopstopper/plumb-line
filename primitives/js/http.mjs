@@ -59,9 +59,15 @@ export function classifyResponse(status, headers, fromCache = false) {
   const cached = isCached(status, headers, fromCache);
   if (status === 304) return { source: "real", confidence: "medium" };
   if (status >= 200 && status < 300) {
-    return cached
-      ? { source: "real", confidence: "medium" }
-      : { source: "real", confidence: "high" };
+    if (cached) return { source: "real", confidence: "medium" };
+    const age = header(headers, "age");
+    if (age != null && parseAge(age) === null) {
+      // Age present but unreadable: a staleness signal we can see but cannot
+      // parse is a statement about our uncertainty, never evidence of
+      // freshness — degrade, don't upgrade (#208, ADR).
+      return { source: "real", confidence: "medium" };
+    }
+    return { source: "real", confidence: "high" };
   }
   return { source: "unavailable", confidence: "none" };
 }

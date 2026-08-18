@@ -89,7 +89,15 @@ def classify_response(status, headers, from_cache=False):
     if status == 304:
         return ("real", "medium")
     if 200 <= status < 300:
-        return ("real", "medium") if cached else ("real", "high")
+        if cached:
+            return ("real", "medium")
+        age = _header(headers, "age")
+        if age is not None and parse_age(age) is None:
+            # Age present but unreadable: a staleness signal we can see but
+            # cannot parse is a statement about our uncertainty, never
+            # evidence of freshness — degrade, don't upgrade (#208, ADR).
+            return ("real", "medium")
+        return ("real", "high")
     return ("unavailable", "none")
 
 
