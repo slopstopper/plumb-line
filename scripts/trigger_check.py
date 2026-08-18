@@ -60,6 +60,16 @@ def skill_match(input_json, target):
     return name == target or name.endswith(":" + target)
 
 
+def skill_name(input_json):
+    """The "skill" field of a Skill-tool input, or None. Lets a miss say
+    which skill won instead of only that the target lost."""
+    try:
+        payload = json.loads(input_json)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    return payload.get("skill") or None
+
+
 def score(rows, threshold=THRESHOLD):
     """rows: [{"should_trigger": bool, "runs": [bool, ...], ...}] -> scored."""
     out = []
@@ -129,28 +139,31 @@ def probe(query, target, model, workdir, timeout):
                 if d.get("type") == "input_json_delta":
                     acc += d.get("partial_json", "")
             elif t == "content_block_stop" and pending:
-                return skill_match(acc, target)  # first Skill call decides
+                # first Skill call decides; report who won either way
+                return skill_match(acc, target), skill_name(acc)
             elif t == "message_stop":
                 break
     finally:
         p.kill()
-    return False
+    return False, None
 
 
 def run_tier(evals, target, model, runs, workers, timeout, log):
     workdir = tempfile.mkdtemp(prefix="trigger-check-")
     rows = [{"query": e["query"], "should_trigger": e["should_trigger"],
-             "runs": []} for e in evals]
+             "runs": [], "winners": []} for e in evals]
     jobs = [(i, r) for i in range(len(evals)) for r in range(runs)]
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futs = {ex.submit(probe, evals[i]["query"], target, model,
                           workdir, timeout): i for i, _ in jobs}
         for f in futs:
             i = futs[f]
-            hit = f.result()
+            hit, winner = f.result()
             rows[i]["runs"].append(hit)
+            rows[i]["winners"].append(winner)
             print(f"[{'TRIG' if hit else 'no  '}] {model} "
-                  f"expected={evals[i]['should_trigger']}: "
+                  f"expected={evals[i]['should_trigger']} "
+                  f"winner={winner or '-'}: "
                   f"{evals[i]['query'][:70]}", file=log, flush=True)
     return score(rows)
 

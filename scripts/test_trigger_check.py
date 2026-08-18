@@ -30,6 +30,14 @@ def test_skill_match_on_field_not_substring():
     assert tc.skill_match("not json {", "plumb-line-audit") is False
 
 
+def test_skill_name_extraction_for_miss_diagnostics():
+    # On a miss the harness records WHICH skill won, distinguishing
+    # "another skill captured it" from "answered inline with no skill".
+    assert tc.skill_name('{"skill": "plumb-line:plumb-line-method"}') == "plumb-line:plumb-line-method"
+    assert tc.skill_name("not json {") is None
+    assert tc.skill_name('{"args": "no skill field"}') is None
+
+
 def test_score_pass_rules():
     rows = [
         {"should_trigger": True, "runs": [True, True]},
