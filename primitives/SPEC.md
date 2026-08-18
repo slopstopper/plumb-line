@@ -210,17 +210,30 @@ checker MUST detect each of the following:
 
 The checker MUST be total: a missing or malformed field MUST yield a result list
 (possibly noting the problem), never an exception. A `null`/`None` envelope MUST
-return a single "missing meta" issue. A checker MUST treat any input that is not
-a plain object/dict — `null`/`None`, a primitive, an array/list, or a non-plain
-object such as a `Map`/`Date`/class instance — as `["missing meta"]`. **"Plain"
-means exactly the language's own map type, not a subtype:** a `dict` subclass
-(`OrderedDict`, `defaultdict`, a user subclass) is NOT a plain dict and audits as
-`["missing meta"]`, matching the JS prototype check
-(`Object.getPrototypeOf(meta) !== Object.prototype`). This cannot be pinned in
-`cases.json` — JSON has no dict-subclass literal — so it is pinned by a
-per-language unit test instead (#165). Note that `validateEnvelope` /
-`validate_envelope` (§5c) is deliberately looser and does accept subtypes; the
-two checkers answer different questions. Only a
+return a single "missing meta" issue. A checker MUST reject any input that is
+not a plain object/dict without examining claims. **"Plain" means exactly the
+language's own map type, not a subtype** (#165), matching the JS prototype check
+(`Object.getPrototypeOf(meta) !== Object.prototype`). The rejection diagnostic
+distinguishes two states (#209):
+
+- `["missing meta"]` — `null`/`None`, a primitive, an array/list, or any
+  other object outside the non-plain set below (`Map`/`Date`/class
+  instances included).
+- `["non-plain meta: envelope is not a plain dict/object; rebuild it with
+  dict(meta) / {...meta}"]` — the container is the wrong type, though it can
+  carry the envelope. The split is judged on container type alone, scoped to
+  the container each language's JSON ecosystem actually produces around the
+  plain type: a `dict` subclass in Python (`OrderedDict` from
+  `object_pairs_hook`, `defaultdict`, a user subclass) and a null-prototype
+  object in JS (pollution-safe parsers). A JS class instance stays
+  `missing meta` because `JSON.parse` never yields one, not because it could
+  not hold the fields. When the container did hold an envelope, the named
+  rebuild MUST recover one that audits on its own claims.
+
+Neither state can be pinned in `cases.json` — JSON has no dict-subclass or
+null-prototype literal — so both are pinned by per-language unit tests. Note
+that `validateEnvelope` / `validate_envelope` (§5c) is deliberately looser and
+does accept subtypes; the two checkers answer different questions. Only a
 plain object/dict is examined for claim consistency; a structurally empty one
 (`{}`) has no claims to contradict and audits clean of every logical-consistency
 check, returning only the `version-legacy:` advisory (§5b) — it also carries no

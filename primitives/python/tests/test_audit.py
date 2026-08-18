@@ -68,10 +68,16 @@ def test_empty_meta_returns_only_version_legacy_advisory():
 def test_none_meta_returns_missing_meta():
     assert a.audit_meta(None) == ['missing meta']
 
-def test_audit_meta_rejects_dict_subclasses():
+def test_audit_meta_rejects_dict_subclasses_with_the_honest_diagnostic():
     """#165: JS auditMeta rejects any non-plain object (prototype check), so the
     Python checker must reject dict SUBCLASSES to match. Not encodable in
     cases.json — JSON has no dict-subclass literal — so it is pinned here.
+
+    #209: rejected, but with a diagnostic that names the actual problem —
+    a populated OrderedDict (json's object_pairs_hook) holds an envelope in
+    the wrong container; 'missing meta' said there was no envelope at all
+    and hid every real finding behind that wrong claim. Non-mapping inputs
+    (class instances, None, scalars) still read 'missing meta'.
 
     This is deliberately stricter than validate_envelope, which mirrors the
     looser JS validateEnvelope (typeof === 'object').
@@ -85,8 +91,16 @@ def test_audit_meta_rejects_dict_subclasses():
     class MyMeta(dict):
         pass
 
+    NON_PLAIN = 'non-plain meta: envelope is not a plain dict/object; rebuild it with dict(meta) / {...meta}'
     for subclass in (collections.OrderedDict(valid), collections.defaultdict(None, valid), MyMeta(valid)):
-        assert a.audit_meta(subclass) == ['missing meta'], type(subclass).__name__
+        assert a.audit_meta(subclass) == [NON_PLAIN], type(subclass).__name__
+        # ...and the named fix actually recovers the envelope:
+        assert a.audit_meta(dict(subclass)) == []
+
+    class NotAMapping:
+        pass
+
+    assert a.audit_meta(NotAMapping()) == ['missing meta']
 
 def test_audit_meta_is_total_on_a_huge_integer_version():
     """SPEC §5 requires the checker to be TOTAL — never raise. math.isfinite()
