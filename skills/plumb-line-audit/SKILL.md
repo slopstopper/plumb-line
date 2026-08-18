@@ -193,7 +193,11 @@ is a valid result, but only over the files the coverage map lists as `read`.
 
 The omission-pass enumeration table (defined in the Method section) is a separate
 report artifact with its own columns; when the auditor emits it, its principle
-references are inline-named too, exactly like the findings table above.
+references are inline-named too, exactly like the findings table above. A worked
+cell, to pin the form: write `NO — declared bearer (P8 — State-first lineage)`,
+never `(P8 finding)` — a bare code inside any table cell is exactly the drift
+the checker flags, and it was the one live format FAIL in an otherwise-clean
+six-run validation (#293).
 
 **Validate the report against its own contract before emitting it.** P7 applies
 to this skill's own output: a contract with a version and a key list but no
@@ -213,6 +217,14 @@ Put this line **below the coverage map**, and note the key is
 `format-validation:`, *not* `report-format:` — a second `report-format:` line
 would be read as a duplicate header key, and re-running the checker on the saved
 report would then fail it on its own validation marker.
+
+The `— clean` form is earned, never asserted: emit it only when the command
+actually executed this run, on the exact text being returned. *Anything* that
+prevents executing it — the script missing, no shell, a host rule forbidding
+file writes — is the `not run` case; state the reason in the line. This is not
+a formality: a verdict claimed without an execution is laundered uncertainty
+in the audit's own report, and it happened live — one auditor, barred from
+writing a temp file, printed `— clean` over a report the checker fails (#293).
 
 Never suppress a finding to make the report validate — the contract describes the
 report's *shape*, and a shape violation is fixed by fixing the shape.
