@@ -30,6 +30,14 @@ def test_skill_match_on_field_not_substring():
     assert tc.skill_match("not json {", "plumb-line-audit") is False
 
 
+def test_skill_name_extraction_for_miss_diagnostics():
+    # On a miss the harness records WHICH skill won, distinguishing
+    # "another skill captured it" from "answered inline with no skill".
+    assert tc.skill_name('{"skill": "plumb-line:plumb-line-method"}') == "plumb-line:plumb-line-method"
+    assert tc.skill_name("not json {") is None
+    assert tc.skill_name('{"args": "no skill field"}') is None
+
+
 def test_score_pass_rules():
     rows = [
         {"should_trigger": True, "runs": [True, True]},
@@ -51,6 +59,33 @@ def test_contested_selection_only_reruns_screen_failures():
     ]
     contested = tc.contested(scored)
     assert [r["query"] for r in contested] == ["b", "c"]
+
+
+def test_installed_locations_finds_target_and_reports_absence(tmp_path):
+    # The 2026-08-18 void run: the target skill did not exist in the probe
+    # environment (installed plugin predated it), and 0/10 read as a
+    # description gap. The preflight must find where the target is actually
+    # installed — and say "nowhere" loudly.
+    root = tmp_path / "cache"
+    (root / "slopstopper" / "plumb-line" / "0.7.3" / "skills" / "plumb-line-audit").mkdir(parents=True)
+    (root / "other" / "toolkit" / "1.0.0" / "skills" / "unrelated").mkdir(parents=True)
+    hits = tc.installed_locations("plumb-line-audit", str(root))
+    assert hits == [{"plugin": "slopstopper/plumb-line", "version": "0.7.3"}]
+    assert tc.installed_locations("plumb-line-adopt", str(root)) == []
+
+
+def test_stale_installs_flags_versions_behind_the_repo():
+    # #295: plugin updates are manual and easy to miss — the owner's install
+    # sat at 0.7.3 with 0.9.0 released, voiding a whole measurement run. The
+    # preflight compares probed installs against this repo's own version and
+    # warns; measuring a stale install stays allowed, but never silently.
+    installs = [{"plugin": "slopstopper/plumb-line", "version": "0.7.3"},
+                {"plugin": "slopstopper/plumb-line", "version": "0.9.0"},
+                {"plugin": "other/thing", "version": "2.0.0"}]
+    stale = tc.stale_installs(installs, "0.9.0")
+    assert stale == [{"plugin": "slopstopper/plumb-line", "version": "0.7.3"}]
+    # Non-semver versions are never flagged (unknown, not stale).
+    assert tc.stale_installs([{"plugin": "x", "version": "dev"}], "0.9.0") == []
 
 
 def test_merge_labels_rates_by_model_tier():

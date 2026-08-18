@@ -60,6 +60,16 @@ def skill_match(input_json, target):
     return name == target or name.endswith(":" + target)
 
 
+def skill_name(input_json):
+    """The "skill" field of a Skill-tool input, or None. Lets a miss say
+    which skill won instead of only that the target lost."""
+    try:
+        payload = json.loads(input_json)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    return payload.get("skill") or None
+
+
 def score(rows, threshold=THRESHOLD):
     """rows: [{"should_trigger": bool, "runs": [bool, ...], ...}] -> scored."""
     out = []
@@ -90,6 +100,69 @@ def merge(screen, confirm, screen_model, confirm_model):
         else:
             merged.append({**r, "measured_by": screen_model})
     return merged
+
+
+PLUGINS_ROOT = os.path.expanduser("~/.claude/plugins/cache")
+
+
+def installed_locations(target, plugins_root=PLUGINS_ROOT):
+    """Where the target skill is actually installed: [{plugin, version}].
+
+    The probe sessions see only installed plugins, so a target missing here
+    yields structural zeros that say nothing about its description. The
+    2026-08-18 run measured exactly that and read as a trigger gap; this
+    preflight makes absence loud and stamps results with what was probed.
+    """
+    hits = []
+    if not os.path.isdir(plugins_root):
+        return hits
+    for owner in sorted(os.listdir(plugins_root)):
+        owner_dir = os.path.join(plugins_root, owner)
+        if not os.path.isdir(owner_dir):
+            continue
+        for plugin in sorted(os.listdir(owner_dir)):
+            plugin_dir = os.path.join(owner_dir, plugin)
+            if not os.path.isdir(plugin_dir):
+                continue
+            for version in sorted(os.listdir(plugin_dir)):
+                if os.path.isdir(os.path.join(plugin_dir, version,
+                                              "skills", target)):
+                    hits.append({"plugin": f"{owner}/{plugin}",
+                                 "version": version})
+    return hits
+
+
+def _semver(v):
+    try:
+        return tuple(int(x) for x in v.split("."))
+    except (ValueError, AttributeError):
+        return None
+
+
+def stale_installs(installs, current_version):
+    """Installs whose version parses lower than current_version.
+
+    Plugin updates are manual and easy to miss (#295): the owner's install
+    sat two releases behind and a whole measurement run probed a plugin
+    missing the skill under test. Unknown version formats are not flagged —
+    unparseable means unknown, never stale.
+    """
+    cur = _semver(current_version)
+    if cur is None:
+        return []
+    return [i for i in installs
+            if (_semver(i.get("version")) or cur) < cur]
+
+
+def repo_version():
+    """This repo's release version, from .claude-plugin/plugin.json."""
+    manifest = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), ".claude-plugin", "plugin.json")
+    try:
+        with open(manifest, encoding="utf-8") as f:
+            return json.load(f).get("version")
+    except (OSError, json.JSONDecodeError):
+        return None
 
 
 # ---------- probing ----------
@@ -129,28 +202,31 @@ def probe(query, target, model, workdir, timeout):
                 if d.get("type") == "input_json_delta":
                     acc += d.get("partial_json", "")
             elif t == "content_block_stop" and pending:
-                return skill_match(acc, target)  # first Skill call decides
+                # first Skill call decides; report who won either way
+                return skill_match(acc, target), skill_name(acc)
             elif t == "message_stop":
                 break
     finally:
         p.kill()
-    return False
+    return False, None
 
 
 def run_tier(evals, target, model, runs, workers, timeout, log):
     workdir = tempfile.mkdtemp(prefix="trigger-check-")
     rows = [{"query": e["query"], "should_trigger": e["should_trigger"],
-             "runs": []} for e in evals]
+             "runs": [], "winners": []} for e in evals]
     jobs = [(i, r) for i in range(len(evals)) for r in range(runs)]
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futs = {ex.submit(probe, evals[i]["query"], target, model,
                           workdir, timeout): i for i, _ in jobs}
         for f in futs:
             i = futs[f]
-            hit = f.result()
+            hit, winner = f.result()
             rows[i]["runs"].append(hit)
+            rows[i]["winners"].append(winner)
             print(f"[{'TRIG' if hit else 'no  '}] {model} "
-                  f"expected={evals[i]['should_trigger']}: "
+                  f"expected={evals[i]['should_trigger']} "
+                  f"winner={winner or '-'}: "
                   f"{evals[i]['query'][:70]}", file=log, flush=True)
     return score(rows)
 
@@ -166,7 +242,24 @@ def main(argv=None):
     ap.add_argument("--confirm-runs", type=int, default=2)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--timeout", type=int, default=150)
+    ap.add_argument("--force", action="store_true",
+                    help="probe even if the target skill is not installed")
     args = ap.parse_args(argv)
+
+    installs = installed_locations(args.target)
+    if not installs and not args.force:
+        print(f"ABORT: skill '{args.target}' is not installed in any plugin "
+              f"under {PLUGINS_ROOT} — probes would measure its absence, not "
+              f"its description. Install/update the plugin, or pass --force "
+              f"to measure anyway.", file=sys.stderr)
+        return 2
+    print(f"probing installs: {installs or 'NONE (--force)'}", file=sys.stderr)
+    current = repo_version()
+    for s in stale_installs(installs, current) if current else []:
+        print(f"WARNING: probing {s['plugin']}@{s['version']} but this repo "
+              f"is at {current} — plugin updates are manual and easy to miss "
+              f"(claude plugin update {s['plugin'].split('/')[-1]}); results "
+              f"will describe the stale install (#295).", file=sys.stderr)
 
     evals = json.load(open(args.eval_set))
     screen = run_tier(evals, args.target, args.screen_model, args.screen_runs,
@@ -185,6 +278,7 @@ def main(argv=None):
 
     passed = sum(1 for r in merged if r["pass"])
     json.dump({"target": args.target,
+               "probed_installs": installs,
                "tiers": {"screen": args.screen_model,
                          "confirm": args.confirm_model},
                "summary": {"passed": passed, "total": len(merged)},
