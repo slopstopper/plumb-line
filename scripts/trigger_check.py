@@ -132,6 +132,39 @@ def installed_locations(target, plugins_root=PLUGINS_ROOT):
     return hits
 
 
+def _semver(v):
+    try:
+        return tuple(int(x) for x in v.split("."))
+    except (ValueError, AttributeError):
+        return None
+
+
+def stale_installs(installs, current_version):
+    """Installs whose version parses lower than current_version.
+
+    Plugin updates are manual and easy to miss (#295): the owner's install
+    sat two releases behind and a whole measurement run probed a plugin
+    missing the skill under test. Unknown version formats are not flagged —
+    unparseable means unknown, never stale.
+    """
+    cur = _semver(current_version)
+    if cur is None:
+        return []
+    return [i for i in installs
+            if (_semver(i.get("version")) or cur) < cur]
+
+
+def repo_version():
+    """This repo's release version, from .claude-plugin/plugin.json."""
+    manifest = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), ".claude-plugin", "plugin.json")
+    try:
+        with open(manifest, encoding="utf-8") as f:
+            return json.load(f).get("version")
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
 # ---------- probing ----------
 
 def probe(query, target, model, workdir, timeout):
@@ -221,6 +254,12 @@ def main(argv=None):
               f"to measure anyway.", file=sys.stderr)
         return 2
     print(f"probing installs: {installs or 'NONE (--force)'}", file=sys.stderr)
+    current = repo_version()
+    for s in stale_installs(installs, current) if current else []:
+        print(f"WARNING: probing {s['plugin']}@{s['version']} but this repo "
+              f"is at {current} — plugin updates are manual and easy to miss "
+              f"(claude plugin update {s['plugin'].split('/')[-1]}); results "
+              f"will describe the stale install (#295).", file=sys.stderr)
 
     evals = json.load(open(args.eval_set))
     screen = run_tier(evals, args.target, args.screen_model, args.screen_runs,

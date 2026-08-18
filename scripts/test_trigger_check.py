@@ -74,6 +74,20 @@ def test_installed_locations_finds_target_and_reports_absence(tmp_path):
     assert tc.installed_locations("plumb-line-adopt", str(root)) == []
 
 
+def test_stale_installs_flags_versions_behind_the_repo():
+    # #295: plugin updates are manual and easy to miss — the owner's install
+    # sat at 0.7.3 with 0.9.0 released, voiding a whole measurement run. The
+    # preflight compares probed installs against this repo's own version and
+    # warns; measuring a stale install stays allowed, but never silently.
+    installs = [{"plugin": "slopstopper/plumb-line", "version": "0.7.3"},
+                {"plugin": "slopstopper/plumb-line", "version": "0.9.0"},
+                {"plugin": "other/thing", "version": "2.0.0"}]
+    stale = tc.stale_installs(installs, "0.9.0")
+    assert stale == [{"plugin": "slopstopper/plumb-line", "version": "0.7.3"}]
+    # Non-semver versions are never flagged (unknown, not stale).
+    assert tc.stale_installs([{"plugin": "x", "version": "dev"}], "0.9.0") == []
+
+
 def test_merge_labels_rates_by_model_tier():
     screen = [
         {"query": "a", "should_trigger": True, "pass": True, "trigger_rate": 1.0},
