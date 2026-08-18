@@ -22,8 +22,6 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   worked example, drafted from the v0.9.0 release, edited and approved by
   the owner.
 
-## [0.9.0] — 2026-08-15
-
 ### Changed
 - **HTTP adapters: an unreadable `Age` header degrades confidence instead of
   reading as absent**
@@ -34,6 +32,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   never evidence of freshness. Absent `Age` and readable `Age: 0` still
   classify `high`; `source` is untouched. Behaviour change to the published
   packages (pre-1.0 breaking → minor); nine `http-cases.json` rows flip.
+
+## [0.9.0] — 2026-08-15
+
+### Changed
 - **README + marketplace listing positioning pass**
   ([#258](https://github.com/slopstopper/plumb-line/issues/258)): the lead
   now frames the funnel — skills as the front door, the primitive as the
