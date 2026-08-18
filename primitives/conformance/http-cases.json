@@ -30,6 +30,7 @@
   ],
   "parseAge": [
     { "name": "plain digits",               "raw": "60",        "expect": 60 },
+    { "name": "zero (readable and fresh — keeps the high branch of the inline classification rule live, #208 review)", "raw": "0", "expect": 0 },
     { "name": "SP-wrapped (RFC 7230 OWS)",  "raw": " 60 ",      "expect": 60 },
     { "name": "HTAB-wrapped (RFC 7230 OWS)", "raw": "\t60\t",   "expect": 60 },
     { "name": "fractional (proxy-emitted)", "raw": "60.5",      "expect": 60.5 },

@@ -25,6 +25,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [0.9.0] — 2026-08-15
 
 ### Changed
+- **HTTP adapters: an unreadable `Age` header degrades confidence instead of
+  reading as absent**
+  ([#208](https://github.com/slopstopper/plumb-line/issues/208), ADR-0014):
+  a 2xx with an `Age` present but rejected by the shared decimal pattern now
+  classifies `real`/`medium` in both languages (was `real`/`high`). A signal
+  the adapter can see but cannot read is a statement about its uncertainty,
+  never evidence of freshness. Absent `Age` and readable `Age: 0` still
+  classify `high`; `source` is untouched. Behaviour change to the published
+  packages (pre-1.0 breaking → minor); nine `http-cases.json` rows flip.
 - **README + marketplace listing positioning pass**
   ([#258](https://github.com/slopstopper/plumb-line/issues/258)): the lead
   now frames the funnel — skills as the front door, the primitive as the

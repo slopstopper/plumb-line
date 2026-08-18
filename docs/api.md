@@ -244,6 +244,9 @@ number, or `null`/`None` when the header is not a decimal value** — it never
 throws, because header bytes are remote-controlled. Built-in coercions
 (`Number()`, `float()`) are deliberately not used: the two languages disagree
 on non-decimal strings, which would make cache detection language-dependent.
+A rejected value is not merely ignored downstream: `classifyResponse` treats
+a present-but-unreadable `Age` as grounds to degrade freshness to `medium`
+(ADR-0014).
 
 ```js
 parseAge("60");    // 60
@@ -258,7 +261,10 @@ parseAge("1e3");   // null — Number("1e3") would be 1000
 Maps an HTTP response to `(source, confidence)`: source is origin trust,
 confidence is freshness. A 304 is `real`/`medium`. A 2xx is `real`/`high`
 when fresh, dropping to `real`/`medium` when a cache signal is present (a
-positive `Age`, an `x-cache` HIT, or an explicit `fromCache`). Any other
+positive `Age`, an `x-cache` HIT, or an explicit `fromCache`) — or when an
+`Age` header is present but unreadable: a staleness signal we can see but
+cannot parse degrades the freshness claim rather than counting as absent
+(ADR-0014). Any other
 status is `unavailable`/`none` — cache signals are not consulted outside
 the 2xx and 304 paths, so a 404 with `Age: 60` is still `unavailable`.
 Never emits `fallback` (reserved for caller-supplied substitutes). Returns
