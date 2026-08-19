@@ -47,12 +47,12 @@ assert sys.modules['plumb_line_provenance'].__file__.startswith(_PKG_DIR), (
     'plumb_line_provenance resolved outside primitives/python: '
     + str(sys.modules['plumb_line_provenance'].__file__))
 
-# Fence tags this suite understands. ```python runs here; ```js is knowingly
-# unguarded (GH #265). Any OTHER tag (```py, ```python3, an info-string
-# suffix) fails test_no_unrecognized_fences instead of silently escaping the
-# guard.
+# Fence tags this suite understands. ```python runs here; ```js runs in the
+# JS twin (primitives/js/fit-map-snippets.test.mjs, GH #265). Any OTHER tag
+# (```py, ```python3, an info-string suffix) fails test_no_unrecognized_fences
+# instead of silently escaping both guards.
 _RUN_TAGS = {'python'}
-_KNOWN_UNGUARDED_TAGS = {'js'}
+_GUARDED_ELSEWHERE_TAGS = {'js'}
 
 
 def _extract_blocks(text):
@@ -151,7 +151,7 @@ def test_no_unrecognized_fences():
     # to the extractor — a snippet (broken or not) escaping the guard is the
     # drift class this suite exists to exclude.
     tags = {tag.strip() for tag, _ in ALL_BLOCKS}
-    unknown = tags - _RUN_TAGS - _KNOWN_UNGUARDED_TAGS
+    unknown = tags - _RUN_TAGS - _GUARDED_ELSEWHERE_TAGS
     assert not unknown, (
         f'fit-map has fence tag(s) {sorted(unknown)!r} the snippet guard '
         f'does not recognize — add to _RUN_TAGS (and a prelude) or the '
