@@ -26,11 +26,14 @@ dependencies).
 | Maintained | 0 | Repo created 2026-06-28, inside the 90-day window | Re-evaluate after 2026-09-26 — it then scores on activity, not age |
 | Code-Review | 0 | 0 of 9 changesets approved | Same as Branch-Protection |
 | Fuzzing | 0 | No OSS-Fuzz integration; out of proportion for this library. JS property tests exist but don't count | Someone takes on OSS-Fuzz |
-| CII-Best-Practices | 0 | Badge entry 13453 is **silver**; it recorded the pre-move repo URL so Scorecard couldn't find it. **Fixed 2026-08-11** | Next scan ([#217](https://github.com/slopstopper/plumb-line/issues/217)) |
 | Signed-Releases | −1 | 13 releases exist but carry no assets, so the check is uncounted. Registry trusted publishing already attests provenance | Assets are attached — this is a decline, not an inability |
 
-**Patched ≠ observed.** Vulnerabilities and CII-Best-Practices are fixed but not
-re-scanned; both still show their old score above until Scorecard runs again.
+**Resolved and observed** (scan of 2026-08-18): **CII-Best-Practices 0 → 7,
+"badge detected: Silver"** — the 2026-08-11 URL fix took effect on the next
+scan, exactly as the row above predicted, and entry 13453 has since completed
+the silver questionnaire ([#217](https://github.com/slopstopper/plumb-line/issues/217)
+closes on this observation). **Vulnerabilities → 9** in the same scan. Neither
+is asserted from memory; re-run the curl above to check.
 
 ## Branch-Protection and Code-Review
 
