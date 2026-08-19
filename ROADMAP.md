@@ -591,8 +591,9 @@ is referenced, not restated; bootstrap emits `AGENTS.md` (not `CLAUDE.md`); and 
 guard hooks are agent-neutral stdin/exit-code CLIs. Only the packaging and
 invocation layer is Claude-specific.
 
-Factor the three skills' instructions (the audit check catalogue, the bootstrap
-interview, the method walk) into host-agnostic modules stripped of "Claude" /
+Factor the skills' instructions (the audit check catalogue, the bootstrap
+interview, the method walk, the adopt routing, the remediate flow) into
+host-agnostic modules stripped of "Claude" /
 "skill" / "PreToolUse" wording, and define an `agent-adapter-contract.md` — the
 capabilities any host must provide (load principles, run interview, run audit,
 wire hooks, invoke on a diff). This mirrors the existing language
@@ -605,7 +606,7 @@ among several rather than the substrate.
 
 **Priority: high** · Track: `track:portable` · GitHub: #59 · depends on #12
 
-An MCP server that exposes the three skills as tools lets any MCP-capable agent
+An MCP server that exposes the skills as tools lets any MCP-capable agent
 (Codex, Cursor, Qwen, Continue) run them with zero rewrite — the highest-leverage
 step toward "transferable to any agentic coder." Depends on the agent-neutral
 core (#12) for the underlying instruction modules. Success test: run the audit

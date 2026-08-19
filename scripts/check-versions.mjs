@@ -29,16 +29,23 @@ const read = (file, re) => {
   return m[1];
 };
 
+// The lockfile is read as JSON, not by regex — it contains a "version" field
+// per dependency, and only the two package-self fields matter (#268: the 0.8.1
+// bump left the lock at 0.8.0 because nothing rewrote or checked it).
+const lock = JSON.parse(readFileSync(join(root, "primitives/js/package-lock.json"), "utf8"));
+
 const manifests = {
   npm: read("primitives/js/package.json", /"version":\s*"([^"]+)"/),
   plugin: read(".claude-plugin/plugin.json", /"version":\s*"([^"]+)"/),
   pypi: read("primitives/python/pyproject.toml", /^version\s*=\s*"([^"]+)"/m),
+  "lock (root)": lock.version ?? "(absent)",
+  "lock (pkg)": lock.packages?.[""]?.version ?? "(absent)",
 };
 
 const distinct = [...new Set(Object.values(manifests))];
 if (distinct.length !== 1) {
   console.error("✗ manifest versions disagree:");
-  for (const [k, v] of Object.entries(manifests)) console.error(`    ${k.padEnd(7)} ${v}`);
+  for (const [k, v] of Object.entries(manifests)) console.error(`    ${k.padEnd(12)} ${v}`);
   console.error("  Run `node scripts/bump-version.mjs <version>` to set them in lockstep.");
   process.exit(1);
 }
@@ -51,4 +58,4 @@ if (expected && expected !== version) {
   process.exit(1);
 }
 
-console.log(`✓ all three manifests at ${version}${expected ? " (matches tag)" : ""}`);
+console.log(`✓ all release version fields at ${version}${expected ? " (matches tag)" : ""}`);
