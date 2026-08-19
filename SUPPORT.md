@@ -23,6 +23,26 @@ dead runtime) and removes the recurring decision. A scheduled reminder
 (`.github/workflows/python-eol-reminder.yml`) opens an issue ahead of each EOL so
 the floor moves *before* dependencies force it.
 
+## Supported Node.js versions
+
+plumb-line supports the Node.js release lines that are **in maintenance or
+active LTS** — the same not-EOL rule as Python, against Node's published
+[release schedule](https://github.com/nodejs/release#release-schedule) — with
+one honest addition: the floor is never claimed below **the lowest version CI
+actually exercises**. The v0.9.0 lesson ([#233]): the published `>= 16` floor
+was partly false (the `./http` subpath needs Node ≥ 18) and untestable (the
+test runner needs ≥ 20), so the supported floor is the tested floor.
+
+- The floor is raised when a release line reaches EOL, proactively on the
+  calendar — or earlier when a toolchain floor forces it, in which case the
+  raise is a minor release and the reason is recorded (the #233 precedent).
+- CI tests the current floor and the newest LTS; lines in between are
+  supported.
+
+**Current floor: Node 20.** (18 is EOL; CI exercises 20 and 22.)
+
+[#233]: https://github.com/slopstopper/plumb-line/issues/233
+
 ## Reporting issues
 
 Bugs and feature requests: <https://github.com/slopstopper/plumb-line/issues>.

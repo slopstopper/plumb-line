@@ -2,9 +2,10 @@
 
 **Principles revision:** 1
 
-The single source of the discipline. The three skills (`plumb-line-method`,
-`plumb-line-bootstrap`, `plumb-line-audit`) reference this document; they do
-not restate it. Stable `##` headings allow direct linking by section name.
+The single source of the discipline. The five skills (`plumb-line-method`,
+`plumb-line-bootstrap`, `plumb-line-audit`, `plumb-line-remediate`,
+`plumb-line-adopt`) reference this document; they do not restate it. Stable
+`##` headings allow direct linking by section name.
 
 This revision number identifies the ruleset an audit was run against. Bump it
 whenever a principle's meaning, scope, or the maturity vocabulary changes (not
