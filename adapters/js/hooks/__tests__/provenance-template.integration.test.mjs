@@ -128,10 +128,15 @@ describe("eslint-provenance.template.cjs (as bootstrap installs it)", () => {
       `files: ${JSON.stringify(["src/**/*.mjs"])}`,
     );
     const start = filled.indexOf("  // Output-tag enforcement");
-    const end = filled.lastIndexOf("  },");
     expect(start).toBeGreaterThan(-1);
+    // "through THAT object's closing },": the first block-closing brace at or
+    // after the marker — never lastIndexOf, which would silently swallow any
+    // block appended after the output block (#308 review).
+    const end = filled.indexOf("\n  },", start);
     expect(end).toBeGreaterThan(start);
-    const declined = filled.slice(0, start) + filled.slice(end + "  },\n".length);
+    const declined = filled.slice(0, start) + filled.slice(end + "\n  },\n".length);
+    // The bypass block above the removal must survive verbatim.
+    expect(declined).toContain('files: ["src/**/*.mjs"]');
     expect(declined).not.toContain("__OUTPUT_GLOBS__");
     const configPath = path.join(workdir, "eslint.config.declined.cjs");
     writeFileSync(configPath, declined);

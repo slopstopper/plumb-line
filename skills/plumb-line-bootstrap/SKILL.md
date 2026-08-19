@@ -188,11 +188,17 @@ all of them** — the goal is a builder who can extend it, not a wrapped codebas
    resolves. Fill the placeholder **in the code line, never the comments**:
    replace exactly `files: __GLOBS__` with the scaffolded sites' globs — both
    placeholders appear in the template's comments before their code use, so a
-   first-occurrence replace fills prose and leaves the code `undefined`.
-   Leave the `__OUTPUT_GLOBS__` block untouched: Step 4c, which always runs
-   next when this step ran, fills it or removes it — the placeholder never
-   survives to a finished bootstrap. Load the fragment from the flat config
-   the same way as the boundary template (import and spread its entries).
+   first-occurrence replace fills prose and leaves the code placeholder to
+   throw `ReferenceError` at load. Write the filled copy as
+   `eslint-provenance.cjs` next to the target repo's flat config. Leave the
+   `__OUTPUT_GLOBS__` block untouched: Step 4c, which always runs next when
+   this step ran, fills it or removes it — the placeholder never survives to
+   a finished bootstrap. Wire it into the flat config by spreading the
+   fragment's entries into the exported array (`...require("./eslint-provenance.cjs")`)
+   — unlike the boundary template, which exports a `rules` object, this
+   fragment exports an ARRAY of full config blocks carrying their own
+   `files` scoping and plugin registration; spreading `.rules` from it gets
+   `undefined` and drops the scoping.
    **Python:** copy `adapters/python/provenance_lint.py` into the repo's
    tooling directory and extend the test from item 4 to run its `check()`
    over the scaffolded files — the pre-commit gate runs the project's one
@@ -243,12 +249,13 @@ blanket disable, after which it catches nothing.
   - **JS:** in the installed config, replace exactly `files: __OUTPUT_GLOBS__`
     (the code line — the same never-the-comments rule as `__GLOBS__`) with
     the agreed surface. The rule is already registered in that block.
-  - **Python:** there is no config template — extend the suite test from
-    Step 4b item 5 to also assert the surface files' outputs carry
-    provenance (`provenance_lint.py`'s require-output check over the agreed
-    files, via its library API). The check rides the project's test command;
-    the pre-commit gate takes exactly one runner, so never bolt a second
-    command onto the gate itself.
+  - **Python:** there is no config template — extend the audits-clean suite
+    test from Step 4b item 4 (the one item 5's lint rides alongside) to also
+    assert the surface files' outputs carry provenance
+    (`provenance_lint.py`'s `check_outputs()` over the agreed files, via its
+    library API). The check rides the project's test command; the pre-commit
+    gate takes exactly one runner, so never bolt a second command onto the
+    gate itself.
 - **Verify, don't assume** (same rule as Step 4): plant a function inside the
   surface that returns a raw computation, confirm the gate blocks, then remove
   it. An installed-but-inert rule is the failure mode to rule out — and this one

@@ -48,8 +48,11 @@ and parameterizes these files into the target repo.
   boundary, opt-out per function; with no surface declared it is a no-op.
 - JS: `provenance-lint/require-provenance-output.cjs` (an ESLint rule) +
   the `__OUTPUT_GLOBS__` block in `eslint-provenance.template.cjs`.
-- Python: `provenance_lint.py --require-output <files>` — no config template;
-  it is wired as a pre-commit-gate runner rather than through a config file.
+- Python: `provenance_lint.py` — no config template; the output check is
+  wired into the project's own test command via the library API
+  (`check_outputs()` over the declared surface files), which the pre-commit
+  gate already runs. The gate itself takes exactly one runner by design —
+  never a second chained command (#214).
 - Both sides prove the rule → `decide()` contract — NOT the shipped CLI path
   (`PLUMBLINE_TEST_CMD` → spawn → exit code), which is uncovered on both sides:
   `adapters/js/hooks/__tests__/provenance-lint-gate.integration.test.mjs` and
