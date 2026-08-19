@@ -1,5 +1,12 @@
 # Opportunity watcher — weekly sweep contract (#256)
 
+**Status: current.** The routine runs as a Claude Code scheduled cloud agent
+(weekly), installed outside this repo by design — the schedule definition
+points at this file rather than duplicating it, and the in-repo evidence it
+runs is the digest trail itself ([#275](https://github.com/slopstopper/plumb-line/issues/275),
+[#284](https://github.com/slopstopper/plumb-line/issues/284)). A gap in that
+trail, not a config file, is how a dead routine shows.
+
 A weekly scheduled cloud agent sweeps for docking points and files one digest
 issue with 0–3 *drafted* actions. It proposes; it never executes. Shared
 gates live on [#260](https://github.com/slopstopper/plumb-line/issues/260)

@@ -951,3 +951,68 @@ fix-or-defer.
 
 Session artifacts (auditor reports, staged fixtures) live in the working
 session's job directory; this section is the durable record.
+
+## v0.10.0 release-harness record — 2026-08-19 (pre-tag)
+
+Method-surface diff since v0.9.0 (audit-skill format tightening #297,
+routing-format v1 #309, bootstrap Step 4b/4c rework #308, three primitive
+fixes) → full harness run at `38a7f4a`.
+
+### Part 1 — Blind validation (release-blocking): 6/6 findings PASS
+
+Fixtures staged by the `evals/audit-*/scaffold.sh` scripts (answer keys
+deleted, violation-naming lines stripped, strip self-verified); six read-only
+auditors — two independent per `broken/` variant, one per `clean/` — reading
+only the current `skills/plumb-line-audit/SKILL.md` +
+`reference/portable-principles.md`; identical plain prompt carrying the
+declared architecture.
+
+| Run | Planted set | Result |
+| --- | --- | --- |
+| js-broken A | P2 rates.js, P5 pricing.js, P3 gateway.js — all confirmed violations | PASS |
+| js-broken B | same three confirmed | PASS |
+| py-broken A | P2 schema.py, P5 aggregate.py, P8 source.py — all confirmed violations | PASS |
+| py-broken B | same three confirmed | PASS |
+| js-clean | 0 confirmed violations; P7/P9 advisory adoption gaps, spine needs-review | PASS |
+| py-clean | 0 confirmed violations; P7/P9 advisory, stub-confidence overwrite needs-review (latent path, correctly not confirmed) | PASS |
+
+The P8 omission row was confirmed as a violation in both python runs. No
+false positives against fixture reality.
+
+### Format scoring (tool, not impression) — 5/6; the #297 fix observed working
+
+`python3 scripts/check_report_format.py` on all six saved reports — five exit
+0; **py-broken run A FAILS** on three points: an improvised commit literal
+(`working tree (not a git repository — no SHA available)` — an honest state
+the contract cannot legally express, filed as
+[#315](https://github.com/slopstopper/plumb-line/issues/315)), plus one bare
+`P4` and its glossary absence (residual #293 drift class — reduced, monitor).
+The decisive difference from 2026-08-18: that same run **honestly declared**
+`format-validation: not run (read-only session — barred from writing the
+temp file)` instead of asserting a clean verdict — the #297 earned-verdict
+rule behaving exactly as written, under the same orchestration constraint
+that previously produced the false claim.
+
+### Part 1b — Remediate validation
+
+Skipped: `skills/plumb-line-remediate/SKILL.md` is untouched in this diff
+(verified by `git diff --name-only v0.9.0...origin/main`).
+
+### Part 2 — Dogfood self-audit (non-blocking)
+
+See [`dogfood.md`](dogfood.md), v0.10.0 section — **6 findings: 0 violations,
+6 needs-review**, all prose-vs-enforcement gaps in this release's own tooling
+and docs. Four fixed in the harness pass; two deferred as `audit-deferral`
+issues ([#316](https://github.com/slopstopper/plumb-line/issues/316),
+[#317](https://github.com/slopstopper/plumb-line/issues/317)). Report
+validated with `scripts/check_report_format.py` — clean (exit 0). Coverage:
+84/87 diff files read (3 lockfiles via manifests), bundled copies
+hash-verified.
+
+### Deterministic pre-tag checks
+
+- `python3 scripts/check_report_format.py` on all 7 reports (6 blind + 1
+  dogfood) — the one FAIL above, recorded rather than fixed-by-hand (the
+  report is the auditor's artifact; the contract gap it exposed is #315).
+- `node scripts/check-versions.mjs` and the full JS/Python suites run green
+  in CI on every merged PR of this batch.

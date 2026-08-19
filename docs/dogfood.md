@@ -521,3 +521,29 @@ through three independent PR reviews plus an audit gate before the harness
 ran. The P6 pointer finding was introduced by one of those very review-fix
 commits (`bebd005`), which is the argument for running the harness on the
 final tree rather than trusting accumulated review.
+
+## v0.10.0 dogfood self-audit — 2026-08-19
+
+Scope: release diff v0.9.0...`38a7f4a` (87 touched files; the three primitive
+fixes, bootstrap Step 4b/4c rework, routing-format v1, portable entry, eval
+suite + trigger harness, release tooling, docs). Report format v3, validated
+with `scripts/check_report_format.py` — clean (exit 0). Coverage: 84/87 diff
+files read, 3 lockfiles confirmed via manifests; bundled copies hash-verified
+against `primitives/`.
+
+**6 findings: 0 violations, 6 needs-review** — all produced against this
+release's own prose and tooling, which is the point.
+
+| Path | Issue | Principle | Resolution |
+| ---- | ----- | --------- | ---------- |
+| `scripts/check_content_language.py` | gate-2 flagger matches per physical line; a banned construction split across a wrap escapes, and the ban's declaration does not state the limit | P6 — Maturity vocabulary | disclosure **fixed in place** (TEMPLATE.md states the line-scope limit); scanner improvement **deferred** → [#316](https://github.com/slopstopper/plumb-line/issues/316) |
+| `docs/content/2026-08-15-…front-door.md` | published piece carries a wrapped bare-contrast the flagger cannot see, pinned flag-free by test | P6 — Maturity vocabulary | **conscious keep, recorded**: the construction predates the 2026-08-18 bare-contrast ruling and the piece is a dated published artifact; the pin re-check rides #316 |
+| `scripts/trigger_check.py` (threshold) | 0.5 pass threshold is a judgment call — named constant, but not injectable and not recorded in the results it judges | P5 — Injectable priors | **deferred** → [#317](https://github.com/slopstopper/plumb-line/issues/317) |
+| `scripts/trigger_check.py` (results JSON) | durable measurement record with no format-version key or validator, unlike the sibling stored shapes | P7 — Contracted outputs | **deferred** → [#317](https://github.com/slopstopper/plumb-line/issues/317) |
+| `docs/content/WATCHER.md` | present-tense contract with no maturity marker and no in-repo installer for the schedule | P6 — Maturity vocabulary | **fixed in place**: the contract now states the routine is `current` with its evidence (digests #275, #284) and where the schedule lives (a Claude scheduled cloud agent, outside the repo by design — the missing-weeks signal is the check) |
+| `CHANGELOG.md` (#214 entry) | "structurally impossible" claims mechanical certainty for an instruction-flow guarantee only the recipe half of which is test-pinned | P6 — Maturity vocabulary | **fixed in place** (reworded on the changelog PR to claim what the test proves) |
+
+Calibration note: all six findings again came from prose-vs-enforcement gaps
+rather than code defects — the presence pass over 84 read files was quiet,
+consistent with every change in this diff having carried failing-first tests
+and at least one adversarial review before the harness ran.

@@ -26,7 +26,10 @@ draft must trace to one of these or to a recorded number.
    delve/landscape/unlock/game-changer register, "the quiet part", hollow
    superlatives, emoji headers, roll-on emphasis tails. Em dashes are
    counted, not flagged: keep them to a bare minimum. Plain, specific, dry;
-   short sentences.
+   short sentences. Known limit (v0.10.0 dogfood, #316): the flagger matches
+   per physical line, so a banned construction split across a hard wrap
+   escapes it — the reviewer's reread, not the flagger, is the ban's
+   enforcement at wrap boundaries.
 3. **Disclosure.** The piece ends with the disclosure block, wording
    owner-approved 2026-08-15 (model parenthetical dropped by owner ruling,
    recorded 2026-08-18):
