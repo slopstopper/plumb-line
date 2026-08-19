@@ -453,5 +453,96 @@ def test_record_may_carry_its_own_format_validation_line():
                   "\nformat-validation: scripts/check_report_format.py — clean\n") == []
 
 
+VALID_ROUTING = """routing-format: v1
+scope:               ~/work/enrichd
+date:                2026-08-19
+
+denominator: scanned imports and top-level layout; did not read function bodies
+
+## Skills surface
+
+Run plumb-line-audit first (zero setup), then plumb-line-bootstrap.
+
+## Primitives surface
+
+fit: profile 1 — cited: OpenAI call with a static fallback in llm/client.py
+
+handoff: run plumb-line-audit now
+"""
+
+
+# --- routing-format v1 — the adopt skill's contracted output (#269) --------
+
+def test_valid_routing_report_passes():
+    assert _check(VALID_ROUTING) == []
+
+
+def test_routing_declined_handoff_is_valid():
+    assert _check(VALID_ROUTING.replace(
+        "handoff: run plumb-line-audit now",
+        "handoff: none (no builder present)")) == []
+
+
+def test_routing_missing_fit_line_is_flagged():
+    issues = _check(VALID_ROUTING.replace("fit: profile 1", "verdict: profile 1"))
+    # The missing-line branch specifically, not the vocabulary branch.
+    assert any("missing 'fit:' line" in i for i in issues)
+
+
+def test_routing_fit_value_outside_vocabulary_is_flagged():
+    issues = _check(VALID_ROUTING.replace(
+        "fit: profile 1", "fit: looks pretty good honestly"))
+    assert any("verdict from the vocabulary" in i for i in issues)
+
+
+def test_routing_fit_without_citation_is_flagged():
+    # A valid verdict whose evidence was dropped: the citation is the
+    # load-bearing half (#309 review — this branch was implemented untested).
+    issues = _check(VALID_ROUTING.replace(
+        "fit: profile 1 — cited: OpenAI call with a static fallback in llm/client.py",
+        "fit: profile 1"))
+    assert any("verdict from the vocabulary" in i for i in issues)
+
+
+def test_routing_fit_separator_accepts_dash_variants():
+    # Em-dash is the house style; en-dash and hyphen are realistic agent
+    # output and the citation, not the dash, is what the contract pins.
+    for dash in ("—", "–", "-"):
+        text = VALID_ROUTING.replace(
+            "fit: profile 1 — cited:", f"fit: profile 1 {dash} cited:")
+        assert _check(text) == [], dash
+
+
+def test_routing_missing_handoff_is_flagged():
+    broken = "\n".join(line for line in VALID_ROUTING.splitlines()
+                       if not line.startswith("handoff:"))
+    issues = _check(broken)
+    assert any("handoff" in i for i in issues)
+
+
+def test_routing_missing_denominator_is_flagged():
+    broken = "\n".join(line for line in VALID_ROUTING.splitlines()
+                       if not line.startswith("denominator:"))
+    issues = _check(broken)
+    assert any("denominator" in i for i in issues)
+
+
+def test_routing_missing_surface_section_is_flagged():
+    issues = _check(VALID_ROUTING.replace("## Primitives surface", "## Other"))
+    assert any("Primitives surface" in i for i in issues)
+
+
+def test_routing_report_may_carry_its_own_format_validation_line():
+    # Mirrors the audit/remediate convention: the earned-verdict marker below
+    # handoff must not read as a stray header key.
+    assert _check(VALID_ROUTING +
+                  "\nformat-validation: scripts/check_report_format.py — clean\n") == []
+
+
+def test_routing_unknown_version_is_flagged():
+    issues = _check(VALID_ROUTING.replace("routing-format: v1", "routing-format: v9"))
+    assert any("routing-format" in i and "v9" in i for i in issues)
+
+
 def issues_of(text):
     return _check(text)
