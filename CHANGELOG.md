@@ -64,10 +64,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   Step 4b's accepted branch now copies `provenance-lint/` and the template
   into the target repo and fills `files: __GLOBS__` (code line, never the
   comments); Step 4c always resolves `__OUTPUT_GLOBS__` (filled or removed)
-  against the installed copy, never the shipped template, making the
-  declined-path `ReferenceError` structurally impossible; the impossible
-  Python second-gate-runner instruction became the library-API check riding
-  the project's test command. Removal recipe pinned by an integration test.
+  against the installed copy, never the shipped template — so a followed
+  bootstrap leaves no path to the declined-path `ReferenceError` (the removal
+  recipe is test-pinned; the step ordering is instructed, and the skill text
+  is what the blind harness scores); the impossible Python second-gate-runner
+  instruction became the library-API check riding the project's test command.
 
 ### Changed
 - **SUPPORT.md gains the Node floor policy; stale skill counts swept**
