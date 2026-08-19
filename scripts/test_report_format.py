@@ -485,13 +485,39 @@ def test_routing_declined_handoff_is_valid():
 
 def test_routing_missing_fit_line_is_flagged():
     issues = _check(VALID_ROUTING.replace("fit: profile 1", "verdict: profile 1"))
-    assert any("fit:" in i for i in issues)
+    # The missing-line branch specifically, not the vocabulary branch.
+    assert any("missing 'fit:' line" in i for i in issues)
 
 
 def test_routing_fit_value_outside_vocabulary_is_flagged():
     issues = _check(VALID_ROUTING.replace(
         "fit: profile 1", "fit: looks pretty good honestly"))
-    assert any("fit:" in i for i in issues)
+    assert any("verdict from the vocabulary" in i for i in issues)
+
+
+def test_routing_fit_without_citation_is_flagged():
+    # A valid verdict whose evidence was dropped: the citation is the
+    # load-bearing half (#309 review — this branch was implemented untested).
+    issues = _check(VALID_ROUTING.replace(
+        "fit: profile 1 — cited: OpenAI call with a static fallback in llm/client.py",
+        "fit: profile 1"))
+    assert any("verdict from the vocabulary" in i for i in issues)
+
+
+def test_routing_fit_separator_accepts_dash_variants():
+    # Em-dash is the house style; en-dash and hyphen are realistic agent
+    # output and the citation, not the dash, is what the contract pins.
+    for dash in ("—", "–", "-"):
+        text = VALID_ROUTING.replace(
+            "fit: profile 1 — cited:", f"fit: profile 1 {dash} cited:")
+        assert _check(text) == [], dash
+
+
+def test_routing_missing_handoff_is_flagged():
+    broken = "\n".join(line for line in VALID_ROUTING.splitlines()
+                       if not line.startswith("handoff:"))
+    issues = _check(broken)
+    assert any("handoff" in i for i in issues)
 
 
 def test_routing_missing_denominator_is_flagged():
@@ -504,6 +530,13 @@ def test_routing_missing_denominator_is_flagged():
 def test_routing_missing_surface_section_is_flagged():
     issues = _check(VALID_ROUTING.replace("## Primitives surface", "## Other"))
     assert any("Primitives surface" in i for i in issues)
+
+
+def test_routing_report_may_carry_its_own_format_validation_line():
+    # Mirrors the audit/remediate convention: the earned-verdict marker below
+    # handoff must not read as a stray header key.
+    assert _check(VALID_ROUTING +
+                  "\nformat-validation: scripts/check_report_format.py — clean\n") == []
 
 
 def test_routing_unknown_version_is_flagged():

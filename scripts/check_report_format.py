@@ -43,8 +43,12 @@ REMEDIATION_HEADER_KEYS = ["remediation-format", "source-report", "source-report
 # contract — header + five body elements — because the output is
 # conversational prose around a routing decision, not a findings table.
 ROUTING_HEADER_KEYS = ["routing-format", "scope", "date"]
+# The verdict/citation separator accepts em-dash, en-dash, or hyphen: this
+# project's prose leans on em-dashes, but an agent producing the report is a
+# realistic source of any of the three, and the citation's presence is the
+# load-bearing part (#309 review).
 _ROUTING_FIT = re.compile(
-    r"^fit:\s*(profile\s+[0-9]+|anti-profile|no fit|mixed|uncertain)\b.*—\s*cited",
+    r"^fit:\s*(profile\s+[0-9]+|anti-profile|no fit|mixed|uncertain)\b.*[—–-]\s*cited",
     re.M | re.I)
 _ROUTING_FIT_LINE = re.compile(r"^fit:", re.M | re.I)
 
@@ -405,7 +409,10 @@ def check_routing(text, principles):
     design — the report is conversational routing prose, so the contract pins
     the five elements the skill already requires rather than a table shape:
     the header, a denominator line, both surface sections, a fit verdict from
-    the vocabulary with cited evidence, and a handoff line."""
+    the vocabulary with cited evidence, and a handoff line. `principles` is
+    accepted for dispatch symmetry and deliberately unused: routing prose is
+    not held to the inline-naming rule the audit/remediation formats enforce
+    (part of the same light-by-design decision)."""
     issues = []
     pairs = _header_lines(text)
     _check_header(pairs, ROUTING_HEADER_KEYS, "routing-format",
@@ -448,9 +455,9 @@ def check(text, principles):
         if len(starts) > 1:
             issues.append(
                 f"ambiguous report: {len(starts)} header lines "
-                f"('report-format:'/'remediation-format:') — a report carries "
-                f"exactly one header block, and the checker cannot tell which "
-                f"one it is validating")
+                f"('report-format:'/'remediation-format:'/'routing-format:') — "
+                f"a report carries exactly one header block, and the checker "
+                f"cannot tell which one it is validating")
         checker = {"report": check_report, "remediation": check_remediation,
                    "routing": check_routing}[kind]
         return issues + checker(text, principles)

@@ -123,14 +123,26 @@ fit: <profile N | anti-profile | no fit | mixed | uncertain> — cited: <what wa
 handoff: <the one offered next step> | none (<reason>)
 ```
 
-The `fit:` verdict comes from that vocabulary only, always with its citation —
-a guessed fit presented as a match is exactly what Step 3 forbids, and the
-contract makes the omission mechanical to catch. Validate before emitting,
-the same earned-verdict rule as the audit skill: when
-`scripts/check_report_format.py` is reachable, run it on the report and fix
-violations before printing; the `— clean` marker may only follow an actual
-execution, and anything that prevents running it is the `not run (<reason>)`
-case, stated in the line.
+The `fit:` verdict comes from that vocabulary only, **always followed by a
+dash and `cited:`** (`— cited: <what was seen>`; em-dash, en-dash, or hyphen
+all validate) — a guessed fit presented as a match is exactly what Step 3
+forbids, and the citation's presence is what the checker pins mechanically.
+
+Validate before emitting, the same earned-verdict rule as the audit skill:
+when `scripts/check_report_format.py` is reachable, run it on the report and
+fix violations before printing, then close the report with one of these two
+literal lines, below `handoff:`:
+
+```
+format-validation: scripts/check_report_format.py — clean
+format-validation: not run (checker unavailable in this repo)
+```
+
+The `— clean` form may only follow an actual execution on the exact text
+being emitted; anything that prevents running it is the `not run (<reason>)`
+case, reason stated in the line. The key is `format-validation:`, never a
+second `routing-format:` line — a duplicate header key makes the report
+ambiguous and the checker rejects it.
 
 ## 4. Hand off — invoke on yes, never apply
 
