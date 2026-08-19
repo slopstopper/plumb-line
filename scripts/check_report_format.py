@@ -7,10 +7,11 @@ first two and not the third — so "no format FAILs" in
 docs/validation-results.md was a human judgement, repeated across six release
 runs. This makes it mechanical.
 
-Validates either contract, auto-detected from the first key line:
+Validates any of the contracts, auto-detected from the first key line:
 
     report-format: v3        the plumb-line-audit report
     remediation-format: v1   the plumb-line-remediate record
+    routing-format: v1       the plumb-line-adopt routing report (#269)
 
 Principle names are read from reference/portable-principles.md, never
 hardcoded — a second copy of the ruleset in here would be exactly the drift
@@ -33,10 +34,19 @@ _PRINCIPLES_DOC = os.path.join(_ROOT, "reference", "portable-principles.md")
 # report claiming v9 was produced by something this checker does not model.
 KNOWN_REPORT_VERSIONS = {"v1", "v2", "v3"}
 KNOWN_REMEDIATION_VERSIONS = {"v1"}
+KNOWN_ROUTING_VERSIONS = {"v1"}
 
 REPORT_HEADER_KEYS = ["report-format", "scope", "principles-revision", "date", "commit"]
 REMEDIATION_HEADER_KEYS = ["remediation-format", "source-report", "source-report-format",
                            "principles-revision", "date", "commit"]
+# The adopt skill's routing recommendation (#269): a deliberately LIGHT
+# contract — header + five body elements — because the output is
+# conversational prose around a routing decision, not a findings table.
+ROUTING_HEADER_KEYS = ["routing-format", "scope", "date"]
+_ROUTING_FIT = re.compile(
+    r"^fit:\s*(profile\s+[0-9]+|anti-profile|no fit|mixed|uncertain)\b.*—\s*cited",
+    re.M | re.I)
+_ROUTING_FIT_LINE = re.compile(r"^fit:", re.M | re.I)
 
 FINDINGS_COLUMNS = ["Path", "Line", "Function", "Issue", "Suggested Fix", "Principle"]
 RECORD_COLUMNS = ["Finding", "Path", "Class", "Action", "Change summary"]
@@ -74,7 +84,7 @@ _PRINCIPLE_CODE = re.compile(r"(?<![\w/–—-])P([1-9])(?![\w/–—-])")
 # quotation, not a citation, and must not be read as either.
 _CODE_SPAN = re.compile(r"`[^`\n]*`")
 _FENCE = re.compile(r"^\s*(?:```+|~~~+)\s*[A-Za-z0-9_-]*\s*$")
-_HEADER_START = re.compile(r"^(?:report|remediation)-format:", re.M)
+_HEADER_START = re.compile(r"^(?:report|remediation|routing)-format:", re.M)
 
 
 def _mask_code_spans(text):
@@ -131,6 +141,8 @@ def detect_format(text):
         return "report"
     if key == "remediation-format":
         return "remediation"
+    if key == "routing-format":
+        return "routing"
     return None
 
 
@@ -388,9 +400,42 @@ def check_remediation(text, principles):
     return issues
 
 
+def check_routing(text, principles):
+    """routing-format v1 (#269): the adopt skill's contracted output. Light by
+    design — the report is conversational routing prose, so the contract pins
+    the five elements the skill already requires rather than a table shape:
+    the header, a denominator line, both surface sections, a fit verdict from
+    the vocabulary with cited evidence, and a handoff line."""
+    issues = []
+    pairs = _header_lines(text)
+    _check_header(pairs, ROUTING_HEADER_KEYS, "routing-format",
+                  KNOWN_ROUTING_VERSIONS, issues)
+
+    body = _mask_code_spans(text)
+    if not re.search(r"^denominator:\s*\S", body, re.M | re.I):
+        issues.append("missing 'denominator:' line — the scan's coverage claim "
+                      "(what was scanned, what was not) is required")
+    for section in ("Skills surface", "Primitives surface"):
+        if not re.search(rf"^#+\s.*{re.escape(section)}", body, re.M | re.I):
+            issues.append(f"missing '{section}' section — the routing answer "
+                          f"covers both surfaces, always")
+    if not _ROUTING_FIT_LINE.search(body):
+        issues.append("missing 'fit:' line — the primitives verdict must be "
+                      "stated (profile N / anti-profile / no fit / mixed / "
+                      "uncertain) with cited evidence")
+    elif not _ROUTING_FIT.search(body):
+        issues.append("fit: line must name a verdict from the vocabulary "
+                      "(profile N / anti-profile / no fit / mixed / uncertain) "
+                      "followed by '— cited: <what was seen>'")
+    if not re.search(r"^handoff:\s*\S", body, re.M | re.I):
+        issues.append("missing 'handoff:' line — the one offered next step, or "
+                      "'none (<reason>)' when declined or no builder is present")
+    return issues
+
+
 def check(text, principles):
     kind = detect_format(text)
-    if kind in ("report", "remediation"):
+    if kind in ("report", "remediation", "routing"):
         # Exactly one header block, or the checker cannot say which one it
         # validated. Fence tolerance made `_header_lines` take the FIRST header
         # it found, so a document quoting the template in a fence and then
@@ -406,11 +451,13 @@ def check(text, principles):
                 f"('report-format:'/'remediation-format:') — a report carries "
                 f"exactly one header block, and the checker cannot tell which "
                 f"one it is validating")
-        checker = check_report if kind == "report" else check_remediation
+        checker = {"report": check_report, "remediation": check_remediation,
+                   "routing": check_routing}[kind]
         return issues + checker(text, principles)
     return ["unrecognised report contract: the first header key must be "
-            "'report-format:' or 'remediation-format:' — check for a title "
-            "line, prose, or an unclosed code fence above the header block"]
+            "'report-format:', 'remediation-format:' or 'routing-format:' — "
+            "check for a title line, prose, or an unclosed code fence above "
+            "the header block"]
 
 
 def main(argv):

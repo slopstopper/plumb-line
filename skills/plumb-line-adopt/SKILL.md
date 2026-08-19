@@ -99,6 +99,39 @@ is a separate, opt-in, later decision.
 say what would settle it, with the builder's own code as the test — never
 present a guessed fit as a match.
 
+## The routing report is contracted (routing-format: v1)
+
+The audit and remediate siblings emit versioned, checker-validated shapes;
+this skill's routing recommendation is a public output and carries one too
+(#269, P7 applied to our own output). The contract is deliberately light —
+conversational prose stays conversational; five elements are pinned:
+
+```
+routing-format: v1
+scope:               <the repository routed>
+date:                <YYYY-MM-DD>
+
+denominator: <the Step-1 coverage line — what the scan covered and did not>
+
+## Skills surface
+<the Step-3 answer: which skills, in what order, one line each>
+
+## Primitives surface
+fit: <profile N | anti-profile | no fit | mixed | uncertain> — cited: <what was seen>
+<the mechanics primer and adapted integration, or the honest walk-away>
+
+handoff: <the one offered next step> | none (<reason>)
+```
+
+The `fit:` verdict comes from that vocabulary only, always with its citation —
+a guessed fit presented as a match is exactly what Step 3 forbids, and the
+contract makes the omission mechanical to catch. Validate before emitting,
+the same earned-verdict rule as the audit skill: when
+`scripts/check_report_format.py` is reachable, run it on the report and fix
+violations before printing; the `— clean` marker may only follow an actual
+execution, and anything that prevents running it is the `not run (<reason>)`
+case, stated in the line.
+
 ## 4. Hand off — invoke on yes, never apply
 
 End with ONE short offer naming the next step. When the builder accepts,
