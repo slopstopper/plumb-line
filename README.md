@@ -37,6 +37,8 @@ plumb-line enforces the same discipline at two moments. At review time, the **au
 
 ## Install
 
+**Not using Claude?** The skills are host-neutral markdown over files and the library installs from npm/PyPI with zero dependencies — [portable/README.md](portable/README.md) is the entry point that skips the plugin shell.
+
 **As a Claude Code plugin (recommended).** The repository is its own plugin marketplace from inside Claude Code:
 
 ```
