@@ -43,9 +43,18 @@ draft must trace to one of these or to a recorded number.
 
    The first line is the one sanctioned dry line per piece.
 4. **Cap.** At most 4 published items per month across all routines
-   (#255/#256/#257 combined). Count the month's published pieces in
-   `docs/content/` (filenames are dated) plus any outbound the owner placed
-   elsewhere; if this piece would be the fifth, it waits.
+   (#255/#256/#257 combined) — **counting unanchored outbound only**
+   (submissions, listing PRs, campaigns, standalone pieces). A
+   **release-anchored piece** — one drafted from a shipped release's
+   artifacts under this template — does not count (owner ruling 2026-08-19,
+   recorded on #260): such a piece is bounded by the release process itself
+   (harness, gates, deliberate-cadence rule), which is the throttle; it
+   cannot become spam without the release process failing first. This fits a
+   bursty shipping cadence — a burst of releases legitimately carries its
+   pieces; a quiet month spends nothing. Count the month's unanchored items
+   (dated filenames in `docs/content/` not tied to a release, plus outbound
+   the owner placed elsewhere); if this piece is unanchored and would be the
+   fifth, it waits.
 
 ## Publishing
 
