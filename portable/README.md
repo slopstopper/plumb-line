@@ -8,9 +8,10 @@ not route through the plugin shell, for any capable coding agent (#303).
 
 **Maturity, stated plainly:** the instructions below are host-neutral by
 design (`current`); a *measured* non-Claude pass of the blind-validation
-protocol is `planned` — the first recorded run will be linked from
-`docs/validation-results.md` when it exists. Until then, "any capable agent
-can execute this" is a design claim awaiting its measurement.
+protocol is `planned` — when a run happens it will be recorded in
+[`docs/validation-results.md`](../docs/validation-results.md) alongside the
+existing Claude-measured runs. Until then, "any capable agent can execute
+this" is a design claim awaiting its measurement.
 
 ## Run the audit
 
@@ -34,6 +35,7 @@ can execute this" is a design claim awaiting its measurement.
 | "invoke `plumb-line-bootstrap`" (or any sibling skill) | Open that skill's `SKILL.md` and follow it the same way |
 | "plugin root" | This repository's root (or the installed plugin's root — same files) |
 | "the host's skill mechanism" | However your harness loads instructions; following the file is the mechanism |
+| "superpowers `writing-plans`, or plan mode" (post-report offers) | Any planning workflow your host offers, or skip the offer — the audit is complete at the report |
 
 The same pattern runs the other skills: `plumb-line-method` (pure teaching),
 `plumb-line-adopt` (read-only routing; its output contract is
@@ -49,12 +51,18 @@ it — run the blind-validation protocol this repo scores Claude against:
 
 1. Stage the fixtures with the scaffold scripts in `evals/audit-*/scaffold.sh`
    (they copy `examples/` fixtures and strip the answer keys; each verifies
-   its own strip).
+   its own strip). **Run each scaffold from a scratch directory OUTSIDE the
+   repository** — the scripts stage to `./fixture` relative to where you run
+   them, and a fixture staged inside the repo leaves the agent one relative
+   path away from `examples/`' answer keys, silently inflating a pass.
+   Confirm the staged tree has no path back into the repository.
 2. Give the agent only: the two required-reading files above, the staged
-   fixture, and the declared architecture from
+   fixture, and the declared-architecture paragraph from the matching
+   [`evals/audit-*/prompt.md`](../evals/) — it carries the architecture
+   verbatim and no answer key. **Withhold
    [`examples/AUDIT-EXPECTATIONS.md`](../examples/AUDIT-EXPECTATIONS.md)
-   protocol step 3. **Withhold the expectations file itself** — it contains
-   the answer keys.
+   from the agent** — it contains the expected findings; you read it only
+   when scoring.
 3. Score the result against the expectations tables, and the report's shape
    with `scripts/check_report_format.py`. Pass criteria are in the same file:
    all planted violations confirmed on `broken/`, zero confirmed violations
