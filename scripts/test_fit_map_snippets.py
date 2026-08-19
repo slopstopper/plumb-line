@@ -154,8 +154,9 @@ def test_no_unrecognized_fences():
     unknown = tags - _RUN_TAGS - _GUARDED_ELSEWHERE_TAGS
     assert not unknown, (
         f'fit-map has fence tag(s) {sorted(unknown)!r} the snippet guard '
-        f'does not recognize — add to _RUN_TAGS (and a prelude) or the '
-        f'known-unguarded set, never let a fence escape silently')
+        f'does not recognize — add to _RUN_TAGS (and a prelude) or to '
+        f'_GUARDED_ELSEWHERE_TAGS (and a twin guard), never let a fence '
+        f'escape silently')
 
 
 def test_extraction_found_the_snippets():

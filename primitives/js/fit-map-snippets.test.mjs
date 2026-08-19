@@ -9,7 +9,10 @@
 // inside the package, and dynamically imported. Inside the package dir the
 // snippet's `import ... from "plumb-line-provenance"` resolves by Node
 // self-reference through package.json "exports" — the snippets run exactly
-// as written for a consumer.
+// as written for a consumer. Unlike the Python twin (a repo-infrastructure
+// suite outside any package, per the test_bundle_conformance precedent),
+// this file lives INSIDE the published package: self-reference resolution
+// requires it, a recorded deviation rather than an accident.
 import { describe, it, expect, afterAll } from "vitest";
 import { readFileSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -19,6 +22,17 @@ import { metaOf } from "plumb-line-provenance";
 const here = dirname(fileURLToPath(import.meta.url));
 const FIT_MAP = join(here, "..", "..", "reference", "fit-map.md");
 const TMP = join(here, `.fitmap-snippets-tmp-${process.pid}`);
+
+// The Python twin asserts the loaded copy is the repo's, never assumes it;
+// same discipline here (#307 review): a published plumb-line-provenance
+// landing in node_modules would silently shadow self-reference and this
+// suite would verify a stale release while staying green.
+const resolved = await import.meta.resolve("plumb-line-provenance");
+if (resolved !== pathToFileURL(join(here, "index.mjs")).href) {
+  throw new Error(
+    `plumb-line-provenance resolved outside this package: ${resolved}`,
+  );
+}
 
 const text = readFileSync(FIT_MAP, "utf8");
 const ALL_BLOCKS = [...text.matchAll(/```([^\n]*)\n([\s\S]*?)```/g)].map(
