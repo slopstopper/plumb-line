@@ -99,6 +99,51 @@ is a separate, opt-in, later decision.
 say what would settle it, with the builder's own code as the test — never
 present a guessed fit as a match.
 
+## The routing report is contracted (routing-format: v1)
+
+The audit and remediate siblings emit versioned, checker-validated shapes;
+this skill's routing recommendation is a public output and carries one too
+(#269, P7 applied to our own output). The contract is deliberately light —
+conversational prose stays conversational; five elements are pinned:
+
+```
+routing-format: v1
+scope:               <the repository routed>
+date:                <YYYY-MM-DD>
+
+denominator: <the Step-1 coverage line — what the scan covered and did not>
+
+## Skills surface
+<the Step-3 answer: which skills, in what order, one line each>
+
+## Primitives surface
+fit: <profile N | anti-profile | no fit | mixed | uncertain> — cited: <what was seen>
+<the mechanics primer and adapted integration, or the honest walk-away>
+
+handoff: <the one offered next step> | none (<reason>)
+```
+
+The `fit:` verdict comes from that vocabulary only, **always followed by a
+dash and `cited:`** (`— cited: <what was seen>`; em-dash, en-dash, or hyphen
+all validate) — a guessed fit presented as a match is exactly what Step 3
+forbids, and the citation's presence is what the checker pins mechanically.
+
+Validate before emitting, the same earned-verdict rule as the audit skill:
+when `scripts/check_report_format.py` is reachable, run it on the report and
+fix violations before printing, then close the report with one of these two
+literal lines, below `handoff:`:
+
+```
+format-validation: scripts/check_report_format.py — clean
+format-validation: not run (checker unavailable in this repo)
+```
+
+The `— clean` form may only follow an actual execution on the exact text
+being emitted; anything that prevents running it is the `not run (<reason>)`
+case, reason stated in the line. The key is `format-validation:`, never a
+second `routing-format:` line — a duplicate header key makes the report
+ambiguous and the checker rejects it.
+
 ## 4. Hand off — invoke on yes, never apply
 
 End with ONE short offer naming the next step. When the builder accepts,

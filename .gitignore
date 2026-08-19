@@ -31,3 +31,6 @@ dist/
 docs/plans/
 docs/specs/
 docs/superpowers/
+
+# fit-map JS snippet guard scratch modules (#265)
+.fitmap-snippets-tmp-*/
