@@ -5,7 +5,7 @@ import globals from "globals";
 // PEP-8-equivalent for the JavaScript side of CONTRIBUTING.md. Satisfies
 // OpenSSF Best Practices silver: coding_standards_enforced, warnings_strict.
 export default [
-  { ignores: ["coverage/**", "node_modules/**"] },
+  { ignores: ["coverage/**", "node_modules/**", ".fitmap-snippets-tmp-*/**"] },
   js.configs.recommended,
   {
     files: ["**/*.mjs"],
