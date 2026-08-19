@@ -21,8 +21,42 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   ≤4/month cap), and publishes to `docs/content/`. Ships with the first
   worked example, drafted from the v0.9.0 release, edited and approved by
   the owner.
+- **`routing-format: v1` — the adopt skill's output gets its contract**
+  ([#269](https://github.com/slopstopper/plumb-line/issues/269)): a
+  deliberately light shape for the routing report — header, denominator
+  line, both surface sections, a fit verdict from a closed vocabulary with
+  cited evidence, and a handoff line — validated by
+  `scripts/check_report_format.py`, which now models its third format. The
+  audit and remediate siblings already had contracts; this was the one
+  public skill output without one.
+- **Portable entry point: run the skills without Claude**
+  ([#303](https://github.com/slopstopper/plumb-line/issues/303) slice 1 /
+  [#312](https://github.com/slopstopper/plumb-line/issues/312)):
+  `portable/README.md` hands any capable coding agent the audit method
+  directly — required reading, a host-substitution table, the report
+  contract and its stdlib checker, and the prove-a-host blind protocol.
+  Host-neutral by design is `current`; the measured non-Claude pass is
+  `planned` ([#313](https://github.com/slopstopper/plumb-line/issues/313)).
+- **Executable guard for the fit-map's JS snippets**
+  ([#265](https://github.com/slopstopper/plumb-line/issues/265)): the
+  ```` ```js ```` blocks in `reference/fit-map.md` now run against
+  `primitives/js` in CI, mirroring the Python guard from #262 — canonical
+  examples in both languages can no longer rot silently.
 
 ### Fixed
+- **Audit skill: the format verdict is earned, never asserted**
+  ([#293](https://github.com/slopstopper/plumb-line/issues/293)): one of six
+  blind-validation runs printed `format-validation: — clean` over a report
+  the checker fails, after its orchestration blocked the temp-file step the
+  self-check needs. The skill now defines the clean marker as
+  execution-earned — any obstacle is the `not run (<reason>)` case — and
+  pins the omission-table's inline-named form with a worked cell (the
+  observed drift).
+- **`bump-version.mjs` syncs `package-lock.json`; `check-versions.mjs`
+  gates it** ([#268](https://github.com/slopstopper/plumb-line/issues/268)):
+  the 0.8.1 bump left the lock a version behind until an unrelated
+  `npm install` absorbed the drift; the bump now writes the lock's two
+  package-self fields and every PR checks all five version fields agree.
 - **Bootstrap actually installs the provenance lint, and Step 4c edits the
   right file** ([#214](https://github.com/slopstopper/plumb-line/issues/214),
   [#228](https://github.com/slopstopper/plumb-line/issues/228)): the
@@ -30,12 +64,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   Step 4b's accepted branch now copies `provenance-lint/` and the template
   into the target repo and fills `files: __GLOBS__` (code line, never the
   comments); Step 4c always resolves `__OUTPUT_GLOBS__` (filled or removed)
-  against the installed copy, never the shipped template, making the
-  declined-path `ReferenceError` structurally impossible; the impossible
-  Python second-gate-runner instruction became the library-API check riding
-  the project's test command. Removal recipe pinned by an integration test.
+  against the installed copy, never the shipped template — so a followed
+  bootstrap leaves no path to the declined-path `ReferenceError` (the removal
+  recipe is test-pinned; the step ordering is instructed, and the skill text
+  is what the blind harness scores); the impossible Python second-gate-runner
+  instruction became the library-API check riding the project's test command.
 
 ### Changed
+- **SUPPORT.md gains the Node floor policy; stale skill counts swept**
+  ([#270](https://github.com/slopstopper/plumb-line/issues/270),
+  [#267](https://github.com/slopstopper/plumb-line/issues/267)): Node gets
+  the same not-EOL rule as Python plus the tested-floor addition from #233
+  (the supported floor is never claimed below what CI exercises; current
+  floor Node 20); live surfaces that still said "three skills" now say five
+  or go count-free.
 - **HTTP adapters: an unreadable `Age` header degrades confidence instead of
   reading as absent**
   ([#208](https://github.com/slopstopper/plumb-line/issues/208), ADR-0014):
