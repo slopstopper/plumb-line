@@ -111,6 +111,40 @@ describe("eslint-provenance.template.cjs (as bootstrap installs it)", () => {
     expect(messages.map((m) => m.ruleId)).toContain(OUTPUT);
   });
 
+  it("declined path: the __OUTPUT_GLOBS__ block removes cleanly, bypass survives (#214)", () => {
+    // Step 4c's decline instruction followed literally: delete the second
+    // config object, leading "Output-tag enforcement" comment through its
+    // closing brace. The result must load with the bypass rule as the sole
+    // entry — the class of failure pinned against is the 4b-declined-path
+    // ReferenceError (#214 finding 3), where a surviving placeholder took
+    // the whole config (bypass rule included) down with it.
+    cpSync(
+      path.join(ADAPTER_DIR, "provenance-lint"),
+      path.join(workdir, "provenance-lint"),
+      { recursive: true },
+    );
+    const filled = readFileSync(TEMPLATE_PATH, "utf8").replace(
+      "files: __GLOBS__",
+      `files: ${JSON.stringify(["src/**/*.mjs"])}`,
+    );
+    const start = filled.indexOf("  // Output-tag enforcement");
+    expect(start).toBeGreaterThan(-1);
+    // "through THAT object's closing },": the first block-closing brace at or
+    // after the marker — never lastIndexOf, which would silently swallow any
+    // block appended after the output block (#308 review).
+    const end = filled.indexOf("\n  },", start);
+    expect(end).toBeGreaterThan(start);
+    const declined = filled.slice(0, start) + filled.slice(end + "\n  },\n".length);
+    // The bypass block above the removal must survive verbatim.
+    expect(declined).toContain('files: ["src/**/*.mjs"]');
+    expect(declined).not.toContain("__OUTPUT_GLOBS__");
+    const configPath = path.join(workdir, "eslint.config.declined.cjs");
+    writeFileSync(configPath, declined);
+    const config = require(configPath);
+    expect(config).toHaveLength(1);
+    expect(Object.keys(config[0].rules)).toEqual([BYPASS]);
+  });
+
   it("the output rule is silent OUTSIDE the declared surface", async () => {
     // The whole point of ADR-0011's declared surface: same untagged code, but
     // outside the boundary the rule does not exist.
