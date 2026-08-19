@@ -10,7 +10,7 @@ not route through the plugin shell, for any capable coding agent (#303).
 design (`current`); a *measured* non-Claude pass of the blind-validation
 protocol is `planned` — the first recorded run will be linked from
 `docs/validation-results.md` when it exists. Until then, "any capable agent
-can execute this" is a design claim, not a measured one.
+can execute this" is a design claim awaiting its measurement.
 
 ## Run the audit
 
