@@ -24,6 +24,7 @@ jobs:
     permissions:
       contents: write   # create the GitHub release
       id-token: write   # mint the OIDC token for trusted publishing
+      issues: write     # open the content-draft-due issue (GH #255/#321)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
@@ -101,4 +102,27 @@ jobs:
             echo "Release $GITHUB_REF_NAME already exists (created in the UI) — leaving it as-is."
           else
             gh release create "$GITHUB_REF_NAME" --generate-notes --title "plumb-line $GITHUB_REF_NAME"
+          fi
+
+      # --- Release-to-content routine (GH #255). Lives HERE, not in a
+      #     release-triggered workflow: this job publishes the release under
+      #     the default GITHUB_TOKEN, and GitHub suppresses workflow triggers
+      #     for events that token creates — an `on: release` workflow can
+      #     never fire for a tag-triggered release (found live on v0.10.0,
+      #     GH #321). Running as a step after publish gives the correct
+      #     ordering for free. Idempotent: skips if the issue already exists
+      #     (e.g. the piece was drafted with the release). ---
+      - name: Open the content-draft-due issue (GH #255)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Content draft due: $GITHUB_REF_NAME"
+          if gh issue list --repo "$GITHUB_REPOSITORY" --search "in:title \"$TITLE\"" --state all --json number --jq 'length' | grep -qv '^0$'; then
+            echo "Draft-due issue already exists for $GITHUB_REF_NAME — leaving it."
+          else
+            gh issue create \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TITLE" \
+              --label "track:distribution" \
+              --body "$(printf 'Release %s published.\n\nOne short piece is due, drafted from what actually shipped. Template and the four gates: docs/content/TEMPLATE.md. Drafts only; the owner approves everything outbound. Close this issue when the piece merges to docs/content/ (or with a written decision to skip this release).\n\nOpened automatically by .github/workflows/release.yml (GH #255; moved from release-content.yml, GH #321).' "$GITHUB_REF_NAME")"
           fi
