@@ -44,6 +44,21 @@ for (const t of targets) {
 
 if (!ok) process.exit(1);
 
+// The lockfile's two package-self fields move with the manifests (#268: the
+// 0.8.1 bump left the lock at 0.8.0, drifting until an unrelated npm install
+// absorbed it). Written directly rather than shelling to npm — deterministic,
+// offline, and exactly the two fields npm itself would set. JSON round-trip
+// matches npm's own 2-space format. check-versions.mjs now reads both fields,
+// so a missed sync fails CI instead of lingering.
+{
+  const path = join(root, "primitives/js/package-lock.json");
+  const lock = JSON.parse(readFileSync(path, "utf8"));
+  lock.version = version;
+  if (lock.packages && lock.packages[""]) lock.packages[""].version = version;
+  writeFileSync(path, JSON.stringify(lock, null, 2) + "\n");
+  console.log(`✓ lock    primitives/js/package-lock.json → ${version}`);
+}
+
 promoteChangelog(version);
 
 console.log(`\nAll manifests set to ${version}.`);
