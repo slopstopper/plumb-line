@@ -495,8 +495,8 @@ def test_routing_fit_value_outside_vocabulary_is_flagged():
 
 
 def test_routing_missing_denominator_is_flagged():
-    broken = "\n".join(l for l in VALID_ROUTING.splitlines()
-                       if not l.startswith("denominator:"))
+    broken = "\n".join(line for line in VALID_ROUTING.splitlines()
+                       if not line.startswith("denominator:"))
     issues = _check(broken)
     assert any("denominator" in i for i in issues)
 
