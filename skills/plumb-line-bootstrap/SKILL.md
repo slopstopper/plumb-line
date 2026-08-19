@@ -180,6 +180,30 @@ all of them** — the goal is a builder who can extend it, not a wrapped codebas
    wire it into the test command the pre-commit gate already runs (Step 4) — so
    an unmarked or laundered return is caught before review, by the gate the
    builder just installed.
+5. **Install the bypass lint over the scaffolded sites** (#214 — until this
+   step existed, nothing ever installed it). **JS:** copy the adapter's
+   `provenance-lint/` directory and `eslint-provenance.template.cjs` from
+   `adapters/js/` **into the target repo**, plugin directory next to the
+   config so the template's `require("./provenance-lint/index.cjs")`
+   resolves. Fill the placeholder **in the code line, never the comments**:
+   replace exactly `files: __GLOBS__` with the scaffolded sites' globs — both
+   placeholders appear in the template's comments before their code use, so a
+   first-occurrence replace fills prose and leaves the code placeholder to
+   throw `ReferenceError` at load. Write the filled copy as
+   `eslint-provenance.cjs` next to the target repo's flat config. Leave the
+   `__OUTPUT_GLOBS__` block untouched: Step 4c, which always runs next when
+   this step ran, fills it or removes it — the placeholder never survives to
+   a finished bootstrap. Wire it into the flat config by spreading the
+   fragment's entries into the exported array (`...require("./eslint-provenance.cjs")`)
+   — unlike the boundary template, which exports a `rules` object, this
+   fragment exports an ARRAY of full config blocks carrying their own
+   `files` scoping and plugin registration; spreading `.rules` from it gets
+   `undefined` and drops the scoping.
+   **Python:** copy `adapters/python/provenance_lint.py` into the repo's
+   tooling directory and extend the test from item 4 to run its `check()`
+   over the scaffolded files — the pre-commit gate runs the project's one
+   test command and takes exactly one runner by design, so the lint rides
+   that command; never try to chain a second runner onto the gate.
 
 Show each file's diff as you scaffold; every remaining unscaffolded Q4/Q8 site
 goes in the report as `planned`, so the coverage claim stays honest.
@@ -195,7 +219,16 @@ that returns a *provably raw* computation, inside a surface the builder declares
 every trust-bearing function returns raw by definition, so the rule would fire
 across the surface on day one — the exact cry-wolf failure ADR-0011 exists to
 avoid. If 4b was declined, skip this step and record it as not-offered (with
-that reason) rather than silently omitting it.
+that reason) rather than silently omitting it — nothing dangles, because the
+provenance config only exists when 4b's item 5 installed it.
+
+**When 4b was accepted, this step ALWAYS resolves the `__OUTPUT_GLOBS__`
+placeholder** — filled on accept, removed on decline. A skipped resolution
+ships a config that throws `ReferenceError` on load and takes the bypass rule
+down with it. And every edit here targets **the copy installed in the target
+repo in Step 4b item 5** — never `eslint-provenance.template.cjs` inside the
+plugin's own directory, which is the shipped template every future bootstrap
+starts from.
 
 The surface is **not** the same as the bypass-lint globs. Those cover "files
 that use the primitive"; this covers "files whose outputs must carry
@@ -204,17 +237,25 @@ downstream values and Q8 lineage-bearing outputs — and let the builder correct
 it. Do not widen it for them: a surface drawn too broad is how this rule earns a
 blanket disable, after which it catches nothing.
 
-- **Declined → remove the `__OUTPUT_GLOBS__` block from the config entirely.**
-  Not a placeholder left in place, not the rule set to `"off"` — an unreplaced
+- **Declined → remove the `__OUTPUT_GLOBS__` block from the installed config
+  entirely**: delete the second object in the exported array — from its
+  leading `// Output-tag enforcement` comment through that object's closing
+  `},` — leaving the bypass block as the array's only entry. Not a
+  placeholder left in place, not the rule set to `"off"` — an unreplaced
   placeholder throws `ReferenceError` when ESLint loads the config, and a
-  disabled rule is a claim the project enforces something it doesn't. Record the
-  decline in the report.
+  disabled rule is a claim the project enforces something it doesn't. Record
+  the decline in the report.
 - **Accepted →** wire it for the builder's language:
-  - **JS:** replace `__OUTPUT_GLOBS__` in `eslint-provenance.template.cjs` with
+  - **JS:** in the installed config, replace exactly `files: __OUTPUT_GLOBS__`
+    (the code line — the same never-the-comments rule as `__GLOBS__`) with
     the agreed surface. The rule is already registered in that block.
-  - **Python:** there is no config template — add
-    `python3 provenance_lint.py --require-output <surface files>` as a runner on
-    the pre-commit gate installed in Step 4.
+  - **Python:** there is no config template — extend the audits-clean suite
+    test from Step 4b item 4 (the one item 5's lint rides alongside) to also
+    assert the surface files' outputs carry provenance
+    (`provenance_lint.py`'s `check_outputs()` over the agreed files, via its
+    library API). The check rides the project's test command; the pre-commit
+    gate takes exactly one runner, so never bolt a second command onto the
+    gate itself.
 - **Verify, don't assume** (same rule as Step 4): plant a function inside the
   surface that returns a raw computation, confirm the gate blocks, then remove
   it. An installed-but-inert rule is the failure mode to rule out — and this one

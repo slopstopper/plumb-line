@@ -22,6 +22,19 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   worked example, drafted from the v0.9.0 release, edited and approved by
   the owner.
 
+### Fixed
+- **Bootstrap actually installs the provenance lint, and Step 4c edits the
+  right file** ([#214](https://github.com/slopstopper/plumb-line/issues/214),
+  [#228](https://github.com/slopstopper/plumb-line/issues/228)): the
+  `no-provenance-bypass` config had never been wired by any bootstrap step —
+  Step 4b's accepted branch now copies `provenance-lint/` and the template
+  into the target repo and fills `files: __GLOBS__` (code line, never the
+  comments); Step 4c always resolves `__OUTPUT_GLOBS__` (filled or removed)
+  against the installed copy, never the shipped template, making the
+  declined-path `ReferenceError` structurally impossible; the impossible
+  Python second-gate-runner instruction became the library-API check riding
+  the project's test command. Removal recipe pinned by an integration test.
+
 ### Changed
 - **HTTP adapters: an unreadable `Age` header degrades confidence instead of
   reading as absent**
