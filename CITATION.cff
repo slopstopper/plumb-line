@@ -4,6 +4,7 @@ title: "plumb-line"
 type: software
 authors:
   - alias: effythealien
+    orcid: "https://orcid.org/0009-0005-8961-9647"
 repository-code: "https://github.com/slopstopper/plumb-line"
 license: Apache-2.0
 keywords:
