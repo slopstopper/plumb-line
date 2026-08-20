@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use plumb-line, please cite it as below."
+title: "plumb-line"
+type: software
+authors:
+  - alias: effythealien
+    orcid: "https://orcid.org/0009-0005-8961-9647"
+repository-code: "https://github.com/slopstopper/plumb-line"
+license: Apache-2.0
+keywords:
+  - provenance
+  - epistemic-honesty
+  - taint-tracking
+  - data-lineage
+  - claude-code-plugin
+abstract: >-
+  A provenance library (JavaScript + Python) and Claude Code plugin that keeps
+  a codebase epistemically honest: every value carries source, confidence, and
+  lineage in a metadata envelope, combined under a conservative law so that
+  mock or low-confidence data cannot be silently laundered into
+  confident-looking outputs.
