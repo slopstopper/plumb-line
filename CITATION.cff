@@ -3,7 +3,9 @@ message: "If you use plumb-line, please cite it as below."
 title: "plumb-line"
 type: software
 authors:
-  - alias: effythealien
+  - given-names: Aoife
+    family-names: Okonedo Martin
+    alias: effythealien
     orcid: "https://orcid.org/0009-0005-8961-9647"
 repository-code: "https://github.com/slopstopper/plumb-line"
 license: Apache-2.0
