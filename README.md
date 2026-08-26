@@ -31,6 +31,16 @@ plumb-line is for builders whose outputs are claims: research and scientific sof
 
 If your app reads one database and displays what it finds, you probably don't need the run-time half. The [fit map](reference/fit-map.md) will tell you so plainly.
 
+## The failure this prevents, three times over
+
+Three reconstruction postmortems of documented public incidents, each with a runnable demo (`examples/incident-*/`) whose broken and instrumented variants print side by side:
+
+- [The server that reported success for dead tools](docs/postmortems/mock-toolserver.md) — stub tools returned success-shaped payloads; three audits of the same project produced three different numbers for how much of it was fake, because mockness wasn't machine-readable.
+- [The plane that thought its passengers were children](docs/postmortems/loadsheet.md) — a category guessed from an honorific entered a takeoff-mass calculation indistinguishable from a category actually known (AAIB serious incident, 2020).
+- [The retraction that started as a sign flip](docs/postmortems/signflip.md) — an unversioned processing script inverted published protein structures; five papers retracted, because no stored conclusion could say which code produced it.
+
+One sentence covers all three: a value that forgot where it came from was combined into a claim someone acted on.
+
 ## Two halves: run-time and review-time
 
 plumb-line enforces the same discipline at two moments. At review time, the **audit** skill checks a diff or repository against the principles, and **remediate** applies the findings, opt-in. Around them, adopt routes, method teaches, bootstrap sets up. At run time, the **provenance primitive** makes uncertainty propagate across your actual calculations. Use either half alone, or both. Unsure whether your codebase needs the run-time half? The [fit map](reference/fit-map.md) answers with worked profiles, including a plain "you don't" where that is the truth.
