@@ -5,7 +5,7 @@ The demo's claim is behavioral: the broken run looks clean while three of five
 tools are stubs, and the instrumented run makes the same computation confess.
 This test locks that behavior by running both scripts and asserting the output
 markers — a drift detector for the demo, like test_fixture_integrity.py is for
-the audit fixtures. Run with: `pytest -q examples/incident-toolserver/test_demo.py`
+the audit fixtures. Run with: `pytest -q examples/incident-toolserver/test_toolserver_demo.py`
 """
 
 import shutil
