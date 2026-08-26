@@ -54,6 +54,6 @@ enforced while the code runs.
 
 A minimal shape-demonstrator (~50 and ~100 lines): no real server, no network,
 no dependencies beyond the Node standard library and the in-repo primitive.
-The integrity test (`test_demo.py`) runs both scripts and locks the behavioral
+The integrity test (`test_toolserver_demo.py`) runs both scripts and locks the behavioral
 markers — broken stays silent about mocks, instrumented confesses, the launder
 attempt is flagged.
