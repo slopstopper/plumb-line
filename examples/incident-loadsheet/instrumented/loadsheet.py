@@ -33,10 +33,17 @@ MANIFEST = [
 
 
 def weigh(title, booked_category):
-    """Assign the standard weight, marked with how the category was known."""
+    """Assign the standard weight, marked with how the category was known.
+
+    No passenger is weighed: every row is a standard-weight estimate, so no
+    row can honestly claim high confidence. What varies is the input to the
+    estimate — a category recorded in the booking (a fact, feeding an
+    approved statistical prior: confidence medium) or a category guessed
+    from an honorific (an estimate resting on a guess: inferred, low).
+    """
     if booked_category is not None:
         return mark(STANDARD_WEIGHT_KG[booked_category],
-                    source="real", confidence="high")
+                    source="real", confidence="medium")
     guessed = TITLE_CATEGORY[title]
     return mark(STANDARD_WEIGHT_KG[guessed],
                 source="inferred", confidence="low")
@@ -49,7 +56,8 @@ def main():
         w = weigh(title, booked)
         weights.append(w)
         how = "booking" if booked is not None else "guessed from title"
-        print(f"  {seat}  {title:<6} {w['value']} kg  [source: {w['meta']['source']} — {how}]")
+        m = w["meta"]
+        print(f"  {seat}  {title:<6} {w['value']} kg  [{m['source']}/{m['confidence']} — {how}]")
 
     total = derive(weights, lambda *kg: sum(kg), basis="loadsheet.total_mass@v1")
     print(f"total takeoff mass: {total['value']} kg")
