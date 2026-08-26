@@ -9,10 +9,10 @@ its way to a conclusion, and the stored conclusion records nothing about which
 code produced it — so a wrong result is undetectable from the artifacts and
 unattributable even after it is suspected. The documented public instance is
 the 2006 retraction of five protein-structure papers (three in *Science*)
-from Geoffrey Chang's lab: an inherited, homemade data-processing script
-flipped two columns of crystallography data, inverting the derived
-structures; the error stood for years and was found only when a contradicting
-dataset forced a full re-derivation. See
+from Geoffrey Chang's lab: a homemade data-processing script inverted the
+derived structures on the way through the pipeline; the error stood for
+years and was found only when a contradicting independent structure forced a
+full re-derivation. See
 ["A Scientist's Nightmare: Software Problem Leads to Five Retractions"](https://www.science.org/doi/full/10.1126/science.314.5807.1856).
 The data, pipeline, and conclusions below are synthetic.
 
