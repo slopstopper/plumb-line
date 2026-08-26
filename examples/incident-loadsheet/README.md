@@ -26,9 +26,11 @@ total — one difference.
 python3 broken/loadsheet.py
 ```
 
-**Instrumented** — each weight is `mark`ed with how its category was known
-(`real` from the booking record, `inferred` from the honorific guess); the
-total is `derive`d under the combination law:
+**Instrumented** — each weight is `mark`ed with how its category was known:
+`real/medium` when the category is a booking-record fact feeding an approved
+standard-weight estimate, `inferred/low` when the category itself was guessed
+from the honorific. No passenger is weighed, so no row claims high
+confidence. The total is `derive`d under the combination law:
 
 ```sh
 python3 instrumented/loadsheet.py
