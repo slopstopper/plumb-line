@@ -1,5 +1,8 @@
 # Incident reconstruction — the server that reported success for dead tools
 
+> The full postmortem write-up for this reconstruction is at
+> [`docs/postmortems/mock-toolserver.md`](../../docs/postmortems/mock-toolserver.md).
+
 **This is a reconstruction modeling a failure class, not any project's actual
 code.** The class: stub tools returning success-shaped payloads that
 downstream reporting aggregates into real-looking status. A widely discussed
