@@ -6,7 +6,7 @@
 # every supported runtime — no universal marker split, no manual reconciliation.
 pytest==9.1.1
 pytest-cov==7.1.0
-ruff==0.16.4
+ruff==0.16.5
 import-linter==2.13
 build==1.6.0
 requests
