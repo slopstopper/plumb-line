@@ -2,10 +2,16 @@
 
 **Status: current.** The routine runs as a Claude Code scheduled cloud agent
 (weekly), installed outside this repo by design — the schedule definition
-points at this file rather than duplicating it, and the in-repo evidence it
-runs is the digest trail itself ([#275](https://github.com/slopstopper/plumb-line/issues/275),
-[#284](https://github.com/slopstopper/plumb-line/issues/284)). A gap in that
-trail, not a config file, is how a dead routine shows.
+points at this file rather than duplicating it, and the evidence it runs is
+the digest trail itself. A gap in that trail, not a config file, is how a
+dead routine shows.
+
+**Digest destination (owner decision 2026-09-05, migrated 2026-09-07):
+digests are filed as issues in the org's private HQ repo (`slopstopper/hq`),
+not in this repository.** Digests W33–W37 were transferred there (hq issues
+#1–#5; the old plumb-line issue numbers redirect). If filing on the HQ repo
+fails for access reasons, file the digest here instead, open with a line
+noting the fallback, and the next working session migrates it.
 
 A weekly scheduled cloud agent sweeps for docking points and files one digest
 issue with 0–3 *drafted* actions. It proposes; it never executes. Shared
@@ -30,9 +36,11 @@ week must be distinguishable from a partial sweep:
 
 ## Digest contract
 
-One GitHub issue per run, titled `Watcher digest YYYY-'W'WW`, labeled
-`track:distribution` and `digest` (the digest-specific label is what the
-"Open dispositions" search keys on). Sections:
+One GitHub issue per run **on `slopstopper/hq`**, titled
+`Watcher digest YYYY-'W'WW`, labeled `track:distribution` and `digest` (the
+digest-specific label is what the "Open dispositions" search keys on; both
+labels exist on the HQ repo). The "Open dispositions" search also runs
+against `slopstopper/hq`. Sections:
 
 - **Denominator** — what was swept, what was skipped, and why.
 - **Observations** — findings with links; no action implied.
