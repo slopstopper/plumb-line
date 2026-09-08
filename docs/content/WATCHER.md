@@ -61,9 +61,17 @@ in its issue until dispositioned.
 ## Disposition protocol
 
 The owner comments `approve` / `decline` (with edits freely) per action.
-Approved actions are executed by the next working session, count against the
-≤4/month outbound cap, and are signed honestly as the owner or the project.
-Declined actions are recorded, not resurfaced.
+Approved actions are executed by the next working session and are signed
+honestly as the owner or the project. Declined actions are recorded, not
+resurfaced.
+
+There is no numeric outbound cap (removed by owner decision 2026-09-07 —
+the approval gate is the rate limiter, and the owner's own content was
+never the automation risk the cap guarded against; owner-made content is
+never counted). The remaining rate rule is **venue courtesy**: never stack
+a second submission into the same venue or community while one is pending
+there. Digests report the month's outbound activity as a record, not
+against a budget.
 
 ## Mechanism
 
