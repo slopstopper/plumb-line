@@ -38,6 +38,11 @@ ruleTester.run("require-provenance-output", rule, {
     IMPORT + `export function f(x, r, cond) { let t = x * r; if (cond) { t = derive([x, r], g); return t; } return 0; }`,
     // I2 guard: comparison operator is not arithmetic/bitwise, must stay silent.
     IMPORT + `export function f(a, b) { return a === b; }`,
+    // #212: the rule does not consult imports. A returned call is unclassifiable
+    // and silent whether or not mark/derive is imported, and wherever from.
+    `export function f(x) { return mark(x, { source: "real" }); }`,
+    `export function f(x, r) { const t = derive([x, r], g); return t; }`,
+    `import { mark } from "@myorg/data";\nexport function f(x) { return mark(x, { source: "real" }); }`,
     // Reassignment guard: raw local re-tagged in place via plain assignment must
     // NOT be flagged — the reassignment demotes it to unknown (mirrors Python).
     IMPORT + `export function f(x, r) { let out = x * r; out = mark(out, { source: "derived" }); return out; }`,
@@ -65,5 +70,19 @@ ruleTester.run("require-provenance-output", rule, {
       code: IMPORT + `export default function (x, r) { return x - r; }`,
       errors: [{ messageId: "untagged" }],
     },
+    {
+      // #212: a raw return is flagged with NO primitive import in the file —
+      // the verdict is expression shape alone.
+      code: `export function f(x, r) { return x * r; }`,
+      errors: [{ messageId: "untagged" }],
+    },
   ],
+});
+
+describe("require-provenance-output takes no options (#212)", () => {
+  it("declares an empty schema — modules/tracked were advertised and dead", () => {
+    if (!Array.isArray(rule.meta.schema) || rule.meta.schema.length !== 0) {
+      throw new Error(`expected schema [], got ${JSON.stringify(rule.meta.schema)}`);
+    }
+  });
 });

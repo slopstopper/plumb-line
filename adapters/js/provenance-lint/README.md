@@ -36,8 +36,10 @@ template fails loudly instead of silently linting nothing.
 
 ## Options
 
-All options are per-rule config; `modules` and `tracked` are **additive** — the
-built-in coverage cannot be configured away.
+These options belong to `no-provenance-bypass` only — the rule that tracks
+imports. `require-provenance-output` takes no options (see its section below).
+`modules` and `tracked` are **additive** — the built-in coverage cannot be
+configured away.
 
 ```js
 rules: {
@@ -101,10 +103,15 @@ module.exports = [
 
 It is intraprocedural and zero-false-positive by design: it flags a return only
 when it can prove the value is a raw arithmetic computation (directly or through a
-same-function local). A returned parameter, an unknown call, or a member access is
-never flagged. As an ESLint `error` it exits non-zero, so it drops straight into
+same-function local). A returned parameter, **any** call, or a member access is
+never flagged. It does not consult imports: whether `mark`/`derive` is imported,
+and from where, has no bearing on its verdict, which is why it takes no
+`modules`/`tracked` options — it once accepted them and they did nothing (#212).
+As an ESLint `error` it exits non-zero, so it drops straight into
 `hooks/pre-commit-gate` as a runner. Python parity:
-`provenance_lint.check_outputs(...)` / `python3 provenance_lint.py --require-output <files>`.
+`provenance_lint.check_outputs(source, filename)` /
+`python3 provenance_lint.py --require-output <files>`, same no-import-consulting
+design.
 
 The **rule → `decide()` contract** is proven on both sides, not just asserted
 here: `hooks/__tests__/provenance-lint-gate.integration.test.mjs` (JS) and
