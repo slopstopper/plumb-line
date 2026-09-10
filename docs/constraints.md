@@ -104,5 +104,14 @@ every downstream doc the moment a constraint moves — makes the gate
 something people route around.
 
 The cost is that a **stale but internally consistent** pin passes CI. That
-is the digest's concern, not CI's: aging pins surface in the sweep, the
-same way aging deferrals do.
+is the digest's concern, not CI's. `recursive-spine-digest` (its "The
+sweep" section, since recursive-spine 0.10.0) lists **stale constraints
+pins** as a sweep item: a doc whose provenance line pins a sha older than
+the current head of this file, *where the doc belongs to a
+still-open issue*, is aged like a deferral. Two honest limits on that
+claim: it is a documented instruction to the sweeping agent, not a test
+this repo runs; and copies in merged or closed docs are out of its scope by
+design, so a stale pin there surfaces nowhere until the doc is next
+edited. ([#250](https://github.com/slopstopper/plumb-line/issues/250)
+recorded the original claim as unverified; this paragraph is its
+resolution.)
