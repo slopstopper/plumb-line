@@ -77,6 +77,8 @@ jobs:
         run: node primitives/conformance/report.mjs
       - name: conformance against the plugin-bundled copy
         run: node scripts/check-bundle-conformance.mjs
+      - name: baseline example validates
+        run: node primitives/js/baseline-cli.mjs validate --dir examples/baseline/baselines
 
   lint:
     name: Lint (ESLint + Ruff)
@@ -138,4 +140,4 @@ jobs:
       # to a package directory, so scripts/ was never collected — both suites
       # could have regressed silently.
       - name: repo-infrastructure checkers (scripts/)
-        run: python -m pytest -q scripts/test_version_prose.py scripts/test_report_format.py scripts/test_fit_map_snippets.py scripts/test_content_language.py scripts/test_trigger_check.py scripts/test_constraints_canonical.py scripts/test_constraints_drift.py scripts/test_bundle_sync.py
+        run: python -m pytest -q scripts/test_version_prose.py scripts/test_report_format.py scripts/test_fit_map_snippets.py scripts/test_content_language.py scripts/test_trigger_check.py scripts/test_constraints_canonical.py scripts/test_constraints_drift.py scripts/test_bundle_sync.py scripts/test_baseline_roundtrip.py
