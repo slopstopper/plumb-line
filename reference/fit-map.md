@@ -230,7 +230,8 @@ golden baseline; every later run compares against it and refuses to drift
 silently.
 
 ```js
-import { mark, derive, update, assertBaseline } from "plumb-line-provenance";
+import { mark, derive } from "plumb-line-provenance";
+import { update, assertBaseline } from "plumb-line-provenance/baseline";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

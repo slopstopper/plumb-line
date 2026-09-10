@@ -230,6 +230,14 @@ describe("file store", () => {
       vi.resetModules();
     }
   });
+  it("the main entry does not re-export baseline — the ./baseline subpath only", async () => {
+    // Same rule as ./http: the main entry stays free of node:fs, so importing
+    // the package in a browser or edge runtime does not pull a file store in.
+    const index = await import("./index.mjs");
+    for (const name of ["assertBaseline", "update", "check", "list", "show"]) {
+      expect(name in index, `index.mjs must not export ${name}`).toBe(false);
+    }
+  });
   it("the default dir is .plumb-line/baselines under the working directory", () => {
     const r = check("x", out());
     expect(reportText(r)).toContain(".plumb-line/baselines");

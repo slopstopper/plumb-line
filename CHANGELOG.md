@@ -26,9 +26,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     `attribute`, `canonical`, `validate`) holds the two languages to the same
     behaviour, with one documented, by-design asymmetry in canonical float
     bytes.
-  - Bundled into the plugin surface (`.claude-plugin/bundled`) and exported
-    from both package entry points (`plumb-line-provenance` /
-    `plumb_line_provenance`).
+  - Bundled into the plugin surface (`.claude-plugin/bundled`). Imported from
+    the `plumb-line-provenance/baseline` subpath in JavaScript (the main entry
+    stays free of `node:fs`, as with `/http`) and from the
+    `plumb_line_provenance` package in Python.
   - Three deliberate omissions ship labelled `not-implemented`: cross-step
     causality, structural value diff, and float tolerance.
 

@@ -228,7 +228,8 @@ number did.
 **JavaScript:**
 
 ```js
-import { mark, derive, assertBaseline, update } from "plumb-line-provenance";
+import { mark, derive } from "plumb-line-provenance";
+import { assertBaseline, update } from "plumb-line-provenance/baseline";
 
 const rate = mark(0.04, { source: "real", confidence: "high", confidenceScore: 0.9 });
 const fx = mark(1.03, { source: "real", confidence: "high", confidenceScore: 0.9 });
@@ -256,6 +257,10 @@ update('fx-rate', priced, because='initial pricing baseline', dir='.plumb-line/b
 # Every subsequent run: raises AssertionError with an attributed finding on drift.
 assert_baseline('fx-rate', priced, dir='.plumb-line/baselines')
 ```
+
+In JavaScript `baseline` lives on the `plumb-line-provenance/baseline`
+subpath (like `/http`): it reads and writes files, so the main entry stays
+free of `node:fs`. Python exports it from the package.
 
 **Inspection CLI** (read-only — it cannot check or update, since only running
 code carries the envelope): `node primitives/js/baseline-cli.mjs list|show|validate`
