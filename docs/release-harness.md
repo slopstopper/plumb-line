@@ -98,7 +98,7 @@ These are machine checks, not judgement calls — they either pass or block:
 - [ ] `python3 scripts/check_report_format.py <each report emitted above>` —
       clean. The report-contract validator
       ([#139](https://github.com/slopstopper/plumb-line/issues/139)): header keys
-      and order, known contract version, `YYYY-MM-DD` date, git-SHA-or-working-tree
+      and order, known contract version, `YYYY-MM-DD` date, git-SHA, working-tree or no-repository
       commit, `principles-revision` equal to the ruleset's own revision (#220),
       exact findings-table columns, the record's `Class` and `Action`
       vocabularies (#222), inline-named principles matching

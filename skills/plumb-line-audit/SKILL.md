@@ -137,7 +137,7 @@ report-format: v3
 scope:               <path, diff range, or "repository">
 principles-revision: <the "Principles revision" from reference/portable-principles.md>
 date:                <YYYY-MM-DD>
-commit:              <git SHA of the audited tree, or "working tree (uncommitted)">
+commit:              <git SHA of the audited tree, or "working tree (uncommitted)", or "no repository (not version-controlled)">
 ```
 
 **2. Principle glossary** — one line per principle *referenced anywhere in this

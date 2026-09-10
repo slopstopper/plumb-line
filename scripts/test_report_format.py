@@ -687,3 +687,34 @@ def test_current_contract_versions_match_the_skills():
     assert current(audit, "report-format") == max(crf.KNOWN_REPORT_VERSIONS)
     assert current(remediate, "remediation-format") == max(crf.KNOWN_REMEDIATION_VERSIONS)
     assert current(routing, "routing-format") == max(crf.KNOWN_ROUTING_VERSIONS)
+
+
+# #315 — "not a repository" is an honest state the contract can express
+
+def test_commit_accepts_the_no_repository_literal_in_both_formats():
+    report = VALID_REPORT.replace("commit:              abab68d",
+                                  "commit:              no repository (not version-controlled)")
+    assert _check(report) == []
+    record = VALID_REMEDIATION.replace("commit:              working tree (uncommitted)",
+                                       "commit:              no repository (not version-controlled)")
+    assert _check(record) == []
+
+
+def test_improvised_no_repository_wording_still_fails_and_names_the_literal():
+    # The blind run's honest-but-unlisted wording. It must still fail (the
+    # contract is a closed vocabulary), and the message must say what would
+    # have passed, so the next auditor in that state is not left guessing.
+    text = VALID_REPORT.replace(
+        "commit:              abab68d",
+        "commit:              working tree (not a git repository — no SHA available)")
+    issues = _check(text)
+    assert any("commit" in i and "no repository (not version-controlled)" in i for i in issues), issues
+
+
+def test_commit_literals_match_both_skill_header_templates():
+    audit = _fenced_block_after(_skill("plumb-line-audit"), "**1. Header block**")
+    remediate = _fenced_block_after(_skill("plumb-line-remediate"), "The record has a header and a table:")
+    for block in (audit, remediate):
+        line = next(ln for ln in block.split("\n") if ln.startswith("commit:"))
+        for literal in crf.COMMIT_LITERALS:
+            assert '"%s"' % literal in line, (literal, line)

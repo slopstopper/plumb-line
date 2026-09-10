@@ -30,6 +30,17 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   added: a PB1 laundering pattern inside the filled `__GLOBS__` yields exactly
   one `plumb-line/no-provenance-bypass` message, and the same code outside
   those globs yields none. Test-only; no package, plugin, or wire-format
+- **The report header can say "not a repository"**
+  ([#315](https://github.com/slopstopper/plumb-line/issues/315)). The
+  `commit:` field admitted a git SHA or `working tree (uncommitted)` and
+  nothing else, so an auditor scoping a staged fixture outside any repo
+  (the 2026-08-19 harness blind run) had to choose between implying a repo
+  and failing validation — a real state with no legal expression. The
+  literal `no repository (not version-controlled)` is now legal in
+  `check_report_format.py` and stated in both header templates; the
+  rejection message names all three forms; a parity test pins the
+  templates to the checker's literals. Contract widening only, no report
+  that validated before fails now. No package, plugin, or wire-format
   change.
 - **`check_report_format.py` hardened against its own v0.8.0 findings**
   ([#245](https://github.com/slopstopper/plumb-line/issues/245): #220, #221,
