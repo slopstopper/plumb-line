@@ -11,12 +11,10 @@
  * one did not).
  *
  * What is pinned here: the template's placeholder contract, that it resolves the
- * plugin, and that the OUTPUT rule fires through it on real files — inside its
- * declared surface and not outside.
- *
- * Not covered: no test lints a `no-provenance-bypass` violation through the
- * template, so the rule whose breakage motivated this fix is only proven to be
- * REGISTERED, not to fire. Tracked (#246) rather than overstated here.
+ * plugin, and that BOTH rules fire through it on real files — each inside its
+ * own declared surface and not outside. The bypass case (#246) is the one that
+ * was missing: the rule whose breakage motivated this file was proven to be
+ * REGISTERED but never proven to fire through the shipped config.
  */
 
 import { describe, it, expect, afterAll } from "vitest";
@@ -59,6 +57,12 @@ function installTemplate(globs, outputGlobs) {
     .replace("files: __OUTPUT_GLOBS__", `files: ${JSON.stringify(outputGlobs)}`);
   const configPath = path.join(workdir, "eslint.config.cjs");
   writeFileSync(configPath, src);
+  // Node caches require()d modules by path. Every earlier caller passed the
+  // same globs, so the cache silently serving the FIRST install never showed;
+  // the first call with different globs got the old config and failed for
+  // the wrong reason. Evict before requiring so each install is the one
+  // asked for.
+  delete require.cache[require.resolve(configPath)];
   return require(configPath);
 }
 
@@ -143,6 +147,47 @@ describe("eslint-provenance.template.cjs (as bootstrap installs it)", () => {
     const config = require(configPath);
     expect(config).toHaveLength(1);
     expect(Object.keys(config[0].rules)).toEqual([BYPASS]);
+  });
+
+  it("the bypass rule fires inside __GLOBS__ (#246)", async () => {
+    // PB1: a clean source asserted on an explicitly mock-tainted value — the
+    // canonical laundering pattern (SPEC §5). Linted through the INSTALLED
+    // template, not the plugin directly: the point is that the shipped config
+    // carries the rule all the way to a message on a real file.
+    const config = installTemplate(["src/**/*.mjs"], ["src/pricing/**/*.mjs"]);
+    const file = writeFile(
+      "src/data/load.mjs",
+      `import { mark } from "plumb-line-provenance";\n` +
+        `export const m = mark(1, { source: "real", derivedFromMock: true });\n`,
+    );
+    const messages = await lint(config, file);
+    const bypass = messages.filter((m) => m.ruleId === BYPASS);
+    expect(bypass).toHaveLength(1);
+    expect(bypass[0].message).toMatch(/^PB1 /);
+  });
+
+  it("the bypass rule is silent OUTSIDE __GLOBS__", async () => {
+    // Same laundering in a file the bypass globs do NOT cover but the output
+    // globs DO — so the file is genuinely linted (a file no block covers
+    // yields only ESLint's file-ignored warning, and a not-toContain on that
+    // passes vacuously, on a parse error too). Here the only messages that
+    // can appear come from the output rule, and none may come from the
+    // bypass rule: that is the scoping claim.
+    const config = installTemplate(["src/data/**/*.mjs"], ["src/pricing/**/*.mjs"]);
+    const file = writeFile(
+      "src/pricing/rate.mjs",
+      `import { mark } from "plumb-line-provenance";\n` +
+        `export const m = mark(1, { source: "real", derivedFromMock: true });\n` +
+        `export function f(x, r) { return x * r; }\n`,
+    );
+    const messages = await lint(config, file);
+    const ruleIds = messages.map((m) => m.ruleId);
+    // The raw return proves the file was linted (the output rule fired)...
+    expect(ruleIds).toContain(OUTPUT);
+    // ...and the laundering on the line above drew nothing from the bypass
+    // rule, because this file is outside the bypass globs.
+    expect(ruleIds).not.toContain(BYPASS);
+    expect(messages.filter((m) => m.fatal)).toHaveLength(0);
   });
 
   it("the output rule is silent OUTSIDE the declared surface", async () => {
