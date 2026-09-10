@@ -149,7 +149,7 @@ source-report:       <path or "pasted findings">
 source-report-format: <its report-format version>
 principles-revision: <from reference/portable-principles.md>
 date:                <YYYY-MM-DD>
-commit:              <git SHA before remediation, or "working tree (uncommitted)">
+commit:              <git SHA before remediation, or "working tree (uncommitted)", or "no repository (not version-controlled)">
 ```
 
 | Finding | Path | Class | Action | Change summary |
