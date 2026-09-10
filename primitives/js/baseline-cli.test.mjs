@@ -53,6 +53,7 @@ describe("baseline-cli", () => {
     expect(code).toBe(1);
     expect(out).toContain("broken.json");
     expect(out).toMatch(/1 of 2 invalid/);
+    expect(out.indexOf("broken.json") < out.indexOf("nightly-rate.json")).toBe(true);
   });
   it("usage on no subcommand exits 2", () => {
     expect(run().code).toBe(2);

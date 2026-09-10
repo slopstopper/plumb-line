@@ -44,7 +44,7 @@ export function main(argv) {
   }
   if (cmd === "validate") {
     if (!existsSync(absDir)) { console.log(`no baselines directory at ${absDir}; 0 files validated`); return 0; }
-    const files = readdirSync(absDir).filter((f) => f.endsWith(".json") && !f.startsWith("."));
+    const files = readdirSync(absDir).filter((f) => f.endsWith(".json") && !f.startsWith(".")).sort();
     let bad = 0;
     for (const f of files) {
       let issues;
