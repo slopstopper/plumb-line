@@ -157,7 +157,10 @@ def validate_results(payload):
         issues.append(f"unknown results-format {fmt!r} "
                       f"(this harness models {sorted(KNOWN_RESULTS_FORMATS)})")
     threshold = payload.get("threshold")
+    # bool is an int subclass: a hand-edited `"threshold": true` must not
+    # validate as 1.
     if threshold is not None and not (isinstance(threshold, (int, float))
+                                      and not isinstance(threshold, bool)
                                       and 0 < threshold <= 1):
         issues.append(f"threshold must be a number in (0, 1], got {threshold!r}")
     rows = payload.get("results")
@@ -395,8 +398,12 @@ def main(argv=None):
     payload = build_payload(args.target, installs,
                             {"screen": args.screen_model,
                              "confirm": args.confirm_model},
+                            # Confirm runs are stamped only when the tier
+                            # actually executed: a model named but never
+                            # invoked (nothing contested) is 0, so the record
+                            # does not imply a tier that did not run.
                             {"screen": args.screen_runs,
-                             "confirm": args.confirm_runs if args.confirm_model else 0},
+                             "confirm": args.confirm_runs if (args.confirm_model and hot) else 0},
                             args.threshold, merged)
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=1)

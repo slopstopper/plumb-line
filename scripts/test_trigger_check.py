@@ -171,6 +171,12 @@ def test_validate_flags_a_threshold_outside_the_unit_interval():
     assert any("threshold" in i for i in tc.validate_results(payload))
 
 
+def test_validate_rejects_a_boolean_threshold():
+    payload = _payload()
+    payload["threshold"] = True
+    assert any("threshold" in i for i in tc.validate_results(payload))
+
+
 def test_validate_flags_a_summary_that_does_not_add_up():
     payload = _payload()
     payload["summary"]["passed"] = 2
