@@ -11,12 +11,10 @@
  * one did not).
  *
  * What is pinned here: the template's placeholder contract, that it resolves the
- * plugin, and that the OUTPUT rule fires through it on real files — inside its
- * declared surface and not outside.
- *
- * Not covered: no test lints a `no-provenance-bypass` violation through the
- * template, so the rule whose breakage motivated this fix is only proven to be
- * REGISTERED, not to fire. Tracked (#246) rather than overstated here.
+ * plugin, and that BOTH rules fire through it on real files — each inside its
+ * own declared surface and not outside. The bypass case (#246) is the one that
+ * was missing: the rule whose breakage motivated this file was proven to be
+ * REGISTERED but never proven to fire through the shipped config.
  */
 
 import { describe, it, expect, afterAll } from "vitest";
@@ -143,6 +141,36 @@ describe("eslint-provenance.template.cjs (as bootstrap installs it)", () => {
     const config = require(configPath);
     expect(config).toHaveLength(1);
     expect(Object.keys(config[0].rules)).toEqual([BYPASS]);
+  });
+
+  it("the bypass rule fires inside __GLOBS__ (#246)", async () => {
+    // PB1: a clean source asserted on an explicitly mock-tainted value — the
+    // canonical laundering pattern (SPEC §5). Linted through the INSTALLED
+    // template, not the plugin directly: the point is that the shipped config
+    // carries the rule all the way to a message on a real file.
+    const config = installTemplate(["src/**/*.mjs"], ["src/pricing/**/*.mjs"]);
+    const file = writeFile(
+      "src/data/load.mjs",
+      `import { mark } from "plumb-line-provenance";\n` +
+        `export const m = mark(1, { source: "real", derivedFromMock: true });\n`,
+    );
+    const messages = await lint(config, file);
+    const bypass = messages.filter((m) => m.ruleId === BYPASS);
+    expect(bypass).toHaveLength(1);
+    expect(bypass[0].message).toMatch(/^PB1 /);
+  });
+
+  it("the bypass rule is silent OUTSIDE __GLOBS__", async () => {
+    // Same laundering, outside the globs bootstrap filled: the first config
+    // block does not apply, so the rule does not exist there.
+    const config = installTemplate(["src/**/*.mjs"], ["src/pricing/**/*.mjs"]);
+    const file = writeFile(
+      "lib/load.mjs",
+      `import { mark } from "plumb-line-provenance";\n` +
+        `export const m = mark(1, { source: "real", derivedFromMock: true });\n`,
+    );
+    const messages = await lint(config, file);
+    expect(messages.map((m) => m.ruleId)).not.toContain(BYPASS);
   });
 
   it("the output rule is silent OUTSIDE the declared surface", async () => {
