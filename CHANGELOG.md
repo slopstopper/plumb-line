@@ -30,6 +30,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   added: a PB1 laundering pattern inside the filled `__GLOBS__` yields exactly
   one `plumb-line/no-provenance-bypass` message, and the same code outside
   those globs yields none. Test-only; no package, plugin, or wire-format
+  change.
 - **`check_report_format.py` hardened against its own v0.8.0 findings**
   ([#245](https://github.com/slopstopper/plumb-line/issues/245): #220, #221,
   #222, #223). The validator that makes the report contracts enforceable had

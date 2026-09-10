@@ -57,6 +57,12 @@ function installTemplate(globs, outputGlobs) {
     .replace("files: __OUTPUT_GLOBS__", `files: ${JSON.stringify(outputGlobs)}`);
   const configPath = path.join(workdir, "eslint.config.cjs");
   writeFileSync(configPath, src);
+  // Node caches require()d modules by path. Every earlier caller passed the
+  // same globs, so the cache silently serving the FIRST install never showed;
+  // the first call with different globs got the old config and failed for
+  // the wrong reason. Evict before requiring so each install is the one
+  // asked for.
+  delete require.cache[require.resolve(configPath)];
   return require(configPath);
 }
 
@@ -161,16 +167,27 @@ describe("eslint-provenance.template.cjs (as bootstrap installs it)", () => {
   });
 
   it("the bypass rule is silent OUTSIDE __GLOBS__", async () => {
-    // Same laundering, outside the globs bootstrap filled: the first config
-    // block does not apply, so the rule does not exist there.
-    const config = installTemplate(["src/**/*.mjs"], ["src/pricing/**/*.mjs"]);
+    // Same laundering in a file the bypass globs do NOT cover but the output
+    // globs DO — so the file is genuinely linted (a file no block covers
+    // yields only ESLint's file-ignored warning, and a not-toContain on that
+    // passes vacuously, on a parse error too). Here the only messages that
+    // can appear come from the output rule, and none may come from the
+    // bypass rule: that is the scoping claim.
+    const config = installTemplate(["src/data/**/*.mjs"], ["src/pricing/**/*.mjs"]);
     const file = writeFile(
-      "lib/load.mjs",
+      "src/pricing/rate.mjs",
       `import { mark } from "plumb-line-provenance";\n` +
-        `export const m = mark(1, { source: "real", derivedFromMock: true });\n`,
+        `export const m = mark(1, { source: "real", derivedFromMock: true });\n` +
+        `export function f(x, r) { return x * r; }\n`,
     );
     const messages = await lint(config, file);
-    expect(messages.map((m) => m.ruleId)).not.toContain(BYPASS);
+    const ruleIds = messages.map((m) => m.ruleId);
+    // The raw return proves the file was linted (the output rule fired)...
+    expect(ruleIds).toContain(OUTPUT);
+    // ...and the laundering on the line above drew nothing from the bypass
+    // rule, because this file is outside the bypass globs.
+    expect(ruleIds).not.toContain(BYPASS);
+    expect(messages.filter((m) => m.fatal)).toHaveLength(0);
   });
 
   it("the output rule is silent OUTSIDE the declared surface", async () => {
