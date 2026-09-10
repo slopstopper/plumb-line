@@ -30,6 +30,23 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   added: a PB1 laundering pattern inside the filled `__GLOBS__` yields exactly
   one `plumb-line/no-provenance-bypass` message, and the same code outside
   those globs yields none. Test-only; no package, plugin, or wire-format
+- **`check_report_format.py` hardened against its own v0.8.0 findings**
+  ([#245](https://github.com/slopstopper/plumb-line/issues/245): #220, #221,
+  #222, #223). The validator that makes the report contracts enforceable had
+  four gaps the dogfood audit found in it. `principles-revision` is now
+  compared to the revision `reference/portable-principles.md` declares, so a
+  report cannot name a ruleset state that never existed, ahead or behind
+  (#220). Every run opens with a provenance line — checker version, the
+  contract versions it models, the ruleset revision it compared against — so
+  the output the release harness stores as gate evidence carries its own
+  conditions (#221; `CHECKER_VERSION` is now `2`, bumped when the rules
+  change). The record's `Class` column is validated against the remediate
+  skill's Mechanical/Judgment vocabulary, any casing, like its `Action`
+  sibling (#222). The six lists the checker copies from the SKILL files stay
+  as constants — the checker remains stdlib-only and runnable without
+  `skills/` — but each is now pinned by a test that parses the SKILL file and
+  fails on disagreement, and the docstring says so instead of claiming the
+  opposite (#223). Seventeen new cases. No package, plugin, or wire-format
   change.
 - **The "aging pins surface in the sweep" claim is pinned to what the digest
   actually documents** ([#250](https://github.com/slopstopper/plumb-line/issues/250)).
