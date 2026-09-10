@@ -30,6 +30,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   instruction to the sweeping agent, not a test this repo runs, and it
   covers only docs attached to still-open issues, so a stale pin in a
   merged doc surfaces nowhere until that doc is next edited. Docs only.
+- **The constraints drift gate states its denominator, and reads past the
+  fenced example** ([#249](https://github.com/slopstopper/plumb-line/issues/249)).
+  `scripts/check-constraints-drift.sh` exited 0 with no output whether it
+  had verified every copy or found nothing to verify, so a marker rename or
+  a moved canonical file would have turned it into a silent no-op. Every run
+  now ends with `DRIFT-GATE: N copies checked, M drifted`, and a canonical
+  file with no readable block fails outright. Writing the gate's first tests
+  found a second, worse defect: since the worked example of the marker
+  format was fenced above the real block, the gate's block extractor took
+  the *example* for the canonical block, so any genuine copy would have
+  failed with `...the copied block...` as the expected text. Zero copies
+  existed, so CI never showed it. Block extraction is now fence-aware on
+  both sides. Seven cases in `scripts/test_constraints_drift.py`, run
+  against throwaway git repos. No package, plugin, or wire-format change.
 - **`docs/constraints.md` is now held to the repo it describes**
   ([#248](https://github.com/slopstopper/plumb-line/issues/248)). The drift
   gate checked every downstream *copy* of the constraints block against the

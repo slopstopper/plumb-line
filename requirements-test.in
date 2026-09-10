@@ -7,7 +7,7 @@
 pytest==9.1.1
 pytest-cov==7.1.0
 ruff==0.16.6
-import-linter==2.14
+import-linter==2.15
 build==1.6.0
 requests
 httpx
