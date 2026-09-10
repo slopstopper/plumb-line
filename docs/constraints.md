@@ -48,7 +48,7 @@ the copy mechanism is for documents that must carry the values with them.
 - Published package name is **`plumb-line-provenance`**, identical on npm and PyPI.
 - License is **Apache-2.0** in both manifests.
 - Python floor is **`requires-python = ">=3.11"`**; the CI matrix tests **3.11, 3.12 and 3.13**.
-- Node floor as published is **`engines.node >= 20`**; the CI matrix tests **Node 20 and 22**.
+- Node floor as published is **`engines.node >= 22`**; the CI matrix tests **Node 22 and 24**.
 - Report contracts are **report-format v3** and **remediation-format v1**, validated by `scripts/check_report_format.py`.
 - JS envelopes are flat/spread and camelCase; Python envelopes are nested under `meta` and snake_case. Both must behave identically against `primitives/conformance/cases.json`.
 - Releases are **tag-triggered only** (`.github/workflows/release.yml`). Never hand-publish; the tag must equal the manifests.
@@ -72,7 +72,7 @@ raising the floor rather than testing it (GH #233): the `./http` subpath
 needs native `fetch` (Node ≥ 18) so the `>= 16` claim was partly false,
 and the test runner cannot run below Node 20 — raising was the only
 honest direction. Both pairs now match their matrices: Python floor 3.11
-tested at 3.11, Node floor 20 tested at 20.
+tested at 3.11, Node floor 22 tested at 22.
 
 ### Relationship to the existing checkers
 

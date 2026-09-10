@@ -9,6 +9,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Changed
+- **Node floor raised to 22** (`engines.node >= 22`; CI tests Node 22 and 24).
+  Node 20 reached end-of-life on 2026-04-30, so the raise is the SUPPORT.md
+  calendar rule firing, with a toolchain floor arriving at the same time:
+  vitest 5 (the test runner in both JS packages) requires Node 22, and its
+  4-to-5 major had been sitting in four failing Dependabot PRs. Breaking for
+  anyone running the published package on Node 20 — pre-1.0 that rides a
+  minor, per RELEASING.md. `vitest` and `@vitest/coverage-v8` are now a
+  Dependabot group in both npm directories: they pin each other exactly, so
+  split PRs can never pass `npm ci` (the codeql-action precedent, applied to
+  npm). No wire-format or API change.
+
 ### Fixed
 - **`docs/constraints.md` is now held to the repo it describes**
   ([#248](https://github.com/slopstopper/plumb-line/issues/248)). The drift
