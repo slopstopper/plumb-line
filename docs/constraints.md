@@ -43,7 +43,7 @@ the copy mechanism is for documents that must carry the values with them.
      between the markers is the copyable unit. -->
 
 <!-- constraints:begin -->
-- Release version is **0.9.0**, and the three manifests must always agree: `primitives/js/package.json`, `primitives/python/pyproject.toml`, `.claude-plugin/plugin.json`. Bump only via `node scripts/bump-version.mjs <version>`.
+- Release version is **0.10.0**, and the three manifests must always agree: `primitives/js/package.json`, `primitives/python/pyproject.toml`, `.claude-plugin/plugin.json`. Bump only via `node scripts/bump-version.mjs <version>`.
 - `PROVENANCE_VERSION` is **2**, identical in `primitives/js/provenance.mjs` and `primitives/python/provenance.py`. It is the envelope wire version and moves independently of the release version; `bump-version` does not touch it.
 - Published package name is **`plumb-line-provenance`**, identical on npm and PyPI.
 - License is **Apache-2.0** in both manifests.
@@ -76,17 +76,22 @@ tested at 3.11, Node floor 20 tested at 20.
 
 ### Relationship to the existing checkers
 
-Three gates already enforce parts of this block, and the drift gate does
-not replace them:
+Four gates enforce parts of this block, and the drift gate does not
+replace the others:
 
 | Gate | What it holds |
 | --- | --- |
 | `scripts/check-versions.mjs` | the three manifests agree with each other |
 | `scripts/check_version_prose.py` | live docs do not state a stale wire version |
 | `scripts/check-constraints-drift.sh` | copied constraint blocks match this file at their pinned sha |
+| `scripts/check_constraints_canonical.py` | this file's block matches the manifests, provenance source, pyproject and the CI matrices (#248) |
 
 The first two check the **code and its prose**. The drift gate checks
-**copies of this block** in other documents. `check_version_prose.py` is
+**copies of this block** in other documents; the canonical gate checks
+**this block against the repo** — without it, a release or a matrix change
+could leave the block asserting a stale value that every pinned copy then
+inherits (the 0.10.0 bump left the release line at 0.9.0 with CI green).
+It reports how many lines it checked and names the ones it cannot. `check_version_prose.py` is
 the narrower, hand-rolled ancestor of the same idea, applied to one
 constraint; it stays as-is because it checks prose this block does not
 carry.
