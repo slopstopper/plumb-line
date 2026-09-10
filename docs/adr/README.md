@@ -37,3 +37,4 @@ record is append-only.
 | [0012](0012-ecosystem-adapters-optional-deps-and-mapping.md) | Ecosystem adapters — optional deps + source-vs-freshness mapping | Accepted |
 | [0013](0013-dataframe-adapters-explicit-combinators.md)  | Dataframe adapters — explicit combinators, no proxying, Python-only | Accepted |
 | [0014](0014-unreadable-signal-degrades.md)               | A signal an adapter can see but cannot read degrades confidence, never upgrades | Accepted |
+| [0015](0015-baseline-library-first.md)                   | Baseline: library-first capture, explained updates, wire-form files, inspection-only CLI | Accepted |
