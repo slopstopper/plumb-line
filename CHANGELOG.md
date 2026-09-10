@@ -9,7 +9,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+- **`docs/constraints.md` is now held to the repo it describes**
+  ([#248](https://github.com/slopstopper/plumb-line/issues/248)). The drift
+  gate checked every downstream *copy* of the constraints block against the
+  canonical file, but nothing checked the canonical file against the code:
+  the 0.10.0 release moved the manifests and the block kept stating 0.9.0
+  with every gate green. `scripts/check_constraints_canonical.py` (in the
+  `versions` CI job) parses the eight machine-readable lines — release
+  version, `PROVENANCE_VERSION`, package name, license, both floors and both
+  CI matrices — and compares each to its source; a line it cannot find is a
+  finding, not a pass, and each run prints what it checked and names what it
+  cannot (the report-contract line has no constant to read). `bump-version`
+  now rewrites the release line alongside the manifests. No package, plugin,
+  or wire-format change.
 
 ## [0.10.0] — 2026-08-19
 
