@@ -22,8 +22,11 @@ describe("baseline conformance — canonical", () => {
   for (const c of cases.canonical) {
     it(c.name, () => {
       const text = canonicalJson(c.input);
+      // Parsed equality is the contract in every case; byte-exactness is a
+      // stronger claim the case table makes explicitly, rather than a runner
+      // guessing from the shape of the expected text.
       expect(JSON.parse(text)).toEqual(JSON.parse(c.expect));
-      if (!/\d\.\d/.test(c.expect)) expect(text).toBe(c.expect);
+      if (c.expectBytes !== false) expect(text).toBe(c.expect);
     });
   }
 });

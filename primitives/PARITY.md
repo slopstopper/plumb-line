@@ -36,8 +36,10 @@ as parsed values wherever a float appears), and `validate`. It is loaded by
 `primitives/js/baseline.conformance.test.mjs` and
 `primitives/python/tests/test_baseline_conformance.py`. The one known
 asymmetry is by design, not a defect: an integral float canonicalizes to
-`1.0` in Python and `1` in JS, so `canonical` cases compare the parsed value
-rather than the raw bytes. A second, public-surface naming asymmetry: the
+`1.0` in Python and `1` in JS. Every `canonical` case asserts parsed
+equality; the stronger byte-for-byte claim is made per case by
+`expectBytes`, which that one case sets to `false` with its reason recorded
+beside it. A second, public-surface naming asymmetry: the
 list function is `list` in JS but `list_baselines` in Python, which avoids
 shadowing the `list` builtin. A third, also by design: JS exposes baseline on
 the `plumb-line-provenance/baseline` subpath only, so the main entry stays

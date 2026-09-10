@@ -104,6 +104,10 @@ export function compare(record, wireMeta, value, runningVersion = PROVENANCE_VER
     f.push(finding("meta.lineage.length", pl.length, nl.length,
                    grew ? `lineage grew by ${n} (first new step: meta.lineage[${k}])`
                         : `lineage shrank by ${n} (first missing step: meta.lineage[${k}])`));
+    // Deliberate future-proofing: "length" is not in TOP_FIELDS, so this
+    // suppresses nothing today. It keeps the rule ("a step finding explains
+    // the top-level field of the same name") true if a top-level length-like
+    // field is ever added. Mirrored in baseline.py.
     touched.add("length");
   }
   for (const field of TOP_FIELDS) {

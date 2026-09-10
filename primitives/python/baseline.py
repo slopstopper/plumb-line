@@ -147,6 +147,10 @@ def compare(record, wire_meta, value, running_version=PROVENANCE_VERSION):
         f.append(_finding('meta.lineage.length', len(pl), len(nl),
                           f'lineage grew by {n} (first new step: meta.lineage[{k}])' if grew
                           else f'lineage shrank by {n} (first missing step: meta.lineage[{k}])'))
+        # Deliberate future-proofing: 'length' is not in TOP_FIELDS, so this
+        # suppresses nothing today. It keeps the rule ("a step finding
+        # explains the top-level field of the same name") true if a top-level
+        # length-like field is ever added. Mirrored in baseline.mjs.
         touched.add('length')
     rmeta = record.get('meta') if isinstance(record.get('meta'), dict) else {}
     for field in TOP_FIELDS:

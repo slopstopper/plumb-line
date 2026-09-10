@@ -93,11 +93,12 @@
     { "name": "keys sorted recursively, arrays ordered, unicode kept, integral float stays a number",
       "input": { "z": [3, { "b": "é", "a": null }], "a": 1.0, "m": { "y": true, "x": "ü" } },
       "expect": "{\n  \"a\": 1.0,\n  \"m\": {\n    \"x\": \"ü\",\n    \"y\": true\n  },\n  \"z\": [\n    3,\n    {\n      \"a\": null,\n      \"b\": \"é\"\n    }\n  ]\n}\n",
-      "expectParsedEqualAcrossLanguages": true },
+      "_expectBytes": "false: an integral float serialises as 1.0 in Python and 1 in JS — the one recorded byte-level asymmetry (PARITY.md). Parsed equality still holds and is always asserted.",
+      "expectBytes": false },
     { "name": "empty containers",
       "input": { "b": [], "a": {} },
       "expect": "{\n  \"a\": {},\n  \"b\": []\n}\n",
-      "expectParsedEqualAcrossLanguages": true }
+      "expectBytes": true }
   ],
   "validate": [
     { "name": "well-formed record", "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": 1,

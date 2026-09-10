@@ -22,11 +22,13 @@ def test_attribute_cases():
 
 
 def test_canonical_cases():
-    import re
+    # Parsed equality is the contract in every case; byte-exactness is a
+    # stronger claim the case table makes explicitly, rather than a runner
+    # guessing from the shape of the expected text.
     for c in CASES['canonical']:
         text = bl.canonical_json(c['input'])
         assert json.loads(text) == json.loads(c['expect']), c['name']
-        if not re.search(r'\d\.\d', c['expect']):
+        if c.get('expectBytes') is not False:
             assert text == c['expect'], c['name']
 
 

@@ -135,6 +135,11 @@ jobs:
         run: python -m pytest -q examples
       - name: conformance against the plugin-bundled Python copy
         run: python -m pytest -q scripts/test_bundle_conformance.py
+      # scripts/test_bundle_sync.py runs the bundle gate, which is a Node
+      # script — this job has no node without it.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: "22"
       # The repo-infrastructure checkers (wire-version prose #160, report-format
       # #139). Named explicitly because every other pytest step above is scoped
       # to a package directory, so scripts/ was never collected — both suites
