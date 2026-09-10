@@ -227,6 +227,25 @@ def test_main_require_output_flag_returns_nonzero(tmp_path, capsys):
     assert 'REQ-OUTPUT' in capsys.readouterr().out
 
 
+def test_outputs_verdict_does_not_depend_on_imports():
+    # #212: expression shape alone. A raw return is flagged with no import in
+    # the file; a returned call is silent whether mark is imported, imported
+    # from a wrapper, or not imported at all.
+    assert [i['rule'] for i in pl.check_outputs("def f(x, r):\n    return x * r\n")] == ['REQ-OUTPUT']
+    for prelude in ("", "from provenance import mark\n", "from myorg_data import mark\n"):
+        assert pl.check_outputs(prelude + "def f(x):\n    return mark(x, source='real')\n") == []
+
+
+def test_outputs_has_no_injection_parameters():
+    # The extra_modules/extra_tracked parameters were accepted and dead; an
+    # option that does nothing is removed, not kept as a no-op.
+    import pytest
+    with pytest.raises(TypeError):
+        pl.check_outputs("x = 1", extra_tracked={'mark_value': 'mark'})
+    with pytest.raises(TypeError):
+        pl.check_outputs("x = 1", extra_modules={'myorg_data'})
+
+
 def test_main_require_output_flag_clean_returns_zero(tmp_path):
     p = tmp_path / "m.py"
     p.write_text(IMPORT + "def f(x, r):\n    return derive([x, r], lambda p, q: p * q)\n")
