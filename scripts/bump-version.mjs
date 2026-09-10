@@ -3,7 +3,8 @@
 //
 //   node scripts/bump-version.mjs <version>     e.g. node scripts/bump-version.mjs 0.3.0
 //
-// Updates the three version manifests that must always agree:
+// Updates the three version manifests that must always agree (plus the
+// release-version line of docs/constraints.md, which CI holds to them):
 //   - primitives/js/package.json        (npm package)
 //   - primitives/python/pyproject.toml  (PyPI package)
 //   - .claude-plugin/plugin.json        (Claude Code plugin — its version is what
@@ -27,6 +28,10 @@ const targets = [
   { file: "primitives/js/package.json", re: /("version":\s*")[^"]*(")/, label: "npm" },
   { file: ".claude-plugin/plugin.json", re: /("version":\s*")[^"]*(")/, label: "plugin" },
   { file: "primitives/python/pyproject.toml", re: /^(version\s*=\s*")[^"]*(")/m, label: "PyPI" },
+  // The canonical constraints block states the release version in prose.
+  // check_constraints_canonical.py fails CI when it disagrees with the
+  // manifests (#248: the 0.10.0 bump left it at 0.9.0), so the bump writes it.
+  { file: "docs/constraints.md", re: /^(- Release version is \*\*)[^*]*(\*\*)/m, label: "constr." },
 ];
 
 let ok = true;
