@@ -121,7 +121,11 @@ if (problems.length) {
 
 const checked = Object.values(BUNDLE).reduce((n, s) => n + s.bundled.length, 0);
 const excluded = Object.values(BUNDLE).reduce((n, s) => n + Object.keys(s.excluded).length, 0);
+// Stated as a breakdown, not a ratio: by this point every published module
+// is accounted for (an unaccounted one exited above), so an "N/N" would be
+// the same count twice dressed as a measurement.
 const surface = Object.entries(BUNDLE)
-  .map(([lang, s]) => `${lang} ${s.published().length}/${s.published().length}`)
+  .map(([lang, s]) =>
+    `${lang} ${s.published().length} (${s.bundled.length} bundled + ${Object.keys(s.excluded).length} excluded)`)
   .join(", ");
 console.log(`✓ bundle in sync with primitives/ (${checked} files byte-checked; ${excluded} excluded by recorded reason; published surface accounted: ${surface})`);

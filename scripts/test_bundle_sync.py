@@ -65,7 +65,7 @@ def test_clean_tree_passes_and_reports_its_denominators(tmp_path):
     rc, out = _run(_mini_repo(tmp_path))
     assert rc == 0, out
     assert "8 files byte-checked" in out and "4 excluded" in out, out
-    assert "js 5/5" in out and "python 7/7" in out, out
+    assert "js 5 (4 bundled + 1 excluded)" in out and "python 7 (4 bundled + 3 excluded)" in out, out
 
 
 def test_byte_drift_still_fails(tmp_path):
