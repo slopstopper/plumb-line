@@ -184,6 +184,8 @@ describe("file store", () => {
     const r = check("hollow", out(), { dir });
     expect(r.status).toBe("invalid");
     expect(reportText(r)).toContain("missing required key");
+    expect(() => update("hollow", out(), { because: "x", dir })).toThrow(/invalid baseline/);
+    expect(readFileSync(join(dir, "hollow.json"), "utf8")).toBe(JSON.stringify({ "baseline-format": "v1" }));
   });
   it("an envelope that fails validateEnvelope is refused by check and update", () => {
     const bogus = { value: 1, source: "real" };
