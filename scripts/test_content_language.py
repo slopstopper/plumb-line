@@ -42,12 +42,55 @@ def test_flags_the_banned_patterns(tmp_path):
     assert "roll-on emphasis tail" in labels
 
 
-def test_quiet_on_the_published_piece(tmp_path):
-    # The first worked example must pass its own gate.
-    piece = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                         "docs", "content",
-                         "2026-08-15-plumb-line-0.9.0-the-front-door.md")
-    assert ccl.check(piece) == []
+_CONTENT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "docs", "content")
+
+
+def test_published_0_9_0_piece_carries_exactly_its_one_recorded_keep():
+    # The first worked example is pinned as a dated artifact, not as
+    # flag-free: "verified by import, / not by execution" (lines 17-18) is a
+    # bare contrast split across a hard wrap. It predates the 2026-08-18
+    # bare-contrast ruling and is kept on purpose (#316). Until the flagger
+    # unwrapped paragraphs this test pinned the piece flag-free, enshrining
+    # the miss; now it pins the miss as a conscious keep, so a second flag
+    # appearing in the piece still fails here.
+    flags = ccl.check(os.path.join(_CONTENT, "2026-08-15-plumb-line-0.9.0-the-front-door.md"))
+    assert [(ln, label) for ln, label, _ in flags] == \
+        [(17, "bare contrast (X, not Y / not X but Y)")], flags
+
+
+def test_published_0_10_0_piece_is_flag_free():
+    # Written after the ruling; must stay clean under the unwrapped scan.
+    assert ccl.check(os.path.join(_CONTENT, "2026-08-19-plumb-line-0.10.0-pay-down-the-ledger.md")) == []
+
+
+def test_banned_construction_split_across_a_wrap_is_flagged(tmp_path):
+    # #316: per-physical-line matching let a hard wrap hide a construction.
+    text = (
+        "Three snippets crashed; they had been verified by import,\n"
+        "not by execution. A test now runs each one.\n"
+        "\n"
+        "This is not\n"
+        "a linter, it is a discipline.\n"
+    )
+    flags = _flags_for(tmp_path, text)
+    assert [(ln, label) for ln, label, _ in flags] == [
+        (1, "bare contrast (X, not Y / not X but Y)"),
+        (4, "not-X-but-Y construction"),
+    ], flags
+
+
+def test_wrapped_flag_reports_both_physical_lines(tmp_path):
+    text = "verified by import,\nnot by execution.\n"
+    (_ln, _label, shown), = _flags_for(tmp_path, text)
+    assert "verified by import," in shown and "not by execution." in shown
+
+
+def test_paragraph_break_is_not_a_wrap(tmp_path):
+    # A blank line ends the paragraph: "X, [blank] not Y" is two sentences
+    # in two paragraphs, not one construction.
+    flags = _flags_for(tmp_path, "The contract is a data file,\n\nnot prose.\n")
+    assert flags == []
 
 
 def test_quiet_on_plain_prose(tmp_path):
@@ -87,8 +130,8 @@ def test_flags_bare_contrast_constructions(tmp_path):
 
 def test_em_dashes_counted_but_not_flagged(tmp_path):
     # Em dashes are reported as an informational count (keep to a bare
-    # minimum), never as flags: the published 0.9.0 piece uses one and must
-    # stay flag-free.
+    # minimum), never as flags. (The published 0.9.0 piece uses one; its own
+    # pin is the one-recorded-keep test above, not flag-free.)
     p = tmp_path / "draft.md"
     p.write_text("One thing — and another — again.\n", encoding="utf-8")
     assert ccl.check(str(p)) == []
