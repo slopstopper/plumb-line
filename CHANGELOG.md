@@ -20,6 +20,19 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   Dependabot group in both npm directories: they pin each other exactly, so
   split PRs can never pass `npm ci` (the codeql-action precedent, applied to
   npm). No wire-format or API change.
+- **`require-provenance-output` no longer advertises options it never used**
+  ([#212](https://github.com/slopstopper/plumb-line/issues/212)). The rule
+  collected primitive imports into a "tagged" class that nothing read, so its
+  `modules`/`tracked` options — and the whole import pass — had no observable
+  effect; a mutation disabling primitive-source matching left all 74 adapter
+  tests green. The rule's verdict is expression shape alone (a call is never a
+  binary expression), and it now says so: the dead pass is removed, the
+  rule's schema is empty, and `check_outputs(source, filename)` on the Python
+  side drops `extra_modules`/`extra_tracked` the same way. Behaviour is
+  unchanged; a config that passed those options to **this** rule now fails
+  ESLint schema validation instead of silently doing nothing.
+  `no-provenance-bypass` genuinely uses tracking and keeps its options.
+  Adapters only (not a published package).
 
 ### Fixed
 - **The "aging pins surface in the sweep" claim is pinned to what the digest

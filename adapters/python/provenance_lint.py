@@ -137,32 +137,24 @@ class _Visitor(ast.NodeVisitor):
 class _OutputVisitor:
     """#91 — flag module-level (non-_) functions whose return is a provably-raw
     BinOp, directly or via a same-function local. Silent on anything else.
-    Mirror of the JS require-provenance-output rule; see ADR-0011."""
+    Mirror of the JS require-provenance-output rule; see ADR-0011.
 
-    def __init__(self, primitive_modules, tracked):
-        self.primitive_modules = primitive_modules
-        self.tracked = tracked
-        self.local_fn = {}       # local name -> role
+    Does not consult imports: the verdict depends on expression shape alone,
+    because a Call is never a BinOp. An earlier version collected primitive
+    imports into a "tagged" class that nothing read (#212) — mirrored from the
+    JS rule, where it was equally dead — so the import pass and the
+    extra_modules/extra_tracked parameters are removed rather than kept as
+    no-ops. The bypass checker (`check`) genuinely uses them and keeps them."""
+
+    def __init__(self):
         self.issues = []
-
-    def collect_imports(self, tree):
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom):
-                if _normalize_module_name(node.module) in self.primitive_modules:
-                    for alias in node.names:
-                        if alias.name in self.tracked:
-                            self.local_fn[alias.asname or alias.name] = self.tracked[alias.name]
-
-    def _is_tracked_call(self, node):
-        return (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-                and self.local_fn.get(node.func.id) is not None)
 
     @staticmethod
     def _is_raw(node):
         return isinstance(node, ast.BinOp)
 
     def _classify_locals(self, fn):
-        # name -> "raw"|"tagged"; a name assigned more than once, or to anything
+        # name -> "raw"; a name assigned more than once, or to anything
         # unclassifiable, is left/demoted to unknown (absent from the map). This
         # is deliberately flow-INSENSITIVE-safe: last-write-wins would over-flag an
         # early `return t` where t is still tagged before a later raw reassignment,
@@ -177,9 +169,7 @@ class _OutputVisitor:
                 if seen[name] > 1:
                     local.pop(name, None)
                     continue
-                if self._is_tracked_call(stmt.value):
-                    local[name] = "tagged"
-                elif self._is_raw(stmt.value):
+                if self._is_raw(stmt.value):
                     local[name] = "raw"
         return local
 
@@ -248,24 +238,15 @@ def check(source, filename='<unknown>', clean_sources=None, extra_modules=None, 
     return [dict(i, filename=filename) for i in v.issues]
 
 
-def check_outputs(source, filename='<unknown>', extra_modules=None, extra_tracked=None):
+def check_outputs(source, filename='<unknown>'):
     """#91 — return a list of REQ-OUTPUT issue dicts for module-level functions
-    that return an untagged raw computation. Same shape/params as check()."""
-    tracked = {n: n for n in TRACKED}
-    if extra_tracked:
-        bad = {name: role for name, role in extra_tracked.items() if role not in TRACKED}
-        if bad:
-            raise ValueError(f'extra_tracked roles must be one of {sorted(TRACKED)}; got {bad}')
-        tracked.update(extra_tracked)
-    modules = {_normalize_module_name(m) for m in PRIMITIVE_MODULES} | {
-        _normalize_module_name(m) for m in (extra_modules or ())
-    }
+    that return an untagged raw computation. Same issue shape as check(); no
+    injection parameters, because the check never consults imports (#212)."""
     try:
         tree = ast.parse(source, filename)
     except SyntaxError as e:
         return [{'line': e.lineno or 0, 'rule': 'parse', 'message': f'syntax error: {e.msg}', 'filename': filename}]
-    v = _OutputVisitor(primitive_modules=modules, tracked=tracked)
-    v.collect_imports(tree)
+    v = _OutputVisitor()
     v.visit_module(tree)
     v.issues.sort(key=lambda i: (i['line'], i['rule']))
     return [dict(i, filename=filename) for i in v.issues]
