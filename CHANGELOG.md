@@ -37,6 +37,22 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   Adapters only (not a published package).
 
 ### Fixed
+- **The plugin bundle is checked against the primitive's published surface**
+  ([#157](https://github.com/slopstopper/plumb-line/issues/157)).
+  `scripts/check-bundle-sync.mjs` byte-compared a hand-enumerated list of
+  (source, bundled) pairs and nothing compared that list to what the package
+  ships, so a new standalone module would have been silently un-bundled. The
+  pairs are now derived from one manifest that names the bundled modules and
+  the excluded ones with a recorded reason (the `http` adapters and the
+  numpy/pandas extras: the bundle is the dependency-free core), and every run
+  asserts published = bundled + excluded in both languages (JS from
+  `package.json` `files`; Python from the flat packaged directory), fails on
+  a manifest entry the package no longer publishes, and fails on an orphan
+  under the bundled tree. The success line states the denominators. Seven
+  cases in `scripts/test_bundle_sync.py` run the script in miniature repos.
+  The related duplication between `check-bundle-conformance.mjs` and
+  `conformance/report.mjs` that #157 folded in is not addressed here and is
+  re-filed on its own. No package, plugin, or wire-format change.
 - **The shipped ESLint template is proven to fire `no-provenance-bypass`, not
   just to register it** ([#246](https://github.com/slopstopper/plumb-line/issues/246)).
   The template integration test proved the config loads and that the output
