@@ -28,8 +28,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   construction split by a wrap ("verified by import, / not by execution" in
   the published 0.9.0 piece) was invisible, and the test suite pinned that
   piece flag-free, enshrining the miss. It now matches per paragraph with
-  wraps kept as newlines — no pattern changed, since each already crosses
-  whitespace — and reports the line the match starts on with every spanned
+  wraps kept as newlines — no pattern text changed, since each already
+  crosses whitespace; the emoji-header pattern gained `re.M` so a heading
+  is still a line start — and reports the line the match starts on with every spanned
   line in the shown text. The 0.9.0 piece is re-pinned as exactly its one
   recorded keep (it predates the 2026-08-18 bare-contrast ruling and stays
   as a dated artifact); the 0.10.0 piece is pinned flag-free. The TEMPLATE's

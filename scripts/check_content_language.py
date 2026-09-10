@@ -85,8 +85,11 @@ def check(path):
                 last = start + text.count("\n", 0, m.end())
                 shown = " ".join(ln.strip() for ln in para[first - start:last - start + 1])
                 flags.append((first, label, shown))
-    # File order, stable within a line (pattern order) — the shape the
-    # per-line scan produced, so reports diff cleanly against old ones.
+    # File order, stable within a line (pattern order). Not identical to the
+    # per-line scan's output: that reported a (line, pattern) at most once,
+    # this reports every match, so a line with two bare contrasts now yields
+    # two rows where it yielded one — a diff against an old report can show a
+    # "new" flag on an unchanged line.
     flags.sort(key=lambda flag: flag[0])
     return flags
 

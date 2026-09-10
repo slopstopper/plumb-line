@@ -130,8 +130,8 @@ def test_flags_bare_contrast_constructions(tmp_path):
 
 def test_em_dashes_counted_but_not_flagged(tmp_path):
     # Em dashes are reported as an informational count (keep to a bare
-    # minimum), never as flags: the published 0.9.0 piece uses one and must
-    # stay flag-free.
+    # minimum), never as flags. (The published 0.9.0 piece uses one; its own
+    # pin is the one-recorded-keep test above, not flag-free.)
     p = tmp_path / "draft.md"
     p.write_text("One thing — and another — again.\n", encoding="utf-8")
     assert ccl.check(str(p)) == []
