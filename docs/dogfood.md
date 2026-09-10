@@ -488,7 +488,7 @@ branch, two deferred as issues.**
 | 4 | `.github/ISSUE_TEMPLATE/deferral.md:3` | P6 — Maturity vocabulary | Unqualified "Principle 3" names the recursive-spine convention's principle, but in this repo P3 is Confidence + provenance. | **Fixed** — qualified. |
 | 5 | `.github/ISSUE_TEMPLATE/work-item.md:9` | P6 — Maturity vocabulary | "principles.md" is a dangling pointer — no such file in this repo (it means the spine repo's). | **Fixed** — qualified. |
 | 6 | `scripts/check-constraints-drift.sh` | spine — null-result expressibility | Exit 0 with empty output is identical for "verified N copies" and "found zero markers"; a marker rename silently no-ops the gate. | **Deferred** — [#249](https://github.com/slopstopper/plumb-line/issues/249). |
-| 7 | `docs/constraints.md:102` | P6 — Maturity vocabulary | "aging pins surface in the sweep" asserts digest behavior nothing verifies. | **Deferred** — [#250](https://github.com/slopstopper/plumb-line/issues/250). |
+| 7 | `docs/constraints.md:102` | P6 — Maturity vocabulary | "aging pins surface in the sweep" asserts digest behavior nothing verifies. | **Deferred** — [#250](https://github.com/slopstopper/plumb-line/issues/250); **resolved 2026-09-10**: the claim now cites the digest's documented "stale constraints pins" sweep item and states its two limits (an instruction, not a test; open-issue docs only). |
 
 Calibration notes: the auditor verified claims against live state (issues
 #212/#246/#233 checked via `gh`, the drift gate actually run) rather than
