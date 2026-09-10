@@ -105,3 +105,96 @@ def test_merge_labels_rates_by_model_tier():
     assert by_q["b"]["measured_by"] == "m-big"
     assert by_q["b"]["pass"] is True
     assert by_q["b"]["screen"] == {"trigger_rate": 0.0, "pass": False}
+
+
+# --- #317: the results JSON is a contracted measurement record --------------
+
+def _merged():
+    return [
+        {"query": "a", "should_trigger": True, "runs": [True, True],
+         "winners": ["plumb-line-audit", "plumb-line-audit"],
+         "trigger_rate": 1.0, "pass": True, "measured_by": "haiku"},
+        {"query": "b", "should_trigger": False, "runs": [True],
+         "winners": ["other"], "trigger_rate": 1.0, "pass": False,
+         "measured_by": "haiku"},
+    ]
+
+
+def _payload(**over):
+    base = dict(target="t", installs=[], tiers={"screen": "haiku", "confirm": None},
+                runs={"screen": 1, "confirm": 2}, threshold=0.5, merged=_merged())
+    base.update(over)
+    return tc.build_payload(**base)
+
+
+def test_score_honours_an_injected_threshold():
+    rows = [{"should_trigger": True, "runs": [True, False]}]      # rate 0.5
+    assert tc.score(rows, threshold=0.5)[0]["pass"] is True
+    assert tc.score(rows, threshold=0.75)[0]["pass"] is False
+
+
+def test_payload_carries_its_contract_and_its_conditions():
+    payload = _payload(target="plumb-line-audit",
+                       installs=[{"plugin": "o/p", "version": "0.10.0"}])
+    keys = list(payload)
+    assert keys[0] == "results-format" and payload["results-format"] == tc.RESULTS_FORMAT
+    assert payload["threshold"] == 0.5
+    assert payload["runs"] == {"screen": 1, "confirm": 2}
+    assert payload["summary"] == {"passed": 1, "total": 2}
+    assert payload["results"] == _merged()
+
+
+def test_validate_accepts_the_harness_own_payload():
+    assert tc.validate_results(_payload()) == []
+
+
+def test_validate_flags_missing_contract_and_unknown_version():
+    payload = _payload()
+    del payload["results-format"]
+    assert any("results-format" in i for i in tc.validate_results(payload))
+    payload["results-format"] = "v9"
+    assert any("v9" in i for i in tc.validate_results(payload))
+
+
+def test_validate_flags_a_verdict_inconsistent_with_the_stamped_threshold():
+    # A stored pass must be reproducible from rate, threshold and expectation;
+    # a row that says pass while its numbers say fail is a laundered verdict.
+    payload = _payload()
+    payload["results"][1]["pass"] = True
+    issues = tc.validate_results(payload)
+    assert any("row 2" in i and "pass" in i for i in issues), issues
+
+
+def test_validate_flags_a_threshold_outside_the_unit_interval():
+    payload = _payload()
+    payload["threshold"] = 1.5
+    assert any("threshold" in i for i in tc.validate_results(payload))
+
+
+def test_validate_rejects_a_boolean_threshold():
+    payload = _payload()
+    payload["threshold"] = True
+    assert any("threshold" in i for i in tc.validate_results(payload))
+
+
+def test_validate_flags_a_summary_that_does_not_add_up():
+    payload = _payload()
+    payload["summary"]["passed"] = 2
+    assert any("summary" in i for i in tc.validate_results(payload))
+
+
+def test_cli_threshold_flag_and_its_default():
+    args = tc.parse_args(["evals.json", "t", "out.json"])
+    assert args.threshold == tc.THRESHOLD == 0.5
+    args = tc.parse_args(["evals.json", "t", "out.json", "--threshold", "0.75"])
+    assert args.threshold == 0.75
+
+
+def test_cli_validate_mode_reads_a_results_file(tmp_path):
+    import json
+    good = tmp_path / "good.json"
+    good.write_text(json.dumps(_payload()), encoding="utf-8")
+    assert tc.main(["--validate", str(good)]) == 0
+    bad = tmp_path / "bad.json"
+    bad.write_text('{"target": "t"}', encoding="utf-8")
+    assert tc.main(["--validate", str(bad)]) == 1

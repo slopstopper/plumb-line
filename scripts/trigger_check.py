@@ -31,6 +31,17 @@ Usage (from repo root):
 
 Omitting --confirm-model skips the confirm tier: screen results stand, labeled
 as such. The eval-set JSON is a list of {"query": str, "should_trigger": bool}.
+
+The results JSON is a durable measurement record and carries its contract
+(#317): a `results-format` version key, the pass `threshold` the verdicts were
+derived under (`--threshold`, default 0.5 — a judgment call, so it is injected
+and stamped rather than buried), and the per-tier `runs` counts. Validate a
+stored file with:
+
+    python3 scripts/trigger_check.py --validate results.json
+
+which re-derives every row's verdict from its rate, the stamped threshold and
+its expectation, so a stored pass is reproducible rather than asserted.
 """
 import argparse
 import json
@@ -41,7 +52,19 @@ import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+# Pass threshold on the trigger rate: a query "triggers" when at least this
+# fraction of its runs invoked the target. 0.5 is a judgment call with no
+# derivation behind it (P5), so it is CLI-injectable and stamped into every
+# results file rather than silently assumed by the reader.
 THRESHOLD = 0.5
+
+# The results file's contract (P7: version constant + key list + validator).
+#   v1  #317 — first versioned shape: results-format, target, probed_installs,
+#       tiers, runs, threshold, summary, results.
+RESULTS_FORMAT = "v1"
+KNOWN_RESULTS_FORMATS = {"v1"}
+RESULTS_KEYS = ["results-format", "target", "probed_installs", "tiers", "runs",
+                "threshold", "summary", "results"]
 
 
 # ---------- pure logic (covered by scripts/test_trigger_check.py) ----------
@@ -100,6 +123,69 @@ def merge(screen, confirm, screen_model, confirm_model):
         else:
             merged.append({**r, "measured_by": screen_model})
     return merged
+
+
+def build_payload(target, installs, tiers, runs, threshold, merged):
+    """The results record, in RESULTS_KEYS order, contract key first."""
+    passed = sum(1 for r in merged if r["pass"])
+    return {"results-format": RESULTS_FORMAT,
+            "target": target,
+            "probed_installs": installs,
+            "tiers": tiers,
+            "runs": runs,
+            "threshold": threshold,
+            "summary": {"passed": passed, "total": len(merged)},
+            "results": merged}
+
+
+def validate_results(payload):
+    """Issues with a stored results record; [] when it conforms.
+
+    Beyond shape: every row's `pass` is re-derived from its `trigger_rate`,
+    the stamped `threshold` and its `should_trigger`, and the summary is
+    re-counted — a record whose verdicts cannot be reproduced from its own
+    numbers is asserting, not measuring.
+    """
+    issues = []
+    if not isinstance(payload, dict):
+        return ["results file is not a JSON object"]
+    for key in RESULTS_KEYS:
+        if key not in payload:
+            issues.append(f"missing required key: {key}")
+    fmt = payload.get("results-format")
+    if fmt is not None and fmt not in KNOWN_RESULTS_FORMATS:
+        issues.append(f"unknown results-format {fmt!r} "
+                      f"(this harness models {sorted(KNOWN_RESULTS_FORMATS)})")
+    threshold = payload.get("threshold")
+    # bool is an int subclass: a hand-edited `"threshold": true` must not
+    # validate as 1.
+    if threshold is not None and not (isinstance(threshold, (int, float))
+                                      and not isinstance(threshold, bool)
+                                      and 0 < threshold <= 1):
+        issues.append(f"threshold must be a number in (0, 1], got {threshold!r}")
+    rows = payload.get("results")
+    if not isinstance(rows, list):
+        return issues
+    passed = 0
+    for n, r in enumerate(rows, start=1):
+        for key in ("query", "should_trigger", "trigger_rate", "pass", "measured_by"):
+            if key not in r:
+                issues.append(f"row {n}: missing {key}")
+        if isinstance(threshold, (int, float)) and all(
+                k in r for k in ("should_trigger", "trigger_rate", "pass")):
+            expected = (r["trigger_rate"] >= threshold) == r["should_trigger"]
+            if r["pass"] != expected:
+                issues.append(f"row {n}: pass={r['pass']} but rate "
+                              f"{r['trigger_rate']} against threshold {threshold} "
+                              f"with should_trigger={r['should_trigger']} gives "
+                              f"{expected}")
+        if r.get("pass"):
+            passed += 1
+    summary = payload.get("summary")
+    if isinstance(summary, dict) and summary != {"passed": passed, "total": len(rows)}:
+        issues.append(f"summary {summary} does not match the rows "
+                      f"({passed} passed of {len(rows)})")
+    return issues
 
 
 PLUGINS_ROOT = os.path.expanduser("~/.claude/plugins/cache")
@@ -211,7 +297,7 @@ def probe(query, target, model, workdir, timeout):
     return False, None
 
 
-def run_tier(evals, target, model, runs, workers, timeout, log):
+def run_tier(evals, target, model, runs, workers, timeout, log, threshold=THRESHOLD):
     workdir = tempfile.mkdtemp(prefix="trigger-check-")
     rows = [{"query": e["query"], "should_trigger": e["should_trigger"],
              "runs": [], "winners": []} for e in evals]
@@ -228,23 +314,56 @@ def run_tier(evals, target, model, runs, workers, timeout, log):
                   f"expected={evals[i]['should_trigger']} "
                   f"winner={winner or '-'}: "
                   f"{evals[i]['query'][:70]}", file=log, flush=True)
-    return score(rows)
+    return score(rows, threshold)
 
 
-def main(argv=None):
+def parse_args(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("eval_set")
-    ap.add_argument("target")
-    ap.add_argument("out")
+    ap.add_argument("eval_set", nargs="?")
+    ap.add_argument("target", nargs="?")
+    ap.add_argument("out", nargs="?")
     ap.add_argument("--screen-model", default="claude-haiku-4-5-20251001")
     ap.add_argument("--confirm-model", default=None)
     ap.add_argument("--screen-runs", type=int, default=1)
     ap.add_argument("--confirm-runs", type=int, default=2)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--timeout", type=int, default=150)
+    ap.add_argument("--threshold", type=float, default=THRESHOLD,
+                    help=f"pass threshold on the trigger rate, in (0, 1] "
+                         f"(default {THRESHOLD}); stamped into the results")
     ap.add_argument("--force", action="store_true",
                     help="probe even if the target skill is not installed")
+    ap.add_argument("--validate", metavar="RESULTS_JSON",
+                    help="validate a stored results file against the contract "
+                         "and exit; no probing")
     args = ap.parse_args(argv)
+    if args.validate is None and not (args.eval_set and args.target and args.out):
+        ap.error("eval_set, target and out are required unless --validate is given")
+    if not 0 < args.threshold <= 1:
+        ap.error(f"--threshold must be in (0, 1], got {args.threshold}")
+    return args
+
+
+def main(argv=None):
+    args = parse_args(argv)
+
+    if args.validate:
+        try:
+            with open(args.validate, encoding="utf-8") as f:
+                payload = json.load(f)
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"✗ {args.validate}: cannot read as JSON ({exc})", file=sys.stderr)
+            return 1
+        issues = validate_results(payload)
+        for issue in issues:
+            print(f"✗ {args.validate}: {issue}", file=sys.stderr)
+        if issues:
+            return 1
+        print(f"✓ {args.validate}: conforms to results-format "
+              f"{payload['results-format']} (threshold {payload['threshold']}, "
+              f"{payload['summary']['passed']}/{payload['summary']['total']} pass)",
+              file=sys.stderr)
+        return 0
 
     installs = installed_locations(args.target)
     if not installs and not args.force:
@@ -263,12 +382,12 @@ def main(argv=None):
 
     evals = json.load(open(args.eval_set))
     screen = run_tier(evals, args.target, args.screen_model, args.screen_runs,
-                      args.workers, args.timeout, sys.stderr)
+                      args.workers, args.timeout, sys.stderr, args.threshold)
     hot = contested(screen)
     if args.confirm_model and hot:
         confirm = run_tier(hot, args.target, args.confirm_model,
                            args.confirm_runs, args.workers, args.timeout,
-                           sys.stderr)
+                           sys.stderr, args.threshold)
         merged = merge(screen, confirm, args.screen_model, args.confirm_model)
     else:
         merged = [{**r, "measured_by": args.screen_model} for r in screen]
@@ -276,15 +395,22 @@ def main(argv=None):
             print(f"note: {len(hot)} contested at screen tier; no confirm "
                   f"model given, screen verdicts stand", file=sys.stderr)
 
-    passed = sum(1 for r in merged if r["pass"])
-    json.dump({"target": args.target,
-               "probed_installs": installs,
-               "tiers": {"screen": args.screen_model,
-                         "confirm": args.confirm_model},
-               "summary": {"passed": passed, "total": len(merged)},
-               "results": merged}, open(args.out, "w"), indent=1)
-    print(f"{args.target}: {passed}/{len(merged)} pass "
-          f"({len(hot)} went to confirm tier)", file=sys.stderr)
+    payload = build_payload(args.target, installs,
+                            {"screen": args.screen_model,
+                             "confirm": args.confirm_model},
+                            # Confirm runs are stamped only when the tier
+                            # actually executed: a model named but never
+                            # invoked (nothing contested) is 0, so the record
+                            # does not imply a tier that did not run.
+                            {"screen": args.screen_runs,
+                             "confirm": args.confirm_runs if (args.confirm_model and hot) else 0},
+                            args.threshold, merged)
+    with open(args.out, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=1)
+    passed = payload["summary"]["passed"]
+    print(f"{args.target}: {passed}/{len(merged)} pass at threshold "
+          f"{args.threshold} ({len(hot)} went to confirm tier); "
+          f"results-format {RESULTS_FORMAT} -> {args.out}", file=sys.stderr)
     return 0
 
 

@@ -55,7 +55,15 @@ untiered run consumed a full usage window in minutes (#291).
 python3 scripts/trigger_check.py evals/trigger/audit-queries.json \
     plumb-line-audit results.json            # cheap screen only
 # add --confirm-model <session model> to re-measure contested queries
+# add --threshold 0.75 to change the pass threshold (default 0.5; stamped
+#   into the results, so a stored verdict always names the bar it cleared)
+python3 scripts/trigger_check.py --validate results.json
 ```
+
+The results file is a contracted record (`results-format: v1`, #317): it
+carries the threshold and per-tier run counts its verdicts derive from, and
+`--validate` re-derives every row's pass from its rate, the stamped threshold
+and its expectation, so a stored pass is reproducible rather than asserted.
 
 ## Status and honest caveats
 
