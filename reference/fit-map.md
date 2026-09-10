@@ -243,12 +243,13 @@ const priced = derive([rate, fx], (a, b) => a * b);
 update("fx-rate", priced, { because: "first recorded baseline", dir });
 assertBaseline("fx-rate", priced, { dir }); // passes: nothing has moved yet
 
-const moved = derive([mark(0.05, { source: "real", confidence: "high" }), fx], (a, b) => a * b);
+const moved = derive([mark(0.05, { source: "fallback", confidence: "low" }), fx], (a, b) => a * b);
 let drifted = false;
 try {
   assertBaseline("fx-rate", moved, { dir });
-} catch {
-  drifted = true; // the finding names which field moved
+} catch (e) {
+  // the report names the step whose source moved
+  drifted = e.message.includes("meta.lineage[");
 }
 ```
 
@@ -264,17 +265,23 @@ priced = derive([rate, fx], lambda a, b: a * b)
 update('fx-rate', priced, because='first recorded baseline', dir=dir)
 assert_baseline('fx-rate', priced, dir=dir)  # passes: nothing has moved yet
 
-moved = derive([mark(0.05, source='real', confidence='high'), fx], lambda a, b: a * b)
+moved = derive([mark(0.05, source='fallback', confidence='low'), fx], lambda a, b: a * b)
 drifted = False
 try:
     assert_baseline('fx-rate', moved, dir=dir)
-except AssertionError:
-    drifted = True  # the finding names which field moved
+except AssertionError as e:
+    drifted = 'meta.lineage[' in str(e)  # the report names the step whose source moved
 ```
 
 **What the audit catches afterwards.** A baseline updated with an empty (or
 rubber-stamp) explanation; a pinned value with no lineage behind it; a drift
 accepted in a commit message instead of in the baseline record.
+
+The baseline library and its inspection CLI are `current` in both languages.
+Cross-step causality, structural diffing inside values, and float tolerance
+are `not-implemented`: a moved float of any size is drift, whatever its
+size — the `because` is where that judgment belongs, not a hardcoded
+epsilon.
 
 ---
 

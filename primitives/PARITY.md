@@ -37,7 +37,9 @@ as parsed values wherever a float appears), and `validate`. It is loaded by
 `primitives/python/tests/test_baseline_conformance.py`. The one known
 asymmetry is by design, not a defect: an integral float canonicalizes to
 `1.0` in Python and `1` in JS, so `canonical` cases compare the parsed value
-rather than the raw bytes.
+rather than the raw bytes. A second, public-surface naming asymmetry: the
+list function is `list` in JS but `list_baselines` in Python, which avoids
+shadowing the `list` builtin.
 
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |
