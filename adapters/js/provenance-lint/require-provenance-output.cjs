@@ -6,13 +6,19 @@
 // trust-bearing output absent. See ADR-0011.
 //
 // Discipline (zero false positives): "raw" is only a binary arithmetic/string
-// expression (a * r), directly or via a same-function local. A return of a
-// tracked call, a parameter, an unknown call, or a member access is NOT flagged —
-// proving those untagged needs cross-file dataflow the rule deliberately omits.
-const { normalizeModuleName, matchesExtraModule } = require("./module-match.cjs");
-
-const PRIMITIVE_SOURCE = /plumb-line-provenance|(?:^|\/)(?:index|marked|provenance)\.mjs$/;
-const TRACKED = ["mark", "derive", "makeMeta", "unwrap"];
+// expression (a * r), directly or via a same-function local. A return of ANY
+// call, a parameter, or a member access is NOT flagged — proving those untagged
+// needs cross-file dataflow the rule deliberately omits.
+//
+// This rule does not consult imports. Its verdict depends on expression shape
+// alone: whether mark/derive is imported, and from where, cannot change it,
+// because a call is never a binary expression. An earlier version carried the
+// bypass rule's import tracking (noteImport / a "tagged" class / the
+// modules+tracked options) and none of it had an observable effect — the
+// "tagged" class was set and never read, so the options were advertised and
+// dead (#212). They are removed rather than kept as a no-op: an option that
+// silently does nothing is the overstated capability P6 forbids. The bypass
+// rule (no-provenance-bypass) genuinely uses tracking and keeps those options.
 
 module.exports = {
   meta: {
@@ -22,19 +28,7 @@ module.exports = {
         "Within declared files, require exported functions to tag their output with mark/derive.",
       recommended: false,
     },
-    schema: [
-      {
-        type: "object",
-        properties: {
-          modules: { type: "array", items: { type: "string" } },
-          tracked: {
-            type: "object",
-            additionalProperties: { enum: ["mark", "derive", "makeMeta", "unwrap"] },
-          },
-        },
-        additionalProperties: false,
-      },
-    ],
+    schema: [],
     messages: {
       untagged:
         "Untagged output: this exported function returns a raw computed value not wrapped by mark/derive. Wrap the returned value with derive()/mark() so provenance propagates. (ADR-0011)",
@@ -42,26 +36,6 @@ module.exports = {
   },
 
   create(context) {
-    const opts = context.options[0] || {};
-    const extraModules = new Set((opts.modules || []).map(normalizeModuleName));
-    const trackedRoles = new Map(TRACKED.map((n) => [n, n]));
-    for (const [name, role] of Object.entries(opts.tracked || {})) trackedRoles.set(name, role);
-    const isPrimitiveSource = (src) =>
-      PRIMITIVE_SOURCE.test(src) || matchesExtraModule(src, extraModules);
-
-    const localFn = new Map(); // local import name -> role
-    function noteImport(node) {
-      const src = node.source && node.source.value;
-      if (typeof src !== "string" || !isPrimitiveSource(src)) return;
-      for (const spec of node.specifiers) {
-        if (spec.type === "ImportSpecifier" && trackedRoles.has(spec.imported.name)) {
-          localFn.set(spec.local.name, trackedRoles.get(spec.imported.name));
-        }
-      }
-    }
-    const isTrackedCall = (n) =>
-      n && n.type === "CallExpression" && n.callee.type === "Identifier" &&
-      Boolean(localFn.get(n.callee.name));
     const RAW_OPS = new Set(["+", "-", "*", "/", "%", "**", "&", "|", "^", "<<", ">>", ">>>"]);
     const isRaw = (n) => n && n.type === "BinaryExpression" && RAW_OPS.has(n.operator);
 
@@ -74,7 +48,7 @@ module.exports = {
         }
         return;
       }
-      const localClass = new Map(); // name -> "raw" | "tagged"
+      const localClass = new Map(); // name -> "raw" (anything else is unknown: silent)
       const assignedCount = new Map(); // name -> value-binding assignments (>1 ⇒ unknown)
       // Count every value-binding assignment to a simple local — a `const/let x =`
       // declarator AND a later plain `x = ...` reassignment. A name assigned more
@@ -86,8 +60,7 @@ module.exports = {
         const n = (assignedCount.get(name) || 0) + 1;
         assignedCount.set(name, n);
         if (n > 1) { localClass.delete(name); return; }
-        if (isTrackedCall(valueNode)) localClass.set(name, "tagged");
-        else if (isRaw(valueNode)) localClass.set(name, "raw");
+        if (isRaw(valueNode)) localClass.set(name, "raw");
       };
       for (const stmt of fnNode.body.body) {
         if (stmt.type === "VariableDeclaration") {
@@ -124,7 +97,6 @@ module.exports = {
     }
 
     return {
-      ImportDeclaration: noteImport,
       ExportNamedDeclaration(node) {
         if (node.declaration && node.declaration.type === "FunctionDeclaration") {
           handleExportedFn(node.declaration);
