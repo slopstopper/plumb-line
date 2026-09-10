@@ -12,10 +12,15 @@ The file on disk is ALWAYS the SPEC wire form (flat camelCase); this module
 converts the Python nested/snake_case envelope on write and read.
 """
 import json
+import os
 import re
+import tempfile
+from datetime import date as _date
 
 try:  # installed as a package (plumb_line_provenance)
     from .provenance import PROVENANCE_VERSION
+    from .audit import validate_envelope
+    from .marked import meta_of, unwrap
 except ImportError:  # flat / copy-paste usage (modules on sys.path)
     import provenance as _prov
     if not hasattr(_prov, 'PROVENANCE_VERSION'):
@@ -25,11 +30,17 @@ except ImportError:  # flat / copy-paste usage (modules on sys.path)
             "installed 'plumb_line_provenance' package"
         )
     PROVENANCE_VERSION = _prov.PROVENANCE_VERSION
+    from audit import validate_envelope
+    from marked import meta_of, unwrap
 
 BASELINE_FORMAT = 'v1'
+KNOWN_BASELINE_FORMATS = {'v1'}
+DEFAULT_DIR = os.path.join('.plumb-line', 'baselines')
 NAME_RE = re.compile(r'^[A-Za-z0-9._-]+$')
 STEP_FIELDS = ['source', 'confidence', 'confidenceScore', 'derivedFromMock', 'of']
 TOP_FIELDS = ['source', 'confidence', 'confidenceScore', 'derivedFromMock']
+_RECORD_KEYS = ['baseline-format', 'name', 'provenanceVersion', 'value', 'meta', 'history']
+_DATE_RE = re.compile(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
 
 _TO_WIRE = {'confidence_score': 'confidenceScore', 'derived_from_mock': 'derivedFromMock',
             'weakest_source': 'weakestSource', 'provenance_version': 'provenanceVersion'}
@@ -152,3 +163,180 @@ def compare(record, wire_meta, value, running_version=PROVENANCE_VERSION):
 
 def summarize(findings):
     return '; '.join(x['text'] for x in findings) if findings else 'none'
+
+
+# ---------- record ----------
+
+def to_record(name, marked, history):
+    wire = dict(to_wire(meta_of(marked)))
+    provenance_version = wire.pop('provenanceVersion', None)
+    return {'baseline-format': BASELINE_FORMAT, 'name': name, 'provenanceVersion': provenance_version,
+            'value': unwrap(marked), 'meta': wire, 'history': history}
+
+
+def validate_baseline(record):
+    """P7 validator for a parsed record. [] when valid; never raises."""
+    if not isinstance(record, dict):
+        return ['not a baseline record']
+    issues = []
+    for k in _RECORD_KEYS:
+        if k not in record:
+            issues.append(f'missing required key: {k}')
+    if 'baseline-format' in record and record['baseline-format'] not in KNOWN_BASELINE_FORMATS:
+        issues.append(f'unknown baseline-format {json.dumps(record["baseline-format"])} '
+                      f'(this library models {", ".join(sorted(KNOWN_BASELINE_FORMATS))})')
+    if 'name' in record and not (isinstance(record['name'], str) and NAME_RE.match(record['name'])):
+        issues.append(f'name must match {NAME_RE.pattern}')
+    if 'provenanceVersion' in record and (isinstance(record['provenanceVersion'], bool)
+                                          or not isinstance(record['provenanceVersion'], int)):
+        issues.append('provenanceVersion must be an integer')
+    if 'meta' in record:
+        meta = dict(record['meta']) if isinstance(record['meta'], dict) else record['meta']
+        if isinstance(meta, dict):
+            meta['provenanceVersion'] = record.get('provenanceVersion')
+            meta = from_wire(meta)
+        for i in validate_envelope(meta):
+            issues.append(f'meta: {i}')
+    if 'history' in record:
+        h = record['history']
+        if not isinstance(h, list) or not h:
+            issues.append('history must be a non-empty array')
+        else:
+            for i, e in enumerate(h):
+                if not isinstance(e, dict):
+                    issues.append(f'history[{i}] must be an object')
+                    continue
+                if not isinstance(e.get('date'), str) or not _DATE_RE.match(e['date']):
+                    issues.append(f'history[{i}].date must be YYYY-MM-DD')
+                if not isinstance(e.get('because'), str) or not e['because'].strip():
+                    issues.append(f'history[{i}].because must be a non-empty string')
+                if not isinstance(e.get('change'), str):
+                    issues.append(f'history[{i}].change must be a string')
+    return issues
+
+
+# ---------- file store ----------
+
+def _abs_dir(dir):
+    return os.path.abspath(dir if dir is not None else DEFAULT_DIR)
+
+
+def _path_for(dir, name):
+    return os.path.join(_abs_dir(dir), f'{name}.json')
+
+
+def _require_name(name):
+    if not isinstance(name, str) or not NAME_RE.match(name):
+        raise ValueError(f'baseline name must match {NAME_RE.pattern}, got {name!r}')
+
+
+def _read_record(dir, name):
+    path = _path_for(dir, name)
+    if not os.path.exists(path):
+        return {'status': 'missing', 'path': path}
+    try:
+        with open(path, encoding='utf-8') as fh:
+            parsed = json.load(fh)
+    except (OSError, ValueError) as e:
+        return {'status': 'invalid', 'path': path, 'issues': [f'cannot parse: {e}']}
+    issues = validate_baseline(parsed)
+    if issues:
+        return {'status': 'invalid', 'path': path, 'issues': issues}
+    if parsed.get('name') != name:
+        return {'status': 'invalid', 'path': path,
+                'issues': [f'name {json.dumps(parsed.get("name"))} does not match the filename']}
+    return {'status': 'ok', 'path': path, 'record': parsed}
+
+
+def check(name, marked, dir=None):
+    _require_name(name)
+    envelope_issues = validate_envelope(meta_of(marked))
+    if envelope_issues:
+        return {'status': 'invalid-envelope', 'name': name, 'dir': _abs_dir(dir), 'findings': [],
+                'summary': 'none', 'issues': envelope_issues}
+    read = _read_record(dir, name)
+    if read['status'] != 'ok':
+        return {'status': read['status'], 'name': name, 'dir': _abs_dir(dir), 'path': read['path'],
+                'findings': [], 'summary': 'none', 'issues': read.get('issues', [])}
+    findings = compare(read['record'], to_wire(meta_of(marked)), unwrap(marked), PROVENANCE_VERSION)
+    return {'status': 'drift' if findings else 'match', 'name': name, 'dir': _abs_dir(dir),
+            'path': read['path'], 'findings': findings, 'summary': summarize(findings)}
+
+
+def report_text(report):
+    head = f"baseline {report['name']} ({report['dir']}): {report['status']}"
+    s = report['status']
+    if s == 'match':
+        return head
+    if s == 'drift':
+        return '\n'.join([head] + [f'  {f["text"]}' for f in report['findings']] + [
+            f'  accept with: update({json.dumps(report["name"])}, <marked>, because="<why the new state is correct>", dir={json.dumps(report["dir"])})'])
+    if s == 'missing':
+        return '\n'.join([head, f'  no baseline file at {report["path"]}',
+            f'  record one with: update({json.dumps(report["name"])}, <marked>, because="<why this state is correct>", dir={json.dumps(report["dir"])})'])
+    if s == 'invalid':
+        return '\n'.join([head, f'  {report["path"]} is not a valid baseline record:'] + [f'    {i}' for i in report['issues']])
+    if s == 'invalid-envelope':
+        return '\n'.join([head, "  the marked value's envelope is not valid:"] + [f'    {i}' for i in report['issues']])
+    return head
+
+
+def assert_baseline(name, marked, dir=None):
+    report = check(name, marked, dir=dir)
+    if report['status'] != 'match':
+        raise AssertionError(report_text(report))
+
+
+def update(name, marked, because=None, dir=None, date=None):
+    _require_name(name)
+    if not isinstance(because, str) or not because.strip():
+        raise ValueError('update requires `because`: a non-empty explanation of why the new state is correct')
+    envelope_issues = validate_envelope(meta_of(marked))
+    if envelope_issues:
+        raise ValueError(f'cannot pin an invalid envelope: {"; ".join(envelope_issues)}')
+    value = unwrap(marked)
+    if not is_json_value(value):
+        raise ValueError('cannot pin a value that is not JSON-serialisable')
+    read = _read_record(dir, name)
+    if read['status'] == 'invalid':
+        raise ValueError(f'refusing to overwrite an invalid baseline at {read["path"]}: {"; ".join(read["issues"])}')
+    today = date or _date.today().isoformat()
+    if read['status'] == 'missing':
+        history, change = [], 'initial'
+    else:
+        history = list(read['record']['history'])
+        change = summarize(compare(read['record'], to_wire(meta_of(marked)), value, PROVENANCE_VERSION))
+    history.append({'date': today, 'because': because.strip(), 'change': change})
+    record = to_record(name, marked, history)
+    abs_dir = _abs_dir(dir)
+    os.makedirs(abs_dir, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=f'.{name}.', suffix='.tmp', dir=abs_dir)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as fh:
+            fh.write(canonical_json(record))
+        os.replace(tmp, _path_for(dir, name))
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+    return record
+
+
+def list_baselines(dir=None):
+    abs_dir = _abs_dir(dir)
+    if not os.path.isdir(abs_dir):
+        return []
+    return sorted(f[:-len('.json')] for f in os.listdir(abs_dir)
+                  if f.endswith('.json') and not f.startswith('.'))
+
+
+def show(name, dir=None):
+    _require_name(name)
+    read = _read_record(dir, name)
+    if read['status'] == 'missing':
+        raise LookupError(f'no baseline named {name} in {_abs_dir(dir)}')
+    if read['status'] == 'invalid':
+        raise ValueError(f'{read["path"]} is not a valid baseline record: {"; ".join(read["issues"])}')
+    return read['record']

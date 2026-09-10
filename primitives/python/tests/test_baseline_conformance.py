@@ -28,3 +28,12 @@ def test_canonical_cases():
         assert json.loads(text) == json.loads(c['expect']), c['name']
         if not re.search(r'\d\.\d', c['expect']):
             assert text == c['expect'], c['name']
+
+
+def test_validate_cases():
+    for c in CASES['validate']:
+        issues = bl.validate_baseline(c['record'])
+        if not c['expectContains']:
+            assert issues == [], c['name']
+        for needle in c['expectContains']:
+            assert any(needle in i for i in issues), (c['name'], needle, issues)
