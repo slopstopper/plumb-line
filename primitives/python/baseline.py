@@ -14,6 +14,7 @@ converts the Python nested/snake_case envelope on write and read.
 import json
 import os
 import re
+import sys
 import tempfile
 from datetime import date as _date
 
@@ -340,3 +341,75 @@ def show(name, dir=None):
     if read['status'] == 'invalid':
         raise ValueError(f'{read["path"]} is not a valid baseline record: {"; ".join(read["issues"])}')
     return read['record']
+
+
+# ---------- CLI (inspection only; see docs/adr/0015) ----------
+
+def main(argv=None):
+    import argparse
+    ap = argparse.ArgumentParser(prog='baseline', description='inspect plumb-line baseline records')
+    ap.add_argument('cmd', nargs='?', choices=['list', 'show', 'validate'])
+    ap.add_argument('name', nargs='?')
+    ap.add_argument('--dir', default=None)
+    args = ap.parse_args(argv)
+    abs_dir = _abs_dir(args.dir)
+    if args.cmd == 'list':
+        if not os.path.isdir(abs_dir):
+            print(f'no baselines directory at {abs_dir}')
+            return 0
+        names = list_baselines(dir=abs_dir)
+        for n in names:
+            print(n)
+        print(f'{len(names)} baseline(s) in {abs_dir}')
+        return 0
+    if args.cmd == 'show':
+        if not args.name:
+            print('usage: baseline show <name> [--dir D]', file=sys.stderr)
+            return 2
+        try:
+            rec = show(args.name, dir=abs_dir)
+        except (LookupError, ValueError) as e:
+            print(str(e), file=sys.stderr)
+            return 1
+        print(f'{rec["name"]}  (baseline-format {rec["baseline-format"]}, wire v{rec["provenanceVersion"]})')
+        print(f'value: {compact_json(rec["value"])}')
+        for k in ('source', 'confidence', 'confidenceScore', 'derivedFromMock', 'weakestSource'):
+            if k in rec['meta']:
+                print(f'{k}: {compact_json(rec["meta"][k])}')
+        steps = rec['meta']['lineage']
+        print(f'lineage: {len(steps)} step(s)')
+        for i, s in enumerate(steps):
+            tainted = ' tainted' if s.get('derivedFromMock') else ''
+            score = f' score {s["confidenceScore"]}' if 'confidenceScore' in s else ''
+            print(f'  [{i}] {s.get("source")}/{s.get("confidence")}{tainted}{score}')
+        print('history:')
+        for h in rec['history']:
+            print(f'  {h["date"]}  {h["change"]}  {h["because"]}')
+        return 0
+    if args.cmd == 'validate':
+        if not os.path.isdir(abs_dir):
+            print(f'no baselines directory at {abs_dir}; 0 files validated')
+            return 0
+        files = sorted(f for f in os.listdir(abs_dir) if f.endswith('.json') and not f.startswith('.'))
+        bad = 0
+        for f in files:
+            try:
+                with open(os.path.join(abs_dir, f), encoding='utf-8') as fh:
+                    issues = validate_baseline(json.load(fh))
+            except (OSError, ValueError) as e:
+                issues = [f'cannot parse: {e}']
+            if issues:
+                bad += 1
+                print(f'✗ {f}')
+                for i in issues:
+                    print(f'    {i}')
+            else:
+                print(f'✓ {f}')
+        print(f'{bad} of {len(files)} invalid' if bad else f'{len(files)} file(s) valid')
+        return 1 if bad else 0
+    ap.print_usage(sys.stderr)
+    return 2
+
+
+if __name__ == '__main__':
+    sys.exit(main())
