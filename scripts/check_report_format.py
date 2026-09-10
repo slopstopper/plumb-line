@@ -13,9 +13,21 @@ Validates any of the contracts, auto-detected from the first key line:
     remediation-format: v1   the plumb-line-remediate record
     routing-format: v1       the plumb-line-adopt routing report (#269)
 
-Principle names are read from reference/portable-principles.md, never
-hardcoded — a second copy of the ruleset in here would be exactly the drift
-P9 warns about, and the hardcoded prior P5 forbids.
+Principle names and the ruleset revision are read from
+reference/portable-principles.md at run time, never hardcoded. The header key
+lists, table columns, contract versions and the Action/Class vocabularies ARE
+kept here as constants — a second copy of what the SKILL files define. That is
+deliberate, and it is the drift P9 warns about, so each copy is pinned by a
+test in scripts/test_report_format.py that parses the SKILL file and fails
+when the two disagree (#223; the v0.8.0 harness had exactly that drift — two
+remediators failed on correct Action verbs). The checker stays pure stdlib and
+runnable from a checkout without skills/ (the portable entry point) at the
+cost of that test-enforced duplication.
+
+Every run begins with a provenance line naming the checker version, the
+contract versions it models, and the ruleset revision it compared against
+(#221): the release harness stores this output as gate evidence, so the
+evidence must carry its own conditions.
 
 Pure stdlib. Run from the repo root:
 
@@ -57,6 +69,23 @@ RECORD_COLUMNS = ["Finding", "Path", "Class", "Action", "Change summary"]
 
 ACTIONS = {"applied-mechanical", "applied-judgment", "applied-conservative",
            "proposed", "blocked", "skipped"}
+# The record's Class column (skills/plumb-line-remediate/SKILL.md, Step 1).
+# Matched case-insensitively: the skill renders the words capitalised in prose
+# and its example row, agents emit either casing, and the casing carries no
+# meaning — an invented class or a typo is what this check exists to catch (#222).
+CLASSES = {"Mechanical", "Judgment"}
+
+# Bumped when the RULES this checker applies change — a stored "conforms" line
+# from v1 was earned under a checker that did not compare the principles
+# revision or validate Class. Independent of the contract versions above, which
+# describe the REPORT's shape, and of the package release version.
+#   v1  #139 — first validator (implicit; never printed)
+#   v2  #245 — revision compared to the ruleset (#220), Class enforced (#222),
+#       output carries this provenance line (#221)
+CHECKER_VERSION = "2"
+
+# The ruleset's own revision line: `**Principles revision:** 1`.
+_RULESET_REVISION = re.compile(r"^\*\*Principles revision:\*\*\s*([0-9]+)\s*$", re.M)
 
 # [0-9] not \d, and an explicit ASCII test rather than str.isdigit(): Python's
 # \d matches any Unicode decimal digit and isdigit() is broader still (it is
@@ -105,6 +134,12 @@ def load_principles(text):
     return out
 
 
+def load_ruleset_revision(text):
+    """The integer after `**Principles revision:**` in the ruleset, or None."""
+    m = _RULESET_REVISION.search(text)
+    return int(m.group(1)) if m else None
+
+
 def _header_lines(text):
     """The header's `key: value` lines.
 
@@ -150,7 +185,8 @@ def detect_format(text):
     return None
 
 
-def _check_header(pairs, required, version_key, known_versions, issues):
+def _check_header(pairs, required, version_key, known_versions, issues,
+                  ruleset_revision=None):
     present = [k for k, _ in pairs]
     values = dict(pairs)
 
@@ -179,9 +215,27 @@ def _check_header(pairs, required, version_key, known_versions, issues):
     if "date" in values and not _DATE.match(values["date"]):
         issues.append(f"date must be YYYY-MM-DD, got {values['date']!r}")
 
-    if "principles-revision" in values and not _ASCII_INT.match(values["principles-revision"]):
-        issues.append(
-            f"principles-revision must be an integer, got {values['principles-revision']!r}")
+    if "principles-revision" in values:
+        stated = values["principles-revision"]
+        if not _ASCII_INT.match(stated):
+            issues.append(f"principles-revision must be an integer, got {stated!r}")
+        elif ruleset_revision is not None and int(stated) != ruleset_revision:
+            # The field exists to pin which ruleset the report was scored under
+            # (P9). Any integer used to pass, so a report could name a ruleset
+            # state that never existed (#220). Ahead and behind are both
+            # failures, worded differently: ahead is a revision this ruleset
+            # has never had; behind is a report scored under an earlier ruleset
+            # whose principle names and rules this checker no longer holds.
+            if int(stated) > ruleset_revision:
+                issues.append(
+                    f"principles-revision {stated} is unknown: the ruleset "
+                    f"(reference/portable-principles.md) is at revision "
+                    f"{ruleset_revision} and has never been higher")
+            else:
+                issues.append(
+                    f"principles-revision {stated} is older than the ruleset's "
+                    f"revision {ruleset_revision}: this report was scored under "
+                    f"an earlier ruleset, and is validated against the current one")
 
     commit = values.get("commit")
     if commit is not None and commit != _WORKING_TREE and not _COMMIT.match(commit):
@@ -313,10 +367,10 @@ def _glossary_codes(text):
     return {"P" + m.group(1) for m in _PRINCIPLE_CODE.finditer(head)}
 
 
-def check_report(text, principles):
+def check_report(text, principles, ruleset_revision=None):
     issues = []
     values = _check_header(_header_lines(text), REPORT_HEADER_KEYS, "report-format",
-                           KNOWN_REPORT_VERSIONS, issues)
+                           KNOWN_REPORT_VERSIONS, issues, ruleset_revision)
 
     # A BOOTSTRAP report shares the v3 header block and nothing else — the
     # glossary, findings table and coverage map are audit-specific
@@ -369,10 +423,10 @@ def check_report(text, principles):
     return issues
 
 
-def check_remediation(text, principles):
+def check_remediation(text, principles, ruleset_revision=None):
     issues = []
     _check_header(_header_lines(text), REMEDIATION_HEADER_KEYS, "remediation-format",
-                  KNOWN_REMEDIATION_VERSIONS, issues)
+                  KNOWN_REMEDIATION_VERSIONS, issues, ruleset_revision)
 
     cols, rows = _table_columns(text, RECORD_COLUMNS)
     if cols != RECORD_COLUMNS:
@@ -380,6 +434,8 @@ def check_remediation(text, principles):
             f"record table columns must be exactly {RECORD_COLUMNS}; found {cols}")
     else:
         action_at = RECORD_COLUMNS.index("Action")
+        class_at = RECORD_COLUMNS.index("Class")
+        classes_lower = {c.lower(): c for c in CLASSES}
         for n, row in enumerate(rows, start=1):
             # A row with the wrong cell count is not "skip it" — a stray or
             # missing pipe shifts every later cell, so Action would be read from
@@ -399,12 +455,20 @@ def check_remediation(text, principles):
                 issues.append(
                     f"unknown Action verb {verb!r}; "
                     f"must be one of {sorted(ACTIONS)}")
+            # The sibling column, held to the same standard (#222): the skill
+            # gives Class a two-word vocabulary, and a typo or an invented
+            # class used to pass the contract that exists to enforce it.
+            klass = row[class_at].strip().strip("`").strip()
+            if klass.lower() not in classes_lower:
+                issues.append(
+                    f"unknown Class {klass!r}; must be one of {sorted(CLASSES)} "
+                    f"(any casing)")
 
     _check_principles(text, principles, glossary_required=False, issues=issues)
     return issues
 
 
-def check_routing(text, principles):
+def check_routing(text, principles, ruleset_revision=None):
     """routing-format v1 (#269): the adopt skill's contracted output. Light by
     design — the report is conversational routing prose, so the contract pins
     the five elements the skill already requires rather than a table shape:
@@ -412,11 +476,12 @@ def check_routing(text, principles):
     the vocabulary with cited evidence, and a handoff line. `principles` is
     accepted for dispatch symmetry and deliberately unused: routing prose is
     not held to the inline-naming rule the audit/remediation formats enforce
-    (part of the same light-by-design decision)."""
+    (part of the same light-by-design decision). `ruleset_revision` likewise:
+    the routing header carries no principles-revision key."""
     issues = []
     pairs = _header_lines(text)
     _check_header(pairs, ROUTING_HEADER_KEYS, "routing-format",
-                  KNOWN_ROUTING_VERSIONS, issues)
+                  KNOWN_ROUTING_VERSIONS, issues, ruleset_revision)
 
     body = _mask_code_spans(text)
     if not re.search(r"^denominator:\s*\S", body, re.M | re.I):
@@ -440,7 +505,9 @@ def check_routing(text, principles):
     return issues
 
 
-def check(text, principles):
+def check(text, principles, ruleset_revision=None):
+    """`ruleset_revision` None means the caller does not know the ruleset's
+    revision, and the comparison is skipped; `main` always supplies it."""
     kind = detect_format(text)
     if kind in ("report", "remediation", "routing"):
         # Exactly one header block, or the checker cannot say which one it
@@ -460,7 +527,7 @@ def check(text, principles):
                 f"cannot tell which one it is validating")
         checker = {"report": check_report, "remediation": check_remediation,
                    "routing": check_routing}[kind]
-        return issues + checker(text, principles)
+        return issues + checker(text, principles, ruleset_revision)
     return ["unrecognised report contract: the first header key must be "
             "'report-format:', 'remediation-format:' or 'routing-format:' — "
             "check for a title line, prose, or an unclosed code fence above "
@@ -478,13 +545,29 @@ def main(argv):
     # a traceback. The docstring promises exit 1 on an unreadable path.
     try:
         with open(_PRINCIPLES_DOC, encoding="utf-8") as fh:
-            principles = load_principles(fh.read())
+            ruleset = fh.read()
     except OSError as exc:
         print(f"✗ cannot read {_PRINCIPLES_DOC}: {exc.strerror}")
         return 1
+    principles = load_principles(ruleset)
     if not principles:
         print(f"✗ could not read principle names from {_PRINCIPLES_DOC}")
         return 1
+    revision = load_ruleset_revision(ruleset)
+    if revision is None:
+        # Same standard as the names: a ruleset the checker cannot pin a
+        # revision on cannot be what a report is validated against.
+        print(f"✗ could not read the principles revision from {_PRINCIPLES_DOC}")
+        return 1
+
+    # The provenance line (#221). The harness stores this output as the
+    # evidence a tag rests on, so the first line says what produced it and
+    # under which ruleset — P8 applied to our own tooling.
+    print(f"check_report_format v{CHECKER_VERSION} — models report-format "
+          f"{'/'.join(sorted(KNOWN_REPORT_VERSIONS))}, remediation-format "
+          f"{'/'.join(sorted(KNOWN_REMEDIATION_VERSIONS))}, routing-format "
+          f"{'/'.join(sorted(KNOWN_ROUTING_VERSIONS))}; ruleset "
+          f"reference/portable-principles.md at principles-revision {revision}")
 
     failed = 0
     for path in argv:
@@ -493,7 +576,7 @@ def main(argv):
         # other failure rather than a stack trace.
         try:
             with open(path, encoding="utf-8") as fh:
-                issues = check(fh.read(), principles)
+                issues = check(fh.read(), principles, revision)
         except OSError as exc:
             failed += 1
             print(f"✗ {path}\n    cannot read: {exc.strerror}")
