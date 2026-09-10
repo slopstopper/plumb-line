@@ -39,7 +39,7 @@ test runner needs ≥ 20), so the supported floor is the tested floor.
 - CI tests the current floor and the newest LTS; lines in between are
   supported.
 
-**Current floor: Node 20.** (18 is EOL; CI exercises 20 and 22.)
+**Current floor: Node 22.** (20 reached EOL 2026-04-30; CI exercises 22 and 24.)
 
 [#233]: https://github.com/slopstopper/plumb-line/issues/233
 

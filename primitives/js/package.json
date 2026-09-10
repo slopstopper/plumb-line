@@ -41,14 +41,14 @@
     "directory": "primitives/js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^5.0.0",
     "eslint": "^10.6.0",
     "fast-check": "^4.8.0",
     "globals": "^17.7.0",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.0"
   }
 }
