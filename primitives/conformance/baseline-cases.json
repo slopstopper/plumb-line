@@ -98,5 +98,19 @@
       "input": { "b": [], "a": {} },
       "expect": "{\n  \"a\": {},\n  \"b\": []\n}\n",
       "expectParsedEqualAcrossLanguages": true }
+  ],
+  "validate": [
+    { "name": "well-formed record", "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": 1,
+        "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "expectContains": [] },
+    { "name": "unknown format, bad name, empty history", "record": { "baseline-format": "v9", "name": "a b", "provenanceVersion": 2, "value": 1,
+        "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [] }, "history": [] },
+      "expectContains": [ "baseline-format", "name", "history" ] },
+    { "name": "meta missing lineage; history entry with bad date and blank because", "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": 1,
+        "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false },
+        "history": [ { "date": "10/09/2026", "because": " ", "change": "initial" } ] },
+      "expectContains": [ "lineage", "history[0].date", "history[0].because" ] },
+    { "name": "not an object", "record": null, "expectContains": [ "not a baseline record" ] }
   ]
 }

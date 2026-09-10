@@ -1,7 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterAll } from "vitest";
+import { mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { mark, derive } from "./marked.mjs";
 import {
   canonicalJson, compactJson, deepEqual, isJsonValue,
   compare, summarize, BASELINE_FORMAT, NAME_RE,
+  validateBaseline, toRecord, check, assertBaseline, update, list, show, reportText,
 } from "./baseline.mjs";
 
 const step = (over = {}) => ({
@@ -104,5 +109,98 @@ describe("compare — attribution", () => {
   it("summarize joins texts with '; '", () => {
     expect(summarize([{ text: "a" }, { text: "b" }])).toBe("a; b");
     expect(summarize([])).toBe("none");
+  });
+});
+
+const dir = mkdtempSync(join(tmpdir(), "plumb-baseline-"));
+afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+const rate = () => mark(0.04, { source: "real", confidence: "high", confidenceScore: 0.9 });
+const fx = () => mark(1.03, { source: "real", confidence: "high", confidenceScore: 0.9 });
+const out = (r = rate(), f = fx()) => derive([r, f], (a, b) => a * b, { basis: "pricing.applyFx@v3" });
+
+describe("validateBaseline", () => {
+  it("accepts a well-formed record", () => {
+    const rec = toRecord("nightly-rate", out(), [{ date: "2026-09-10", because: "initial pin", change: "initial" }]);
+    expect(validateBaseline(rec)).toEqual([]);
+    expect(rec.meta.provenanceVersion).toBeUndefined();
+    expect(rec.provenanceVersion).toBe(2);
+  });
+  it("names every defect", () => {
+    const rec = toRecord("nightly-rate", out(), []);
+    rec["baseline-format"] = "v9"; rec.name = "bad name"; rec.provenanceVersion = "2"; delete rec.meta.lineage;
+    const issues = validateBaseline(rec);
+    for (const needle of ["baseline-format", "name", "provenanceVersion", "history", "lineage"]) {
+      expect(issues.some((i) => i.includes(needle))).toBe(true);
+    }
+    expect(validateBaseline(null)).toEqual(["not a baseline record"]);
+    expect(validateBaseline({ ...toRecord("n", out(), [{ date: "10/09/2026", because: " ", change: "initial" }]) })
+      .filter((i) => i.includes("history[0]"))).toHaveLength(2);
+  });
+});
+
+describe("file store", () => {
+  it("check on a missing baseline says how to record one", () => {
+    const r = check("nightly-rate", out(), { dir });
+    expect(r.status).toBe("missing");
+    expect(reportText(r)).toContain('update("nightly-rate", <marked>, { because: "<why this state is correct>", dir: ');
+    expect(() => assertBaseline("nightly-rate", out(), { dir })).toThrow(/missing/);
+  });
+  it("update requires a non-empty because and a safe name", () => {
+    expect(() => update("nightly-rate", out(), { dir })).toThrow(/because/);
+    expect(() => update("nightly-rate", out(), { because: "  ", dir })).toThrow(/because/);
+    expect(() => update("../escape", out(), { because: "x", dir })).toThrow(/name/);
+    expect(readdirSync(dir)).toEqual([]);
+  });
+  it("update writes canonical JSON and the first history entry is 'initial'", () => {
+    const rec = update("nightly-rate", out(), { because: "initial pin after the v2 feed", dir, date: "2026-09-10" });
+    const text = readFileSync(join(dir, "nightly-rate.json"), "utf8");
+    expect(text.endsWith("\n")).toBe(true);
+    expect(JSON.parse(text)).toEqual(rec);
+    expect(rec.history).toEqual([{ date: "2026-09-10", because: "initial pin after the v2 feed", change: "initial" }]);
+    expect(Object.keys(JSON.parse(text))).toEqual(["baseline-format", "history", "meta", "name", "provenanceVersion", "value"]);
+  });
+  it("check matches after update and drifts with attribution", () => {
+    expect(check("nightly-rate", out(), { dir }).status).toBe("match");
+    const drifted = out(mark(0.04, { source: "fallback", confidence: "medium", confidenceScore: 0.5 }));
+    const r = check("nightly-rate", drifted, { dir });
+    expect(r.status).toBe("drift");
+    expect(r.findings.map((f) => f.path)).toEqual([
+      "meta.lineage[0].source", "meta.lineage[0].confidence", "meta.lineage[0].confidenceScore"]);
+    expect(() => assertBaseline("nightly-rate", drifted, { dir })).toThrow(/meta\.lineage\[0\]\.source/);
+  });
+  it("update on drift appends the attribution summary; update without drift appends 'none'", () => {
+    const drifted = out(mark(0.04, { source: "fallback", confidence: "medium", confidenceScore: 0.5 }));
+    const rec = update("nightly-rate", drifted, { because: "feed lost its cache header", dir, date: "2026-09-14" });
+    expect(rec.history).toHaveLength(2);
+    expect(rec.history[1].change).toMatch(/^meta\.lineage\[0\]\.source: "real" -> "fallback"; /);
+    const again = update("nightly-rate", drifted, { because: "re-pinned after review", dir, date: "2026-09-15" });
+    expect(again.history[2].change).toBe("none");
+  });
+  it("an invalid file is reported as invalid, never as missing", () => {
+    writeFileSync(join(dir, "broken.json"), "{ not json");
+    expect(check("broken", out(), { dir }).status).toBe("invalid");
+    writeFileSync(join(dir, "hollow.json"), JSON.stringify({ "baseline-format": "v1" }));
+    const r = check("hollow", out(), { dir });
+    expect(r.status).toBe("invalid");
+    expect(reportText(r)).toContain("missing required key");
+  });
+  it("an envelope that fails validateEnvelope is refused by check and update", () => {
+    const bogus = { value: 1, source: "real" };
+    expect(check("nightly-rate", bogus, { dir }).status).toBe("invalid-envelope");
+    expect(() => update("nightly-rate", bogus, { because: "x", dir })).toThrow(/envelope/);
+  });
+  it("update refuses a value that is not JSON", () => {
+    expect(() => update("fn", mark(() => 1, { source: "real" }), { because: "x", dir })).toThrow(/JSON/);
+  });
+  it("list and show", () => {
+    expect(list({ dir })).toEqual(["broken", "hollow", "nightly-rate"]);
+    expect(list({ dir: join(dir, "absent") })).toEqual([]);
+    expect(show("nightly-rate", { dir }).name).toBe("nightly-rate");
+    expect(() => show("nope", { dir })).toThrow(/no baseline named nope/);
+  });
+  it("the default dir is .plumb-line/baselines under the working directory", () => {
+    const r = check("x", out());
+    expect(reportText(r)).toContain(".plumb-line/baselines");
   });
 });

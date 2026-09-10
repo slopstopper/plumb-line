@@ -3,7 +3,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { compare, summarize, canonicalJson } from "./baseline.mjs";
+import { compare, summarize, canonicalJson, validateBaseline } from "./baseline.mjs";
 
 const cases = JSON.parse(readFileSync(
   fileURLToPath(new URL("../conformance/baseline-cases.json", import.meta.url)), "utf8"));
@@ -24,6 +24,16 @@ describe("baseline conformance — canonical", () => {
       const text = canonicalJson(c.input);
       expect(JSON.parse(text)).toEqual(JSON.parse(c.expect));
       if (!/\d\.\d/.test(c.expect)) expect(text).toBe(c.expect);
+    });
+  }
+});
+
+describe("baseline conformance — validate", () => {
+  for (const c of cases.validate) {
+    it(c.name, () => {
+      const issues = validateBaseline(c.record);
+      if (c.expectContains.length === 0) expect(issues).toEqual([]);
+      for (const needle of c.expectContains) expect(issues.some((i) => i.includes(needle))).toBe(true);
     });
   }
 });
