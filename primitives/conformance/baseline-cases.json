@@ -1,0 +1,102 @@
+{
+  "_doc": "Language-neutral conformance cases for the baseline library (Principle 9). JS and Python runners load this file and must produce identical findings, summaries and canonical bytes. Keys are camelCase (the wire shape); the Python runner converts only where its own API takes snake_case. This file — not prose — is the parity contract for attribution text.",
+  "version": 1,
+  "attribute": [
+    {
+      "name": "identical pin and envelope — no findings",
+      "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": 0.0412,
+        "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false, "confidenceScore": 0.9,
+          "lineage": [ { "id": "sha256:000000000000", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false, "confidenceScore": 0.9 } ] },
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "confidenceScore": 0.9,
+        "lineage": [ { "id": "sha256:ffffffffffff", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false, "confidenceScore": 0.9 } ] },
+      "value": 0.0412, "runningVersion": 2,
+      "expectFindings": [], "expectSummary": "none"
+    },
+    {
+      "name": "input moved real -> fallback at step 0; value followed",
+      "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": 0.0412,
+        "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false,
+          "lineage": [ { "id": "sha256:000000000000", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false } ] },
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false,
+        "lineage": [ { "id": "sha256:111111111111", "of": "input", "source": "fallback", "confidence": "high", "derivedFromMock": false } ] },
+      "value": 0.05, "runningVersion": 2,
+      "expectFindings": [
+        { "path": "meta.lineage[0].source", "before": "real", "after": "fallback", "text": "meta.lineage[0].source: \"real\" -> \"fallback\"" },
+        { "path": "value", "before": 0.0412, "after": 0.05, "text": "value moved; attributed to the findings above" } ],
+      "expectSummary": "meta.lineage[0].source: \"real\" -> \"fallback\"; value moved; attributed to the findings above"
+    },
+    {
+      "name": "value moved with no input change — the silent-drift case",
+      "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": { "total": 10, "items": [1, 2] },
+        "meta": { "source": "derived", "confidence": "medium", "derivedFromMock": false, "lineage": [] },
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "medium", "derivedFromMock": false, "lineage": [] },
+      "value": { "items": [1, 2], "total": 11 }, "runningVersion": 2,
+      "expectFindings": [ { "path": "value", "before": { "total": 10, "items": [1, 2] }, "after": { "items": [1, 2], "total": 11 }, "text": "value moved with no input change" } ],
+      "expectSummary": "value moved with no input change"
+    },
+    {
+      "name": "taint appeared at step 1 and at the top — reported once, at the step",
+      "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": 1,
+        "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false,
+          "lineage": [ { "id": "sha256:000000000000", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false },
+                       { "id": "sha256:000000000001", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false } ] },
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": true,
+        "lineage": [ { "id": "sha256:000000000000", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false },
+                     { "id": "sha256:aaaaaaaaaaaa", "of": "input", "source": "mock", "confidence": "high", "derivedFromMock": true } ] },
+      "value": 1, "runningVersion": 2,
+      "expectFindings": [
+        { "path": "meta.lineage[1].source", "before": "real", "after": "mock", "text": "meta.lineage[1].source: \"real\" -> \"mock\"" },
+        { "path": "meta.lineage[1].derivedFromMock", "before": false, "after": true, "text": "meta.lineage[1].derivedFromMock: false -> true" } ],
+      "expectSummary": "meta.lineage[1].source: \"real\" -> \"mock\"; meta.lineage[1].derivedFromMock: false -> true"
+    },
+    {
+      "name": "lineage grew; confidenceScore vanished at the top",
+      "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": 1,
+        "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false, "confidenceScore": 0.8, "lineage": [] },
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false,
+        "lineage": [ { "id": "sha256:000000000000", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false } ] },
+      "value": 1, "runningVersion": 2,
+      "expectFindings": [
+        { "path": "meta.lineage.length", "before": 0, "after": 1, "text": "lineage grew by 1 (first new step: meta.lineage[0])" },
+        { "path": "meta.confidenceScore", "before": 0.8, "after": null, "text": "meta.confidenceScore: 0.8 -> null" } ],
+      "expectSummary": "lineage grew by 1 (first new step: meta.lineage[0]); meta.confidenceScore: 0.8 -> null"
+    },
+    {
+      "name": "pinned under an older wire version",
+      "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 1, "value": 1,
+        "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "value": 1, "runningVersion": 2,
+      "expectFindings": [ { "path": "provenanceVersion", "before": 1, "after": 2, "text": "pinned under wire v1, running v2" } ],
+      "expectSummary": "pinned under wire v1, running v2"
+    },
+    {
+      "name": "pinned under an older wire version AND the value moved — version is not an input change",
+      "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 1, "value": 1,
+        "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "value": 2, "runningVersion": 2,
+      "expectFindings": [
+        { "path": "provenanceVersion", "before": 1, "after": 2, "text": "pinned under wire v1, running v2" },
+        { "path": "value", "before": 1, "after": 2, "text": "value moved with no input change" } ],
+      "expectSummary": "pinned under wire v1, running v2; value moved with no input change"
+    }
+  ],
+  "canonical": [
+    { "name": "keys sorted recursively, arrays ordered, unicode kept, integral float stays a number",
+      "input": { "z": [3, { "b": "é", "a": null }], "a": 1.0, "m": { "y": true, "x": "ü" } },
+      "expect": "{\n  \"a\": 1.0,\n  \"m\": {\n    \"x\": \"ü\",\n    \"y\": true\n  },\n  \"z\": [\n    3,\n    {\n      \"a\": null,\n      \"b\": \"é\"\n    }\n  ]\n}\n",
+      "expectParsedEqualAcrossLanguages": true },
+    { "name": "empty containers",
+      "input": { "b": [], "a": {} },
+      "expect": "{\n  \"a\": {},\n  \"b\": []\n}\n",
+      "expectParsedEqualAcrossLanguages": true }
+  ]
+}
