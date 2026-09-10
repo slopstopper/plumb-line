@@ -96,6 +96,13 @@ _DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 _COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 _ASCII_INT = re.compile(r"^[0-9]+$")
 _WORKING_TREE = "working tree (uncommitted)"
+# "Not a repository" is a real, honest state (a staged fixture outside any
+# repo — the 2026-08-19 harness blind run hit it) and until #315 the contract
+# had no legal way to say it: the auditor's truthful description failed
+# validation, and the only passing form implied a repo. Every literal here
+# must appear verbatim in both SKILL header templates (test-pinned, #223).
+_NO_REPOSITORY = "no repository (not version-controlled)"
+COMMIT_LITERALS = (_WORKING_TREE, _NO_REPOSITORY)
 # Principle citations are found by code alone; the name is then checked as a
 # PREFIX of what follows (see _check_principles). Capturing the name with a
 # regex instead means choosing an end delimiter, and every choice was wrong for
@@ -238,9 +245,10 @@ def _check_header(pairs, required, version_key, known_versions, issues,
                     f"an earlier ruleset, and is validated against the current one")
 
     commit = values.get("commit")
-    if commit is not None and commit != _WORKING_TREE and not _COMMIT.match(commit):
+    if commit is not None and commit not in COMMIT_LITERALS and not _COMMIT.match(commit):
         issues.append(
-            f"commit must be a git SHA or {_WORKING_TREE!r}, got {commit!r}")
+            f"commit must be a git SHA, {_WORKING_TREE!r} or {_NO_REPOSITORY!r}, "
+            f"got {commit!r}")
 
     return values
 
