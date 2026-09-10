@@ -25,7 +25,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
-          node-version: "20"
+          node-version: "22"
       - name: The 3 release manifests must report the same version
         run: node scripts/check-versions.mjs
       - name: The plugin-bundled primitive must not drift from primitives/
@@ -61,7 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ["20", "22"]
+        node: ["22", "24"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
@@ -87,7 +87,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
-          node-version: "20"
+          node-version: "22"
       - name: ESLint — primitives/js
         working-directory: primitives/js
         run: npm ci && npm run lint

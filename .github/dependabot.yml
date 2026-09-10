@@ -19,12 +19,32 @@ updates:
     directory: "/primitives/js"
     schedule:
       interval: "weekly"
+    # vitest and @vitest/coverage-v8 pin each other exactly (coverage-v8's
+    # peer is `vitest@<same version>`); ungrouped, Dependabot split the 4->5
+    # major into one PR per package and every PR failed `npm ci` with
+    # ERESOLVE (#346, #349, #350, #352). Same shape as the codeql-action
+    # precedent above: coupled packages move together.
+    groups:
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
 
   # npm: JS enforcement adapters (private, dev-only)
   - package-ecosystem: "npm"
     directory: "/adapters/js"
     schedule:
       interval: "weekly"
+    # vitest and @vitest/coverage-v8 pin each other exactly (coverage-v8's
+    # peer is `vitest@<same version>`); ungrouped, Dependabot split the 4->5
+    # major into one PR per package and every PR failed `npm ci` with
+    # ERESOLVE (#346, #349, #350, #352). Same shape as the codeql-action
+    # precedent above: coupled packages move together.
+    groups:
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
 
   # pip: pinned test/release dependencies. requirements-test.txt is a uv-compiled
   # hashed lock; recompile after a bump per the requirements-test.in header. With
