@@ -109,3 +109,36 @@ def test_main_no_command_direct(capsys):
     code = bl.main([])
     err = capsys.readouterr().err
     assert code == 2 and 'usage: baseline <list|show <name>|validate> [--dir D]' in err
+
+
+# Twins of the JS CLI edge cases (primitives/js/baseline-cli.test.mjs): both
+# CLIs must print identical lines for the same argv.
+
+def test_list_on_regular_file_exits_zero(tmp_path):
+    _seed(tmp_path)
+    code, out = _run('list', '--dir', str(tmp_path / 'nightly-rate.json'))
+    assert code == 0 and 'no baselines directory at' in out
+
+
+def test_validate_on_regular_file_exits_zero(tmp_path):
+    _seed(tmp_path)
+    code, out = _run('validate', '--dir', str(tmp_path / 'nightly-rate.json'))
+    assert code == 0 and '; 0 files validated' in out
+
+
+def test_dir_with_no_value_is_a_usage_error():
+    code, out = _run('list', '--dir')
+    assert code == 2 and 'usage: baseline <list|show <name>|validate> [--dir D]' in out
+
+
+def test_unknown_subcommand_prints_the_literal_usage_line():
+    code, out = _run('bogus')
+    assert code == 2 and 'usage: baseline <list|show <name>|validate> [--dir D]' in out
+
+
+def test_validate_reports_name_not_matching_filename(tmp_path):
+    _seed(tmp_path)
+    (tmp_path / 'other-name.json').write_text(
+        (tmp_path / 'nightly-rate.json').read_text(encoding='utf-8'), encoding='utf-8')
+    code, out = _run('validate', '--dir', str(tmp_path))
+    assert code == 1 and '✗ other-name.json' in out and 'does not match the filename' in out

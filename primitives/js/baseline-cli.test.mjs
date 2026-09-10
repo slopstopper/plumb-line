@@ -1,6 +1,6 @@
 import { describe, it, expect, afterAll, beforeAll, vi } from "vitest";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, copyFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -54,6 +54,37 @@ describe("baseline-cli", () => {
     expect(out).toContain("broken.json");
     expect(out).toMatch(/1 of 2 invalid/);
     expect(out.indexOf("broken.json") < out.indexOf("nightly-rate.json")).toBe(true);
+  });
+  it("list on a path that is a regular file says so and exits 0, as Python does", () => {
+    const { code, out } = run("list", "--dir", join(dir, "nightly-rate.json"));
+    expect(code).toBe(0);
+    expect(out).toContain("no baselines directory at");
+  });
+  it("validate on a path that is a regular file states the 0 denominator and exits 0", () => {
+    const { code, out } = run("validate", "--dir", join(dir, "nightly-rate.json"));
+    expect(code).toBe(0);
+    expect(out).toContain("; 0 files validated");
+  });
+  it("--dir with no value is a usage error, never a silent fallback to the default", () => {
+    const { code, out } = run("list", "--dir");
+    expect(code).toBe(2);
+    expect(out).toContain("usage: baseline <list|show <name>|validate> [--dir D]");
+  });
+  it("an unknown subcommand prints the literal usage line and exits 2", () => {
+    const { code, out } = run("bogus");
+    expect(code).toBe(2);
+    expect(out).toContain("usage: baseline <list|show <name>|validate> [--dir D]");
+  });
+  it("validate reports a record whose name does not match its filename", () => {
+    const odd = mkdtempSync(join(tmpdir(), "plumb-baseline-name-"));
+    update("nightly-rate", derive([mark(0.04, { source: "real", confidence: "high" })], (x) => x * 2),
+           { because: "initial pin", dir: odd, date: "2026-09-10" });
+    copyFileSync(join(odd, "nightly-rate.json"), join(odd, "other-name.json"));
+    const { code, out } = run("validate", "--dir", odd);
+    expect(code).toBe(1);
+    expect(out).toContain("\u2717 other-name.json");
+    expect(out).toContain("does not match the filename");
+    rmSync(odd, { recursive: true, force: true });
   });
   it("usage on no subcommand exits 2", () => {
     const { code, out } = run();

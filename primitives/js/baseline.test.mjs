@@ -201,6 +201,11 @@ describe("file store", () => {
     expect(show("nightly-rate", { dir }).name).toBe("nightly-rate");
     expect(() => show("nope", { dir })).toThrow(/no baseline named nope/);
   });
+  it("list on a path that is a regular file degrades to [], as Python does", () => {
+    // existsSync() is true for a file, so readdirSync threw ENOTDIR; the
+    // Python twin uses os.path.isdir and returns []. Parity, not a crash.
+    expect(list({ dir: join(dir, "nightly-rate.json") })).toEqual([]);
+  });
   it("the default dir is .plumb-line/baselines under the working directory", () => {
     const r = check("x", out());
     expect(reportText(r)).toContain(".plumb-line/baselines");

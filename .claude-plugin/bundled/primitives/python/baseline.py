@@ -345,10 +345,24 @@ def show(name, dir=None):
 
 # ---------- CLI (inspection only; see docs/adr/0015) ----------
 
+_USAGE = 'usage: baseline <list|show <name>|validate> [--dir D]'
+
+
 def main(argv=None):
     import argparse
+    argv = list(sys.argv[1:] if argv is None else argv)
+    # `--dir` with nothing after it (or another flag) is a mistake, not a
+    # request for the default directory. Caught before argparse so both CLIs
+    # print the same usage line; argparse would print its own.
+    if '--dir' in argv:
+        i = argv.index('--dir')
+        if i + 1 >= len(argv) or argv[i + 1].startswith('-'):
+            print(_USAGE, file=sys.stderr)
+            return 2
     ap = argparse.ArgumentParser(prog='baseline', description='inspect plumb-line baseline records')
-    ap.add_argument('cmd', nargs='?', choices=['list', 'show', 'validate'])
+    # No choices= on cmd: argparse would intercept an unknown command with its
+    # own message, and the twin JS CLI prints the usage line below instead.
+    ap.add_argument('cmd', nargs='?')
     ap.add_argument('name', nargs='?')
     ap.add_argument('--dir', default=None)
     args = ap.parse_args(argv)
@@ -393,11 +407,18 @@ def main(argv=None):
         files = sorted(f for f in os.listdir(abs_dir) if f.endswith('.json') and not f.startswith('.'))
         bad = 0
         for f in files:
+            rec = None
             try:
                 with open(os.path.join(abs_dir, f), encoding='utf-8') as fh:
-                    issues = validate_baseline(json.load(fh))
+                    rec = json.load(fh)
+                issues = validate_baseline(rec)
             except (OSError, ValueError) as e:
                 issues = [f'cannot parse: {e}']
+            # The library reads by name, so a record filed under the wrong
+            # filename is unreachable — a defect the validator alone cannot
+            # see, since it is handed the record without its path.
+            if not issues and rec.get('name') != f[:-len('.json')]:
+                issues = [f'name {json.dumps(rec.get("name"))} does not match the filename']
             if issues:
                 bad += 1
                 print(f'✗ {f}')
@@ -407,7 +428,7 @@ def main(argv=None):
                 print(f'✓ {f}')
         print(f'{bad} of {len(files)} invalid' if bad else f'{len(files)} file(s) valid')
         return 1 if bad else 0
-    print('usage: baseline <list|show <name>|validate> [--dir D]', file=sys.stderr)
+    print(_USAGE, file=sys.stderr)
     return 2
 
 

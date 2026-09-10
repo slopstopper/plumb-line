@@ -7,7 +7,7 @@
 // drift can say which input moved. See docs/adr/0015-baseline-library-first.md
 // and SPEC §4 for the lineage shape. Mirror of primitives/python/baseline.py;
 // parity is pinned by primitives/conformance/baseline-cases.json.
-import { readFileSync, writeFileSync, renameSync, readdirSync, mkdirSync, existsSync, unlinkSync } from "node:fs";
+import { readFileSync, writeFileSync, renameSync, readdirSync, mkdirSync, existsSync, statSync, unlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import { PROVENANCE_VERSION } from "./provenance.mjs";
@@ -157,9 +157,15 @@ export function validateBaseline(record) {
     issues.push("provenanceVersion must be an integer");
   }
   if ("meta" in record) {
-    for (const i of validateEnvelope({ ...record.meta, provenanceVersion: record.provenanceVersion })) {
-      issues.push(`meta: ${i}`);
-    }
+    // Only a plain object can carry provenanceVersion; anything else (null,
+    // an array, a string, a number) reaches validateEnvelope unchanged, so it
+    // reports "not an envelope object" / "missing meta" exactly as Python
+    // does instead of being spread into a bag of index keys.
+    const m = record.meta;
+    const target = m && typeof m === "object" && !Array.isArray(m)
+      ? { ...m, provenanceVersion: record.provenanceVersion }
+      : m;
+    for (const i of validateEnvelope(target)) issues.push(`meta: ${i}`);
   }
   if ("history" in record) {
     if (!Array.isArray(record.history) || record.history.length === 0) {
@@ -177,6 +183,13 @@ export function validateBaseline(record) {
 }
 
 // ---------- file store ----------
+
+/** True only for an existing directory. Twin of Python's os.path.isdir: a
+ * regular file (or a missing path) is not a baselines directory, so callers
+ * degrade to "nothing here" instead of crashing with ENOTDIR. */
+export function isDir(p) {
+  return statSync(p, { throwIfNoEntry: false })?.isDirectory() ?? false;
+}
 
 const pathFor = (dir, name) => join(resolve(dir), `${name}.json`);
 
@@ -272,7 +285,7 @@ export function update(name, marked, { because, dir = DEFAULT_DIR, date } = {}) 
 
 export function list({ dir = DEFAULT_DIR } = {}) {
   const absDir = resolve(dir);
-  if (!existsSync(absDir)) return [];
+  if (!isDir(absDir)) return [];
   return readdirSync(absDir).filter((f) => f.endsWith(".json") && !f.startsWith("."))
     .map((f) => f.slice(0, -".json".length)).sort();
 }

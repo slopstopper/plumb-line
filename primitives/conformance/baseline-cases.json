@@ -111,6 +111,14 @@
         "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false },
         "history": [ { "date": "10/09/2026", "because": " ", "change": "initial" } ] },
       "expectContains": [ "lineage", "history[0].date", "history[0].because" ] },
+    { "name": "meta is a string, not an envelope object", "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": 1,
+        "meta": "nope",
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "expectContains": [ "meta: not an envelope object" ] },
+    { "name": "meta is null", "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": 1,
+        "meta": null,
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "expectContains": [ "meta: missing meta" ] },
     { "name": "not an object", "record": null, "expectContains": [ "not a baseline record" ] }
   ]
 }
