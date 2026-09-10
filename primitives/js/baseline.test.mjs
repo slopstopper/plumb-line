@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll } from "vitest";
+import { describe, it, expect, afterAll, vi } from "vitest";
 import { mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -205,6 +205,30 @@ describe("file store", () => {
     // existsSync() is true for a file, so readdirSync threw ENOTDIR; the
     // Python twin uses os.path.isdir and returns []. Parity, not a crash.
     expect(list({ dir: join(dir, "nightly-rate.json") })).toEqual([]);
+  });
+  it("a failed rename propagates and leaves no temp file behind", async () => {
+    // The atomic write is temp-file-then-rename; if the rename fails the
+    // caller must see the error and the directory must be left clean — a
+    // half-written baseline is worse than none. The rename is forced to fail
+    // directly: making <dir>/<name>.json a non-empty directory does NOT reach
+    // it, because update()'s pre-read rejects that path as an invalid
+    // baseline (EISDIR) before any temp file is written. Twin:
+    // tests/test_baseline.py::test_failed_rename_propagates_and_leaves_no_temp_file.
+    vi.resetModules();
+    vi.doMock("node:fs", async () => {
+      const actual = await vi.importActual("node:fs");
+      return { ...actual, renameSync: () => { throw new Error("rename refused"); } };
+    });
+    try {
+      const bl = await import("./baseline.mjs");
+      const d = mkdtempSync(join(tmpdir(), "plumb-baseline-rename-"));
+      expect(() => bl.update("pinned", out(), { because: "x", dir: d })).toThrow(/rename refused/);
+      expect(readdirSync(d)).toEqual([]);
+      rmSync(d, { recursive: true, force: true });
+    } finally {
+      vi.doUnmock("node:fs");
+      vi.resetModules();
+    }
   });
   it("the default dir is .plumb-line/baselines under the working directory", () => {
     const r = check("x", out());

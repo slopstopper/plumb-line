@@ -254,3 +254,22 @@ def test_list_and_show(tmp_path):
 def test_default_dir_is_under_the_working_directory():
     r = bl.check('x', out())
     assert os.path.join('.plumb-line', 'baselines') in bl.report_text(r)
+
+
+def test_failed_rename_propagates_and_leaves_no_temp_file(tmp_path, monkeypatch):
+    """The atomic write is temp-file-then-rename; if the rename fails the
+    caller must see the error and the directory must be left clean — a
+    half-written baseline is worse than none.
+
+    The rename is forced to fail directly. Making <dir>/<name>.json a
+    non-empty directory does NOT reach it: update()'s pre-read rejects that
+    path as an invalid baseline ("cannot parse: Is a directory") before any
+    temp file is written.
+    """
+    def boom(src, dst):
+        raise OSError('rename refused')
+
+    monkeypatch.setattr(os, 'replace', boom)
+    with pytest.raises(OSError, match='rename refused'):
+        bl.update('pinned', out(), because='x', dir=str(tmp_path))
+    assert os.listdir(tmp_path) == [], 'temp file left behind'
