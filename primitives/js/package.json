@@ -6,7 +6,8 @@
   "main": "./index.mjs",
   "exports": {
     ".": "./index.mjs",
-    "./http": "./http.mjs"
+    "./http": "./http.mjs",
+    "./baseline": "./baseline.mjs"
   },
   "files": [
     "index.mjs",
@@ -14,6 +15,8 @@
     "marked.mjs",
     "audit.mjs",
     "http.mjs",
+    "baseline.mjs",
+    "baseline-cli.mjs",
     "README.md"
   ],
   "scripts": {

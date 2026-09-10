@@ -732,13 +732,13 @@ The Agent epistemic state track (#35) needs a ladder position to point at.
 
 ### 24. `plumb-line baseline` CLI — golden baseline + lineage-attributed drift
 
-**Priority: high** · Milestone: v0.10.0 · GitHub: #117
+**Priority: high** · Milestone: v0.11.0 · GitHub: #117 · **shipped**
 
-Principle 9 (golden baseline + explain-the-drift) currently has **no
-implementation anywhere in the repo** — until this ships, P9 is
-`not-implemented` and must be labelled as such wherever the principles are
-presented as enforced. The CLI pins an output *with its lineage*, diffs runs,
-refuses silent drift, and demands a recorded one-line explanation on update.
+Principle 9 (golden baseline + explain-the-drift) shipped in v0.11.0 as a
+library + inspection CLI; cross-step causality, structural value diff and
+float tolerance are `not-implemented`. The CLI pins an output *with its
+lineage*, diffs runs, refuses silent drift, and demands a recorded one-line
+explanation on update.
 Differentiator vs. snapshot testing: lineage lets drift be **attributed**
 ("output moved because `rate` source changed real→fallback at step 3"), not
 just diffed. Deterministic; both languages; no wire dependency.

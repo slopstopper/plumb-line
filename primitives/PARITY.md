@@ -5,7 +5,7 @@ The provenance/lineage primitive ships in JavaScript (`primitives/js/`) and Pyth
 must behave identically in both. This file records the shared case table verified
 against both implementations.
 
-Suites: JS `npm ci && npx vitest run` → 98/98; Python `python3 -m pytest` → 59/59.
+Suites: JS `npm ci && npx vitest run` → 254/254; Python `python3 -m pytest` → 200/200.
 (Run JS after `npm ci` — the count includes the fast-check property suite, which
 silently fails to import if the dev-dependency is absent. Reproduce the number;
 never hand-type it.)
@@ -23,11 +23,21 @@ consistency), and `validate` (structural field-presence — the `validateEnvelop
 required fields by their canonical camelCase names in both languages, so the
 conformance needles match verbatim.
 
-The suite totals differ (98 JS vs 59 Python) partly because JS carries a
+The suite totals differ (254 JS vs 200 Python) partly because JS carries a
 fast-check **property-test** suite (`property.test.mjs`) with no Python
 `hypothesis` mirror yet. Property tests are JS-only and sit *outside* the
 conformance contract — parity of the law and checkers is still enforced by the
 shared `cases.json`, not by matching suite counts.
+
+The baseline library (Principle 9) adds a fourth case-kind family,
+`primitives/conformance/baseline-cases.json`, with its own kinds: `attribute`
+(findings text pinned verbatim), `canonical` (canonical JSON bytes — compared
+as parsed values wherever a float appears), and `validate`. It is loaded by
+`primitives/js/baseline.conformance.test.mjs` and
+`primitives/python/tests/test_baseline_conformance.py`. The one known
+asymmetry is by design, not a defect: an integral float canonicalizes to
+`1.0` in Python and `1` in JS, so `canonical` cases compare the parsed value
+rather than the raw bytes.
 
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |

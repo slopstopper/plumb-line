@@ -9,6 +9,29 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Added
+- **Principle 9 ships: `baseline` library + inspection CLI** (#117). Golden
+  baseline + lineage-attributed drift, in both languages:
+  - Pins a derived value *with its full envelope* as a golden record
+    (`update(name, marked, { because, dir })` / `update(name, marked,
+    because=..., dir=...)`), so a later drift finding names which field
+    moved, not just that the value did.
+  - `assertBaseline` / `assert_baseline` refuses silent drift by throwing;
+    accepting a new state requires a non-empty `because` on `update`.
+  - Read-only inspection CLI (`baseline-cli.mjs` / `python3 -m
+    plumb_line_provenance.baseline`) can `list`/`show`/`validate` baseline
+    files on disk; it deliberately cannot `check` or `update` — only running
+    code carries the envelope (docs/adr/0015).
+  - A fourth conformance case-kind family (`baseline-cases.json`:
+    `attribute`, `canonical`, `validate`) holds the two languages to the same
+    behaviour, with one documented, by-design asymmetry in canonical float
+    bytes.
+  - Bundled into the plugin surface (`.claude-plugin/bundled`) and exported
+    from both package entry points (`plumb-line-provenance` /
+    `plumb_line_provenance`).
+  - Three deliberate omissions ship labelled `not-implemented`: cross-step
+    causality, structural value diff, and float tolerance.
+
 ### Changed
 - **Node floor raised to 22** (`engines.node >= 22`; CI tests Node 22 and 24).
   Node 20 reached end-of-life on 2026-04-30, so the raise is the SUPPORT.md
