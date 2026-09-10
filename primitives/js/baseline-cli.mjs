@@ -28,7 +28,7 @@ export function main(argv) {
     return 0;
   }
   if (cmd === "show") {
-    if (!name) { console.error("usage: baseline-cli show <name> [--dir D]"); return 2; }
+    if (!name) { console.error("usage: baseline show <name> [--dir D]"); return 2; }
     let rec;
     try { rec = show(name, { dir: absDir }); } catch (e) { console.error(e.message); return 1; }
     console.log(`${rec.name}  (baseline-format ${rec["baseline-format"]}, wire v${rec.provenanceVersion})`);
@@ -56,7 +56,7 @@ export function main(argv) {
     console.log(bad ? `${bad} of ${files.length} invalid` : `${files.length} file(s) valid`);
     return bad ? 1 : 0;
   }
-  console.error("usage: baseline-cli <list|show <name>|validate> [--dir D]");
+  console.error("usage: baseline <list|show <name>|validate> [--dir D]");
   return 2;
 }
 

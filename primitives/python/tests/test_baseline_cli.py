@@ -49,7 +49,8 @@ def test_validate_passes_clean_and_names_broken(tmp_path):
 
 
 def test_usage_exits_two():
-    assert _run()[0] == 2
+    code, out = _run()
+    assert code == 2 and 'usage: baseline <list|show <name>|validate> [--dir D]' in out
 
 
 # Direct-call tests for coverage (coverage.py doesn't see subprocess calls)
@@ -77,7 +78,7 @@ def test_main_show_direct(tmp_path, capsys):
 def test_main_show_missing_name_direct(capsys):
     code = bl.main(['show', '--dir', '/tmp'])
     err = capsys.readouterr().err
-    assert code == 2 and 'usage: baseline show' in err
+    assert code == 2 and 'usage: baseline show <name> [--dir D]' in err
 
 
 def test_main_show_unknown_direct(tmp_path, capsys):
@@ -107,4 +108,4 @@ def test_main_validate_missing_dir_direct(tmp_path, capsys):
 def test_main_no_command_direct(capsys):
     code = bl.main([])
     err = capsys.readouterr().err
-    assert code == 2 and 'usage:' in err
+    assert code == 2 and 'usage: baseline <list|show <name>|validate> [--dir D]' in err

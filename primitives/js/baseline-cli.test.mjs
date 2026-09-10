@@ -56,7 +56,9 @@ describe("baseline-cli", () => {
     expect(out.indexOf("broken.json") < out.indexOf("nightly-rate.json")).toBe(true);
   });
   it("usage on no subcommand exits 2", () => {
-    expect(run().code).toBe(2);
+    const { code, out } = run();
+    expect(code).toBe(2);
+    expect(out).toContain('usage: baseline <list|show <name>|validate> [--dir D]');
   });
 });
 
@@ -67,8 +69,12 @@ describe("baseline-cli direct", () => {
   });
 
   it("show with no name returns 2", () => {
-    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    let errorMsg = "";
+    const err = vi.spyOn(console, "error").mockImplementation((msg) => {
+      errorMsg = msg;
+    });
     expect(main(["show", "--dir", dirDirect])).toBe(2);
+    expect(errorMsg).toBe("usage: baseline show <name> [--dir D]");
     err.mockRestore();
   });
   it("list command via direct call", () => {
@@ -99,8 +105,12 @@ describe("baseline-cli direct", () => {
     rmSync(emptyDir, { recursive: true, force: true });
   });
   it("invalid subcommand returns 2", () => {
-    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    let errorMsg = "";
+    const err = vi.spyOn(console, "error").mockImplementation((msg) => {
+      errorMsg = msg;
+    });
     expect(main(["invalid"])).toBe(2);
+    expect(errorMsg).toBe('usage: baseline <list|show <name>|validate> [--dir D]');
     err.mockRestore();
   });
   it("validate with invalid JSON file returns 1", () => {

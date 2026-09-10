@@ -407,7 +407,7 @@ def main(argv=None):
                 print(f'✓ {f}')
         print(f'{bad} of {len(files)} invalid' if bad else f'{len(files)} file(s) valid')
         return 1 if bad else 0
-    ap.print_usage(sys.stderr)
+    print('usage: baseline <list|show <name>|validate> [--dir D]', file=sys.stderr)
     return 2
 
 
