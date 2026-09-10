@@ -11,6 +11,7 @@ was a human judgement repeated across six release runs.
 """
 import importlib.util
 import os
+import re
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
@@ -56,8 +57,13 @@ commit:              working tree (uncommitted)
 """
 
 
+_RULESET_TEXT = open(os.path.join(_ROOT, "reference", "portable-principles.md"),
+                     encoding="utf-8").read()
+REVISION = crf.load_ruleset_revision(_RULESET_TEXT)
+
+
 def _check(text):
-    return crf.check(text, PRINCIPLES)
+    return crf.check(text, PRINCIPLES, REVISION)
 
 
 # --- principle table is read from the ruleset, never hardcoded -------------
@@ -546,3 +552,138 @@ def test_routing_unknown_version_is_flagged():
 
 def issues_of(text):
     return _check(text)
+
+
+# --- #245: the validator's own findings (v0.8.0 dogfood) --------------------
+
+def _skill(name):
+    with open(os.path.join(_ROOT, "skills", name, "SKILL.md"), encoding="utf-8") as fh:
+        return fh.read()
+
+
+def _fenced_block_after(text, marker):
+    """The first ``` fenced block that follows `marker` in the SKILL text."""
+    start = text.index(marker)
+    open_ = text.index("```", start)
+    close = text.index("```", open_ + 3)
+    return text[open_ + 3:close].strip("\n")
+
+
+def _header_keys(block):
+    keys = []
+    for line in block.split("\n"):
+        m = re.match(r"^([a-z][a-z-]*):", line)
+        if not m:
+            break
+        keys.append(m.group(1))
+    return keys
+
+
+def _table_header_row(text, first_cell):
+    for line in text.split("\n"):
+        s = line.strip()
+        if s.startswith("| " + first_cell + " |"):
+            return [c.strip() for c in s.strip("|").split("|")]
+    raise AssertionError("no table header starting with %r" % first_cell)
+
+
+# #220 — principles-revision is compared to the ruleset, not just parsed
+
+def test_ruleset_revision_is_read_from_the_ruleset():
+    assert crf.load_ruleset_revision("x\n**Principles revision:** 4\n") == 4
+    assert crf.load_ruleset_revision("no revision line") is None
+    assert REVISION == 1
+
+
+def test_principles_revision_ahead_of_the_ruleset_is_flagged():
+    text = VALID_REPORT.replace("principles-revision: 1", "principles-revision: 7")
+    issues = _check(text)
+    assert any("principles-revision" in i and "7" in i and "1" in i for i in issues), issues
+
+
+def test_principles_revision_behind_the_ruleset_is_flagged():
+    text = VALID_REMEDIATION.replace("principles-revision: 1", "principles-revision: 0")
+    issues = _check(text)
+    assert any("principles-revision" in i and "older" in i for i in issues), issues
+
+
+def test_revision_comparison_is_skipped_only_when_the_ruleset_revision_is_unknown():
+    text = VALID_REPORT.replace("principles-revision: 1", "principles-revision: 7")
+    assert crf.check(text, PRINCIPLES, None) == []
+
+
+# #221 — the checker's output records what produced it
+
+def test_run_output_states_checker_version_and_ruleset_revision(tmp_path, capsys):
+    p = tmp_path / "r.md"
+    p.write_text(VALID_REPORT, encoding="utf-8")
+    assert crf.main([str(p)]) == 0
+    first = capsys.readouterr().out.split("\n")[0]
+    assert "check_report_format v%s" % crf.CHECKER_VERSION in first, first
+    assert "principles-revision 1" in first, first
+    assert "report-format" in first and "v3" in first, first
+
+
+def test_checker_version_is_a_positive_ascii_integer_string():
+    assert re.match(r"^[0-9]+$", crf.CHECKER_VERSION) and int(crf.CHECKER_VERSION) >= 1
+
+
+# #222 — the record's Class column is enforced like its Action column
+
+def test_unknown_class_is_flagged():
+    text = VALID_REMEDIATION.replace("| mechanical |", "| Mechanicl |")
+    issues = _check(text)
+    assert any("Class" in i and "Mechanicl" in i for i in issues), issues
+
+
+def test_class_accepts_skill_casing_and_backticks():
+    text = VALID_REMEDIATION.replace("| mechanical |", "| `Mechanical` |").replace("| judgment |", "| Judgment |")
+    assert _check(text) == []
+
+
+# #223 — every list the checker keeps is pinned to the SKILL that defines it
+
+def test_report_header_keys_match_the_audit_skill():
+    block = _fenced_block_after(_skill("plumb-line-audit"), "**1. Header block**")
+    assert _header_keys(block) == crf.REPORT_HEADER_KEYS
+
+
+def test_remediation_header_keys_match_the_remediate_skill():
+    block = _fenced_block_after(_skill("plumb-line-remediate"), "The record has a header and a table:")
+    assert _header_keys(block) == crf.REMEDIATION_HEADER_KEYS
+
+
+def test_routing_header_keys_match_the_adopt_skill():
+    block = _fenced_block_after(_skill("plumb-line-adopt"), "## The routing report is contracted")
+    assert _header_keys(block) == crf.ROUTING_HEADER_KEYS
+
+
+def test_findings_columns_match_the_audit_skill():
+    assert _table_header_row(_skill("plumb-line-audit"), "Path") == crf.FINDINGS_COLUMNS
+
+
+def test_record_columns_match_the_remediate_skill():
+    assert _table_header_row(_skill("plumb-line-remediate"), "Finding") == crf.RECORD_COLUMNS
+
+
+def test_action_vocabulary_matches_the_remediate_skill():
+    text = _skill("plumb-line-remediate")
+    start = text.index("- **Action** is one of:")
+    end = text.index("\n- ", start + 1)
+    assert set(re.findall(r"`([a-z-]+)`", text[start:end])) == crf.ACTIONS
+
+
+def test_class_vocabulary_matches_the_remediate_skill():
+    text = _skill("plumb-line-remediate")
+    step = text[text.index("## Step 1"):text.index("## Step 2")]
+    assert set(re.findall(r"^\*\*([A-Z][a-z]+)\*\* — ", step, re.M)) == crf.CLASSES
+
+
+def test_current_contract_versions_match_the_skills():
+    audit = _fenced_block_after(_skill("plumb-line-audit"), "**1. Header block**")
+    remediate = _fenced_block_after(_skill("plumb-line-remediate"), "The record has a header and a table:")
+    routing = _fenced_block_after(_skill("plumb-line-adopt"), "## The routing report is contracted")
+    current = lambda block, key: re.search(r"^%s:\s*(v[0-9]+)" % key, block, re.M).group(1)  # noqa: E731
+    assert current(audit, "report-format") == max(crf.KNOWN_REPORT_VERSIONS)
+    assert current(remediate, "remediation-format") == max(crf.KNOWN_REMEDIATION_VERSIONS)
+    assert current(routing, "routing-format") == max(crf.KNOWN_ROUTING_VERSIONS)
