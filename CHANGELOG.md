@@ -50,6 +50,17 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   recorded keep (it predates the 2026-08-18 bare-contrast ruling and stays
   as a dated artifact); the 0.10.0 piece is pinned flag-free. The TEMPLATE's
   declared limit is closed. Docs-routine tooling only.
+- **`trigger_check.py` results are a contracted measurement record**
+  ([#317](https://github.com/slopstopper/plumb-line/issues/317)). The pass
+  threshold was a named constant, neither injectable nor recorded in the
+  results its verdicts derived from, and the stored JSON had no format
+  version or validator while its sibling stored shapes carry both. Now:
+  `--threshold` (default 0.5, must be in (0, 1]) is stamped into the file
+  with the per-tier run counts; the payload opens with `results-format: v1`;
+  and `--validate <results.json>` checks the shape and re-derives every
+  row's pass from its rate, the stamped threshold and its expectation, plus
+  the summary count, so a stored verdict is reproducible rather than
+  asserted. Nine new cases. Measurement tooling only.
 - **The plugin bundle is checked against the primitive's published surface**
   ([#157](https://github.com/slopstopper/plumb-line/issues/157)).
   `scripts/check-bundle-sync.mjs` byte-compared a hand-enumerated list of
