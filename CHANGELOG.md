@@ -35,6 +35,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   recorded keep (it predates the 2026-08-18 bare-contrast ruling and stays
   as a dated artifact); the 0.10.0 piece is pinned flag-free. The TEMPLATE's
   declared limit is closed. Docs-routine tooling only.
+- **The shipped ESLint template is proven to fire `no-provenance-bypass`, not
+  just to register it** ([#246](https://github.com/slopstopper/plumb-line/issues/246)).
+  The template integration test proved the config loads and that the output
+  rule fires through it, but never linted a bypass violation through the
+  installed template — the rule whose breakage motivated the test. Two cases
+  added: a PB1 laundering pattern inside the filled `__GLOBS__` yields exactly
+  one `plumb-line/no-provenance-bypass` message, and the same code outside
+  those globs yields none. Test-only; no package, plugin, or wire-format
+  change.
 - **The report header can say "not a repository"**
   ([#315](https://github.com/slopstopper/plumb-line/issues/315)). The
   `commit:` field admitted a git SHA or `working tree (uncommitted)` and
