@@ -34,6 +34,14 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   recorded keep (it predates the 2026-08-18 bare-contrast ruling and stays
   as a dated artifact); the 0.10.0 piece is pinned flag-free. The TEMPLATE's
   declared limit is closed. Docs-routine tooling only.
+- **The "aging pins surface in the sweep" claim is pinned to what the digest
+  actually documents** ([#250](https://github.com/slopstopper/plumb-line/issues/250)).
+  `docs/constraints.md` asserted digest behaviour nothing verified. The
+  paragraph now cites `recursive-spine-digest`'s "stale constraints pins"
+  sweep item (recursive-spine 0.10.0) and states its two limits: it is an
+  instruction to the sweeping agent, not a test this repo runs, and it
+  covers only docs attached to still-open issues, so a stale pin in a
+  merged doc surfaces nowhere until that doc is next edited. Docs only.
 - **The constraints drift gate states its denominator, and reads past the
   fenced example** ([#249](https://github.com/slopstopper/plumb-line/issues/249)).
   `scripts/check-constraints-drift.sh` exited 0 with no output whether it
