@@ -242,6 +242,8 @@ def test_outputs_has_no_injection_parameters():
     import pytest
     with pytest.raises(TypeError):
         pl.check_outputs("x = 1", extra_tracked={'mark_value': 'mark'})
+    with pytest.raises(TypeError):
+        pl.check_outputs("x = 1", extra_modules={'myorg_data'})
 
 
 def test_main_require_output_flag_clean_returns_zero(tmp_path):
