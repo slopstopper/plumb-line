@@ -77,6 +77,8 @@ jobs:
         run: node primitives/conformance/report.mjs
       - name: conformance against the plugin-bundled copy
         run: node scripts/check-bundle-conformance.mjs
+      - name: baseline example validates
+        run: node primitives/js/baseline-cli.mjs validate --dir examples/baseline/baselines
 
   lint:
     name: Lint (ESLint + Ruff)
@@ -133,9 +135,14 @@ jobs:
         run: python -m pytest -q examples
       - name: conformance against the plugin-bundled Python copy
         run: python -m pytest -q scripts/test_bundle_conformance.py
+      # scripts/test_bundle_sync.py runs the bundle gate, which is a Node
+      # script — this job has no node without it.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: "22"
       # The repo-infrastructure checkers (wire-version prose #160, report-format
       # #139). Named explicitly because every other pytest step above is scoped
       # to a package directory, so scripts/ was never collected — both suites
       # could have regressed silently.
       - name: repo-infrastructure checkers (scripts/)
-        run: python -m pytest -q scripts/test_version_prose.py scripts/test_report_format.py scripts/test_fit_map_snippets.py scripts/test_content_language.py scripts/test_trigger_check.py scripts/test_constraints_canonical.py scripts/test_constraints_drift.py scripts/test_bundle_sync.py
+        run: python -m pytest -q scripts/test_version_prose.py scripts/test_report_format.py scripts/test_fit_map_snippets.py scripts/test_content_language.py scripts/test_trigger_check.py scripts/test_constraints_canonical.py scripts/test_constraints_drift.py scripts/test_bundle_sync.py scripts/test_baseline_roundtrip.py

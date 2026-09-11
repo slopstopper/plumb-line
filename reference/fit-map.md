@@ -215,6 +215,75 @@ env = tag_requests(requests.get(url))
 envelope; hand-assigned `high` confidence on responses the tagger would
 have classified lower.
 
+## Profile 5 — derived outputs that must not drift silently
+
+**Signals.** A nightly number, a scored ranking, or a report figure that
+people compare to last week's; a snapshot test that gets updated without
+anyone saying why.
+
+**Failure mode.** A weight, a fallback, or an upstream feed moves and every
+downstream number follows. The diff shows the number changed and nothing
+shows why.
+
+**Smallest useful integration.** Pin the derived value and its envelope as a
+golden baseline; every later run compares against it and refuses to drift
+silently.
+
+```js
+import { mark, derive } from "plumb-line-provenance";
+import { update, assertBaseline } from "plumb-line-provenance/baseline";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const dir = mkdtempSync(join(tmpdir(), "plumb-line-"));
+const rate = mark(0.04, { source: "real", confidence: "high" });
+const fx = mark(1.03, { source: "real", confidence: "high" });
+const priced = derive([rate, fx], (a, b) => a * b);
+
+update("fx-rate", priced, { because: "first recorded baseline", dir });
+assertBaseline("fx-rate", priced, { dir }); // passes: nothing has moved yet
+
+const moved = derive([mark(0.05, { source: "fallback", confidence: "low" }), fx], (a, b) => a * b);
+let drifted = false;
+try {
+  assertBaseline("fx-rate", moved, { dir });
+} catch (e) {
+  // the report names the step whose source moved
+  drifted = e.message.includes("meta.lineage[");
+}
+```
+
+```python
+import tempfile
+from plumb_line_provenance import mark, derive, update, assert_baseline
+
+dir = tempfile.mkdtemp()
+rate = mark(0.04, source='real', confidence='high')
+fx = mark(1.03, source='real', confidence='high')
+priced = derive([rate, fx], lambda a, b: a * b)
+
+update('fx-rate', priced, because='first recorded baseline', dir=dir)
+assert_baseline('fx-rate', priced, dir=dir)  # passes: nothing has moved yet
+
+moved = derive([mark(0.05, source='fallback', confidence='low'), fx], lambda a, b: a * b)
+drifted = False
+try:
+    assert_baseline('fx-rate', moved, dir=dir)
+except AssertionError as e:
+    drifted = 'meta.lineage[' in str(e)  # the report names the step whose source moved
+```
+
+**What the audit catches afterwards.** A baseline updated with an empty (or
+rubber-stamp) explanation; a pinned value with no lineage behind it; a drift
+accepted in a commit message instead of in the baseline record.
+
+The baseline library and its inspection CLI are `current` in both languages.
+Cross-step causality, structural diffing inside values, and float tolerance
+are `not-implemented`: a moved float of any size is drift, whatever its
+size — the `because` is where that judgment belongs, not a hardcoded
+epsilon.
+
 ---
 
 ## The anti-profile — when you do not need the primitives

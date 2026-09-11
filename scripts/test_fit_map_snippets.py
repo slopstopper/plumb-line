@@ -117,6 +117,10 @@ def _check_profile4(ns):
     assert ns['env']['meta']['confidence'] == 'high'
 
 
+def _check_profile5(ns):
+    assert ns['drifted'] is True
+
+
 def _profile1_names(ok):
     return {'ok': ok, 'completion': 'real completion',
             'FALLBACK_TEXT': 'canned', 'template': _Template()}
@@ -142,6 +146,10 @@ PRELUDES = {
         lambda: {'requests': type('R', (), {'get': staticmethod(
             lambda url: _fresh_response())}), 'url': 'https://example.test'},
         _check_profile4,
+    ),
+    'first recorded baseline': (
+        lambda: {},  # self-contained: the snippet imports and builds its own dir
+        _check_profile5,
     ),
 }
 

@@ -1,0 +1,39 @@
+{
+  "baseline-format": "v1",
+  "history": [
+    {
+      "because": "worked example: two real inputs, recorded 2026-09-10",
+      "change": "initial",
+      "date": "2026-09-10"
+    }
+  ],
+  "meta": {
+    "basis": "pricing.applyFx@v3",
+    "confidence": "high",
+    "confidenceScore": 0.9,
+    "derivedFromMock": false,
+    "lineage": [
+      {
+        "confidence": "high",
+        "confidenceScore": 0.9,
+        "derivedFromMock": false,
+        "id": "sha256:2bdad8542ba4",
+        "of": "input",
+        "source": "real"
+      },
+      {
+        "confidence": "high",
+        "confidenceScore": 0.9,
+        "derivedFromMock": false,
+        "id": "sha256:2bdad8542ba4",
+        "of": "input",
+        "source": "real"
+      }
+    ],
+    "source": "derived",
+    "weakestSource": "real"
+  },
+  "name": "fx-rate",
+  "provenanceVersion": 2,
+  "value": 0.0412
+}

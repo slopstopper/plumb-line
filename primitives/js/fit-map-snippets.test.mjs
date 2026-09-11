@@ -74,6 +74,12 @@ const SNIPPETS = {
       expect(ns.meta.confidence).toBe("high");
     },
   },
+  "first recorded baseline": {
+    // Self-contained: the snippet imports and builds its own temp dir.
+    prelude: () => "",
+    exports: "export const __ns = { drifted };",
+    check: (ns) => expect(ns.drifted).toBe(true),
+  },
 };
 
 let counter = 0;

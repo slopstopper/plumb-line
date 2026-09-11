@@ -13,6 +13,9 @@ try:  # installed as a package
     )
     from .marked import mark, unwrap, meta_of, derive
     from .audit import audit_meta, validate_envelope
+    from .baseline import (
+        check, assert_baseline, update, list_baselines, show, validate_baseline,
+    )
 except ImportError:  # flat usage (modules on sys.path)
     from provenance import (
         PROVENANCE_VERSION, STATUS, CONFIDENCE,
@@ -22,12 +25,16 @@ except ImportError:  # flat usage (modules on sys.path)
     )
     from marked import mark, unwrap, meta_of, derive
     from audit import audit_meta, validate_envelope
+    from baseline import (
+        check, assert_baseline, update, list_baselines, show, validate_baseline,
+    )
 
 __all__ = [
     'PROVENANCE_VERSION', 'STATUS', 'CONFIDENCE',
     'make_meta', 'weakest_confidence', 'weakest_source',
     'is_score', 'combine_confidence_score', 'taints', 'combine_provenance',
     'mark', 'unwrap', 'meta_of', 'derive', 'audit_meta', 'validate_envelope',
+    'check', 'assert_baseline', 'update', 'list_baselines', 'show', 'validate_baseline',
 ]
 # reset_step_counter is intentionally excluded from __all__: it is test-only
 # infrastructure. Import it directly from .provenance when needed in test suites.

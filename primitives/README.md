@@ -217,6 +217,62 @@ const structural = validateEnvelope(incoming); // [] if all required fields pres
 if (structural.length) throw new Error(`malformed envelope: ${structural}`);
 ```
 
+## Baseline (Principle 9)
+
+`baseline` pins a derived output's value and its full envelope as a golden
+record, then compares later runs against it: drift is refused silently and
+must be accepted with a one-line `because`, and — because lineage travelled
+with the value — the finding names which field moved, not just that the
+number did.
+
+**JavaScript:**
+
+```js
+import { mark, derive } from "plumb-line-provenance";
+import { assertBaseline, update } from "plumb-line-provenance/baseline";
+
+const rate = mark(0.04, { source: "real", confidence: "high", confidenceScore: 0.9 });
+const fx = mark(1.03, { source: "real", confidence: "high", confidenceScore: 0.9 });
+const priced = derive([rate, fx], (a, b) => a * b, { basis: "pricing.applyFx@v3" });
+
+// First run, or after reviewing an intentional change:
+update("fx-rate", priced, { because: "initial pricing baseline", dir: ".plumb-line/baselines" });
+
+// Every subsequent run: throws with an attributed finding on drift.
+assertBaseline("fx-rate", priced, { dir: ".plumb-line/baselines" });
+```
+
+**Python:**
+
+```python
+from plumb_line_provenance import mark, derive, assert_baseline, update
+
+rate = mark(0.04, source='real', confidence='high', confidence_score=0.9)
+fx = mark(1.03, source='real', confidence='high', confidence_score=0.9)
+priced = derive([rate, fx], lambda a, b: a * b, basis='pricing.applyFx@v3')
+
+# First run, or after reviewing an intentional change:
+update('fx-rate', priced, because='initial pricing baseline', dir='.plumb-line/baselines')
+
+# Every subsequent run: raises AssertionError with an attributed finding on drift.
+assert_baseline('fx-rate', priced, dir='.plumb-line/baselines')
+```
+
+In JavaScript `baseline` lives on the `plumb-line-provenance/baseline`
+subpath (like `/http`): it reads and writes files, so the main entry stays
+free of `node:fs`. Python exports it from the package.
+
+**Inspection CLI** (read-only — it cannot check or update, since only running
+code carries the envelope): `node primitives/js/baseline-cli.mjs list|show|validate`
+and `python3 -m plumb_line_provenance.baseline list|show|validate` (or
+`python3 primitives/python/baseline.py ...` run flat), both accepting `--dir`.
+
+Three drift classes are deliberately `not-implemented`: cross-step causality
+(the finding names the field that moved, not which earlier lineage step
+caused it to move), structural value diff (a changed nested field inside a
+JSON value is reported as "value moved", not diffed key-by-key), and float
+tolerance (comparison is exact equality on parsed values — no epsilon).
+
 ---
 
 ## Status
@@ -230,4 +286,6 @@ if (structural.length) throw new Error(`malformed envelope: ${structural}`);
 | AST-level static lint rule (`adapters/*/provenance-lint`) | current |
 | `validateEnvelope` structural field-presence checker    | current |
 | Per-output `PROVENANCE_VERSION` embedding in envelopes  | current |
+| Golden baseline + lineage-attributed drift (`baseline`, both languages + CLI) | current |
+| Baseline: cross-step causality, structural value diff, float tolerance | not-implemented |
 | Bootstrap / ruleset wiring for host projects            | planned |

@@ -38,9 +38,10 @@ const BUNDLE = {
   js: {
     sourceDir: "primitives/js",
     bundledDir: ".claude-plugin/bundled/primitives/js",
-    bundled: ["provenance.mjs", "audit.mjs", "marked.mjs", "index.mjs"],
+    bundled: ["provenance.mjs", "audit.mjs", "marked.mjs", "index.mjs", "baseline.mjs"],
     excluded: {
       "http.mjs": "the ./http subpath adapter needs native fetch and the Age-header policy; the bundle is the dependency-free dual-import-shim core",
+      "baseline-cli.mjs": "inspection tooling, not runtime; the library it reads is bundled",
     },
     // What the package publishes: package.json `files`, minus docs.
     published: () => {
@@ -51,7 +52,7 @@ const BUNDLE = {
   python: {
     sourceDir: "primitives/python",
     bundledDir: ".claude-plugin/bundled/primitives/python",
-    bundled: ["provenance.py", "audit.py", "marked.py", "__init__.py"],
+    bundled: ["provenance.py", "audit.py", "marked.py", "__init__.py", "baseline.py"],
     excluded: {
       "http.py": "optional-dependency adapter (requests/httpx extras); the bundle is the dependency-free core",
       "arrays.py": "optional-dependency adapter (numpy extra); the bundle is the dependency-free core",
