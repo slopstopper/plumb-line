@@ -17,7 +17,7 @@
 
 Software can calculate something correctly and still be wrong about what it knows. A stubbed service answers "success" and the tests go green. A guessed value flows into a report. A fallback meant for local development ships. Nothing fails loudly; the final number just looks as solid as everything around it.
 
-plumb-line attaches to each value a record of where it came from and how far to trust it, and keeps that record attached as values combine. A result built on a mock or a guess says so, and nothing can clear that mark on the way through. The rule is small: combining values can keep or lower their standing, never raise it ([the combination law](primitives/SPEC.md#3-the-combination-law)).
+plumb-line attaches to every value a record of where it came from and how much to trust it, and that record travels with the value as it is combined with others. A result built on a mock or a guess says so, and nothing downstream can quietly upgrade it. One rule sits underneath all of it: combining values can keep or lower their trust level, never raise it ([the combination law](primitives/SPEC.md#3-the-combination-law)).
 
 ```js
 const base  = mark(1000, { source: "real", confidence: "high" });
@@ -28,35 +28,35 @@ total.derivedFromMock; // true   inherited from rate, and impossible to clear
 total.confidence;      // 'low'  only as certain as the weakest input
 ```
 
-`mark` labels a value. `derive` runs your function and keeps the weakest label. The library never touches the arithmetic; it only keeps the labels honest.
+`mark` labels a value with where it came from and how much to trust it. `derive` runs your own function and carries the labels through, keeping the weakest. The library never does the arithmetic and never changes a value; it only keeps the labels honest.
 
 ## Install
 
-**As a Claude Code plugin.** The repository is its own marketplace from inside Claude Code:
+**As a Claude Code plugin.** The repository is its own marketplace:
 
 ```
 /plugin marketplace add slopstopper/plumb-line
 /plugin install plumb-line@plumb-line
 ```
 
-Then run `plumb-line-adopt`. It looks at your repository and says which parts fit and what to run first. `plumb-line-method` teaches the discipline in a few minutes if you want the reasoning before the tooling; `plumb-line-bootstrap` sets a project up, and `plumb-line-audit` reviews a change. Updates come through `/plugin`. To install by hand instead, clone the repository and point Claude Code at the plugin directory.
+Then run `plumb-line-adopt`. It looks at your repository and tells you which parts of plumb-line fit and what to run first. Updates arrive through `/plugin`.
 
-**The library**, independent of the plugin:
+**The library**, with or without the plugin:
 
 ```bash
 npm install plumb-line-provenance      # JavaScript
 pip install plumb-line-provenance      # Python
 ```
 
-Or copy `primitives/js/` or `primitives/python/` into your project; the modules import either way.
+Zero dependencies. You can also copy `primitives/js/` or `primitives/python/` straight into your project.
 
-**In CI.** Once bootstrap has installed enforcement, add the [GitHub Action](ACTION.md) so every pull request gets the same checks, with SARIF uploaded for code scanning through GitHub's own upload action, and no agent involved.
+**In CI.** Add the [GitHub Action](ACTION.md) once bootstrap has set up enforcement. Every pull request then gets the same checks, with results in GitHub's code-scanning tab and no agent involved.
 
-**Not using Claude?** The skills are host-neutral markdown over files and the library has no dependencies; [portable/README.md](portable/README.md) is the entry point that skips the plugin shell.
+**Not using Claude?** [portable/README.md](portable/README.md) is the entry point without the plugin.
 
 ## Same number, different claim
 
-A tool server reports on five tools. Three of them are stubs ([the demo](examples/incident-toolserver/)):
+A tool server checks five tools and reports on their health. Three of the five are stubs that always answer "success" ([the demo](examples/incident-toolserver/)):
 
 ```text
 $ node broken/toolserver.mjs
@@ -80,7 +80,15 @@ attempted launder (derive with source: "real"):
   laundering: clean source 'real' but derivedFromMock is true
 ```
 
-Same code path, same "operational". One version knows that three fifths of it is fake, and refuses to be relabelled real. That shape has happened for real, three times, in three domains: [a server that reported success for dead tools](docs/postmortems/mock-toolserver.md), [a plane that thought its passengers were children](docs/postmortems/loadsheet.md) (AAIB, 2020), and [a retraction that started as a sign flip](docs/postmortems/signflip.md) (five papers). Each has a runnable reconstruction. None claims plumb-line would have prevented the incident; each shows where the lost status would have been visible.
+Same code, same "operational". The second version knows that three of its five results came from stubs, and when the code tries to relabel the report as real, the library refuses. That is the whole idea: a mocked result cannot be laundered into a real one.
+
+This has happened for real. Three documented incidents, each with a runnable reconstruction in this repository:
+
+- **Software:** [a server reported success for dead tools](docs/postmortems/mock-toolserver.md). Stub tools returned success-shaped payloads, and nobody could say how much of the system was fake.
+- **Aviation:** [a plane thought its passengers were children](docs/postmortems/loadsheet.md). A category guessed from an honorific went into a takeoff-weight calculation as if it were known (AAIB, 2020).
+- **Research:** [a retraction that started as a sign flip](docs/postmortems/signflip.md). An unversioned script inverted published protein structures; five papers were retracted.
+
+Different fields, same pattern: information lost its status somewhere in the system, and a downstream claim was treated as stronger than its evidence. None of the reconstructions claims plumb-line would have prevented the incident; each shows where the lost status would have been visible.
 
 ## You probably want this if
 
@@ -107,52 +115,33 @@ flowchart TB
   run ~~~ review
 ```
 
-**Run time** is the library: provenance travels with values through your own code. **Review time** reads a repository or a diff for uncertainty that got laundered: deterministic lint rules, hooks and the Action, plus the LLM-assisted audit. Five Claude Code skills carry it (`adopt`, `method`, `bootstrap`, `audit`, `remediate`); three never write to your code, two write only when you say yes. Use either layer alone, or both.
+**Run time** is the library above: provenance travels with values inside your own code. **Review time** looks at a repository or a pull request for places where uncertainty got laundered: a mock treated as real, a guess presented as a fact, a claim with nothing behind it. Some of those checks are deterministic: lint rules and git hooks that `plumb-line-bootstrap` installs, and the GitHub Action that runs them in CI. One is LLM-assisted: `plumb-line-audit` reads the code and writes a findings report, and `plumb-line-remediate` applies the findings if you ask it to. Two more skills, `adopt` and `method`, route you in and teach the ideas. Use either layer on its own, or both.
 
 ## What is deterministic, and what is not
 
-The provenance primitive and its propagation rules are deterministic. If a derived value depends on tainted input (an input carrying the mock flag from the example above), the taint propagates by specified rules, and a cross-language [conformance suite](primitives/conformance/) holds the JavaScript and Python implementations to identical behaviour, case by case. The enforcement adapters and the Action are deterministic too: a boundary rule either fires or it does not. The [validation results](docs/validation-results.md) record the adapters catching every planted violation with no false positives: the boundary break and the four bypass patterns, in both languages. This repository's own CI runs the Action against the same fixtures for the boundary checks; the remaining capabilities are proven by unit tests over recorded tool output, and [ACTION.md](ACTION.md) grades each one.
+The library and its rules are deterministic: the same inputs always produce the same labels, and a [conformance suite](primitives/conformance/) checks that the JavaScript and Python versions behave identically, case by case. The lint rules, hooks and the Action are deterministic too: a rule either fires or it does not, and the [validation results](docs/validation-results.md) show every planted violation caught with no false positives.
 
-The audit and remediate skills are different. They use an LLM as a review assistant, so plumb-line treats them as probabilistic components whose miss rate has to be measured. Before a release that touches them, the [release harness](docs/release-harness.md) runs blind validation: fixtures with planted violations and the answer keys withheld, at least two independent auditors on every fixture with violations planted, and a missed violation blocks the release until it is fixed and re-run, or a maintainer records a written waiver in the results. Calibration mistakes, false positives included, stay in the record.
+The audit and remediate skills use an LLM. They are useful reviewers and not authorities, so plumb-line measures them instead of trusting them. Before any release that changes them, they are run blind against test repositories with known violations planted in them and the answers removed. Independent auditors run separately, and a missed violation blocks the release unless a maintainer waives it in writing ([the harness](docs/release-harness.md)). False positives are kept on record too.
 
-## Proven before release
-
-What that looks like in practice, from the [v0.10.0 record](docs/validation-results.md#v0100-release-harness-record--2026-08-19-pre-tag): six read-only auditors, two independent per broken fixture, answer keys deleted and the strip self-verified.
-
-| Run | Planted set | Result |
-| --- | --- | --- |
-| js-broken A | P2 rates.js, P5 pricing.js, P3 gateway.js — all confirmed | PASS |
-| js-broken B | same three confirmed | PASS |
-| py-broken A | P2 schema.py, P5 aggregate.py, P8 source.py — all confirmed | PASS |
-| py-broken B | same three confirmed | PASS |
-| js-clean | 0 confirmed violations | PASS |
-| py-clean | 0 confirmed violations | PASS |
-
-The same record keeps what went wrong: one of the six reports failed the format check, and had declared `format-validation: not run` instead of asserting a clean verdict, which is the earned-verdict rule that release had just added, seen working. Misses and false positives from earlier releases sit in the same file.
+For the v0.10.0 release ([the record](docs/validation-results.md#v0100-release-harness-record--2026-08-19-pre-tag)) that meant six auditors, two per test repository with violations and one per clean one, each given only the skill's instructions, the principles, and a repository with the answers stripped. All six passed: every planted violation found, nothing invented in the clean repositories. The record also keeps what went wrong: one of the six reports failed the formatting check, and had said it could not run that check rather than claiming a clean result.
 
 ## It audits itself
 
-Before each such release, plumb-line runs its own audit over its own code and records what it found in the [dogfooding report](docs/dogfood.md). From the v0.10.0 section: 6 findings, 0 violations, 6 needs-review, all of them gaps between what this release's own prose promised and what its tooling enforced. Four fixed in place, two deferred to tracked issues ([#316](https://github.com/slopstopper/plumb-line/issues/316), [#317](https://github.com/slopstopper/plumb-line/issues/317)). One of them:
-
-| Path | Issue | Principle | Resolution |
-| --- | --- | --- | --- |
-| `scripts/check_content_language.py` | the language flagger matched per physical line, so a banned construction split across a wrap escaped | P6 — Maturity vocabulary | disclosure fixed in place; scanner improvement deferred → #316, since closed |
-
-Findings are fixed where the fix is right and otherwise become issues; false positives stay in the record. "The auditor found no problem" is never treated as proof that no problem exists.
+Before each of those releases, plumb-line also runs its own audit skill over its own code and publishes what it found in the [dogfooding report](docs/dogfood.md). For v0.10.0 that was six findings, all of them places where the project's own docs promised more than its tooling enforced; four were fixed on the spot and two became tracked issues ([#316](https://github.com/slopstopper/plumb-line/issues/316), [#317](https://github.com/slopstopper/plumb-line/issues/317)). False positives stay in the record. "The auditor found no problem" is never treated as proof that no problem exists.
 
 ## What plumb-line does not claim
 
-- It does not prove that a value marked `real` is true. It records what the code claimed about the value and keeps that claim from being upgraded.
+- It does not prove that a value marked `real` is true. It records what the code claimed and stops that claim from being upgraded later.
 - It does not stop a source from lying, or a developer from marking a mock as real. The lint rules make bypasses visible; they cannot make them impossible.
-- It does not make the LLM auditor infallible. Misses and false positives are measured and recorded, and the deterministic checks stand apart from it.
-- It does not yet carry provenance across every boundary. The guarantee holds inside one process; envelopes, the record each marked value carries, do not yet survive serialization, file artifacts or HTTP transport, which are [planned](#where-this-is-going). The HTTP adapters tag responses on the way in, and the dataframe adapters carry taint only through their own combinators (`plumb_derive`, `plumb_concat`, `plumb_merge` and their numpy siblings), never through an ordinary pandas or numpy call; neither carries envelopes across the wire.
-- Python envelopes are tamper-evident only: a caller holding one can edit it; what the library guarantees is that the edit cannot leak into a sibling envelope and that the inconsistency it leaves is detectable. The [threat model](docs/threat-model.md) says exactly what is defended.
+- It does not make the LLM auditor infallible. Misses and false positives are measured and recorded, and the deterministic checks stand on their own.
+- It does not yet carry provenance across every boundary. The guarantee holds inside one process; surviving serialization, files and HTTP is [planned](#where-this-is-going). The HTTP and dataframe adapters tag data on the way in and carry the labels through the operations they provide; nothing crosses the wire yet.
+- Python envelopes are tamper-evident: an edit can be detected but not prevented ([threat model](docs/threat-model.md)).
 
-What it targets is narrower: making it hard for software to turn uncertain information into something that looks certain without anyone noticing.
+The target is narrow: make it hard for software to turn uncertain information into something that looks certain without anyone noticing.
 
 ## Status
 
-Current on `main`: the run-time primitive with JS/Python parity, published to npm and PyPI as `plumb-line-provenance`; the golden-baseline library and CLI (Principle 9); the five skills; enforcement adapters for JavaScript and Python; and the GitHub Action with SARIF output. The envelope and the combination law are pinned by a versioned [specification](primitives/SPEC.md) (schema version 2) and the conformance suite. The baseline and the Action are on `main` ahead of the v0.11.0 tag.
+Current on `main`: the run-time library with JS/Python parity, published to npm and PyPI as `plumb-line-provenance`; the golden-baseline library and CLI (Principle 9); the five skills; enforcement adapters for JavaScript and Python; and the GitHub Action with SARIF output. The envelope and the combination law are pinned by a versioned [specification](primitives/SPEC.md) (schema version 2) and the conformance suite. The baseline and the Action are on `main` ahead of the v0.11.0 tag.
 
 Everything beyond that is **planned**. The [roadmap](ROADMAP.md) is the index, the open issues are that roadmap in public ([#311](https://github.com/slopstopper/plumb-line/issues/311)), and the [changelog](CHANGELOG.md) has the per-release detail.
 
