@@ -262,6 +262,68 @@ blanket disable, after which it catches nothing.
   is silent by design outside its surface, so "no output" is not evidence it is
   working.
 
+## Step 4d — Write the enforcement manifest
+
+Write `.plumb-line/enforcement.json` from the answers already given — never
+from a default. Include only what was installed.
+
+**JS first: the manifest's configs must be standalone flat configs.** The
+Action runs each JS config on its own (`eslint --no-config-lookup --config
+<file>`), so every file the manifest names must be a complete flat config —
+`module.exports = [ … ]` — that registers its plugin and carries only
+plumb-line rules. `eslint-provenance.cjs` (4b item 5) already is one. The
+Step 4 boundary file, `eslint-boundary.cjs`, is not: it is a `rules`
+fragment for the project's own flat config, and ESLint exits 2 on it alone
+(`could not find plugin "import"`). So write a second file,
+`eslint-boundary.config.cjs`, beside the fragment — the fixture wrapper,
+verbatim:
+
+```js
+const importX = require("eslint-plugin-import-x");
+const boundary = require("./eslint-boundary.cjs");
+module.exports = [{
+  files: ["**/*.js"],
+  plugins: { import: importX },
+  languageOptions: { ecmaVersion: 2022, sourceType: "module" },
+  ...boundary,
+}];
+```
+
+A project on `eslint-plugin-import` instead of `import-x` registers that
+package under the same `import` key. Keep `files` and `languageOptions` in
+step with the project's own flat config (a project of `.mjs` files needs
+them in `files`, or the wrapper lints nothing). Never point the manifest at
+the project's full `eslint.config.*`: every non-plumb-line rule's finding
+would surface as a `PL/unparsed` warning.
+
+```json
+{
+  "enforcement-format": "v1",
+  "languages": ["<js|python>", ...],
+  "js": { "boundary": { "config": "eslint-boundary.config.cjs" },
+          "provenance": { "config": "eslint-provenance.cjs",
+                          "globs": <the __GLOBS__ value>,
+                          "outputGlobs": <the __OUTPUT_GLOBS__ value, only if 4c was accepted> } },
+  "python": { "boundary": { "config": "<the import-linter config from Step 4>" },
+              "provenance": { "globs": <the files 4b scaffolded>,
+                              "outputGlobs": <the declared surface from 4c, only if accepted> } },
+  "baselines": { "dir": ".plumb-line/baselines" }   // only if the builder recorded a baseline
+}
+```
+
+Omit a language section the project does not have; omit `provenance` if 4b
+was declined; omit `outputGlobs` if 4c was declined; omit `baselines` unless
+a baseline exists. Then, from the consumer root, run
+`python3 <plugin root>/scripts/check_enforcement_manifest.py .plumb-line/enforcement.json`
+(the validator lives in the plugin, the manifest in the project) and show
+its output. The manifest is what the GitHub Action reads (`ACTION.md`); a
+repo without it gets a failure naming this step, not a guessed
+configuration.
+
+Maturity: this step is `planned` until a release-harness blind run proves a
+bootstrap writes the file (the validator and the hand-written shape are
+`current`).
+
 ## Step 5 — Report (audit format)
 
 Open with the same **required header block** as the audit format (`report-format:

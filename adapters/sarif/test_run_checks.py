@@ -1,0 +1,444 @@
+"""Tests for adapters/sarif/run_checks.py — the Action's orchestrator (#118).
+
+Run from the repo root:  python3 -m pytest -q adapters/sarif
+The fake runner makes every tool's behaviour explicit; the last test runs the
+real tools over the planted fixtures.
+"""
+import json
+import os
+import shutil
+
+from adapters.sarif import run_checks as R
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _consumer(tmp_path, manifest):
+    root = tmp_path / "repo"
+    (root / ".plumb-line").mkdir(parents=True)
+    for f in ("eslint-boundary.cjs", "eslint-provenance.cjs", ".importlinter"):
+        (root / f).write_text("x\n", encoding="utf-8")
+    (root / ".plumb-line" / "baselines").mkdir()
+    (root / ".plumb-line" / "enforcement.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (root / "src" / "p").mkdir(parents=True)
+    (root / "src" / "a.py").write_text("x = 1\n", encoding="utf-8")
+    (root / "src" / "p" / "b.py").write_text("x = 1\n", encoding="utf-8")
+    (root / "src" / "a.js").write_text("export const x = 1;\n", encoding="utf-8")
+    (root / "src" / "p" / "b.js").write_text("export const x = 1;\n", encoding="utf-8")
+    return str(root)
+
+
+FULL = {"enforcement-format": "v1", "languages": ["js", "python"],
+        "js": {"boundary": {"config": "eslint-boundary.cjs"},
+               "provenance": {"config": "eslint-provenance.cjs", "globs": ["src/**/*.js"], "outputGlobs": ["src/p/**/*.js"]}},
+        "python": {"boundary": {"config": ".importlinter"},
+                   "provenance": {"globs": ["src/**/*.py"], "outputGlobs": ["src/p/**/*.py"]}},
+        "baselines": {"dir": ".plumb-line/baselines"}}
+
+
+class FakeRunner:
+    """Answers each tool by whichever token in its command names the tool
+    itself — a .py/.mjs script path, or a bare "eslint"/"lint-imports" —
+    found anywhere in cmd, falling back to cmd[0] if none matches; records
+    calls."""
+    def __init__(self, answers, missing=()):
+        self.answers, self.missing, self.calls = answers, set(missing), []
+
+    def which(self, tool):
+        return None if tool in self.missing else f"/usr/bin/{tool}"
+
+    def __call__(self, cmd, cwd):
+        self.calls.append((cmd, cwd))
+        key = next((os.path.basename(a) for a in cmd if a.endswith((".py", ".mjs")) or a in ("eslint", "lint-imports")),
+                   os.path.basename(cmd[0]))
+        return self.answers.get(key, (0, "[]", ""))
+
+
+def _paths(tmp_path):
+    return {"sarif_path": str(tmp_path / "out.sarif"), "summary_path": str(tmp_path / "summary.json"),
+            "step_summary_path": str(tmp_path / "step.md")}
+
+
+def test_missing_manifest_fails_naming_the_bootstrap_step(tmp_path, capsys):
+    root = str(tmp_path)
+    os.makedirs(root, exist_ok=True)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 runner=FakeRunner({}), version="t", **_paths(tmp_path))
+    out = capsys.readouterr().out
+    assert code == 1 and "manifest not found" in out and "bootstrap" in out and "enforcement-format" in out
+
+
+def test_invalid_manifest_fails_with_findings_not_as_missing(tmp_path, capsys):
+    root = _consumer(tmp_path, dict(FULL, **{"enforcement-format": "v9"}))
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 runner=FakeRunner({}), version="t", **_paths(tmp_path))
+    out = capsys.readouterr().out
+    assert code == 1 and "unknown enforcement-format" in out and "manifest not found" not in out
+
+
+def test_zero_capabilities_is_green_and_says_so(tmp_path):
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["js"], "js": {}})
+    p = _paths(tmp_path)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 runner=FakeRunner({}), version="t", **p)
+    assert code == 0
+    s = json.load(open(p["summary_path"]))
+    assert s["capabilities"] == {} and s["findings"] == 0
+    assert "0 checks ran" in open(p["step_summary_path"]).read()
+    assert json.load(open(p["sarif_path"]))["runs"][0]["results"] == []
+
+
+def test_all_capabilities_run_with_the_right_commands(tmp_path):
+    root = _consumer(tmp_path, FULL)
+    fake = FakeRunner({"eslint": (0, "[]", ""), "provenance_lint.py": (0, "[]", ""),
+                       "lint-imports": (0, "Contracts: 1 kept, 0 broken.\n", ""),
+                       "baseline-cli.mjs": (0, json.dumps({"dir": root, "files": [], "invalid": 0}), "")})
+    p = _paths(tmp_path)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 runner=fake, version="t", **p)
+    assert code == 0
+    s = json.load(open(p["summary_path"]))
+    assert {k: v["state"] for k, v in s["capabilities"].items()} == {
+        "js.boundary": "ran", "js.provenance": "ran", "js.output": "ran",
+        "python.boundary": "ran", "python.provenance": "ran", "python.output": "ran", "baselines": "ran"}
+    cmds = [" ".join(c) for c, _ in fake.calls]
+    assert any("eslint" in c and "eslint-boundary.cjs" in c and "--format json" in c for c in cmds)
+    # M13: an ESLint glob that matches nothing is `ran` + zero results, like the Python side.
+    assert all("--no-error-on-unmatched-pattern" in c for c in cmds if "eslint" in c)
+    assert any("provenance_lint.py" in c and "--json" in c and "--require-output" not in c for c in cmds)
+    assert any("provenance_lint.py" in c and "--require-output" in c and "--json" in c for c in cmds)
+    assert any("lint-imports" in c and "--config .importlinter" in c for c in cmds)
+    assert any("baseline-cli.mjs validate --json" in c for c in cmds)
+    assert all(cwd == root for _, cwd in fake.calls)
+
+
+def test_findings_fail_the_job_unless_fail_on_none(tmp_path):
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["python"],
+                                "python": {"provenance": {"globs": ["src/**/*.py"]}}})
+    issue = [{"filename": "src/a.py", "line": 2, "rule": "PB1", "message": "PB1 laundered"}]
+    fake = FakeRunner({"provenance_lint.py": (1, json.dumps(issue), "")})
+    p = _paths(tmp_path)
+    m = os.path.join(root, ".plumb-line", "enforcement.json")
+    assert R.run(root, m, _ROOT, "findings", runner=fake, version="t", **p) == 1
+    s = json.load(open(p["summary_path"]))
+    assert s["findings"] == 1 and s["capabilities"]["python.provenance"]["results"] == 1
+    assert json.load(open(p["sarif_path"]))["runs"][0]["results"][0]["ruleId"] == "PL/PB1"
+    assert R.run(root, m, _ROOT, "none", runner=fake, version="t", **p) == 0
+    assert "fail-on: none" in open(p["step_summary_path"]).read()
+
+
+def test_missing_tool_is_a_finding_and_a_failure(tmp_path):
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["python"],
+                                "python": {"boundary": {"config": ".importlinter"}}})
+    fake = FakeRunner({}, missing=("lint-imports",))
+    p = _paths(tmp_path)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 runner=fake, version="t", **p)
+    assert code == 1
+    s = json.load(open(p["summary_path"]))
+    assert s["capabilities"]["python.boundary"]["state"] == "tool-missing"
+    assert "pip install import-linter" in s["capabilities"]["python.boundary"]["note"]
+    res = json.load(open(p["sarif_path"]))["runs"][0]["results"]
+    assert res[0]["ruleId"] == "PL/tool-missing"
+
+
+def test_tool_crash_is_errored_with_stderr_in_the_note(tmp_path):
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["python"],
+                                "python": {"provenance": {"globs": ["src/**/*.py"]}}})
+    fake = FakeRunner({"provenance_lint.py": (3, "", "Traceback: boom")})
+    p = _paths(tmp_path)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 runner=fake, version="t", **p)
+    assert code == 1
+    s = json.load(open(p["summary_path"]))
+    assert s["capabilities"]["python.provenance"]["state"] == "errored"
+    assert "exit 3" in s["capabilities"]["python.provenance"]["note"] and "boom" in s["capabilities"]["python.provenance"]["note"]
+
+
+def test_tool_exit_nonzero_with_parsable_output_is_findings_not_errored(tmp_path):
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["python"],
+                                "python": {"boundary": {"config": ".importlinter"}}})
+    report = "Contracts: 0 kept, 1 broken.\nBroken contracts\n----------------\nsrc.data is not allowed to import src.ui:\n- src.data.schema -> src.ui.report (l.7)\n"
+    fake = FakeRunner({"lint-imports": (1, report, "")})
+    p = _paths(tmp_path)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 runner=fake, version="t", **p)
+    s = json.load(open(p["summary_path"]))
+    assert code == 1 and s["capabilities"]["python.boundary"]["state"] == "ran"
+    assert s["capabilities"]["python.boundary"]["parser"] == "text" and s["findings"] == 1
+
+
+# ---------- fix round 1 (task review) ----------
+
+def test_parsable_payload_with_one_unmappable_item_is_ran_not_errored(tmp_path):
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["js"],
+                                "js": {"boundary": {"config": "eslint-boundary.cjs"}}})
+    payload = json.dumps([{"filePath": os.path.join(root, "src", "a.js"),
+                           "messages": [{"ruleId": "no-unused-vars", "severity": 2, "message": "x",
+                                        "line": 1, "column": 1}]}])
+    fake = FakeRunner({"eslint": (1, payload, "")})
+    p = _paths(tmp_path)
+    m = os.path.join(root, ".plumb-line", "enforcement.json")
+    assert R.run(root, m, _ROOT, "findings", runner=fake, version="t", **p) == 1
+    s = json.load(open(p["summary_path"]))
+    res = json.load(open(p["sarif_path"]))["runs"][0]["results"]
+    assert (s["capabilities"]["js.boundary"]["state"] == "ran" and len(res) == 1
+            and res[0]["ruleId"] == "PL/unparsed"
+            and res[0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "src/a.js")
+    assert R.run(root, m, _ROOT, "none", runner=fake, version="t", **p) == 0
+
+
+def test_tool_missing_and_errored_fail_even_under_fail_on_none(tmp_path):
+    missing_root = _consumer(tmp_path / "missing", {"enforcement-format": "v1", "languages": ["python"],
+                                                     "python": {"boundary": {"config": ".importlinter"}}})
+    missing_code = R.run(missing_root, os.path.join(missing_root, ".plumb-line", "enforcement.json"), _ROOT, "none",
+                         runner=FakeRunner({}, missing=("lint-imports",)), version="t",
+                         **_paths(tmp_path / "missing"))
+    crash_root = _consumer(tmp_path / "crash", {"enforcement-format": "v1", "languages": ["python"],
+                                                "python": {"provenance": {"globs": ["src/**/*.py"]}}})
+    crash_code = R.run(crash_root, os.path.join(crash_root, ".plumb-line", "enforcement.json"), _ROOT, "none",
+                       runner=FakeRunner({"provenance_lint.py": (3, "", "Traceback: boom")}), version="t",
+                       **_paths(tmp_path / "crash"))
+    assert missing_code == 1 and crash_code == 1
+
+
+def test_js_provenance_and_output_filter_by_rule(tmp_path):
+    # Not the literal FULL constant: FULL also enables js.boundary, which
+    # invokes eslint through the SAME FakeRunner key ("eslint" — the fake
+    # can't distinguish boundary's config from provenance's), so it would
+    # replay this same payload unfiltered and double every count below.
+    # This keeps FULL's js.provenance/js.output shape and drops js.boundary
+    # so "exactly one of each" is actually checking the capability filters,
+    # not an artifact of the fake sharing one key across three invocations.
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["js"],
+                                "js": {"provenance": {"config": "eslint-provenance.cjs",
+                                                      "globs": ["src/**/*.js"], "outputGlobs": ["src/p/**/*.js"]}}})
+    payload = json.dumps([{"filePath": os.path.join(root, "src", "p", "b.js"),
+                           "messages": [{"ruleId": "plumb-line/no-provenance-bypass",
+                                        "message": "PB1 laundered", "line": 1, "column": 1},
+                                       {"ruleId": "plumb-line/require-provenance-output",
+                                        "message": "untagged output", "line": 2, "column": 1}]}])
+    fake = FakeRunner({"eslint": (0, payload, "")})
+    p = _paths(tmp_path)
+    R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+         runner=fake, version="t", **p)
+    s = json.load(open(p["summary_path"]))
+    ids = [r["ruleId"] for r in json.load(open(p["sarif_path"]))["runs"][0]["results"]]
+    assert (s["capabilities"]["js.provenance"]["results"] == 1 and s["capabilities"]["js.output"]["results"] == 1
+            and ids.count("PL/PB1") == 1 and ids.count("PL/untagged-output") == 1)
+
+
+def test_no_glob_match_is_ran_with_a_note_and_no_tool_call(tmp_path):
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["python"],
+                                "python": {"provenance": {"globs": ["nothing/**/*.py"]}}})
+    issue = [{"filename": "x", "line": 1, "rule": "PB1", "message": "m"}]
+    fake = FakeRunner({"provenance_lint.py": (1, json.dumps(issue), "")})
+    p = _paths(tmp_path)
+    R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+         runner=fake, version="t", **p)
+    s = json.load(open(p["summary_path"]))
+    assert (s["capabilities"]["python.provenance"]["state"] == "ran"
+            and s["capabilities"]["python.provenance"]["note"] == "no files matched the globs"
+            and not any("provenance_lint.py" in " ".join(c) for c, _ in fake.calls))
+
+
+def test_step_summary_is_appended_not_overwritten(tmp_path):
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["js"], "js": {}})
+    p = _paths(tmp_path)
+    m = os.path.join(root, ".plumb-line", "enforcement.json")
+    R.run(root, m, _ROOT, "findings", runner=FakeRunner({}), version="t", **p)
+    R.run(root, m, _ROOT, "findings", runner=FakeRunner({}), version="t", **p)
+    headers = [ln for ln in open(p["step_summary_path"]).read().splitlines()
+              if ln.startswith("plumb-line enforcement —")]
+    assert len(headers) == 2
+
+
+# ---------- final review I2: js.output keeps PL/unparsed ----------
+
+def test_js_output_keeps_unparsed_for_a_surface_file_eslint_could_not_parse(tmp_path):
+    # A file inside the declared surface that ESLint could not parse (a
+    # fatal message, ruleId null) means require-provenance-output never ran
+    # on it. Dropping PL/unparsed here was the one silent-green path left.
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["js"],
+                                "js": {"provenance": {"config": "eslint-provenance.cjs",
+                                                      "globs": ["src/**/*.js"], "outputGlobs": ["src/p/**/*.js"]}}})
+    fatal = json.dumps([{"filePath": os.path.join(root, "src", "p", "b.js"),
+                         "messages": [{"ruleId": None, "fatal": True, "severity": 2,
+                                      "message": "Parsing error: Unexpected token", "line": 1, "column": 8}]}])
+
+    class ByGlob(FakeRunner):
+        """The js.output run (outputGlobs) fails to parse; the js.provenance run is clean."""
+        def __call__(self, cmd, cwd):
+            self.calls.append((cmd, cwd))
+            return (1, fatal, "") if "src/p/**/*.js" in cmd else (0, "[]", "")
+    fake = ByGlob({})
+    p = _paths(tmp_path)
+    m = os.path.join(root, ".plumb-line", "enforcement.json")
+    code = R.run(root, m, _ROOT, "findings", runner=fake, version="t", **p)
+    s = json.load(open(p["summary_path"]))
+    res = json.load(open(p["sarif_path"]))["runs"][0]["results"]
+    assert s["capabilities"]["js.output"]["state"] == "ran" and s["capabilities"]["js.output"]["results"] == 1
+    assert [r["ruleId"] for r in res] == ["PL/unparsed"] and "Parsing error" in res[0]["message"]["text"]
+    assert res[0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "src/p/b.js"
+    assert code == 1
+
+
+# ---------- final review I3 (+M13): the consumer's own ESLint, never npx ----------
+
+class Recorder:
+    """A runner with NO `which` hook, so run() falls back to its default
+    resolver — the thing under test here. Every tool answers clean."""
+    def __init__(self):
+        self.calls = []
+
+    def __call__(self, cmd, cwd):
+        self.calls.append((cmd, cwd))
+        return (0, "[]", "")
+
+
+def _plant_eslint(where):
+    binary = where / "node_modules" / ".bin" / "eslint"
+    binary.parent.mkdir(parents=True)
+    binary.write_text("#!/bin/sh\necho []\n", encoding="utf-8")
+    binary.chmod(0o755)
+    return str(binary)
+
+
+_JS_ONLY = {"enforcement-format": "v1", "languages": ["js"], "js": {"boundary": {"config": "eslint-boundary.cjs"}}}
+
+
+def test_eslint_is_the_consumers_node_modules_binary(tmp_path):
+    root = _consumer(tmp_path, _JS_ONLY)
+    binary = _plant_eslint(tmp_path / "repo")
+    rec = Recorder()
+    p = _paths(tmp_path)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 runner=rec, version="t", **p)
+    assert code == 0 and len(rec.calls) == 1
+    cmd = rec.calls[0][0]
+    assert cmd[0] == binary and "npx" not in cmd
+    assert "--no-config-lookup" in cmd and "--no-error-on-unmatched-pattern" in cmd
+
+
+def test_eslint_absent_from_node_modules_is_tool_missing_not_a_registry_install(tmp_path):
+    root = _consumer(tmp_path, _JS_ONLY)
+    rec = Recorder()
+    p = _paths(tmp_path)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 runner=rec, version="t", **p)
+    s = json.load(open(p["summary_path"]))
+    assert code == 1 and rec.calls == []
+    assert s["capabilities"]["js.boundary"]["state"] == "tool-missing"
+    assert "npm ci" in s["capabilities"]["js.boundary"]["note"]
+    assert json.load(open(p["sarif_path"]))["runs"][0]["results"][0]["ruleId"] == "PL/tool-missing"
+
+
+def test_eslint_hoisted_above_a_monorepo_subroot_is_found_by_walking_up(tmp_path):
+    root = _consumer(tmp_path / "packages", _JS_ONLY)   # <tmp>/packages/repo
+    binary = _plant_eslint(tmp_path)                    # <tmp>/node_modules/.bin/eslint
+    rec = Recorder()
+    p = _paths(tmp_path)
+    R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+          runner=rec, version="t", **p)
+    assert rec.calls and rec.calls[0][0][0] == binary and rec.calls[0][1] == root
+
+
+# ---------- final review I1 (+M1, M9): a subroot's results are workspace-relative ----------
+
+def test_subroot_results_are_workspace_relative_and_srcroot_is_the_workspace(tmp_path):
+    import pathlib
+    # root = <tmp>/packages/repo, workspace = <tmp>: code scanning resolves
+    # %SRCROOT% as the repository root, so a monorepo subroot's URIs must
+    # carry the subroot prefix or every alert points at a path that isn't there.
+    root = _consumer(tmp_path / "packages", {"enforcement-format": "v1", "languages": ["js"],
+                                             "js": {"boundary": {"config": "eslint-boundary.cjs"}}})
+    payload = json.dumps([{"filePath": os.path.join(root, "src", "a.js"),
+                           "messages": [{"ruleId": "import/no-restricted-paths", "severity": 2,
+                                        "message": "up", "line": 1, "column": 1}]}])
+    fake = FakeRunner({"eslint": (1, payload, "")})
+    p = _paths(tmp_path)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 runner=fake, version="t", workspace=str(tmp_path), **p)
+    assert code == 1
+    run = json.load(open(p["sarif_path"]))["runs"][0]
+    uris = [r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] for r in run["results"]]
+    assert uris == ["packages/repo/src/a.js"]
+    assert run["originalUriBaseIds"] == {"%SRCROOT%": {"uri": pathlib.Path(tmp_path).as_uri() + "/"}}
+    assert all(cwd == root for _, cwd in fake.calls)  # the tools still run in the subroot
+
+
+def test_workspace_defaults_to_root_so_uris_are_root_relative(tmp_path):
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["js"],
+                                "js": {"boundary": {"config": "eslint-boundary.cjs"}}})
+    payload = json.dumps([{"filePath": os.path.join(root, "src", "a.js"),
+                           "messages": [{"ruleId": "import/no-restricted-paths", "severity": 2,
+                                        "message": "up", "line": 1, "column": 1}]}])
+    p = _paths(tmp_path)
+    R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+          runner=FakeRunner({"eslint": (1, payload, "")}), version="t", **p)
+    run = json.load(open(p["sarif_path"]))["runs"][0]
+    assert run["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "src/a.js"
+    assert run["originalUriBaseIds"]["%SRCROOT%"]["uri"].endswith("/repo/")
+
+
+def test_main_realpaths_root_and_workspace_and_defaults_workspace_to_root(tmp_path, monkeypatch):
+    # ESLint and node report the PHYSICAL cwd, so a symlinked --root (macOS
+    # /var -> /private/var) must be resolved before _rel strips it (M9).
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real, target_is_directory=True)
+    seen = {}
+
+    def fake_run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path,
+                 step_summary_path=None, version="dev", runner=None, workspace=None):
+        seen.update(root=root, manifest=manifest_path, workspace=workspace)
+        return 0
+    monkeypatch.setattr(R, "run", fake_run)
+    R.main(["--root", str(link), "--sarif", str(tmp_path / "o.sarif"), "--summary", str(tmp_path / "s.json")])
+    assert seen["root"] == os.path.realpath(str(real)) and seen["workspace"] == seen["root"]
+    assert seen["manifest"] == os.path.join(seen["root"], ".plumb-line", "enforcement.json")
+    ws_link = tmp_path / "ws-link"
+    ws_link.symlink_to(tmp_path, target_is_directory=True)
+    R.main(["--root", str(link), "--workspace", str(ws_link),
+            "--sarif", str(tmp_path / "o.sarif"), "--summary", str(tmp_path / "s.json")])
+    assert seen["workspace"] == os.path.realpath(str(tmp_path))
+
+
+def test_end_to_end_over_the_planted_fixtures(tmp_path):
+    """The only test that proves the mapping matches what the real tools emit.
+    Skipped, loudly, if a tool is not installed locally — CI installs both."""
+    import pytest
+    missing = [t for t in ("node", "lint-imports") if shutil.which(t) is None]
+    if missing:
+        pytest.skip(f"real tools not installed locally: {missing}")
+    for tree in ("broken", "clean"):
+        mod = os.path.join(_ROOT, "examples", "js-payments-service", tree, "node_modules", "eslint-plugin-import-x")
+        if not os.path.isdir(mod):
+            pytest.skip(f"JS fixture toolchain not installed: run npm ci in examples/js-payments-service/{tree}")
+    for fixture, expect in (("examples/js-payments-service", {"PL/boundary"}),
+                            ("examples/python-data-pipeline", {"PL/boundary"})):
+        root = os.path.join(_ROOT, fixture, "broken")
+        p = _paths(tmp_path / os.path.basename(fixture))
+        os.makedirs(os.path.dirname(p["sarif_path"]), exist_ok=True)
+        code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                     version="t", **p)
+        assert code == 1, fixture
+        ids = {r["ruleId"] for r in json.load(open(p["sarif_path"]))["runs"][0]["results"]}
+        assert expect <= ids, (fixture, ids)
+        clean = os.path.join(_ROOT, fixture, "clean")
+        code = R.run(clean, os.path.join(clean, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                     version="t", **p)
+        assert code == 0, (fixture, open(p["step_summary_path"]).read())
+    # I1: run one fixture as a subroot of this checkout (the way ci.yml's
+    # `root:` input does) — every located result must carry the subroot
+    # prefix, so code scanning resolves it against the repository root.
+    root = os.path.join(_ROOT, "examples", "js-payments-service", "broken")
+    p = _paths(tmp_path / "subroot")
+    os.makedirs(os.path.dirname(p["sarif_path"]), exist_ok=True)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 version="t", workspace=_ROOT, **p)
+    results = json.load(open(p["sarif_path"]))["runs"][0]["results"]
+    uris = [r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] for r in results if "locations" in r]
+    assert code == 1 and uris and all(u.startswith("examples/js-payments-service/broken/") for u in uris), uris
+    assert len(uris) == len(results), "every fixture result carries a location"

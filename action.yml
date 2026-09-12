@@ -1,0 +1,126 @@
+name: plumb-line enforcement
+description: >-
+  Runs whatever plumb-line enforcement this repository carries (from
+  .plumb-line/enforcement.json), emits one SARIF log, uploads it to code
+  scanning, and fails on findings. Ships no layers, globs, or defaults.
+author: slopstopper
+branding:
+  icon: check-square
+  color: blue
+
+inputs:
+  manifest:
+    description: Path to the enforcement manifest, relative to `root`.
+    default: .plumb-line/enforcement.json
+  root:
+    description: "For monorepos: the consumer root within the checkout (default: the repository root)."
+    default: "."
+  fail-on:
+    description: "`findings` (default) fails the job on any result; `none` is advisory — the SARIF still uploads."
+    default: findings
+  sarif-file:
+    description: Where to write the SARIF log.
+    default: ${{ runner.temp }}/plumb-line.sarif
+  upload:
+    description: "Upload the SARIF to code scanning (needs `security-events: write`). `false` still writes the file."
+    default: "true"
+
+outputs:
+  sarif-file:
+    description: The SARIF log path.
+    value: ${{ inputs.sarif-file }}
+  summary-file:
+    description: The summary JSON path.
+    value: ${{ runner.temp }}/plumb-line-summary.json
+  category:
+    description: "The code-scanning category the SARIF uploads under: `plumb-line`, or `plumb-line/<root>` for a non-`.` root."
+    value: ${{ steps.run.outputs.category }}
+
+runs:
+  using: composite
+  steps:
+    # The Action's own scripts come from ITS pinned ref, never from copies in
+    # the consumer tree (ADR-0016 decision 5). `uses: ./` in this repo's own
+    # CI resolves github.action_path to the working tree, so no checkout
+    # happens there.
+    - name: enforcement — run plumb-line's deterministic checks
+      id: run
+      shell: bash
+      env:
+        PL_ROOT: ${{ github.workspace }}
+        PL_SUBROOT: ${{ inputs.root }}
+        PL_MANIFEST: ${{ inputs.manifest }}
+        PL_SCRIPTS: ${{ github.action_path }}
+        PL_FAIL_ON: ${{ inputs.fail-on }}
+        PL_SARIF: ${{ inputs.sarif-file }}
+        PL_SUMMARY: ${{ runner.temp }}/plumb-line-summary.json
+        PL_VERSION: ${{ github.action_ref }}
+      run: |
+        set +e
+        # One code-scanning category per root: two roots in one workflow
+        # upload for the same commit, and a shared category would make the
+        # later upload replace the earlier one's alerts.
+        sub="${PL_SUBROOT#./}"; sub="${sub%/}"
+        if [ -z "$sub" ] || [ "$sub" = "." ]; then category="plumb-line"; else category="plumb-line/$sub"; fi
+        echo "category=$category" >> "$GITHUB_OUTPUT"
+        # Under `set +e`, a failing realpath would otherwise leave the
+        # substitution empty and silently point --root at the workspace
+        # root — guard it explicitly and bail out (still exit 0: the final
+        # step is what carries the code past the upload step).
+        PL_ABS_ROOT="$(realpath "$PL_ROOT/$PL_SUBROOT")" || {
+          echo "::error::plumb-line: root '$PL_SUBROOT' not found under the checkout"
+          echo "code=1" >> "$GITHUB_OUTPUT"; echo "sarif_written=false" >> "$GITHUB_OUTPUT"; exit 0; }
+        # Existence is not containment: `root: ../sibling` resolves fine and
+        # would re-base every URI to `../sibling/...`. Compare realpaths so a
+        # symlinked workspace does not false-positive.
+        PL_ABS_WS="$(realpath "$PL_ROOT")"
+        case "$PL_ABS_ROOT" in
+          "$PL_ABS_WS"|"$PL_ABS_WS"/*) ;;
+          *) echo "::error::plumb-line: root '$PL_SUBROOT' resolves outside the checkout"
+             echo "code=1" >> "$GITHUB_OUTPUT"; echo "sarif_written=false" >> "$GITHUB_OUTPUT"; exit 0 ;;
+        esac
+        # A stale file from an earlier invocation must never read as this
+        # run's output — sarif_written below means written by THIS run.
+        rm -f "$PL_SARIF" "$PL_SUMMARY"
+        # --workspace: the tools run in the root, but code scanning resolves
+        # every URI against the repository root, so results are re-based.
+        python3 "$PL_SCRIPTS/adapters/sarif/run_checks.py" \
+          --root "$PL_ABS_ROOT" --workspace "$PL_ABS_WS" \
+          --manifest "$PL_MANIFEST" --scripts-dir "$PL_SCRIPTS" \
+          --fail-on "$PL_FAIL_ON" --sarif "$PL_SARIF" --summary "$PL_SUMMARY" \
+          --step-summary "$GITHUB_STEP_SUMMARY" --version "${PL_VERSION:-dev}"
+        echo "code=$?" >> "$GITHUB_OUTPUT"
+        # hashFiles() is workspace-relative and would silently skip a match against
+        # PL_SARIF's absolute runner.temp path, so the upload guard below reads this
+        # output instead of hashing the file itself.
+        if [ -f "$PL_SARIF" ]; then echo "sarif_written=true" >> "$GITHUB_OUTPUT"; else echo "sarif_written=false" >> "$GITHUB_OUTPUT"; fi
+    - name: upload SARIF to code scanning
+      id: upload
+      if: ${{ inputs.upload == 'true' && steps.run.outputs.sarif_written == 'true' }}
+      uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938  # v4.37.9
+      continue-on-error: true
+      with:
+        sarif_file: ${{ inputs.sarif-file }}
+        category: ${{ steps.run.outputs.category }}
+    # continue-on-error keeps the job's exit code tied to the enforcement
+    # result alone; this names the two usual causes instead of leaving the
+    # generic failed-step annotation.
+    - name: warn when the upload failed
+      if: ${{ steps.upload.outcome == 'failure' }}
+      shell: bash
+      run: |
+        echo "::warning::plumb-line: SARIF upload failed — does the job grant security-events: write, and is code scanning enabled for this repository?"
+    - name: enforcement — exit with the run's code
+      shell: bash
+      env:
+        PL_CODE: ${{ steps.run.outputs.code }}
+        PL_WRITTEN: ${{ steps.run.outputs.sarif_written }}
+      run: |
+        if [ "${PL_CODE:-1}" != "0" ]; then
+          # No SARIF means the run never got past the manifest (missing or
+          # invalid) or the root: those lines go to the log, not the step
+          # summary, which only a run that reached the checks writes.
+          if [ "$PL_WRITTEN" = "true" ]; then where="see the step summary"; else where="see the log"; fi
+          echo "::error::plumb-line enforcement failed ($where); exit ${PL_CODE:-1}"
+          exit "${PL_CODE:-1}"
+        fi

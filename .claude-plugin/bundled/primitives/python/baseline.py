@@ -369,6 +369,7 @@ def main(argv=None):
     ap.add_argument('cmd', nargs='?')
     ap.add_argument('name', nargs='?')
     ap.add_argument('--dir', default=None)
+    ap.add_argument('--json', action='store_true')
     args = ap.parse_args(argv)
     abs_dir = _abs_dir(args.dir)
     if args.cmd == 'list':
@@ -406,10 +407,14 @@ def main(argv=None):
         return 0
     if args.cmd == 'validate':
         if not os.path.isdir(abs_dir):
+            if args.json:
+                print(json.dumps({'dir': abs_dir, 'files': [], 'invalid': 0}))
+                return 0
             print(f'no baselines directory at {abs_dir}; 0 files validated')
             return 0
         files = sorted(f for f in os.listdir(abs_dir) if f.endswith('.json') and not f.startswith('.'))
         bad = 0
+        results = []
         for f in files:
             rec = None
             try:
@@ -425,11 +430,16 @@ def main(argv=None):
                 issues = [f'name {json.dumps(rec.get("name"))} does not match the filename']
             if issues:
                 bad += 1
-                print(f'✗ {f}')
-                for i in issues:
-                    print(f'    {i}')
-            else:
+                if not args.json:
+                    print(f'✗ {f}')
+                    for i in issues:
+                        print(f'    {i}')
+            elif not args.json:
                 print(f'✓ {f}')
+            results.append({'file': f, 'issues': issues})
+        if args.json:
+            print(json.dumps({'dir': abs_dir, 'files': results, 'invalid': bad}))
+            return 1 if bad else 0
         print(f'{bad} of {len(files)} invalid' if bad else f'{len(files)} file(s) valid')
         return 1 if bad else 0
     print(_USAGE, file=sys.stderr)

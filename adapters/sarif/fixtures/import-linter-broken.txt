@@ -1,0 +1,38 @@
+
+╔══╗─────────▶╔╗ ╔╗      ╔╗◀───┐
+╚╣╠╝◀─────┐  ╔╝╚╗║║────▶╔╝╚╗   │
+ ║║   ╔══╦══╦╩╗╔╝║║  ╔╦═╩╗╔╝╔═╦══╗
+ ║║╔══╣╔╗║╔╗║╔╣║ ║║ ╔╬╣╔╗║║ ║│║╔═╝
+╔╣╠╣║║║╚╝║╚╝║║║╚╗║╚═╝║║║║║╚╗║═╣║
+╚══╩╩╩╣╔═╩══╩╝╚═╝╚═══╩╩╝╚╩═╩╩═╩╝
+  └──▶║║                    ▲ 
+      ╚╝────────────────────┘
+
+[?25l∙∙∙ 🧱 Building graph...
+[?25h[1A[2K[?25l[2K🧐 Checking contracts                                          0/1
+[2K[1A[2K🧐 Checking contracts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1/1
+[2mChecking plumb-line one-way layering[0m[2K[1A[2K🧐 Checking contracts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1/1
+[?25h[1A[2K[1m---------[0m
+[1mContracts[0m
+[1m---------[0m
+
+[1mAnalyzed 9 files, 4 dependencies.[0m
+[1m---------------------------------[0m
+
+plumb-line one-way layering BROKEN
+
+Contracts: 0 kept, 1 broken.
+
+
+[1m----------------[0m
+[1mBroken contracts[0m
+[1m----------------[0m
+
+[1mplumb-line one-way layering[0m
+[1m---------------------------[0m
+
+src.data is not allowed to import src.ui:
+
+- src.data.schema -> src.ui.report (l.7)
+
+

@@ -1,0 +1,1 @@
+{"dir":"/repo/.plumb-line/baselines","files":[{"file":"broken.json","issues":["cannot parse: Expecting value: line 1 column 3 (char 2)"]},{"file":"fx-rate.json","issues":[]},{"file":"other-name.json","issues":["name \"fx-rate\" does not match the filename"]}],"invalid":2}

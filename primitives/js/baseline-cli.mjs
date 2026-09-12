@@ -13,6 +13,8 @@ const USAGE = "usage: baseline <list|show <name>|validate> [--dir D]";
 
 function parse(argv) {
   const args = [...argv];
+  const json = args.includes("--json");
+  if (json) args.splice(args.indexOf("--json"), 1);
   let dir = DEFAULT_DIR;
   const i = args.indexOf("--dir");
   if (i >= 0) {
@@ -24,11 +26,11 @@ function parse(argv) {
     dir = v;
     args.splice(i, 2);
   }
-  return { cmd: args[0], name: args[1], dir };
+  return { cmd: args[0], name: args[1], dir, json };
 }
 
 export function main(argv) {
-  const { cmd, name, dir, usageError } = parse(argv);
+  const { cmd, name, dir, json, usageError } = parse(argv);
   if (usageError) { console.error(USAGE); return 2; }
   const absDir = resolve(dir || DEFAULT_DIR);
   if (cmd === "list") {
@@ -54,9 +56,14 @@ export function main(argv) {
     return 0;
   }
   if (cmd === "validate") {
-    if (!isDir(absDir)) { console.log(`no baselines directory at ${absDir}; 0 files validated`); return 0; }
+    if (!isDir(absDir)) {
+      if (json) { console.log(JSON.stringify({ dir: absDir, files: [], invalid: 0 })); return 0; }
+      console.log(`no baselines directory at ${absDir}; 0 files validated`);
+      return 0;
+    }
     const files = readdirSync(absDir).filter((f) => f.endsWith(".json") && !f.startsWith(".")).sort();
     let bad = 0;
+    const results = [];
     for (const f of files) {
       let issues, rec;
       try {
@@ -69,9 +76,15 @@ export function main(argv) {
       if (!issues.length && rec.name !== f.slice(0, -".json".length)) {
         issues = [`name ${JSON.stringify(rec.name)} does not match the filename`];
       }
-      if (issues.length) { bad++; console.log(`✗ ${f}`); for (const i of issues) console.log(`    ${i}`); }
-      else console.log(`✓ ${f}`);
+      if (issues.length) {
+        bad++;
+        if (!json) { console.log(`✗ ${f}`); for (const i of issues) console.log(`    ${i}`); }
+      } else if (!json) {
+        console.log(`✓ ${f}`);
+      }
+      results.push({ file: f, issues });
     }
+    if (json) { console.log(JSON.stringify({ dir: absDir, files: results, invalid: bad })); return bad ? 1 : 0; }
     console.log(bad ? `${bad} of ${files.length} invalid` : `${files.length} file(s) valid`);
     return bad ? 1 : 0;
   }

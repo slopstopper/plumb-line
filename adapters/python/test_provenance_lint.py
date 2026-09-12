@@ -257,3 +257,30 @@ def test_main_default_mode_unchanged(tmp_path):
     p.write_text(IMPORT + "def f(x, r):\n    return x * r\n")
     # default mode runs PB1-4 only; a raw return is not a bypass pattern → clean
     assert pl.main([str(p)]) == 0
+
+
+def test_main_json_mode_prints_one_array(tmp_path, capsys):
+    import json
+    p = tmp_path / 'bad.py'
+    p.write_text(IMPORT + "m = mark(1, source='real', derived_from_mock=True)\n", encoding='utf-8')
+    assert pl.main(['--json', str(p)]) == 1
+    out = json.loads(capsys.readouterr().out)
+    assert out == [{'filename': str(p), 'line': 2, 'rule': 'PB1', 'message': out[0]['message']}]
+    assert out[0]['message'].startswith('PB1 ')
+
+
+def test_main_json_mode_with_require_output(tmp_path, capsys):
+    import json
+    p = tmp_path / 'f.py'
+    p.write_text("def f(x, r):\n    return x * r\n", encoding='utf-8')
+    assert pl.main(['--require-output', '--json', str(p)]) == 1
+    out = json.loads(capsys.readouterr().out)
+    assert [i['rule'] for i in out] == ['REQ-OUTPUT']
+
+
+def test_main_json_mode_clean_is_empty_array(tmp_path, capsys):
+    import json
+    p = tmp_path / 'ok.py'
+    p.write_text("x = 1\n", encoding='utf-8')
+    assert pl.main(['--json', str(p)]) == 0
+    assert json.loads(capsys.readouterr().out) == []

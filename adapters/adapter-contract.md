@@ -61,6 +61,28 @@ and parameterizes these files into the target repo.
   primitive's API), not domain-neutral. It is grouped with the adapters as
   enforcement for now and may move under `primitives/` in a future version.
 
+## 6. Enforcement manifest (`.plumb-line/enforcement.json`)
+
+- Purpose: the one place a repo states which of capabilities 1, 5 and 5b it
+  carries (plus a baselines directory), so the GitHub Action (`action.yml`,
+  ADR-0016) can run them without guessing. `enforcement-format: v1`;
+  validator `scripts/check_enforcement_manifest.py`.
+- Every capability is optional. Absence means not enforced here: an absent
+  capability is not run and does not appear in the Action's summary;
+  nothing absent is ever counted as a pass. Nothing in the file is a
+  default: bootstrap writes it from the interview (Step 4d), or a maintainer
+  writes it by hand (shape in ACTION.md).
+- Shape: `languages`; per language `boundary.config`, `provenance.config`
+  (JS), `provenance.globs`, `provenance.outputGlobs` (the ADR-0011 declared
+  surface — in Python this is its first home); `baselines.dir`.
+- The JS configs the manifest names (`boundary.config`, `provenance.config`)
+  must each be a standalone flat config — a complete `module.exports = [ … ]`
+  registering its plugin and carrying only plumb-line rules — because the
+  Action runs each with `--no-config-lookup`: the Step 4 boundary `rules`
+  fragment is not one (bootstrap writes `eslint-boundary.config.cjs` beside
+  it for this), and a consumer's full `eslint.config.*` turns every
+  non-plumb-line finding into `PL/unparsed`.
+
 ## Hook I/O convention (shared)
 
 - Contract version: 1.

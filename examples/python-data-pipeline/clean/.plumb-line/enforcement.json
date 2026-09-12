@@ -1,0 +1,1 @@
+{ "enforcement-format": "v1", "languages": ["python"], "python": { "boundary": { "config": ".importlinter" } } }
