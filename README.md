@@ -36,7 +36,7 @@ total.confidence;      // 'low'  only as certain as the weakest input
 | --- | --- |
 | **Claude Code plugin** (five skills) | `/plugin marketplace add slopstopper/plumb-line` then `/plugin install plumb-line@plumb-line`, then run `plumb-line-adopt` |
 | **Library** (JS + Python, zero dependencies) | `npm install plumb-line-provenance` · `pip install plumb-line-provenance` |
-| **CI** | Add the [GitHub Action](ACTION.md) once bootstrap has installed enforcement: SARIF in code scanning, no agent needed |
+| **CI** | Add the [GitHub Action](ACTION.md) once bootstrap has installed enforcement: SARIF for code scanning, no agent needed |
 | **Not using Claude?** | [portable/README.md](portable/README.md) skips the plugin shell |
 
 ## Same number, different claim
@@ -112,7 +112,7 @@ flowchart TB
 | | What | How it is proven |
 | --- | --- | --- |
 | **Deterministic** | the library and its propagation rules; the lint rules, hooks and Action | a cross-language [conformance suite](primitives/conformance/) pins JS and Python to identical behaviour; planted-violation fixtures, [every one caught, no false positives](docs/validation-results.md) |
-| **LLM-assisted** | the `audit` and `remediate` skills | treated as probabilistic components whose miss rate is measured: [blind validation](docs/release-harness.md) before each release that touches them, with planted violations, answer keys withheld and independent auditors; a miss blocks the release |
+| **LLM-assisted** | the `audit` and `remediate` skills | treated as probabilistic components whose miss rate is measured: [blind validation](docs/release-harness.md) before each release that touches them, with planted violations, answer keys withheld and independent auditors; a miss blocks the release unless waived in writing |
 
 **It audits itself.** Before each such release, plumb-line runs its own audit over its own code and records the findings, false positives included, in the [dogfooding report](docs/dogfood.md). "The auditor found no problem" is never treated as proof that no problem exists.
 
