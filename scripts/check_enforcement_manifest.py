@@ -32,9 +32,30 @@ _BASELINES_KEYS = {"dir"}
 _LANGUAGES = ["js", "python"]
 
 
+# Globs reach ESLint as positional arguments and configs/dirs as option
+# values, so a leading "-" would read as a flag. Rejected here, once.
+_DASH = "{}: values must not begin with '-'"
+
+
 def _glob_list(value, where, issues):
     if not isinstance(value, list) or not value or not all(isinstance(g, str) and g for g in value):
         issues.append(f"{where} must be a non-empty list of non-empty strings")
+    elif any(g.startswith("-") for g in value):
+        issues.append(_DASH.format(where))
+
+
+def _path(value, where, root, kind, issues):
+    """A config file (kind="file") or directory (kind="dir") named by the
+    manifest: a non-empty string, not flag-shaped, relative and inside root,
+    and present on disk."""
+    if not isinstance(value, str) or not value:
+        issues.append(f"{where} must be a non-empty string")
+    elif value.startswith("-"):
+        issues.append(_DASH.format(where))
+    elif _inside(root, value) is None:
+        issues.append(f"{where} must be a relative path inside the repository: {value}")
+    elif not (os.path.isfile if kind == "file" else os.path.isdir)(_inside(root, value)):
+        issues.append(f"{where} not found: {value}")
 
 
 def _unknown(obj, allowed, where, issues):
@@ -90,13 +111,7 @@ def validate_manifest(manifest, root):
                 issues.append(f"{lang}.boundary must be an object")
             else:
                 _unknown(b, _BOUNDARY_KEYS, f"{lang}.boundary.", issues)
-                cfg = b.get("config")
-                if not isinstance(cfg, str) or not cfg:
-                    issues.append(f"{lang}.boundary.config must be a non-empty string")
-                elif _inside(root, cfg) is None:
-                    issues.append(f"{lang}.boundary.config must be a relative path inside the repository: {cfg}")
-                elif not os.path.isfile(_inside(root, cfg)):
-                    issues.append(f"{lang}.boundary.config not found: {cfg}")
+                _path(b.get("config"), f"{lang}.boundary.config", root, "file", issues)
         p = section.get("provenance")
         if p is not None:
             if not isinstance(p, dict):
@@ -104,13 +119,7 @@ def validate_manifest(manifest, root):
             else:
                 _unknown(p, _PROVENANCE_KEYS[lang], f"{lang}.provenance.", issues)
                 if lang == "js":
-                    cfg = p.get("config")
-                    if not isinstance(cfg, str) or not cfg:
-                        issues.append("js.provenance.config must be a non-empty string")
-                    elif _inside(root, cfg) is None:
-                        issues.append(f"js.provenance.config must be a relative path inside the repository: {cfg}")
-                    elif not os.path.isfile(_inside(root, cfg)):
-                        issues.append(f"js.provenance.config not found: {cfg}")
+                    _path(p.get("config"), "js.provenance.config", root, "file", issues)
                 if "globs" in p:
                     _glob_list(p["globs"], f"{lang}.provenance.globs", issues)
                 else:
@@ -123,13 +132,7 @@ def validate_manifest(manifest, root):
             issues.append("baselines must be an object")
         else:
             _unknown(bl, _BASELINES_KEYS, "baselines.", issues)
-            d = bl.get("dir")
-            if not isinstance(d, str) or not d:
-                issues.append("baselines.dir must be a non-empty string")
-            elif _inside(root, d) is None:
-                issues.append(f"baselines.dir must be a relative path inside the repository: {d}")
-            elif not os.path.isdir(_inside(root, d)):
-                issues.append(f"baselines.dir not found: {d}")
+            _path(bl.get("dir"), "baselines.dir", root, "dir", issues)
     return issues
 
 

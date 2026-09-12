@@ -19,7 +19,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `scripts/check_enforcement_manifest.py`), assembles one SARIF 2.1.0 log
   with a single rules catalogue (`PL/boundary`, `PL/PB1`–`PL/PB4`,
   `PL/untagged-output`, `PL/baseline-invalid`, `PL/tool-missing`,
-  `PL/unparsed`), uploads it to code scanning, and fails on findings
+  `PL/unparsed`), uploads it to code scanning (the upload step is the
+  sha-pinned `github/codeql-action/upload-sarif`, but this repo's CI runs
+  with `upload: "false"`, so ingestion of this SARIF by code scanning is
+  unproven anywhere until an adopter observes it), and fails on findings
   (`fail-on: none` for incremental adoption). It ships no layers, globs or
   defaults; a missing tool is a finding, never a clean check; the step
   summary states its denominators. `provenance_lint.py` and both baseline

@@ -6,6 +6,8 @@ Run from the repo root:  python3 -m pytest -q adapters/sarif
 import json
 import os
 
+import pytest
+
 from adapters.sarif import assemble as A
 
 _FX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
@@ -87,7 +89,16 @@ def test_parse_import_linter_garbled_is_unparsed():
     assert r[0]["ruleId"] == "PL/unparsed"
 
 
+def test_pb_help_uris_point_at_the_spec_section_that_holds_the_pb_table():
+    # primitives/SPEC.md §6 "Static enforcement (review-time)" carries PB1–PB4;
+    # §5 is the audit, and "#5-the-checker" never existed as a heading.
+    for rid in ("PL/PB1", "PL/PB2", "PL/PB3", "PL/PB4"):
+        assert A.RULES[rid]["helpUri"].endswith("primitives/SPEC.md#6-static-enforcement-review-time"), rid
+
+
 def test_build_sarif_shape_and_catalogue():
+    """Structural, not schema — no SARIF schema validator is a dependency;
+    this pins the fields the spec (§5) and code scanning read."""
     results = A.parse_eslint(_fx("eslint-boundary.json"), root="/repo") + [A.tool_missing("python.boundary", "pip install import-linter")]
     log = A.build_sarif(results, version="0.11.0")
     assert log["version"] == "2.1.0" and log["$schema"] == "https://json.schemastore.org/sarif-2.1.0.json"
@@ -249,6 +260,26 @@ def test_parse_baseline_entry_missing_file_is_unparsed_not_raise():
 def test_parse_baseline_non_string_issues_is_unparsed_not_raise():
     r = A.parse_baseline(json.dumps({"dir": "/repo/x", "files": [{"file": "x.json", "issues": [123]}]}), root="/repo")
     assert len(r) == 1 and r[0]["ruleId"] == "PL/unparsed"
+
+
+# ---------- final review M7: JS and Python land the same violation on the same PL/ id ----------
+
+@pytest.mark.parametrize("rule, expected", [
+    ("PB1", "PL/PB1"), ("PB2", "PL/PB2"), ("PB3", "PL/PB3"), ("PB4", "PL/PB4"),
+    ("REQ-OUTPUT", "PL/untagged-output"),
+])
+def test_js_and_python_parity_per_rule(rule, expected):
+    # The ESLint rule ids: no-provenance-bypass carries PB<n> as the message's
+    # first token (parse_eslint reads it from there); require-provenance-output
+    # is REQ-OUTPUT's counterpart. provenance_lint.py names the rule directly.
+    if rule == "REQ-OUTPUT":
+        js_msg = {"ruleId": "plumb-line/require-provenance-output", "message": "returns a raw computation", "line": 3, "column": 1}
+    else:
+        js_msg = {"ruleId": "plumb-line/no-provenance-bypass", "message": f"{rule} something laundered", "line": 3, "column": 1}
+    js = A.parse_eslint(json.dumps([{"filePath": "/repo/src/x.mjs", "messages": [js_msg]}]), root="/repo")
+    py = A.parse_provenance_lint(json.dumps([{"filename": "src/x.py", "line": 3, "rule": rule, "message": "m"}]), root="/repo")
+    assert [r["ruleId"] for r in js] == [expected] == [r["ruleId"] for r in py]
+    assert js[0]["level"] == py[0]["level"] == "error"
 
 
 # ---------- final review I1/M1: %SRCROOT% is the workspace, or absent ----------

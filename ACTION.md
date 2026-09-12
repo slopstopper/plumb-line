@@ -165,8 +165,15 @@ under the summary's `unlocated`. A report whose `Contracts: N kept, M
 broken.` line says violations exist, but whose body yields no line the
 parser recognises, is treated as a discrepancy rather than silence: it
 produces one `PL/unparsed` warning naming the mismatch, and the capability
-is still `ran` (the parser is `partial`-maturity), never `errored`. The
-parser is pinned to the tested import-linter version (`2.15`, in
+is still `ran` (the parser is `partial`-maturity), never `errored`. Two
+more limits of the pinned grammar: an *indirect* import chain is rendered
+as one `- a -> b (l.N)` line followed by indented continuation lines for
+the later links, and the parser maps only the first link — each
+continuation line becomes a `PL/unparsed` warning; and the importer-to-file
+mapping reads the singular `root_package` key from an ini-style config, so
+a config using `root_packages` (plural) or living in `pyproject.toml`
+yields results that are all `unlocated` (the module name is kept in the
+message). The parser is pinned to the tested import-linter version (`2.15`, in
 `requirements-test.txt`); a consumer's own `pip install import-linter` in
 the *Usage* workflow above is unpinned, so a future import-linter release
 could shift the report format before this repo's pin catches up. A
@@ -240,14 +247,17 @@ Every outcome is a named state; nothing passes by silence.
 | A tool exits non-zero with parsed findings | Normal: findings are mapped; job fails unless `fail-on: none`. |
 | A capability's globs match no file | `ran`, zero results, never `errored`: the Python tools are not invoked and the summary notes `no files matched the globs`; ESLint runs with `--no-error-on-unmatched-pattern` and reports an empty list — for the JS capabilities the summary cannot tell an empty match from a clean one, so check the globs when a JS capability's count is a surprising zero. |
 | Valid manifest, zero capabilities | Job succeeds, empty SARIF run, the summary says plainly that zero checks ran — an empty green is legible as empty, never as clean. |
-| Upload step fails (no `security-events: write`, code scanning off) | `continue-on-error: true` on that step ties the job's exit code to the enforcement result alone; the SARIF file is still written and named in the summary. |
+| Upload step fails (no `security-events: write`, code scanning off) | `continue-on-error: true` on that step ties the job's exit code to the enforcement result alone; a follow-on step emits a `::warning::` naming the permission (`security-events: write`) and the code-scanning setting as the two things to check; the SARIF file is still written and named in the summary. |
 | `fail-on: none` | Findings still upload, the summary states the mode, exit 0 — unless a capability is `tool-missing` or `errored`, which fail regardless. |
 
 ## Maturity
 
 - **The Action itself: `current`** — four CI matrix cells (two fixtures ×
   `clean`/`broken`) run `uses: ./` against the planted fixtures and pass, on
-  this branch.
+  this branch. Both fixture manifests enable only `boundary`, so that CI
+  and end-to-end proof covers `js.boundary` and `python.boundary`; the
+  other five capabilities are proven by unit tests over recorded tool
+  output.
 - **Uploading to a consumer's code scanning: `current` by construction** —
   the upload step delegates to the sha-pinned `github/codeql-action/upload-sarif`
   (the same action and sha the scorecard workflow uses) — but this repo's

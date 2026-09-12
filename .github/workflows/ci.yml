@@ -143,10 +143,15 @@ jobs:
           for tree in broken clean; do
             (cd "examples/js-payments-service/$tree" && npm ci --no-audit --no-fund)
           done
-      - name: adapters/sarif — SARIF assembler (end-to-end must RUN here, never skip)
+      - name: adapters/sarif — SARIF assembler (end-to-end must RUN here, never skip; 80% coverage floor)
+        # The 80% floor the neighbouring packages set in their pyproject.toml,
+        # as flags here: this suite runs from the repo root (its imports need
+        # that), so a pyproject under adapters/sarif would not be read. The
+        # measured total includes the two test modules; the per-file report
+        # shows the source files on their own.
         run: |
           set -o pipefail
-          python -m pytest -q -rs adapters/sarif | tee /tmp/sarif-pytest.txt
+          python -m pytest -q -rs adapters/sarif --cov=adapters/sarif --cov-report=term-missing --cov-fail-under=80 | tee /tmp/sarif-pytest.txt
           # pytest's -rs short summary line is "SKIPPED [n] <file>:<line>:
           # <reason>" — it never prints the test's name, so a pattern
           # anchored on "end_to_end" can never match. test_run_checks.py's
@@ -171,9 +176,10 @@ jobs:
   action:
     name: Action (uses ./ against the fixtures)
     runs-on: ubuntu-latest
+    # No security-events: write — every cell runs upload: "false", and the
+    # job also runs npm ci over the fixture trees (least privilege).
     permissions:
       contents: read
-      security-events: write
     strategy:
       fail-fast: false
       matrix:

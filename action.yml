@@ -86,18 +86,32 @@ runs:
         # output instead of hashing the file itself.
         if [ -f "$PL_SARIF" ]; then echo "sarif_written=true" >> "$GITHUB_OUTPUT"; else echo "sarif_written=false" >> "$GITHUB_OUTPUT"; fi
     - name: upload SARIF to code scanning
+      id: upload
       if: ${{ inputs.upload == 'true' && steps.run.outputs.sarif_written == 'true' }}
       uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938  # v4.37.9
       continue-on-error: true
       with:
         sarif_file: ${{ inputs.sarif-file }}
         category: ${{ steps.run.outputs.category }}
+    # continue-on-error keeps the job's exit code tied to the enforcement
+    # result alone; this names the two usual causes instead of leaving the
+    # generic failed-step annotation.
+    - name: warn when the upload failed
+      if: ${{ steps.upload.outcome == 'failure' }}
+      shell: bash
+      run: |
+        echo "::warning::plumb-line: SARIF upload failed — does the job grant security-events: write, and is code scanning enabled for this repository?"
     - name: enforcement — exit with the run's code
       shell: bash
       env:
         PL_CODE: ${{ steps.run.outputs.code }}
+        PL_WRITTEN: ${{ steps.run.outputs.sarif_written }}
       run: |
         if [ "${PL_CODE:-1}" != "0" ]; then
-          echo "::error::plumb-line enforcement failed (see the step summary); exit ${PL_CODE:-1}"
+          # No SARIF means the run never got past the manifest (missing or
+          # invalid) or the root: those lines go to the log, not the step
+          # summary, which only a run that reached the checks writes.
+          if [ "$PL_WRITTEN" = "true" ]; then where="see the step summary"; else where="see the log"; fi
+          echo "::error::plumb-line enforcement failed ($where); exit ${PL_CODE:-1}"
           exit "${PL_CODE:-1}"
         fi

@@ -144,6 +144,27 @@ def test_js_provenance_config_required_and_must_exist(tmp_path):
     assert any("js.provenance.config not found" in i for i in issues)
 
 
+def test_values_beginning_with_a_dash_are_issues(tmp_path):
+    # Globs are passed to ESLint positionally, so "--fix" would become a flag;
+    # configs and dirs likewise. Reject at the manifest, not at the command.
+    root = _root(tmp_path)
+    for path, key in ((("js", "provenance", "globs"), "js.provenance.globs"),
+                      (("python", "provenance", "outputGlobs"), "python.provenance.outputGlobs")):
+        m = _manifest()
+        m[path[0]][path[1]][path[2]] = ["src/**/*.x", "--fix"]
+        assert f"{key}: values must not begin with '-'" in cem.validate_manifest(m, root)
+    for path, key in ((("js", "boundary", "config"), "js.boundary.config"),
+                      (("js", "provenance", "config"), "js.provenance.config"),
+                      (("baselines", "dir"), "baselines.dir")):
+        m = _manifest()
+        node = m
+        for k in path[:-1]:
+            node = node[k]
+        node[path[-1]] = "-" + node[path[-1]]
+        assert f"{key}: values must not begin with '-'" in cem.validate_manifest(m, root), key
+    assert cem.validate_manifest(_manifest(), root) == []
+
+
 def test_paths_must_stay_inside_the_repository(tmp_path):
     root = _root(tmp_path)
     m = _manifest()
