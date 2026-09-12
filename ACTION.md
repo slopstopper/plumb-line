@@ -115,14 +115,20 @@ mode is about findings, never about the Action being unable to run at all
 ESLint is the consumer's own install, invoked by path — never `npx`, which
 on a CI runner would download the latest ESLint from the registry when
 `npm ci` was forgotten (the silent install ADR-0016 decision 5 rejects) and
-would make `tool-missing` impossible to detect.
+would make `tool-missing` impossible to detect. The Action is tested on
+`ubuntu-latest` only; the ESLint lookup is a POSIX `node_modules/.bin/eslint`
+path, so Windows runners are unsupported until a run proves them (none has,
+so the failure shape there is unverified: reading the code, `npm ci` on
+Windows writes a shell shim at that same path, the resolver would find it,
+and the orchestrator would fail trying to execute it rather than reporting
+`tool-missing`).
 
 If a `python.provenance`/`python.output` capability's globs match no files,
 the tool is never invoked; the capability still reports `ran`, with a note
 (`no files matched the globs`) and zero results — an empty match is not a
 missing tool. The ESLint commands carry `--no-error-on-unmatched-pattern`,
 so a `js.provenance`/`js.output` glob that matches no file is likewise
-`ran` with zero results (and no note), not ESLint's exit 2.
+`ran` with zero results and no note, where ESLint alone would exit 2.
 
 ## Unparsed
 
