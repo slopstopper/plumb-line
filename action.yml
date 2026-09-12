@@ -61,8 +61,8 @@ runs:
         # upload for the same commit, and a shared category would make the
         # later upload replace the earlier one's alerts.
         sub="${PL_SUBROOT#./}"; sub="${sub%/}"
-        if [ -z "$sub" ] || [ "$sub" = "." ]; then cat="plumb-line"; else cat="plumb-line/$sub"; fi
-        echo "category=$cat" >> "$GITHUB_OUTPUT"
+        if [ -z "$sub" ] || [ "$sub" = "." ]; then category="plumb-line"; else category="plumb-line/$sub"; fi
+        echo "category=$category" >> "$GITHUB_OUTPUT"
         # Under `set +e`, a failing realpath would otherwise leave the
         # substitution empty and silently point --root at the workspace
         # root — guard it explicitly and bail out (still exit 0: the final
