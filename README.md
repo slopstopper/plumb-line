@@ -123,7 +123,7 @@ Before each such release, plumb-line runs its own audit over its own code and re
 
 | Path | Issue | Principle | Resolution |
 | --- | --- | --- | --- |
-| `scripts/check_content_language.py` | the language flagger matched per physical line, so a banned construction split across a wrap escaped, and the ban's declaration did not state the limit | P6 — Maturity vocabulary | disclosure fixed in place; scanner improvement deferred → #316, since closed |
+| `scripts/check_content_language.py` | the language flagger matched per physical line, so a banned construction split across a wrap escaped | P6 — Maturity vocabulary | disclosure fixed in place; scanner improvement deferred → #316, since closed |
 
 Findings are fixed where the fix is right and otherwise become issues; false positives stay in the record. "The auditor found no problem" is never treated as proof that no problem exists.
 
