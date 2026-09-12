@@ -14,8 +14,9 @@ Discipline: fires only at resolved primitive call sites, only on literal field
 values. Anything dynamic is left alone — under-claim over false positives.
 
 Usage:
-    python3 provenance_lint.py path/to/file.py [more.py ...]
-    # exits non-zero if any issue is found; prints `file:line: RULE message`.
+    python3 provenance_lint.py [--require-output] [--json] path/to/file.py [more.py ...]
+    # exits non-zero if any issue is found; prints `file:line: RULE message`,
+    # or with --json prints one JSON array of the issue objects instead.
 """
 import ast
 import sys
@@ -252,21 +253,30 @@ def check_outputs(source, filename='<unknown>'):
     return [dict(i, filename=filename) for i in v.issues]
 
 
-def main(argv=None):  # pragma: no cover - CLI glue; logic lives in check()/check_outputs()
+def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     runner = check
-    if argv and argv[0] == '--require-output':
-        runner = check_outputs
+    as_json = False
+    while argv and argv[0] in ('--require-output', '--json'):
+        if argv[0] == '--require-output':
+            runner = check_outputs
+        else:
+            as_json = True
         argv = argv[1:]
-    total = 0
+    all_issues = []
     for path in argv:
         with open(path, encoding='utf-8') as f:
-            issues = runner(f.read(), path)
-        for i in issues:
-            total += 1
+            all_issues.extend(runner(f.read(), path))
+    if as_json:
+        # One array, nothing else on stdout: the SARIF assembler (adapters/sarif)
+        # reads this verbatim. Keys are the issue dict's own.
+        import json
+        print(json.dumps(all_issues))
+    else:
+        for i in all_issues:
             # message already begins with the rule id (e.g. "PB1 …")
-            print(f"{path}:{i['line']}: {i['message']}")
-    return 1 if total else 0
+            print(f"{i['filename']}:{i['line']}: {i['message']}")
+    return 1 if all_issues else 0
 
 
 if __name__ == '__main__':
