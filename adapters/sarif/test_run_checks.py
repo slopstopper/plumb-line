@@ -258,6 +258,10 @@ def test_end_to_end_over_the_planted_fixtures(tmp_path):
     missing = [t for t in ("node", "lint-imports") if shutil.which(t) is None]
     if missing:
         pytest.skip(f"real tools not installed locally: {missing}")
+    for tree in ("broken", "clean"):
+        mod = os.path.join(_ROOT, "examples", "js-payments-service", tree, "node_modules", "eslint-plugin-import-x")
+        if not os.path.isdir(mod):
+            pytest.skip(f"JS fixture toolchain not installed: run npm ci in examples/js-payments-service/{tree}")
     for fixture, expect in (("examples/js-payments-service", {"PL/boundary"}),
                             ("examples/python-data-pipeline", {"PL/boundary"})):
         root = os.path.join(_ROOT, fixture, "broken")

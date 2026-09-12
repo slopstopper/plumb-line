@@ -142,6 +142,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: "22"
+      - name: JS fixture toolchain (the end-to-end SARIF test runs real ESLint)
+        run: |
+          for tree in broken clean; do
+            (cd "examples/js-payments-service/$tree" && npm ci --no-audit --no-fund)
+          done
       # The repo-infrastructure checkers (wire-version prose #160, report-format
       # #139). Named explicitly because every other pytest step above is scoped
       # to a package directory, so scripts/ was never collected — both suites
