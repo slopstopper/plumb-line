@@ -43,6 +43,17 @@ def _unknown(obj, allowed, where, issues):
             issues.append(f"unknown key: {where}{k}")
 
 
+def _inside(root, rel):
+    """Verify rel is a relative path inside root. Return joined path or None."""
+    if os.path.isabs(rel):
+        return None
+    joined = os.path.normpath(os.path.join(root, rel))
+    root_norm = os.path.normpath(root)
+    if joined == root_norm or joined.startswith(root_norm + os.sep):
+        return joined
+    return None
+
+
 def validate_manifest(manifest, root):
     """Issues with a parsed manifest; [] when valid. Never raises."""
     if not isinstance(manifest, dict):
@@ -82,7 +93,9 @@ def validate_manifest(manifest, root):
                 cfg = b.get("config")
                 if not isinstance(cfg, str) or not cfg:
                     issues.append(f"{lang}.boundary.config must be a non-empty string")
-                elif not os.path.isfile(os.path.join(root, cfg)):
+                elif _inside(root, cfg) is None:
+                    issues.append(f"{lang}.boundary.config must be a relative path inside the repository: {cfg}")
+                elif not os.path.isfile(_inside(root, cfg)):
                     issues.append(f"{lang}.boundary.config not found: {cfg}")
         p = section.get("provenance")
         if p is not None:
@@ -94,7 +107,9 @@ def validate_manifest(manifest, root):
                     cfg = p.get("config")
                     if not isinstance(cfg, str) or not cfg:
                         issues.append("js.provenance.config must be a non-empty string")
-                    elif not os.path.isfile(os.path.join(root, cfg)):
+                    elif _inside(root, cfg) is None:
+                        issues.append(f"js.provenance.config must be a relative path inside the repository: {cfg}")
+                    elif not os.path.isfile(_inside(root, cfg)):
                         issues.append(f"js.provenance.config not found: {cfg}")
                 if "globs" in p:
                     _glob_list(p["globs"], f"{lang}.provenance.globs", issues)
@@ -111,7 +126,9 @@ def validate_manifest(manifest, root):
             d = bl.get("dir")
             if not isinstance(d, str) or not d:
                 issues.append("baselines.dir must be a non-empty string")
-            elif not os.path.isdir(os.path.join(root, d)):
+            elif _inside(root, d) is None:
+                issues.append(f"baselines.dir must be a relative path inside the repository: {d}")
+            elif not os.path.isdir(_inside(root, d)):
                 issues.append(f"baselines.dir not found: {d}")
     return issues
 

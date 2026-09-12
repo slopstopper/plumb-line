@@ -124,3 +124,33 @@ def test_cli_exit_codes(tmp_path, capsys):
     bad["enforcement-format"] = "v9"
     p.write_text(json.dumps(bad), encoding="utf-8")
     assert cem.main([str(p), "--root", root]) == 1
+
+
+def test_provenance_globs_is_required(tmp_path):
+    m = _manifest()
+    del m["python"]["provenance"]["globs"]
+    assert any("python.provenance.globs is required" in i for i in cem.validate_manifest(m, _root(tmp_path)))
+
+
+def test_js_provenance_config_required_and_must_exist(tmp_path):
+    root = _root(tmp_path)
+    m = _manifest()
+    del m["js"]["provenance"]["config"]
+    issues = cem.validate_manifest(m, root)
+    assert any("js.provenance.config must be a non-empty string" in i for i in issues)
+    m = _manifest()
+    m["js"]["provenance"]["config"] = "does-not-exist.cjs"
+    issues = cem.validate_manifest(m, root)
+    assert any("js.provenance.config not found" in i for i in issues)
+
+
+def test_paths_must_stay_inside_the_repository(tmp_path):
+    root = _root(tmp_path)
+    m = _manifest()
+    m["js"]["boundary"]["config"] = "/etc/hostname"
+    issues = cem.validate_manifest(m, root)
+    assert any("js.boundary.config must be a relative path inside the repository" in i for i in issues)
+    m = _manifest()
+    m["baselines"]["dir"] = "../outside"
+    issues = cem.validate_manifest(m, root)
+    assert any("baselines.dir must be a relative path inside the repository" in i for i in issues)
