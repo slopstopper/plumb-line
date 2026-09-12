@@ -30,16 +30,29 @@ total.confidence;      // 'low'  only as certain as the weakest input
 
 `mark` labels a value. `derive` runs your function and keeps the weakest label. The library never touches the arithmetic; it only keeps the labels honest.
 
-## Get started
+## Install
 
-As a Claude Code plugin, the repository is its own marketplace:
+**As a Claude Code plugin.** The repository is its own marketplace from inside Claude Code:
 
 ```
 /plugin marketplace add slopstopper/plumb-line
 /plugin install plumb-line@plumb-line
 ```
 
-Then run `plumb-line-adopt`; it looks at your repository and says which parts fit and what to run first. The library is independent of the plugin: `npm install plumb-line-provenance` or `pip install plumb-line-provenance`, zero dependencies. For CI, add the [GitHub Action](ACTION.md) once bootstrap has installed enforcement, and every pull request gets the same checks with SARIF for code scanning, no agent involved. Not using Claude? [portable/README.md](portable/README.md) is the entry point that skips the plugin shell.
+Then run `plumb-line-adopt`. It looks at your repository and says which parts fit and what to run first. `plumb-line-method` teaches the discipline in a few minutes if you want the reasoning before the tooling; `plumb-line-bootstrap` sets a project up, and `plumb-line-audit` reviews a change. Updates come through `/plugin`. To install by hand instead, clone the repository and point Claude Code at the plugin directory.
+
+**The library**, independent of the plugin:
+
+```bash
+npm install plumb-line-provenance      # JavaScript
+pip install plumb-line-provenance      # Python
+```
+
+Or copy `primitives/js/` or `primitives/python/` into your project; the modules import either way.
+
+**In CI.** Once bootstrap has installed enforcement, add the [GitHub Action](ACTION.md) so every pull request gets the same checks, with SARIF uploaded for code scanning through GitHub's own upload action, and no agent involved.
+
+**Not using Claude?** The skills are host-neutral markdown over files and the library has no dependencies; [portable/README.md](portable/README.md) is the entry point that skips the plugin shell.
 
 ## Same number, different claim
 
@@ -98,9 +111,9 @@ flowchart TB
 
 ## What is deterministic, and what is not
 
-The library, its propagation rules, the lint rules and the Action are deterministic. A [conformance suite](primitives/conformance/) holds JavaScript and Python to identical behaviour, and the [validation results](docs/validation-results.md) record every planted violation caught with no false positives.
+The provenance primitive and its propagation rules are deterministic. If a derived value depends on tainted input (an input carrying the mock flag from the example above), the taint propagates by specified rules, and a cross-language [conformance suite](primitives/conformance/) holds the JavaScript and Python implementations to identical behaviour, case by case. The enforcement adapters and the Action are deterministic too: a boundary rule either fires or it does not. The [validation results](docs/validation-results.md) record the adapters catching every planted violation with no false positives: the boundary break and the four bypass patterns, in both languages. This repository's own CI runs the Action against the same fixtures for the boundary checks; the remaining capabilities are proven by unit tests over recorded tool output, and [ACTION.md](ACTION.md) grades each one.
 
-The audit and remediate skills use an LLM, so plumb-line treats them as probabilistic components whose miss rate has to be measured. Before a release that touches them, blind validation runs on fixtures with planted violations: answer keys withheld, independent auditors, and a miss blocks the release unless waived in writing ([the harness](docs/release-harness.md)). False positives stay in the record.
+The audit and remediate skills are different. They use an LLM as a review assistant, so plumb-line treats them as probabilistic components whose miss rate has to be measured. Before a release that touches them, the [release harness](docs/release-harness.md) runs blind validation: fixtures with planted violations and the answer keys withheld, at least two independent auditors on every fixture with violations planted, and a missed violation blocks the release until it is fixed and re-run, or a maintainer records a written waiver in the results. Calibration mistakes, false positives included, stay in the record.
 
 ## Proven before release
 
@@ -129,13 +142,13 @@ Findings are fixed where the fix is right and otherwise become issues; false pos
 
 ## What plumb-line does not claim
 
-- It does not prove that a value marked `real` is true. It records what the code claimed and keeps that claim from being upgraded.
+- It does not prove that a value marked `real` is true. It records what the code claimed about the value and keeps that claim from being upgraded.
 - It does not stop a source from lying, or a developer from marking a mock as real. The lint rules make bypasses visible; they cannot make them impossible.
 - It does not make the LLM auditor infallible. Misses and false positives are measured and recorded, and the deterministic checks stand apart from it.
-- It does not yet carry provenance across every boundary. The guarantee holds inside one process; serialization, files and HTTP are [planned](#where-this-is-going).
-- Python envelopes are tamper-evident only; the [threat model](docs/threat-model.md) says exactly what is defended.
+- It does not yet carry provenance across every boundary. The guarantee holds inside one process; envelopes, the record each marked value carries, do not yet survive serialization, file artifacts or HTTP transport, which are [planned](#where-this-is-going). The HTTP adapters tag responses on the way in, and the dataframe adapters carry taint only through their own combinators (`plumb_derive`, `plumb_concat`, `plumb_merge` and their numpy siblings), never through an ordinary pandas or numpy call; neither carries envelopes across the wire.
+- Python envelopes are tamper-evident only: a caller holding one can edit it; what the library guarantees is that the edit cannot leak into a sibling envelope and that the inconsistency it leaves is detectable. The [threat model](docs/threat-model.md) says exactly what is defended.
 
-The target is narrow: make it hard for software to turn uncertain information into something that looks certain without anyone noticing.
+What it targets is narrower: making it hard for software to turn uncertain information into something that looks certain without anyone noticing.
 
 ## Status
 
