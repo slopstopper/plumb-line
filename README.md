@@ -17,7 +17,7 @@
 
 Software can calculate something correctly and still be wrong about what it knows. A stubbed service answers "success" and the tests go green. A guessed value flows into a report. A fallback meant for local development ships. Nothing fails loudly; the final number just looks as solid as everything around it.
 
-plumb-line attaches to each value a record of where it came from and how far to trust it, and keeps that record attached as values combine. Combining values can keep or lower their standing, never raise it ([the combination law](primitives/SPEC.md#3-the-combination-law)):
+plumb-line attaches to each value a record of where it came from and how far to trust it, and keeps that record attached as values combine. A result built on a mock or a guess says so, and nothing can clear that mark on the way through. The rule is small: combining values can keep or lower their standing, never raise it ([the combination law](primitives/SPEC.md#3-the-combination-law)).
 
 ```js
 const base  = mark(1000, { source: "real", confidence: "high" });
@@ -32,53 +32,42 @@ total.confidence;      // 'low'  only as certain as the weakest input
 
 ## Get started
 
-| | |
-| --- | --- |
-| **Claude Code plugin** (five skills) | `/plugin marketplace add slopstopper/plumb-line` then `/plugin install plumb-line@plumb-line`, then run `plumb-line-adopt` |
-| **Library** (JS + Python, zero dependencies) | `npm install plumb-line-provenance` · `pip install plumb-line-provenance` |
-| **CI** | Add the [GitHub Action](ACTION.md) once bootstrap has installed enforcement: SARIF for code scanning, no agent needed |
-| **Not using Claude?** | [portable/README.md](portable/README.md) skips the plugin shell |
+As a Claude Code plugin, the repository is its own marketplace:
+
+```
+/plugin marketplace add slopstopper/plumb-line
+/plugin install plumb-line@plumb-line
+```
+
+Then run `plumb-line-adopt`; it looks at your repository and says which parts fit and what to run first. The library is independent of the plugin: `npm install plumb-line-provenance` or `pip install plumb-line-provenance`, zero dependencies. For CI, add the [GitHub Action](ACTION.md) once bootstrap has installed enforcement, and every pull request gets the same checks with SARIF for code scanning, no agent involved. Not using Claude? [portable/README.md](portable/README.md) is the entry point that skips the plugin shell.
 
 ## Same number, different claim
 
-A ten-passenger load sheet where three categories are guessed from a title ([the demo](examples/incident-loadsheet/)). Same arithmetic, same total; one version knows what it is standing on.
-
-**Without provenance** (`python3 examples/incident-loadsheet/broken/loadsheet.py`), the sheet is tidy and confident:
+A tool server reports on five tools. Three of them are stubs ([the demo](examples/incident-toolserver/)):
 
 ```text
-  1A  Mr     adult  84 kg
-  3A  Miss   child  35 kg
+$ node broken/toolserver.mjs
+  hash_text          success
+  spawn_worker       success
   ...
-total takeoff mass: 693 kg
-load sheet: complete
+system health: operational (5/5 tools succeeded)
+
+$ node instrumented/toolserver.mjs
+  hash_text          success  [source: real]
+  spawn_worker       success  [source: mock]
+  ...
+system health: operational (5/5 tools succeeded)
+
+report provenance:
+  derivedFromMock: true
+  weakestSource: mock
+  mock inputs: 3/5 (computed from lineage, not estimated)
+
+attempted launder (derive with source: "real"):
+  laundering: clean source 'real' but derivedFromMock is true
 ```
 
-**With provenance** (`instrumented/loadsheet.py`), the same total carries what it rests on, and the attempt to issue it as fully confident is caught:
-
-```text
-  1A  Mr     84 kg  [real/medium — booking]
-  3A  Miss   35 kg  [inferred/low — guessed from title]
-  ...
-total takeoff mass: 693 kg
-
-load sheet provenance:
-  confidence: low
-  weakest_source: inferred
-  inferred inputs: 3/10 (computed from lineage, not estimated)
-
-attempted over-claim (derive with confidence: "high"):
-  over-claiming: confidence 'high' exceeds weakest lineage confidence 'low'
-```
-
-That shape has happened for real. Three documented incidents, each reconstructed with a runnable demo:
-
-| Incident | What forgot where it came from | |
-| --- | --- | --- |
-| A server reported success for dead tools | stub payloads shaped like real results | [postmortem](docs/postmortems/mock-toolserver.md) |
-| A plane thought its passengers were children (AAIB, 2020) | a category guessed from an honorific | [postmortem](docs/postmortems/loadsheet.md) |
-| A retraction that started as a sign flip (five papers) | the output of an unversioned script | [postmortem](docs/postmortems/signflip.md) |
-
-None of the postmortems claims plumb-line would have prevented the incident. Each shows where the lost status would have been visible.
+Same code path, same "operational". One version knows that three fifths of it is fake, and refuses to be relabelled real. That shape has happened for real, three times, in three domains: [a server that reported success for dead tools](docs/postmortems/mock-toolserver.md), [a plane that thought its passengers were children](docs/postmortems/loadsheet.md) (AAIB, 2020), and [a retraction that started as a sign flip](docs/postmortems/signflip.md) (five papers). Each has a runnable reconstruction. None claims plumb-line would have prevented the incident; each shows where the lost status would have been visible.
 
 ## You probably want this if
 
@@ -107,33 +96,54 @@ flowchart TB
 
 **Run time** is the library: provenance travels with values through your own code. **Review time** reads a repository or a diff for uncertainty that got laundered: deterministic lint rules, hooks and the Action, plus the LLM-assisted audit. Five Claude Code skills carry it (`adopt`, `method`, `bootstrap`, `audit`, `remediate`); three never write to your code, two write only when you say yes. Use either layer alone, or both.
 
-## Deterministic, or LLM-assisted
+## What is deterministic, and what is not
 
-| | What | How it is proven |
+The library, its propagation rules, the lint rules and the Action are deterministic. A [conformance suite](primitives/conformance/) holds JavaScript and Python to identical behaviour, and the [validation results](docs/validation-results.md) record every planted violation caught with no false positives.
+
+The audit and remediate skills use an LLM, so plumb-line treats them as probabilistic components whose miss rate has to be measured. Before a release that touches them, blind validation runs on fixtures with planted violations: answer keys withheld, independent auditors, and a miss blocks the release unless waived in writing ([the harness](docs/release-harness.md)). False positives stay in the record.
+
+## Proven before release
+
+What that looks like in practice, from the [v0.10.0 record](docs/validation-results.md#v0100-release-harness-record--2026-08-19-pre-tag): six read-only auditors, two independent per broken fixture, answer keys deleted and the strip self-verified.
+
+| Run | Planted set | Result |
 | --- | --- | --- |
-| **Deterministic** | the library and its propagation rules; the lint rules, hooks and Action | a cross-language [conformance suite](primitives/conformance/) pins JS and Python to identical behaviour; planted-violation fixtures, [every one caught, no false positives](docs/validation-results.md) |
-| **LLM-assisted** | the `audit` and `remediate` skills | treated as probabilistic components whose miss rate is measured: [blind validation](docs/release-harness.md) before each release that touches them, with planted violations, answer keys withheld and independent auditors; a miss blocks the release unless waived in writing |
+| js-broken A | P2 rates.js, P5 pricing.js, P3 gateway.js — all confirmed | PASS |
+| js-broken B | same three confirmed | PASS |
+| py-broken A | P2 schema.py, P5 aggregate.py, P8 source.py — all confirmed | PASS |
+| py-broken B | same three confirmed | PASS |
+| js-clean | 0 confirmed violations | PASS |
+| py-clean | 0 confirmed violations | PASS |
 
-**It audits itself.** Before each such release, plumb-line runs its own audit over its own code and records the findings, false positives included, in the [dogfooding report](docs/dogfood.md). "The auditor found no problem" is never treated as proof that no problem exists.
+The same record keeps what went wrong: one of the six reports failed the format check, and had declared `format-validation: not run` instead of asserting a clean verdict, which is the earned-verdict rule that release had just added, seen working. Misses and false positives from earlier releases sit in the same file.
 
-## What it does, and does not
+## It audits itself
 
-| plumb-line does | plumb-line does not |
-| --- | --- |
-| keep a value's origin and confidence attached as it combines | prove that a value marked `real` is true |
-| refuse to let a mock or a guess become clean on the way through | stop a source from lying, or a developer from marking a mock as real |
-| flag over-claims at run time (`auditMeta` / `audit_meta`) | make the LLM auditor infallible |
-| check layer boundaries mechanically, in review and in CI | carry provenance across serialization or HTTP yet ([planned](ROADMAP.md)) |
-| audit itself and keep the misses on record | make Python envelopes tamper-proof (they are tamper-evident; [threat model](docs/threat-model.md)) |
+Before each such release, plumb-line runs its own audit over its own code and records what it found in the [dogfooding report](docs/dogfood.md). From the v0.10.0 section: 6 findings, 0 violations, 6 needs-review, all of them gaps between what this release's own prose promised and what its tooling enforced. Four fixed in place, two deferred to tracked issues ([#316](https://github.com/slopstopper/plumb-line/issues/316), [#317](https://github.com/slopstopper/plumb-line/issues/317)). One of them:
+
+| Path | Issue | Principle | Resolution |
+| --- | --- | --- | --- |
+| `scripts/check_content_language.py` | the language flagger matched per physical line, so a banned construction split across a wrap escaped, and the ban's declaration did not state the limit | P6 — Maturity vocabulary | disclosure fixed in place; scanner improvement deferred → #316, since closed |
+
+Findings are fixed where the fix is right and otherwise become issues; false positives stay in the record. "The auditor found no problem" is never treated as proof that no problem exists.
+
+## What plumb-line does not claim
+
+- It does not prove that a value marked `real` is true. It records what the code claimed and keeps that claim from being upgraded.
+- It does not stop a source from lying, or a developer from marking a mock as real. The lint rules make bypasses visible; they cannot make them impossible.
+- It does not make the LLM auditor infallible. Misses and false positives are measured and recorded, and the deterministic checks stand apart from it.
+- It does not yet carry provenance across every boundary. The guarantee holds inside one process; serialization, files and HTTP are [planned](#where-this-is-going).
+- Python envelopes are tamper-evident only; the [threat model](docs/threat-model.md) says exactly what is defended.
 
 The target is narrow: make it hard for software to turn uncertain information into something that looks certain without anyone noticing.
 
-<details>
-<summary><b>Status and direction</b></summary>
+## Status
 
-**Current on `main`:** the run-time primitive with JS/Python parity, published to npm and PyPI as `plumb-line-provenance`; the golden-baseline library and CLI (Principle 9); the five skills; enforcement adapters for JavaScript and Python; and the GitHub Action with SARIF output. The envelope and the combination law are pinned by a versioned [specification](primitives/SPEC.md) (schema version 2) and the conformance suite. The baseline and the Action are on `main` ahead of the v0.11.0 tag.
+Current on `main`: the run-time primitive with JS/Python parity, published to npm and PyPI as `plumb-line-provenance`; the golden-baseline library and CLI (Principle 9); the five skills; enforcement adapters for JavaScript and Python; and the GitHub Action with SARIF output. The envelope and the combination law are pinned by a versioned [specification](primitives/SPEC.md) (schema version 2) and the conformance suite. The baseline and the Action are on `main` ahead of the v0.11.0 tag.
 
 Everything beyond that is **planned**. The [roadmap](ROADMAP.md) is the index, the open issues are that roadmap in public ([#311](https://github.com/slopstopper/plumb-line/issues/311)), and the [changelog](CHANGELOG.md) has the per-release detail.
+
+## Where this is going
 
 - **Deepen the promise:** an adoption ratchet for legacy codebases (no *new* untagged outputs), and run-time primitives that refuse and explain.
 - **Provenance across boundaries:** envelopes that survive serialization, files and HTTP.
@@ -141,10 +151,7 @@ Everything beyond that is **planned**. The [roadmap](ROADMAP.md) is the index, t
 
 **The goal.** AI-assisted software is getting good at producing convincing answers and convincing artifacts. The harder problem is knowing what those outputs are entitled to claim. plumb-line is an attempt to put that boundary into software, so that uncertainty survives computation and a result does not become more trustworthy just because a program processed it.
 
-</details>
-
-<details>
-<summary><b>Reference</b></summary>
+## Reference
 
 - [`primitives/README.md`](primitives/README.md): the model, the law, the envelope fields, the runtime checker, the baseline API, worked examples
 - [`primitives/SPEC.md`](primitives/SPEC.md): envelope schema, version 2 · [`primitives/conformance/`](primitives/conformance/): the case table both languages are held to
@@ -162,10 +169,7 @@ Everything beyond that is **planned**. The [roadmap](ROADMAP.md) is the index, t
 | `examples/` | Clean / broken fixtures and the three incident demos |
 | `docs/adr/` | Architecture decision records |
 
-</details>
-
-<details>
-<summary><b>Security</b></summary>
+## Security
 
 <a href="https://scorecard.dev/viewer/?uri=github.com/slopstopper/plumb-line"><img src="https://api.scorecard.dev/projects/github.com/slopstopper/plumb-line/badge" alt="OpenSSF Scorecard"></a>
 <a href="https://www.bestpractices.dev/projects/13453"><img src="https://www.bestpractices.dev/projects/13453/badge" alt="OpenSSF Best Practices"></a>
@@ -173,10 +177,16 @@ Everything beyond that is **planned**. The [roadmap](ROADMAP.md) is the index, t
 
 The provenance envelope is a trust claim, so the [threat model](docs/threat-model.md) states what is defended (taint cannot be laundered through the public API) and what is not. To report a vulnerability, see [`SECURITY.md`](SECURITY.md).
 
-</details>
+## Contributing & governance
 
-## Contributing and feedback
+Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) for how to open an issue or PR, and [GOVERNANCE.md](GOVERNANCE.md) for how the project is run. Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-Contributions are welcome: [CONTRIBUTING.md](CONTRIBUTING.md), [GOVERNANCE.md](GOVERNANCE.md), [Code of Conduct](CODE_OF_CONDUCT.md). Tried it on a real codebase? Open a [feedback issue](https://github.com/slopstopper/plumb-line/issues/new?template=feedback.yml), or use the [private form](https://slopstopper.github.io/plumb-line/feedback.html) for a confidential codebase. One concrete "it caught something we'd have shipped" beats polished prose.
+## Feedback
 
-The full name is **plumb-line provenance**; unrelated projects called "plumbline" exist. Apache-2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Tried it on a real codebase? Open a [feedback issue](https://github.com/slopstopper/plumb-line/issues/new?template=feedback.yml), or use the [private form](https://slopstopper.github.io/plumb-line/feedback.html) for a confidential codebase. Raw output and one concrete "it caught something we'd otherwise have shipped" beat polished prose.
+
+The full name is **plumb-line provenance**. Unrelated projects called "plumbline" exist. This is the hyphenated one.
+
+## License
+
+Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
