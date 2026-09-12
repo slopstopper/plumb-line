@@ -54,6 +54,22 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     causality, structural value diff, and float tolerance.
 
 ### Changed
+- **README rewritten as a funnel**
+  ([#379](https://github.com/slopstopper/plumb-line/issues/379)): it now
+  opens with the failure plumb-line prevents and the rule underneath it,
+  then the three incidents, who needs it (as symptoms), the two layers, an
+  explicit deterministic-versus-LLM split, the self-audit as a headline, and
+  what plumb-line does not claim, before install and reference. Mechanism
+  (envelope fields, adapters, spec and conformance detail) moves to a
+  reference section that links into `primitives/README.md`, `SPEC.md` and
+  `ACTION.md`. Badges sit where their claim is discussed: version, CI and
+  license at the top, the OpenSSF and Socket badges under Security, the
+  decorative ones gone. No claim changed maturity; the Status paragraph is
+  the same set of `current` facts in fewer words. Repo description and topics
+  refreshed to match. `ROADMAP.md`'s milestone list caught up with the
+  third renumber ([#378](https://github.com/slopstopper/plumb-line/issues/378)):
+  v0.10.0 shipped as *Pay down the ledger*, so *Honest over time* is v0.11.0
+  and *Refuse and explain* is v0.12.0, as the GitHub milestones already said.
 - **Node floor raised to 22** (`engines.node >= 22`; CI tests Node 22 and 24).
   Node 20 reached end-of-life on 2026-04-30, so the raise is the SUPPORT.md
   calendar rule firing, with a toolchain floor arriving at the same time:
