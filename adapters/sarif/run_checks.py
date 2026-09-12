@@ -32,11 +32,14 @@ BOOTSTRAP_HINT = ("no enforcement manifest — run the plumb-line-bootstrap skil
                   ".plumb-line/enforcement.json), or write it by hand: "
                   '{"enforcement-format": "v1", "languages": [...], ...} — see ACTION.md')
 
-# capability -> (tool binary to preflight, install hint)
+# capability -> (tool binary to preflight, install hint). "eslint" is the
+# consumer's own node_modules/.bin/eslint (see _find_eslint) — never npx,
+# which in CI installs the latest ESLint from the registry with only a
+# warning: the silent install ADR-0016 decision 5 rejects.
 TOOLS = {
-    "js.boundary": ("npx", "npm ci (eslint + eslint-plugin-import-x from the consumer's package.json)"),
-    "js.provenance": ("npx", "npm ci (eslint from the consumer's package.json)"),
-    "js.output": ("npx", "npm ci (eslint from the consumer's package.json)"),
+    "js.boundary": ("eslint", "npm ci (eslint + eslint-plugin-import-x from the consumer's package.json)"),
+    "js.provenance": ("eslint", "npm ci (eslint from the consumer's package.json)"),
+    "js.output": ("eslint", "npm ci (eslint from the consumer's package.json)"),
     "python.boundary": ("lint-imports", "pip install import-linter"),
     "python.provenance": ("python3", "python3 on PATH"),
     "python.output": ("python3", "python3 on PATH"),
@@ -49,18 +52,39 @@ def _default_runner(cmd, cwd):
     return p.returncode, p.stdout, p.stderr
 
 
-def _which(tool):
-    return shutil.which(tool)
+def _find_eslint(root):
+    """The consumer's own ESLint: node_modules/.bin/eslint, walking up from
+    root to the filesystem root (a monorepo hoists it above the subroot).
+    None when no install is found — Yarn PnP has no node_modules and lands
+    here too — which run() reports as tool-missing with the npm ci hint."""
+    d = os.path.abspath(root)
+    while True:
+        cand = os.path.join(d, "node_modules", ".bin", "eslint")
+        if os.path.isfile(cand) and os.access(cand, os.X_OK):
+            return cand
+        parent = os.path.dirname(d)
+        if parent == d:
+            return None
+        d = parent
 
 
-def _command(key, cfg, scripts_dir):
-    """The exact command per capability. cwd is always the consumer root."""
-    if key == "js.boundary":
-        return ["npx", "eslint", "--no-config-lookup", "--config", cfg["config"], "--format", "json", "."]
-    if key == "js.provenance":
-        return ["npx", "eslint", "--no-config-lookup", "--config", cfg["config"], "--format", "json", *cfg["globs"]]
-    if key == "js.output":
-        return ["npx", "eslint", "--no-config-lookup", "--config", cfg["config"], "--format", "json", *cfg["outputGlobs"]]
+def _resolver(root):
+    """The default one-argument which(tool): ESLint by the walk-up above,
+    everything else from PATH. A runner may carry its own `which`."""
+    def which(tool):
+        return _find_eslint(root) if tool == "eslint" else shutil.which(tool)
+    return which
+
+
+def _command(key, cfg, scripts_dir, tool=None):
+    """The exact command per capability. cwd is always the consumer root;
+    `tool` is the preflighted binary (the JS capabilities run it by path)."""
+    if key in ("js.boundary", "js.provenance", "js.output"):
+        # --no-error-on-unmatched-pattern: a glob matching no file is `ran`
+        # with zero results, as on the Python side, not ESLint's exit 2.
+        targets = ["."] if key == "js.boundary" else cfg["globs" if key == "js.provenance" else "outputGlobs"]
+        return [tool, "--no-config-lookup", "--config", cfg["config"], "--format", "json",
+                "--no-error-on-unmatched-pattern", *targets]
     lint = os.path.join(scripts_dir, "adapters", "python", "provenance_lint.py")
     if key == "python.provenance":
         return ["python3", lint, "--json", *cfg["globs"]]
@@ -116,7 +140,7 @@ def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, ste
     otherwise point at paths that do not exist at the repository root.
     Defaults to root, i.e. no prefix."""
     runner = runner or _default_runner
-    which = getattr(runner, "which", _which)
+    which = getattr(runner, "which", None) or _resolver(root)
     workspace = workspace or root
     prefix = os.path.relpath(root, workspace).replace(os.sep, "/")
     manifest, issues = load_manifest(manifest_path, root)
@@ -130,13 +154,14 @@ def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, ste
     states, results = {}, []
     for key, cfg in caps.items():
         tool, hint = TOOLS[key]
-        if which(tool) is None:
+        found = which(tool)
+        if found is None:
             states[key] = ("tool-missing", None, hint)
             r = A.tool_missing(key, hint)
             r["capability"] = key
             results.append(r)
             continue
-        cmd = _command(key, cfg, scripts_dir)
+        cmd = _command(key, cfg, scripts_dir, found)
         if key in ("python.provenance", "python.output"):
             globs = cfg["globs"] if key == "python.provenance" else cfg["outputGlobs"]
             files = _expand(root, globs)
@@ -163,7 +188,9 @@ def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, ste
         if key == "js.provenance":
             parsed = [r for r in parsed if r["ruleId"] != "PL/untagged-output"]
         if key == "js.output":
-            parsed = [r for r in parsed if r["ruleId"] == "PL/untagged-output"]
+            # PL/unparsed stays: a surface file ESLint could not parse is one
+            # require-provenance-output never ran on, not a clean file.
+            parsed = [r for r in parsed if r["ruleId"] in ("PL/untagged-output", "PL/unparsed")]
         for r in parsed:
             r["capability"] = key
             if prefix != "." and r.get("file"):

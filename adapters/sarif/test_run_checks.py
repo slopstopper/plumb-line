@@ -103,6 +103,8 @@ def test_all_capabilities_run_with_the_right_commands(tmp_path):
         "python.boundary": "ran", "python.provenance": "ran", "python.output": "ran", "baselines": "ran"}
     cmds = [" ".join(c) for c, _ in fake.calls]
     assert any("eslint" in c and "eslint-boundary.cjs" in c and "--format json" in c for c in cmds)
+    # M13: an ESLint glob that matches nothing is `ran` + zero results, like the Python side.
+    assert all("--no-error-on-unmatched-pattern" in c for c in cmds if "eslint" in c)
     assert any("provenance_lint.py" in c and "--json" in c and "--require-output" not in c for c in cmds)
     assert any("provenance_lint.py" in c and "--require-output" in c and "--json" in c for c in cmds)
     assert any("lint-imports" in c and "--config .importlinter" in c for c in cmds)
@@ -249,6 +251,96 @@ def test_step_summary_is_appended_not_overwritten(tmp_path):
     headers = [ln for ln in open(p["step_summary_path"]).read().splitlines()
               if ln.startswith("plumb-line enforcement —")]
     assert len(headers) == 2
+
+
+# ---------- final review I2: js.output keeps PL/unparsed ----------
+
+def test_js_output_keeps_unparsed_for_a_surface_file_eslint_could_not_parse(tmp_path):
+    # A file inside the declared surface that ESLint could not parse (a
+    # fatal message, ruleId null) means require-provenance-output never ran
+    # on it. Dropping PL/unparsed here was the one silent-green path left.
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["js"],
+                                "js": {"provenance": {"config": "eslint-provenance.cjs",
+                                                      "globs": ["src/**/*.js"], "outputGlobs": ["src/p/**/*.js"]}}})
+    fatal = json.dumps([{"filePath": os.path.join(root, "src", "p", "b.js"),
+                         "messages": [{"ruleId": None, "fatal": True, "severity": 2,
+                                      "message": "Parsing error: Unexpected token", "line": 1, "column": 8}]}])
+
+    class ByGlob(FakeRunner):
+        """The js.output run (outputGlobs) fails to parse; the js.provenance run is clean."""
+        def __call__(self, cmd, cwd):
+            self.calls.append((cmd, cwd))
+            return (1, fatal, "") if "src/p/**/*.js" in cmd else (0, "[]", "")
+    fake = ByGlob({})
+    p = _paths(tmp_path)
+    m = os.path.join(root, ".plumb-line", "enforcement.json")
+    code = R.run(root, m, _ROOT, "findings", runner=fake, version="t", **p)
+    s = json.load(open(p["summary_path"]))
+    res = json.load(open(p["sarif_path"]))["runs"][0]["results"]
+    assert s["capabilities"]["js.output"]["state"] == "ran" and s["capabilities"]["js.output"]["results"] == 1
+    assert [r["ruleId"] for r in res] == ["PL/unparsed"] and "Parsing error" in res[0]["message"]["text"]
+    assert res[0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "src/p/b.js"
+    assert code == 1
+
+
+# ---------- final review I3 (+M13): the consumer's own ESLint, never npx ----------
+
+class Recorder:
+    """A runner with NO `which` hook, so run() falls back to its default
+    resolver — the thing under test here. Every tool answers clean."""
+    def __init__(self):
+        self.calls = []
+
+    def __call__(self, cmd, cwd):
+        self.calls.append((cmd, cwd))
+        return (0, "[]", "")
+
+
+def _plant_eslint(where):
+    binary = where / "node_modules" / ".bin" / "eslint"
+    binary.parent.mkdir(parents=True)
+    binary.write_text("#!/bin/sh\necho []\n", encoding="utf-8")
+    binary.chmod(0o755)
+    return str(binary)
+
+
+_JS_ONLY = {"enforcement-format": "v1", "languages": ["js"], "js": {"boundary": {"config": "eslint-boundary.cjs"}}}
+
+
+def test_eslint_is_the_consumers_node_modules_binary(tmp_path):
+    root = _consumer(tmp_path, _JS_ONLY)
+    binary = _plant_eslint(tmp_path / "repo")
+    rec = Recorder()
+    p = _paths(tmp_path)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 runner=rec, version="t", **p)
+    assert code == 0 and len(rec.calls) == 1
+    cmd = rec.calls[0][0]
+    assert cmd[0] == binary and "npx" not in cmd
+    assert "--no-config-lookup" in cmd and "--no-error-on-unmatched-pattern" in cmd
+
+
+def test_eslint_absent_from_node_modules_is_tool_missing_not_a_registry_install(tmp_path):
+    root = _consumer(tmp_path, _JS_ONLY)
+    rec = Recorder()
+    p = _paths(tmp_path)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 runner=rec, version="t", **p)
+    s = json.load(open(p["summary_path"]))
+    assert code == 1 and rec.calls == []
+    assert s["capabilities"]["js.boundary"]["state"] == "tool-missing"
+    assert "npm ci" in s["capabilities"]["js.boundary"]["note"]
+    assert json.load(open(p["sarif_path"]))["runs"][0]["results"][0]["ruleId"] == "PL/tool-missing"
+
+
+def test_eslint_hoisted_above_a_monorepo_subroot_is_found_by_walking_up(tmp_path):
+    root = _consumer(tmp_path / "packages", _JS_ONLY)   # <tmp>/packages/repo
+    binary = _plant_eslint(tmp_path)                    # <tmp>/node_modules/.bin/eslint
+    rec = Recorder()
+    p = _paths(tmp_path)
+    R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+          runner=rec, version="t", **p)
+    assert rec.calls and rec.calls[0][0][0] == binary and rec.calls[0][1] == root
 
 
 # ---------- final review I1 (+M1, M9): a subroot's results are workspace-relative ----------

@@ -104,18 +104,25 @@ mode is about findings, never about the Action being unable to run at all
 
 | Capability | Tool checked | If missing, install with |
 | --- | --- | --- |
-| `js.boundary` | `npx` | `npm ci` (eslint + eslint-plugin-import-x from the consumer's package.json) |
-| `js.provenance` | `npx` | `npm ci` (eslint from the consumer's package.json) |
-| `js.output` | `npx` | `npm ci` (eslint from the consumer's package.json) |
+| `js.boundary` | `node_modules/.bin/eslint` (walking up from `root`; Yarn PnP has no `node_modules` and reports `tool-missing`) | `npm ci` (eslint + eslint-plugin-import-x from the consumer's package.json) |
+| `js.provenance` | `node_modules/.bin/eslint` (walk-up from `root`, as above) | `npm ci` (eslint from the consumer's package.json) |
+| `js.output` | `node_modules/.bin/eslint` (walk-up from `root`, as above) | `npm ci` (eslint from the consumer's package.json) |
 | `python.boundary` | `lint-imports` | `pip install import-linter` |
 | `python.provenance` | `python3` | `python3` on `PATH` |
 | `python.output` | `python3` | `python3` on `PATH` |
 | `baselines` | `node` | `node >= 22` on `PATH` |
 
+ESLint is the consumer's own install, invoked by path — never `npx`, which
+on a CI runner would download the latest ESLint from the registry when
+`npm ci` was forgotten (the silent install ADR-0016 decision 5 rejects) and
+would make `tool-missing` impossible to detect.
+
 If a `python.provenance`/`python.output` capability's globs match no files,
 the tool is never invoked; the capability still reports `ran`, with a note
 (`no files matched the globs`) and zero results — an empty match is not a
-missing tool.
+missing tool. The ESLint commands carry `--no-error-on-unmatched-pattern`,
+so a `js.provenance`/`js.output` glob that matches no file is likewise
+`ran` with zero results (and no note), not ESLint's exit 2.
 
 ## Unparsed
 
@@ -231,6 +238,7 @@ Every outcome is a named state; nothing passes by silence.
 | A needed tool missing | One `PL/tool-missing` result per capability, uploaded like any finding; job fails even under `fail-on: none`. Never counted as a clean check. |
 | A tool exits non-zero and its output is unreadable | Capability is `errored`; the tool's stderr (or stdout when stderr is empty), truncated, is in the summary; job fails even under `fail-on: none`. A check that could not run is not a check that passed. |
 | A tool exits non-zero with parsed findings | Normal: findings are mapped; job fails unless `fail-on: none`. |
+| A capability's globs match no file | `ran`, zero results, never `errored`: the Python tools are not invoked and the summary notes `no files matched the globs`; ESLint runs with `--no-error-on-unmatched-pattern` and reports an empty list — for the JS capabilities the summary cannot tell an empty match from a clean one, so check the globs when a JS capability's count is a surprising zero. |
 | Valid manifest, zero capabilities | Job succeeds, empty SARIF run, the summary says plainly that zero checks ran — an empty green is legible as empty, never as clean. |
 | Upload step fails (no `security-events: write`, code scanning off) | `continue-on-error: true` on that step ties the job's exit code to the enforcement result alone; the SARIF file is still written and named in the summary. |
 | `fail-on: none` | Findings still upload, the summary states the mode, exit 0 — unless a capability is `tool-missing` or `errored`, which fail regardless. |
