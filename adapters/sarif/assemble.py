@@ -71,12 +71,21 @@ _IL_SUMMARY = re.compile(r"^Contracts: (?P<kept>\d+) kept, (?P<broken>\d+) broke
 
 def result(rule_id, message, file=None, line=None, column=None, tool="action", parser="json"):
     return {"ruleId": rule_id, "level": RULES[rule_id]["level"], "message": message,
-            "file": file, "line": line, "column": column, "tool": tool, "parser": parser}
+            "file": file, "line": line, "column": column, "tool": tool, "parser": parser,
+            "whole": False}
 
 
-def unparsed(text, tool, *, file=None, line=None, column=None, parser="text"):
-    return result("PL/unparsed", f"unparsed {tool} output: {text}", file=file, line=line,
-                  column=column, tool=tool, parser=parser)
+def unparsed(text, tool, *, file=None, line=None, column=None, parser="text", whole=False):
+    """whole=True marks a result standing in for an ENTIRE payload that
+    could not be parsed at all (non-JSON, wrong-shaped JSON, or a text
+    report missing its summary line) — as opposed to one unmappable item
+    inside an otherwise-parsed payload (whole=False, the default). The
+    orchestrator's errored-vs-ran distinction depends on this: a crashed
+    tool looks like the former, one unknown rule id looks like the latter."""
+    r = result("PL/unparsed", f"unparsed {tool} output: {text}", file=file, line=line,
+              column=column, tool=tool, parser=parser)
+    r["whole"] = whole
+    return r
 
 
 def tool_missing(capability, hint):
@@ -103,11 +112,11 @@ def parse_eslint(text, root):
     try:
         files = json.loads(text)
     except ValueError:
-        return [unparsed(text.strip()[:200], "eslint")]
+        return [unparsed(text.strip()[:200], "eslint", whole=True)]
     if not isinstance(files, list):
         # Valid JSON, wrong shape (object/null/number/...): a shape change
         # must never read as "no findings" — see parse_provenance_lint/parse_baseline.
-        return [unparsed(text.strip()[:200], "eslint")]
+        return [unparsed(text.strip()[:200], "eslint", whole=True)]
     out = []
     for f in files:
         if not isinstance(f, dict) or not isinstance(f.get("messages", []), list):
@@ -133,9 +142,9 @@ def parse_provenance_lint(text, root):
     try:
         issues = json.loads(text)
     except ValueError:
-        return [unparsed(text.strip()[:200], "provenance_lint")]
+        return [unparsed(text.strip()[:200], "provenance_lint", whole=True)]
     if not isinstance(issues, list):
-        return [unparsed(text.strip()[:200], "provenance_lint")]
+        return [unparsed(text.strip()[:200], "provenance_lint", whole=True)]
     out = []
     for i in issues:
         if not isinstance(i, dict):
@@ -159,9 +168,9 @@ def parse_baseline(text, root):
     try:
         data = json.loads(text)
     except ValueError:
-        return [unparsed(text.strip()[:200], "baseline")]
+        return [unparsed(text.strip()[:200], "baseline", whole=True)]
     if not isinstance(data, dict):
-        return [unparsed(text.strip()[:200], "baseline")]
+        return [unparsed(text.strip()[:200], "baseline", whole=True)]
     out = []
     d = _rel(data.get("dir"), root) or ""
     for f in data.get("files", []):
@@ -205,7 +214,7 @@ def parse_import_linter(text, root, root_package):
     summary = next((m for m in (_IL_SUMMARY.match(ln) for ln in lines) if m), None)
     if summary is None:
         body = " ".join(ln for ln in lines if ln.strip())
-        return [unparsed(body[:200], "import-linter")]
+        return [unparsed(body[:200], "import-linter", whole=True)]
     out = []
     in_broken = False
     header = None

@@ -30,7 +30,8 @@ def test_parse_eslint_boundary_maps_rule_and_location():
     r = A.parse_eslint(_fx("eslint-boundary.json"), root="/repo")
     assert r == [{"ruleId": "PL/boundary", "level": "error",
                   "message": 'Unexpected path "../ui/checkout.js" imported in restricted zone.',
-                  "file": "src/data/rates.js", "line": 8, "column": 38, "tool": "eslint", "parser": "json"}]
+                  "file": "src/data/rates.js", "line": 8, "column": 38, "tool": "eslint", "parser": "json",
+                  "whole": False}]
 
 
 def test_parse_eslint_provenance_maps_pb_and_output():
@@ -68,7 +69,7 @@ def test_parse_import_linter_strips_ansi_and_maps_module_to_file(tmp_path):
     assert r == [{"ruleId": "PL/boundary", "level": "error",
                   "message": "src.data.schema -> src.ui.report: src.data is not allowed to import src.ui",
                   "file": "src/data/schema.py", "line": 7, "column": None,
-                  "tool": "import-linter", "parser": "text"}]
+                  "tool": "import-linter", "parser": "text", "whole": False}]
 
 
 def test_parse_import_linter_kept_report_is_empty():
@@ -82,7 +83,7 @@ def test_parse_import_linter_unmappable_module_keeps_the_module_name(tmp_path):
 
 def test_parse_import_linter_garbled_is_unparsed():
     r = A.parse_import_linter(_fx("garbled.txt"), root="/repo", root_package="src")
-    assert r == [A.unparsed("this line is not any format the assembler knows", "import-linter")]
+    assert r == [A.unparsed("this line is not any format the assembler knows", "import-linter", whole=True)]
     assert r[0]["ruleId"] == "PL/unparsed"
 
 

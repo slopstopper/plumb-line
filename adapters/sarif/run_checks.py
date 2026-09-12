@@ -97,13 +97,13 @@ def _root_package(root, cfg_path):
 
 def _looks_unparsed(parsed, out):
     """True when a tool's stdout amounts to nothing usable: empty, or the
-    parser's total-failure fallback — a single whole-payload PL/unparsed,
-    which is what parse_eslint/parse_provenance_lint/parse_baseline/
-    parse_import_linter each return when the payload didn't parse at all
-    (as opposed to parsing fine and reporting some real findings)."""
-    if not out.strip():
-        return True
-    return len(parsed) == 1 and parsed[0]["ruleId"] == "PL/unparsed"
+    parser's total-failure fallback — a single whole=True PL/unparsed,
+    which is what the parsers each return when the ENTIRE payload didn't
+    parse (non-JSON, wrong-shaped JSON, or a text report with no summary
+    line). A single unmappable ITEM inside an otherwise-parsed payload
+    (whole=False — an unknown ESLint/provenance_lint rule id, a malformed
+    entry, ...) is a real finding, not evidence the tool crashed."""
+    return not out.strip() or (len(parsed) == 1 and parsed[0]["ruleId"] == "PL/unparsed" and parsed[0].get("whole"))
 
 
 def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, step_summary_path=None,
@@ -148,7 +148,8 @@ def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, ste
         except Exception as e:  # a parser must never take the run down
             parsed, parser = [A.unparsed(f"{type(e).__name__}: {e}", key)], "text"
         if rc != 0 and _looks_unparsed(parsed, out):
-            states[key] = ("errored", parser, f"exit {rc}: {(err or out).strip()[:500]}")
+            note = f"exit {rc}: {(err or out).strip()[:500]}"
+            states[key] = ("errored", parser, " ".join(note.split()))
             continue
         if key == "js.provenance":
             parsed = [r for r in parsed if r["ruleId"] != "PL/untagged-output"]

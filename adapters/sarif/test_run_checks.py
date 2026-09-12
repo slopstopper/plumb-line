@@ -37,7 +37,10 @@ FULL = {"enforcement-format": "v1", "languages": ["js", "python"],
 
 
 class FakeRunner:
-    """Answers each tool by the first token of its command; records calls."""
+    """Answers each tool by whichever token in its command names the tool
+    itself — a .py/.mjs script path, or a bare "eslint"/"lint-imports" —
+    found anywhere in cmd, falling back to cmd[0] if none matches; records
+    calls."""
     def __init__(self, answers, missing=()):
         self.answers, self.missing, self.calls = answers, set(missing), []
 
@@ -161,6 +164,91 @@ def test_tool_exit_nonzero_with_parsable_output_is_findings_not_errored(tmp_path
     s = json.load(open(p["summary_path"]))
     assert code == 1 and s["capabilities"]["python.boundary"]["state"] == "ran"
     assert s["capabilities"]["python.boundary"]["parser"] == "text" and s["findings"] == 1
+
+
+# ---------- fix round 1 (task review) ----------
+
+def test_parsable_payload_with_one_unmappable_item_is_ran_not_errored(tmp_path):
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["js"],
+                                "js": {"boundary": {"config": "eslint-boundary.cjs"}}})
+    payload = json.dumps([{"filePath": os.path.join(root, "src", "a.js"),
+                           "messages": [{"ruleId": "no-unused-vars", "severity": 2, "message": "x",
+                                        "line": 1, "column": 1}]}])
+    fake = FakeRunner({"eslint": (1, payload, "")})
+    p = _paths(tmp_path)
+    m = os.path.join(root, ".plumb-line", "enforcement.json")
+    assert R.run(root, m, _ROOT, "findings", runner=fake, version="t", **p) == 1
+    s = json.load(open(p["summary_path"]))
+    res = json.load(open(p["sarif_path"]))["runs"][0]["results"]
+    assert (s["capabilities"]["js.boundary"]["state"] == "ran" and len(res) == 1
+            and res[0]["ruleId"] == "PL/unparsed"
+            and res[0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "src/a.js")
+    assert R.run(root, m, _ROOT, "none", runner=fake, version="t", **p) == 0
+
+
+def test_tool_missing_and_errored_fail_even_under_fail_on_none(tmp_path):
+    missing_root = _consumer(tmp_path / "missing", {"enforcement-format": "v1", "languages": ["python"],
+                                                     "python": {"boundary": {"config": ".importlinter"}}})
+    missing_code = R.run(missing_root, os.path.join(missing_root, ".plumb-line", "enforcement.json"), _ROOT, "none",
+                         runner=FakeRunner({}, missing=("lint-imports",)), version="t",
+                         **_paths(tmp_path / "missing"))
+    crash_root = _consumer(tmp_path / "crash", {"enforcement-format": "v1", "languages": ["python"],
+                                                "python": {"provenance": {"globs": ["src/**/*.py"]}}})
+    crash_code = R.run(crash_root, os.path.join(crash_root, ".plumb-line", "enforcement.json"), _ROOT, "none",
+                       runner=FakeRunner({"provenance_lint.py": (3, "", "Traceback: boom")}), version="t",
+                       **_paths(tmp_path / "crash"))
+    assert missing_code == 1 and crash_code == 1
+
+
+def test_js_provenance_and_output_filter_by_rule(tmp_path):
+    # Not the literal FULL constant: FULL also enables js.boundary, which
+    # invokes eslint through the SAME FakeRunner key ("eslint" — the fake
+    # can't distinguish boundary's config from provenance's), so it would
+    # replay this same payload unfiltered and double every count below.
+    # This keeps FULL's js.provenance/js.output shape and drops js.boundary
+    # so "exactly one of each" is actually checking the capability filters,
+    # not an artifact of the fake sharing one key across three invocations.
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["js"],
+                                "js": {"provenance": {"config": "eslint-provenance.cjs",
+                                                      "globs": ["src/**/*.js"], "outputGlobs": ["src/p/**/*.js"]}}})
+    payload = json.dumps([{"filePath": os.path.join(root, "src", "p", "b.js"),
+                           "messages": [{"ruleId": "plumb-line/no-provenance-bypass",
+                                        "message": "PB1 laundered", "line": 1, "column": 1},
+                                       {"ruleId": "plumb-line/require-provenance-output",
+                                        "message": "untagged output", "line": 2, "column": 1}]}])
+    fake = FakeRunner({"eslint": (0, payload, "")})
+    p = _paths(tmp_path)
+    R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+         runner=fake, version="t", **p)
+    s = json.load(open(p["summary_path"]))
+    ids = [r["ruleId"] for r in json.load(open(p["sarif_path"]))["runs"][0]["results"]]
+    assert (s["capabilities"]["js.provenance"]["results"] == 1 and s["capabilities"]["js.output"]["results"] == 1
+            and ids.count("PL/PB1") == 1 and ids.count("PL/untagged-output") == 1)
+
+
+def test_no_glob_match_is_ran_with_a_note_and_no_tool_call(tmp_path):
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["python"],
+                                "python": {"provenance": {"globs": ["nothing/**/*.py"]}}})
+    issue = [{"filename": "x", "line": 1, "rule": "PB1", "message": "m"}]
+    fake = FakeRunner({"provenance_lint.py": (1, json.dumps(issue), "")})
+    p = _paths(tmp_path)
+    R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+         runner=fake, version="t", **p)
+    s = json.load(open(p["summary_path"]))
+    assert (s["capabilities"]["python.provenance"]["state"] == "ran"
+            and s["capabilities"]["python.provenance"]["note"] == "no files matched the globs"
+            and not any("provenance_lint.py" in " ".join(c) for c, _ in fake.calls))
+
+
+def test_step_summary_is_appended_not_overwritten(tmp_path):
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["js"], "js": {}})
+    p = _paths(tmp_path)
+    m = os.path.join(root, ".plumb-line", "enforcement.json")
+    R.run(root, m, _ROOT, "findings", runner=FakeRunner({}), version="t", **p)
+    R.run(root, m, _ROOT, "findings", runner=FakeRunner({}), version="t", **p)
+    headers = [ln for ln in open(p["step_summary_path"]).read().splitlines()
+              if ln.startswith("plumb-line enforcement —")]
+    assert len(headers) == 2
 
 
 def test_end_to_end_over_the_planted_fixtures(tmp_path):
