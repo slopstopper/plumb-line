@@ -131,14 +131,10 @@ jobs:
       - name: adapters/python — enforcement adapters
         working-directory: adapters/python
         run: python -m pytest -q
-      - name: adapters/sarif — SARIF assembler
-        run: python -m pytest -q adapters/sarif
-      - name: examples — fixtures + real import-linter boundary
-        run: python -m pytest -q examples
-      - name: conformance against the plugin-bundled Python copy
-        run: python -m pytest -q scripts/test_bundle_conformance.py
-      # scripts/test_bundle_sync.py runs the bundle gate, which is a Node
-      # script — this job has no node without it.
+      # Node must be ready here for the JS fixture toolchain step below (npm
+      # ci) and the SARIF assembler's end-to-end test right after — moved
+      # ahead of adapters/sarif for that reason (#118). Still covers
+      # scripts/test_bundle_sync.py further down this job.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: "22"
@@ -147,6 +143,24 @@ jobs:
           for tree in broken clean; do
             (cd "examples/js-payments-service/$tree" && npm ci --no-audit --no-fund)
           done
+      - name: adapters/sarif — SARIF assembler (end-to-end must RUN here, never skip)
+        run: |
+          set -o pipefail
+          python -m pytest -q -rs adapters/sarif | tee /tmp/sarif-pytest.txt
+          # pytest's -rs short summary line is "SKIPPED [n] <file>:<line>:
+          # <reason>" — it never prints the test's name, so a pattern
+          # anchored on "end_to_end" can never match. test_run_checks.py's
+          # only two pytest.skip() call sites both live inside
+          # test_end_to_end_over_the_planted_fixtures, so matching the file
+          # is exact today and, unlike a line number, robust to the file
+          # growing another skip-guarded line above these.
+          if grep -q 'SKIPPED.*test_run_checks.py' /tmp/sarif-pytest.txt; then
+            echo "::error::the end-to-end SARIF test skipped in CI — the fixture toolchain is missing"; exit 1
+          fi
+      - name: examples — fixtures + real import-linter boundary
+        run: python -m pytest -q examples
+      - name: conformance against the plugin-bundled Python copy
+        run: python -m pytest -q scripts/test_bundle_conformance.py
       # The repo-infrastructure checkers (wire-version prose #160, report-format
       # #139). Named explicitly because every other pytest step above is scoped
       # to a package directory, so scripts/ was never collected — both suites
