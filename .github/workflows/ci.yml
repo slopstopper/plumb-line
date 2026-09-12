@@ -131,6 +131,8 @@ jobs:
       - name: adapters/python — enforcement adapters
         working-directory: adapters/python
         run: python -m pytest -q
+      - name: adapters/sarif — SARIF assembler
+        run: python -m pytest -q adapters/sarif
       - name: examples — fixtures + real import-linter boundary
         run: python -m pytest -q examples
       - name: conformance against the plugin-bundled Python copy

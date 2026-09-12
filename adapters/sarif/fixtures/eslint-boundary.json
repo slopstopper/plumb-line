@@ -1,0 +1,1 @@
+[{"filePath":"/repo/src/data/rates.js","messages":[{"ruleId":"import/no-restricted-paths","severity":2,"message":"Unexpected path \"../ui/checkout.js\" imported in restricted zone.","line":8,"column":38}],"errorCount":1,"warningCount":0}]
