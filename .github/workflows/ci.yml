@@ -190,10 +190,12 @@ jobs:
           TREE: ${{ matrix.tree }}
         run: |
           python3 - "$SUMMARY" "$TREE" <<'EOF'
-          import json, sys
+          import json, os, sys
           s = json.load(open(sys.argv[1])); tree = sys.argv[2]
           states = {k: v["state"] for k, v in s["capabilities"].items()}
+          assert states, "no capabilities ran — the manifest enforces nothing"
           assert all(v == "ran" for v in states.values()), states
+          assert os.path.isabs(s["sarif"]) and os.path.isfile(s["sarif"]), s["sarif"]
           if tree == "broken":
               assert s["findings"] >= 1, s
           else:

@@ -10,10 +10,10 @@ branding:
 
 inputs:
   manifest:
-    description: Path to the enforcement manifest, relative to the repository root.
+    description: Path to the enforcement manifest, relative to `root`.
     default: .plumb-line/enforcement.json
   root:
-    description: the consumer root within the checkout — for monorepos and for this repo's own fixture matrix
+    description: "For monorepos: the consumer root within the checkout (default: the repository root)."
     default: "."
   fail-on:
     description: "`findings` (default) fails the job on any result; `none` is advisory — the SARIF still uploads."
@@ -54,14 +54,24 @@ runs:
         PL_VERSION: ${{ github.action_ref }}
       run: |
         set +e
+        # Under `set +e`, a failing realpath would otherwise leave the
+        # substitution empty and silently point --root at the workspace
+        # root — guard it explicitly and bail out (still exit 0: the final
+        # step is what carries the code past the upload step).
+        PL_ABS_ROOT="$(realpath "$PL_ROOT/$PL_SUBROOT")" || {
+          echo "::error::plumb-line: root '$PL_SUBROOT' not found under the checkout"
+          echo "code=1" >> "$GITHUB_OUTPUT"; echo "sarif_written=false" >> "$GITHUB_OUTPUT"; exit 0; }
+        # A stale file from an earlier invocation must never read as this
+        # run's output — sarif_written below means written by THIS run.
+        rm -f "$PL_SARIF" "$PL_SUMMARY"
         python3 "$PL_SCRIPTS/adapters/sarif/run_checks.py" \
-          --root "$(realpath "$PL_ROOT/$PL_SUBROOT")" --manifest "$PL_MANIFEST" --scripts-dir "$PL_SCRIPTS" \
+          --root "$PL_ABS_ROOT" --manifest "$PL_MANIFEST" --scripts-dir "$PL_SCRIPTS" \
           --fail-on "$PL_FAIL_ON" --sarif "$PL_SARIF" --summary "$PL_SUMMARY" \
           --step-summary "$GITHUB_STEP_SUMMARY" --version "${PL_VERSION:-dev}"
         echo "code=$?" >> "$GITHUB_OUTPUT"
-        # hashFiles() is workspace-relative and would silently skip a match
-        # against $PL_SARIF's absolute ${{ runner.temp }} path, so the upload
-        # guard below reads this output instead of hashing the file itself.
+        # hashFiles() is workspace-relative and would silently skip a match against
+        # PL_SARIF's absolute runner.temp path, so the upload guard below reads this
+        # output instead of hashing the file itself.
         if [ -f "$PL_SARIF" ]; then echo "sarif_written=true" >> "$GITHUB_OUTPUT"; else echo "sarif_written=false" >> "$GITHUB_OUTPUT"; fi
     - name: upload SARIF to code scanning
       if: ${{ inputs.upload == 'true' && steps.run.outputs.sarif_written == 'true' }}
