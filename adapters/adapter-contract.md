@@ -67,8 +67,9 @@ and parameterizes these files into the target repo.
   carries (plus a baselines directory), so the GitHub Action (`action.yml`,
   ADR-0016) can run them without guessing. `enforcement-format: v1`;
   validator `scripts/check_enforcement_manifest.py`.
-- Every capability is optional. Absence is "not enforced here" — stated in
-  the Action's summary, never counted as a pass. Nothing in the file is a
+- Every capability is optional. Absence means not enforced here: an absent
+  capability is not run and does not appear in the Action's summary;
+  nothing absent is ever counted as a pass. Nothing in the file is a
   default: bootstrap writes it from the interview (Step 4d), or a maintainer
   writes it by hand (shape in ACTION.md).
 - Shape: `languages`; per language `boundary.config`, `provenance.config`

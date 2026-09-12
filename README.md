@@ -134,7 +134,7 @@ The provenance envelope is a trust claim, so plumb-line states plainly what it g
 
 ## Status
 
-plumb-line ships the run-time provenance primitive with JS/Python parity, the five skills, and enforcement adapters for JavaScript/TypeScript and Python, published to npm and PyPI as `plumb-line-provenance`. The badges above track the current version; the [changelog](CHANGELOG.md) has the per-release detail. The envelope and the combination law are pinned by a versioned [specification](primitives/SPEC.md) (schema version 2) and a cross-language [conformance suite](primitives/conformance/).
+plumb-line ships the run-time provenance primitive with JS/Python parity, the five skills, and enforcement adapters for JavaScript/TypeScript and Python, published to npm and PyPI as `plumb-line-provenance` — and the GitHub Action running the deterministic checks with SARIF output. The badges above track the current version; the [changelog](CHANGELOG.md) has the per-release detail. The envelope and the combination law are pinned by a versioned [specification](primitives/SPEC.md) (schema version 2) and a cross-language [conformance suite](primitives/conformance/).
 
 The deterministic adapters (boundary checks and the `no-provenance-bypass` lint, JS + Python) are validated against the worked fixtures in `examples/`: every planted violation caught, no false positives, results in [validation-results.md](docs/validation-results.md). A second lint, `require-provenance-output`, inverts the default inside a surface you declare: a trust-bearing function returning a provably raw computation becomes a mechanical error instead of something review must notice ([ADR-0011](docs/adr/0011-enforcement-rule-scoping.md)). It is opt-in and a no-op until you draw a boundary; `plumb-line-bootstrap` installs the config and resolves the surface when you accept the primitive offer ([#214](https://github.com/slopstopper/plumb-line/issues/214)).
 
@@ -142,7 +142,7 @@ The deterministic adapters (boundary checks and the `no-provenance-bypass` lint,
 
 ## Where this is going
 
-The long-run direction. All of it is **planned**: this section names intent, not shipped capability, and the [roadmap](ROADMAP.md) tracks each item.
+The long-run direction. Except where marked current, all of it is **planned**: this section names intent, not shipped capability, and the [roadmap](ROADMAP.md) tracks each item.
 
 - **Deepen the promise.** Tooling for the last unimplemented principle (a golden-baseline CLI with lineage-attributed drift), CI-native enforcement (the [GitHub Action + SARIF](ACTION.md) are now current; an adoption ratchet for legacy codebases stays planned), and runtime primitives that refuse and explain: an egress guard at output boundaries, human-readable lineage, a per-artifact trust summary.
 - **Provenance across boundaries.** Today the taint guarantee holds inside one process. Envelopes should survive serialization, file artifacts (provenance sidecars), and HTTP (a provenance-context header), so honesty becomes a property of a *system*, not a function call.

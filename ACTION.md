@@ -13,8 +13,8 @@ decisions behind it.
 The Action reads `.plumb-line/enforcement.json` (`enforcement-format: v1`)
 and runs **only** what that manifest states. It ships no layers, globs, or
 defaults of its own (ADR-0004; ADR-0016 decision 1): a capability the
-manifest omits is not run, does not appear as a row in the summary, and is
-never counted as a pass.
+manifest omits is simply not run — it never appears in the summary, and its
+absence is never counted as a pass.
 
 Seven capability keys, each optional:
 
@@ -53,9 +53,15 @@ steps:
 ```
 
 Install only the toolchain your manifest actually needs — a JS-only repo
-skips `pip install import-linter`, a Python-only repo skips `setup-node` and
-`npm ci`. The Action brings plumb-line's own scripts from its pinned ref;
-your workflow provides the language tools it runs (ADR-0016 decision 5).
+skips `pip install import-linter`, and a Python-only repo skips
+`setup-node`/`npm ci` too, *unless* its manifest also carries `baselines`
+(`baseline validate` needs `node`, regardless of language). The Action
+brings plumb-line's own scripts from its pinned ref; your workflow provides
+the language tools it runs (ADR-0016 decision 5).
+
+The `@v0.11.0` tag above is the version this Action is meant to ship under;
+it does not exist until that release is cut. Until then, pin to a commit
+sha on this repository instead.
 
 ## Inputs
 
@@ -70,7 +76,7 @@ your workflow provides the language tools it runs (ADR-0016 decision 5).
 Required consumer permissions: `security-events: write` (to upload SARIF)
 and `contents: read`.
 
-A `root` that doesn't resolve under the checkout fails the job immediately,
+A `root` that does not exist under the checkout fails the job immediately,
 naming the missing path (`plumb-line: root '<root>' not found under the
 checkout`), and writes no SARIF.
 
@@ -120,13 +126,20 @@ Two shapes, with different consequences:
   instead of a mapped rule.
 - **A whole payload the parser could not read at all** — empty output,
   non-JSON where JSON was expected, JSON of the wrong shape, or a text
-  report with no summary line — becomes exactly one `PL/unparsed` result
-  standing in for the entire run. That, combined with a non-zero exit code,
-  is what makes a capability `errored` rather than `ran`: a tool that exits
-  non-zero with a normal, parsed findings list is the ordinary case: real
-  findings, never an error. A capability the assembler could not make sense
-  of at all is not a check that passed, so `errored` fails the job even
-  under `fail-on: none`, the same as `tool-missing`.
+  report with no summary line — makes the parser return exactly one
+  `PL/unparsed` stand-in result. What happens to that stand-in depends on
+  the exit code: if the tool also **exited non-zero**, the capability is
+  `errored` and the stand-in is discarded — never written to the SARIF;
+  only the tool's stderr (or stdout when stderr is empty), truncated,
+  carries the tool's output, in the summary's note for that capability. If
+  the tool **exited zero** despite the unreadable output, the capability is
+  `ran` instead, and that same stand-in becomes an ordinary `PL/unparsed`
+  finding in the SARIF. (A non-zero exit on its own never means `errored`:
+  a tool that exits non-zero with a normal, parsed findings list is the
+  ordinary case — real findings, never an error.) A capability the
+  assembler could not make sense of at all is not a check that passed, so
+  `errored` fails the job even under `fail-on: none`, the same as
+  `tool-missing`.
 
 **import-linter is `partial`.** It has no machine-readable output upstream,
 so its report is parsed as text with a pinned grammar: a violation's
@@ -139,9 +152,13 @@ under the summary's `unlocated`. A report whose `Contracts: N kept, M
 broken.` line says violations exist, but whose body yields no line the
 parser recognises, is treated as a discrepancy rather than silence: it
 produces one `PL/unparsed` warning naming the mismatch, and the capability
-is still `ran` — `partial` rather than `errored`. The parser is pinned to the tested
-import-linter version; a follow-up issue tracks asking upstream for a
-machine-readable report (see *Maturity*, below).
+is still `ran` (the parser is `partial`-maturity), never `errored`. The
+parser is pinned to the tested import-linter version (`2.15`, in
+`requirements-test.txt`); a consumer's own `pip install import-linter` in
+the *Usage* workflow above is unpinned, so a future import-linter release
+could shift the report format before this repo's pin catches up. A
+follow-up issue tracks asking upstream for a machine-readable report (see
+*Maturity*, below).
 
 ## The manifest
 
@@ -171,10 +188,14 @@ every issue — against a manifest that doesn't pass it.
 }
 ```
 
-Every capability is optional — omit a language section entirely, omit
-`provenance`, omit `outputGlobs`, or omit `baselines`, whatever the project
-doesn't carry. Paths (configs, globs, `baselines.dir`) are relative to
-`root`. Validate a manifest locally with:
+Every capability is optional — omit `boundary`, omit `provenance`, omit
+`outputGlobs`, or omit `baselines`, whatever the project doesn't carry. One
+exception: `languages` must always be a non-empty list naming a section
+that's actually present, even for a baselines-only manifest — the
+validator requires it, so a project with nothing but `baseline validate`
+still declares one (possibly empty) language section. Paths (configs,
+globs, `baselines.dir`) are relative to `root`. Validate a manifest locally
+with:
 
 ```bash
 python3 scripts/check_enforcement_manifest.py .plumb-line/enforcement.json
@@ -189,7 +210,7 @@ Every outcome is a named state; nothing passes by silence.
 | No manifest | Fails immediately, naming the bootstrap step that writes it and the hand-written shape. Never guesses a configuration. |
 | Invalid manifest | Fails with the validator's findings, one per line — distinct from *absent*, so a corrupt file never reads as "not set up yet". |
 | A needed tool missing | One `PL/tool-missing` result per capability, uploaded like any finding; job fails even under `fail-on: none`. Never counted as a clean check. |
-| A tool crashes, or its output is unreadable | Capability is `errored`; the tool's stderr (or stdout when stderr is empty), truncated, is in the summary; job fails even under `fail-on: none`. A check that could not run is not a check that passed. |
+| A tool exits non-zero and its output is unreadable | Capability is `errored`; the tool's stderr (or stdout when stderr is empty), truncated, is in the summary; job fails even under `fail-on: none`. A check that could not run is not a check that passed. |
 | A tool exits non-zero with parsed findings | Normal: findings are mapped; job fails unless `fail-on: none`. |
 | Valid manifest, zero capabilities | Job succeeds, empty SARIF run, the summary says plainly that zero checks ran — an empty green is legible as empty, never as clean. |
 | Upload step fails (no `security-events: write`, code scanning off) | `continue-on-error: true` on that step ties the job's exit code to the enforcement result alone; the SARIF file is still written and named in the summary. |
@@ -200,13 +221,21 @@ Every outcome is a named state; nothing passes by silence.
 - **The Action itself: `current`** — four CI matrix cells (two fixtures ×
   `clean`/`broken`) run `uses: ./` against the planted fixtures and pass, on
   this branch.
-- **Uploading to a consumer's code scanning: `current` by construction**
-  (the same sha-pinned `upload-sarif` step this repo's own CI runs), but
-  unproven outside this repo until someone adopts it.
+- **Uploading to a consumer's code scanning: `current` by construction** —
+  the upload step delegates to the sha-pinned `github/codeql-action/upload-sarif`
+  (the same action and sha the scorecard workflow uses) — but this repo's
+  own CI runs the Action with `upload: "false"`, so code-scanning ingestion
+  of this Action's SARIF is unproven anywhere until an adopter observes it.
 - **import-linter's text parsing: `partial`** — see *Unparsed*, above; a
   follow-up issue tracks asking upstream for a machine-readable report and
   pins this parser to the tested version until then
   ([#376](https://github.com/slopstopper/plumb-line/issues/376)).
+- **Known gap, tracked separately:** the summary head-line's "N not
+  enforced here" count is never actually computed — `run_checks.py`
+  iterates only the capabilities a manifest carries, so an omitted
+  capability is correctly absent from the per-capability table but the
+  aggregate count for it never leaves zero
+  ([#377](https://github.com/slopstopper/plumb-line/issues/377)).
 - **The bootstrap manifest step (Step 4d): `planned`** until a
   release-harness blind run proves a bootstrap run writes the file; the
   validator and the hand-written shape it targets are `current`.
