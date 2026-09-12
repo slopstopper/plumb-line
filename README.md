@@ -41,29 +41,21 @@ total.confidence;      // 'low'  only as certain as the weakest input
 
 ## Same number, different claim
 
-A ten-passenger load sheet where three categories are guessed from a title. Same arithmetic, same total; one version knows what it is standing on ([the demo](examples/incident-loadsheet/)).
+A ten-passenger load sheet where three categories are guessed from a title ([the demo](examples/incident-loadsheet/)). Same arithmetic, same total; one version knows what it is standing on.
 
-<table>
-<tr>
-<th>without provenance</th>
-<th>with provenance</th>
-</tr>
-<tr>
-<td>
-<pre>
-$ python3 broken/loadsheet.py
-load sheet — flight PL123:
+**Without provenance** (`python3 examples/incident-loadsheet/broken/loadsheet.py`), the sheet is tidy and confident:
+
+```text
   1A  Mr     adult  84 kg
   3A  Miss   child  35 kg
   ...
 total takeoff mass: 693 kg
 load sheet: complete
-</pre>
-</td>
-<td>
-<pre>
-$ python3 instrumented/loadsheet.py
-load sheet — flight PL123:
+```
+
+**With provenance** (`instrumented/loadsheet.py`), the same total carries what it rests on, and the attempt to issue it as fully confident is caught:
+
+```text
   1A  Mr     84 kg  [real/medium — booking]
   3A  Miss   35 kg  [inferred/low — guessed from title]
   ...
@@ -76,10 +68,7 @@ load sheet provenance:
 
 attempted over-claim (derive with confidence: "high"):
   over-claiming: confidence 'high' exceeds weakest lineage confidence 'low'
-</pre>
-</td>
-</tr>
-</table>
+```
 
 That shape has happened for real. Three documented incidents, each reconstructed with a runnable demo:
 
@@ -103,7 +92,7 @@ Common in research and scientific code, data and ML pipelines, agent-built syste
 ## How it fits together
 
 ```mermaid
-flowchart LR
+flowchart TB
   subgraph run["Run time · deterministic"]
     direction LR
     I[your inputs] --> M["mark()"] --> D["derive()"] --> O["outputs carrying<br/>source · confidence · taint"]
