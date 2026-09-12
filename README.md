@@ -15,9 +15,11 @@
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0"></a>
 </p>
 
-Software can calculate something correctly and still be wrong about what it knows. A stubbed service answers "success" and the tests go green. A guessed value flows into a report. A fallback meant for local development ships. Nothing fails loudly; the final number just looks as solid as everything around it.
+Every value in a program came from somewhere: a database, an API call, a test fixture, a default, a guess. Once it is sitting in a variable they all look the same, and the code that uses it cannot tell a measured number from a stubbed one. That is how a stubbed service answers "success" and the tests go green, how a guessed field flows into a report, and how a fallback meant for local development ends up shipping. Nothing fails loudly. The final number just looks as solid as everything around it.
 
-plumb-line attaches to every value a record of where it came from and how much to trust it, and that record travels with the value as it is combined with others. A result built on a mock or a guess says so, and nothing downstream can quietly upgrade it. One rule sits underneath all of it: combining values can keep or lower their trust level, never raise it ([the combination law](primitives/SPEC.md#3-the-combination-law)).
+plumb-line is a small library for JavaScript and Python that labels each value with where it came from (`real`, `mock`, `inferred`, `fallback`) and how much to trust it (`high` down to `none`), and keeps those labels attached as the value is combined with others. If a result was built from a mock or a guess, the result says so, and no later step can quietly upgrade it. Around the library, a set of review-time tools (Claude Code skills, lint rules and a GitHub Action) check a codebase for places where that honesty got lost.
+
+One rule sits underneath all of it: combining values can keep or lower their trust level, never raise it ([the combination law](primitives/SPEC.md#3-the-combination-law)).
 
 ```js
 const base  = mark(1000, { source: "real", confidence: "high" });
@@ -28,7 +30,7 @@ total.derivedFromMock; // true   inherited from rate, and impossible to clear
 total.confidence;      // 'low'  only as certain as the weakest input
 ```
 
-`mark` labels a value with where it came from and how much to trust it. `derive` runs your own function and carries the labels through, keeping the weakest. The library never does the arithmetic and never changes a value; it only keeps the labels honest.
+`mark` puts the labels on a value. `derive` runs your own function on labelled values and carries the labels through, keeping the weakest. The library never does the arithmetic and never changes a value; it only keeps the labels honest.
 
 ## Install
 
@@ -54,9 +56,9 @@ Zero dependencies. You can also copy `primitives/js/` or `primitives/python/` st
 
 **Not using Claude?** [portable/README.md](portable/README.md) is the entry point without the plugin.
 
-## Same number, different claim
+## A real incident, reconstructed
 
-A tool server checks five tools and reports on their health. Three of the five are stubs that always answer "success" ([the demo](examples/incident-toolserver/)):
+A documented failure, boiled down to a few lines ([the demo](examples/incident-toolserver/)): a server checks five tools and reports on their health, and three of the five are stubs that always answer "success". The first run is the program as written. The second is the same program with plumb-line's labels on its values.
 
 ```text
 $ node broken/toolserver.mjs
@@ -82,11 +84,13 @@ attempted launder (derive with source: "real"):
 
 Same code, same "operational". The second version knows that three of its five results came from stubs, and when the code tries to relabel the report as real, the library refuses. That is the whole idea: a mocked result cannot be laundered into a real one.
 
-This has happened for real. Three documented incidents, each with a runnable reconstruction in this repository:
+It is the first of three documented incidents reconstructed in this repository, from three different fields:
 
-- **Software:** [a server reported success for dead tools](docs/postmortems/mock-toolserver.md). Stub tools returned success-shaped payloads, and nobody could say how much of the system was fake.
-- **Aviation:** [a plane thought its passengers were children](docs/postmortems/loadsheet.md). A category guessed from an honorific went into a takeoff-weight calculation as if it were known (AAIB, 2020).
-- **Research:** [a retraction that started as a sign flip](docs/postmortems/signflip.md). An unversioned script inverted published protein structures; five papers were retracted.
+| Field | What happened | What forgot where it came from | |
+| --- | --- | --- | --- |
+| Software | a server reported success for dead tools | stub payloads shaped like real results | [postmortem](docs/postmortems/mock-toolserver.md) |
+| Aviation | a plane thought its passengers were children (AAIB, 2020) | a category guessed from an honorific | [postmortem](docs/postmortems/loadsheet.md) |
+| Research | a retraction that started as a sign flip (five papers) | the output of an unversioned script | [postmortem](docs/postmortems/signflip.md) |
 
 Different fields, same pattern: information lost its status somewhere in the system, and a downstream claim was treated as stronger than its evidence. None of the reconstructions claims plumb-line would have prevented the incident; each shows where the lost status would have been visible.
 
@@ -115,35 +119,33 @@ flowchart TB
   run ~~~ review
 ```
 
-**Run time** is the library above: provenance travels with values inside your own code. **Review time** looks at a repository or a pull request for places where uncertainty got laundered: a mock treated as real, a guess presented as a fact, a claim with nothing behind it. Some of those checks are deterministic: lint rules and git hooks that `plumb-line-bootstrap` installs, and the GitHub Action that runs them in CI. One is LLM-assisted: `plumb-line-audit` reads the code and writes a findings report, and `plumb-line-remediate` applies the findings if you ask it to. Two more skills, `adopt` and `method`, route you in and teach the ideas. Use either layer on its own, or both.
+**Run time** is the library: labels travel with values inside your own code. **Review time** looks at a repository or a pull request for places where a mock was treated as real, a guess as a fact, or a claim has nothing behind it. The lint rules, hooks and the Action are deterministic; `plumb-line-audit` is LLM-assisted and writes a findings report, which `plumb-line-remediate` applies only if you ask. `adopt` and `method` route you in and teach the ideas. Use either layer on its own, or both.
 
 ## What is deterministic, and what is not
 
-The library and its rules are deterministic: the same inputs always produce the same labels, and a [conformance suite](primitives/conformance/) checks that the JavaScript and Python versions behave identically, case by case. The lint rules, hooks and the Action are deterministic too: a rule either fires or it does not, and the [validation results](docs/validation-results.md) show every planted violation caught with no false positives.
+The library is deterministic: the same inputs always produce the same labels, and a [conformance suite](primitives/conformance/) checks that the JavaScript and Python versions behave identically, case by case. So are the lint rules, hooks and the Action: a rule either fires or it does not, and the [validation results](docs/validation-results.md) show every planted violation caught with no false positives.
 
-The audit and remediate skills use an LLM. They are useful reviewers and not authorities, so plumb-line measures them instead of trusting them. Before any release that changes them, they are run blind against test repositories with known violations planted in them and the answers removed. Independent auditors run separately, and a missed violation blocks the release unless a maintainer waives it in writing ([the harness](docs/release-harness.md)). False positives are kept on record too.
+The audit and remediate skills use an LLM. They are useful reviewers and not authorities, so plumb-line measures them instead of trusting them. Before any release that changes them, they run blind against test repositories with known violations planted and the answers removed. Independent auditors run separately, and a missed violation blocks the release unless a maintainer waives it in writing ([the harness](docs/release-harness.md)).
 
-For the v0.10.0 release ([the record](docs/validation-results.md#v0100-release-harness-record--2026-08-19-pre-tag)) that meant six auditors, two per test repository with violations and one per clean one, each given only the skill's instructions, the principles, and a repository with the answers stripped. All six passed: every planted violation found, nothing invented in the clean repositories. The record also keeps what went wrong: one of the six reports failed the formatting check, and had said it could not run that check rather than claiming a clean result.
+For v0.10.0 that meant six auditors, each given only the skill's instructions and a repository with the answers stripped. All six found every planted violation and invented none in the clean repositories ([the record](docs/validation-results.md#v0100-release-harness-record--2026-08-19-pre-tag)). Misses and false positives from earlier releases sit in the same file.
 
 ## It audits itself
 
-Before each of those releases, plumb-line also runs its own audit skill over its own code and publishes what it found in the [dogfooding report](docs/dogfood.md). For v0.10.0 that was six findings, all of them places where the project's own docs promised more than its tooling enforced; four were fixed on the spot and two became tracked issues ([#316](https://github.com/slopstopper/plumb-line/issues/316), [#317](https://github.com/slopstopper/plumb-line/issues/317)). False positives stay in the record. "The auditor found no problem" is never treated as proof that no problem exists.
+Before each of those releases, plumb-line also runs its own audit skill over its own code and publishes what it found in the [dogfooding report](docs/dogfood.md). For v0.10.0: six findings, all places where the project's own docs promised more than its tooling enforced; four fixed on the spot, two tracked as issues ([#316](https://github.com/slopstopper/plumb-line/issues/316), [#317](https://github.com/slopstopper/plumb-line/issues/317)). "The auditor found no problem" is never treated as proof that no problem exists.
 
 ## What plumb-line does not claim
 
 - It does not prove that a value marked `real` is true. It records what the code claimed and stops that claim from being upgraded later.
-- It does not stop a source from lying, or a developer from marking a mock as real. The lint rules make bypasses visible; they cannot make them impossible.
-- It does not make the LLM auditor infallible. Misses and false positives are measured and recorded, and the deterministic checks stand on their own.
-- It does not yet carry provenance across every boundary. The guarantee holds inside one process; surviving serialization, files and HTTP is [planned](#where-this-is-going). The HTTP and dataframe adapters tag data on the way in and carry the labels through the operations they provide; nothing crosses the wire yet.
+- It does not stop a source from lying, or a developer from marking a mock as real. The lint rules make that visible; they cannot make it impossible.
+- It does not make the LLM auditor infallible. Its misses and false positives are measured and recorded.
+- It does not yet carry provenance across every boundary. The guarantee holds inside one process; surviving serialization, files and HTTP is [planned](#where-this-is-going).
 - Python envelopes are tamper-evident: an edit can be detected but not prevented ([threat model](docs/threat-model.md)).
 
 The target is narrow: make it hard for software to turn uncertain information into something that looks certain without anyone noticing.
 
 ## Status
 
-Current on `main`: the run-time library with JS/Python parity, published to npm and PyPI as `plumb-line-provenance`; the golden-baseline library and CLI (Principle 9); the five skills; enforcement adapters for JavaScript and Python; and the GitHub Action with SARIF output. The envelope and the combination law are pinned by a versioned [specification](primitives/SPEC.md) (schema version 2) and the conformance suite. The baseline and the Action are on `main` ahead of the v0.11.0 tag.
-
-Everything beyond that is **planned**. The [roadmap](ROADMAP.md) is the index, the open issues are that roadmap in public ([#311](https://github.com/slopstopper/plumb-line/issues/311)), and the [changelog](CHANGELOG.md) has the per-release detail.
+Current on `main`: the library with JS/Python parity, published to npm and PyPI as `plumb-line-provenance`; the golden-baseline library and CLI; the five skills; enforcement adapters for JavaScript and Python; and the GitHub Action with SARIF output. The envelope and the combination law are pinned by a versioned [specification](primitives/SPEC.md) (schema version 2) and the conformance suite. Everything beyond that is **planned**; the [roadmap](ROADMAP.md) is the index and the [changelog](CHANGELOG.md) has the per-release detail.
 
 ## Where this is going
 
@@ -161,15 +163,6 @@ Everything beyond that is **planned**. The [roadmap](ROADMAP.md) is the index, t
 - Ingestion adapters, optional extras: HTTP ([ADR-0012](docs/adr/0012-ecosystem-adapters-optional-deps-and-mapping.md)) and dataframe ([ADR-0013](docs/adr/0013-dataframe-adapters-explicit-combinators.md))
 - [`reference/portable-principles.md`](reference/portable-principles.md): the nine principles · [`reference/fit-map.md`](reference/fit-map.md): does the library fit your codebase
 - [`docs/adr/`](docs/adr/): architecture decisions, append-only
-
-| Path | What's there |
-| --- | --- |
-| `primitives/` | Run-time library (JS + Python), `SPEC.md`, conformance suite |
-| `skills/` | The five Claude Code skills |
-| `adapters/` | ESLint / import-linter rules, git hooks, the SARIF assembler |
-| `reference/` | Portable principles, fit map, ruleset template |
-| `examples/` | Clean / broken fixtures and the three incident demos |
-| `docs/adr/` | Architecture decision records |
 
 ## Security
 
