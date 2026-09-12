@@ -142,3 +142,21 @@ def test_validate_reports_name_not_matching_filename(tmp_path):
         (tmp_path / 'nightly-rate.json').read_text(encoding='utf-8'), encoding='utf-8')
     code, out = _run('validate', '--dir', str(tmp_path))
     assert code == 1 and '✗ other-name.json' in out and 'does not match the filename' in out
+
+
+def test_validate_json_reports_every_file(tmp_path):
+    import json
+    _seed(tmp_path)
+    (tmp_path / 'broken.json').write_text('{ not json', encoding='utf-8')
+    code, out = _run('validate', '--json', '--dir', str(tmp_path))
+    assert code == 1
+    data = json.loads(out)
+    assert data['dir'] == str(tmp_path) and data['invalid'] == 1
+    assert [f['file'] for f in data['files']] == ['broken.json', 'nightly-rate.json']
+    assert data['files'][0]['issues'][0].startswith('cannot parse') and data['files'][1]['issues'] == []
+
+
+def test_validate_json_missing_dir(tmp_path):
+    import json
+    code, out = _run('validate', '--json', '--dir', str(tmp_path / 'absent'))
+    assert code == 0 and json.loads(out) == {'dir': str(tmp_path / 'absent'), 'files': [], 'invalid': 0}

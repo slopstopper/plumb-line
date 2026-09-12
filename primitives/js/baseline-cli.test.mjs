@@ -91,6 +91,32 @@ describe("baseline-cli", () => {
     expect(code).toBe(2);
     expect(out).toContain('usage: baseline <list|show <name>|validate> [--dir D]');
   });
+  // `dir` is shared across every test in this describe block (broken.json was
+  // already written by "validate passes clean files and names broken ones"
+  // above), so this asserts containment/shape rather than an exact two-element
+  // `files` list — a hard-coded list would be brittle against that shared state.
+  it("validate --json reports every file", () => {
+    writeFileSync(join(dir, "broken.json"), "{ not json");
+    const { code, out } = run("validate", "--json", "--dir", dir);
+    expect(code).toBe(1);
+    const data = JSON.parse(out);
+    expect(data.dir).toBe(dir);
+    expect(data.invalid).toBeGreaterThanOrEqual(1);
+    const names = data.files.map((f) => f.file);
+    expect(names).toContain("broken.json");
+    expect(names).toContain("nightly-rate.json");
+    expect(names).toEqual([...names].sort());
+    const broken = data.files.find((f) => f.file === "broken.json");
+    const nightly = data.files.find((f) => f.file === "nightly-rate.json");
+    expect(broken.issues[0]).toMatch(/^cannot parse/);
+    expect(nightly.issues).toEqual([]);
+  });
+  it("validate --json on a missing directory", () => {
+    const absent = join(dir, "absent");
+    const { code, out } = run("validate", "--json", "--dir", absent);
+    expect(code).toBe(0);
+    expect(JSON.parse(out)).toEqual({ dir: absent, files: [], invalid: 0 });
+  });
 });
 
 describe("baseline-cli direct", () => {
