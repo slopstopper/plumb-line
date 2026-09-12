@@ -1,0 +1,1 @@
+{ "enforcement-format": "v1", "languages": ["js"], "js": { "boundary": { "config": "eslint.config.cjs" } } }

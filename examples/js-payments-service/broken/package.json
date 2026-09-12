@@ -1,0 +1,2 @@
+{ "name": "js-payments-service-fixture", "private": true, "type": "commonjs",
+  "devDependencies": { "eslint": "^10.10.0", "eslint-plugin-import-x": "^4.0.0" } }
