@@ -9,13 +9,15 @@ Every outcome is a named state — ran | not-enforced | tool-missing | errored �
 and the step summary states the denominators, so an empty green is legible
 as empty, never as clean.
 
-    python3 adapters/sarif/run_checks.py --root . --manifest .plumb-line/enforcement.json \
+    python3 adapters/sarif/run_checks.py --root . [--workspace <checkout root>] \
+        --manifest .plumb-line/enforcement.json \
         --scripts-dir <plumb-line checkout> --fail-on findings|none \
         --sarif out.sarif --summary summary.json [--step-summary $GITHUB_STEP_SUMMARY] --version <tag>
 """
 import argparse
 import json
 import os
+import posixpath
 import shutil
 import subprocess
 import sys
@@ -107,9 +109,16 @@ def _looks_unparsed(parsed, out):
 
 
 def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, step_summary_path=None,
-        version="dev", runner=None):
+        version="dev", runner=None, workspace=None):
+    """workspace: the checkout root (GitHub resolves %SRCROOT% as the
+    repository root). The tools run in `root`, and every result's file is
+    re-based from root to workspace — a monorepo subroot's findings would
+    otherwise point at paths that do not exist at the repository root.
+    Defaults to root, i.e. no prefix."""
     runner = runner or _default_runner
     which = getattr(runner, "which", _which)
+    workspace = workspace or root
+    prefix = os.path.relpath(root, workspace).replace(os.sep, "/")
     manifest, issues = load_manifest(manifest_path, root)
     if manifest is None:
         for i in issues:
@@ -157,9 +166,11 @@ def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, ste
             parsed = [r for r in parsed if r["ruleId"] == "PL/untagged-output"]
         for r in parsed:
             r["capability"] = key
+            if prefix != "." and r.get("file"):
+                r["file"] = posixpath.join(prefix, r["file"])
         results.extend(parsed)
         states[key] = ("ran", parser, None)
-    log = A.build_sarif(results, version)
+    log = A.build_sarif(results, version, src_root=workspace)
     os.makedirs(os.path.dirname(os.path.abspath(sarif_path)), exist_ok=True)
     with open(sarif_path, "w", encoding="utf-8") as fh:
         json.dump(log, fh, indent=2)
@@ -179,6 +190,8 @@ def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, ste
 def main(argv=None):
     ap = argparse.ArgumentParser(description="run plumb-line enforcement and emit SARIF")
     ap.add_argument("--root", default=".")
+    ap.add_argument("--workspace", default=None,
+                    help="the checkout root results are made relative to (default: --root)")
     ap.add_argument("--manifest", default=os.path.join(".plumb-line", "enforcement.json"))
     ap.add_argument("--scripts-dir", default=_ROOT)
     ap.add_argument("--fail-on", choices=["findings", "none"], default="findings")
@@ -187,10 +200,14 @@ def main(argv=None):
     ap.add_argument("--step-summary", default=os.environ.get("GITHUB_STEP_SUMMARY"))
     ap.add_argument("--version", default="dev")
     a = ap.parse_args(argv)
-    root = os.path.abspath(a.root)
+    # realpath, not abspath: ESLint and node report the PHYSICAL cwd, and
+    # _rel strips root by string prefix — a symlinked root (macOS /var ->
+    # /private/var) would otherwise leave every path absolute.
+    root = os.path.realpath(a.root)
+    workspace = os.path.realpath(a.workspace) if a.workspace else root
     manifest = a.manifest if os.path.isabs(a.manifest) else os.path.join(root, a.manifest)
     return run(root, manifest, os.path.abspath(a.scripts_dir), a.fail_on, a.sarif, a.summary,
-               a.step_summary, a.version)
+               a.step_summary, a.version, workspace=workspace)
 
 
 if __name__ == "__main__":

@@ -32,6 +32,9 @@ outputs:
   summary-file:
     description: The summary JSON path.
     value: ${{ runner.temp }}/plumb-line-summary.json
+  category:
+    description: "The code-scanning category the SARIF uploads under: `plumb-line`, or `plumb-line/<root>` for a non-`.` root."
+    value: ${{ steps.run.outputs.category }}
 
 runs:
   using: composite
@@ -54,6 +57,12 @@ runs:
         PL_VERSION: ${{ github.action_ref }}
       run: |
         set +e
+        # One code-scanning category per root: two roots in one workflow
+        # upload for the same commit, and a shared category would make the
+        # later upload replace the earlier one's alerts.
+        sub="${PL_SUBROOT#./}"; sub="${sub%/}"
+        if [ -z "$sub" ] || [ "$sub" = "." ]; then cat="plumb-line"; else cat="plumb-line/$sub"; fi
+        echo "category=$cat" >> "$GITHUB_OUTPUT"
         # Under `set +e`, a failing realpath would otherwise leave the
         # substitution empty and silently point --root at the workspace
         # root — guard it explicitly and bail out (still exit 0: the final
@@ -64,8 +73,11 @@ runs:
         # A stale file from an earlier invocation must never read as this
         # run's output — sarif_written below means written by THIS run.
         rm -f "$PL_SARIF" "$PL_SUMMARY"
+        # --workspace: the tools run in the root, but code scanning resolves
+        # every URI against the repository root, so results are re-based.
         python3 "$PL_SCRIPTS/adapters/sarif/run_checks.py" \
-          --root "$PL_ABS_ROOT" --manifest "$PL_MANIFEST" --scripts-dir "$PL_SCRIPTS" \
+          --root "$PL_ABS_ROOT" --workspace "$PL_ROOT" \
+          --manifest "$PL_MANIFEST" --scripts-dir "$PL_SCRIPTS" \
           --fail-on "$PL_FAIL_ON" --sarif "$PL_SARIF" --summary "$PL_SUMMARY" \
           --step-summary "$GITHUB_STEP_SUMMARY" --version "${PL_VERSION:-dev}"
         echo "code=$?" >> "$GITHUB_OUTPUT"
@@ -79,7 +91,7 @@ runs:
       continue-on-error: true
       with:
         sarif_file: ${{ inputs.sarif-file }}
-        category: plumb-line
+        category: ${{ steps.run.outputs.category }}
     - name: enforcement — exit with the run's code
       shell: bash
       env:

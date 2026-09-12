@@ -68,7 +68,7 @@ sha on this repository instead.
 | Input | Default | Meaning |
 | --- | --- | --- |
 | `manifest` | `.plumb-line/enforcement.json` | Path to the enforcement manifest, relative to `root`. |
-| `root` | `.` | For monorepos: the consumer root within the checkout. |
+| `root` | `.` | For monorepos: the consumer root within the checkout. The tools run there, but every result is repository-relative (`<root>/src/x.js`, resolved against `%SRCROOT%` = the checkout), and each root uploads under its own category (`plumb-line/<root>`; `plumb-line` for `.`), so two roots in one workflow never replace each other's alerts. |
 | `fail-on` | `findings` | `findings` fails the job on any result; `none` is advisory — the SARIF still uploads (the seam the ratchet, GH #119, will use). |
 | `sarif-file` | `${{ runner.temp }}/plumb-line.sarif` | Where the SARIF log is written. |
 | `upload` | `true` | Upload to code scanning (needs `security-events: write`). `false` still writes the file. |
@@ -86,6 +86,12 @@ checkout`), and writes no SARIF.
 | --- | --- | --- |
 | `sarif-file` | echoes the `sarif-file` input | The SARIF log path. |
 | `summary-file` | `${{ runner.temp }}/plumb-line-summary.json` (fixed — not configurable by an input) | The summary JSON path. |
+| `category` | `plumb-line`, or `plumb-line/<root>` when `root` is not `.` | The code-scanning category the SARIF uploads under. |
+
+The summary path is fixed, so two runs of the Action in one *job* (two
+roots) overwrite it: set `sarif-file` per run — the SARIF logs and the
+upload categories stay distinct — and read `summary-file` knowing it is
+the last run's.
 
 ## Tools
 

@@ -251,6 +251,68 @@ def test_step_summary_is_appended_not_overwritten(tmp_path):
     assert len(headers) == 2
 
 
+# ---------- final review I1 (+M1, M9): a subroot's results are workspace-relative ----------
+
+def test_subroot_results_are_workspace_relative_and_srcroot_is_the_workspace(tmp_path):
+    import pathlib
+    # root = <tmp>/packages/repo, workspace = <tmp>: code scanning resolves
+    # %SRCROOT% as the repository root, so a monorepo subroot's URIs must
+    # carry the subroot prefix or every alert points at a path that isn't there.
+    root = _consumer(tmp_path / "packages", {"enforcement-format": "v1", "languages": ["js"],
+                                             "js": {"boundary": {"config": "eslint-boundary.cjs"}}})
+    payload = json.dumps([{"filePath": os.path.join(root, "src", "a.js"),
+                           "messages": [{"ruleId": "import/no-restricted-paths", "severity": 2,
+                                        "message": "up", "line": 1, "column": 1}]}])
+    fake = FakeRunner({"eslint": (1, payload, "")})
+    p = _paths(tmp_path)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 runner=fake, version="t", workspace=str(tmp_path), **p)
+    assert code == 1
+    run = json.load(open(p["sarif_path"]))["runs"][0]
+    uris = [r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] for r in run["results"]]
+    assert uris == ["packages/repo/src/a.js"]
+    assert run["originalUriBaseIds"] == {"%SRCROOT%": {"uri": pathlib.Path(tmp_path).as_uri() + "/"}}
+    assert all(cwd == root for _, cwd in fake.calls)  # the tools still run in the subroot
+
+
+def test_workspace_defaults_to_root_so_uris_are_root_relative(tmp_path):
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["js"],
+                                "js": {"boundary": {"config": "eslint-boundary.cjs"}}})
+    payload = json.dumps([{"filePath": os.path.join(root, "src", "a.js"),
+                           "messages": [{"ruleId": "import/no-restricted-paths", "severity": 2,
+                                        "message": "up", "line": 1, "column": 1}]}])
+    p = _paths(tmp_path)
+    R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+          runner=FakeRunner({"eslint": (1, payload, "")}), version="t", **p)
+    run = json.load(open(p["sarif_path"]))["runs"][0]
+    assert run["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "src/a.js"
+    assert run["originalUriBaseIds"]["%SRCROOT%"]["uri"].endswith("/repo/")
+
+
+def test_main_realpaths_root_and_workspace_and_defaults_workspace_to_root(tmp_path, monkeypatch):
+    # ESLint and node report the PHYSICAL cwd, so a symlinked --root (macOS
+    # /var -> /private/var) must be resolved before _rel strips it (M9).
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real, target_is_directory=True)
+    seen = {}
+
+    def fake_run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path,
+                 step_summary_path=None, version="dev", runner=None, workspace=None):
+        seen.update(root=root, manifest=manifest_path, workspace=workspace)
+        return 0
+    monkeypatch.setattr(R, "run", fake_run)
+    R.main(["--root", str(link), "--sarif", str(tmp_path / "o.sarif"), "--summary", str(tmp_path / "s.json")])
+    assert seen["root"] == os.path.realpath(str(real)) and seen["workspace"] == seen["root"]
+    assert seen["manifest"] == os.path.join(seen["root"], ".plumb-line", "enforcement.json")
+    ws_link = tmp_path / "ws-link"
+    ws_link.symlink_to(tmp_path, target_is_directory=True)
+    R.main(["--root", str(link), "--workspace", str(ws_link),
+            "--sarif", str(tmp_path / "o.sarif"), "--summary", str(tmp_path / "s.json")])
+    assert seen["workspace"] == os.path.realpath(str(tmp_path))
+
+
 def test_end_to_end_over_the_planted_fixtures(tmp_path):
     """The only test that proves the mapping matches what the real tools emit.
     Skipped, loudly, if a tool is not installed locally — CI installs both."""
@@ -276,3 +338,15 @@ def test_end_to_end_over_the_planted_fixtures(tmp_path):
         code = R.run(clean, os.path.join(clean, ".plumb-line", "enforcement.json"), _ROOT, "findings",
                      version="t", **p)
         assert code == 0, (fixture, open(p["step_summary_path"]).read())
+    # I1: run one fixture as a subroot of this checkout (the way ci.yml's
+    # `root:` input does) — every located result must carry the subroot
+    # prefix, so code scanning resolves it against the repository root.
+    root = os.path.join(_ROOT, "examples", "js-payments-service", "broken")
+    p = _paths(tmp_path / "subroot")
+    os.makedirs(os.path.dirname(p["sarif_path"]), exist_ok=True)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
+                 version="t", workspace=_ROOT, **p)
+    results = json.load(open(p["sarif_path"]))["runs"][0]["results"]
+    uris = [r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] for r in results if "locations" in r]
+    assert code == 1 and uris and all(u.startswith("examples/js-payments-service/broken/") for u in uris), uris
+    assert len(uris) == len(results), "every fixture result carries a location"

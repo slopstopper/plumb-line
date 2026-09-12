@@ -251,6 +251,17 @@ def test_parse_baseline_non_string_issues_is_unparsed_not_raise():
     assert len(r) == 1 and r[0]["ruleId"] == "PL/unparsed"
 
 
+# ---------- final review I1/M1: %SRCROOT% is the workspace, or absent ----------
+
+def test_build_sarif_original_uri_base_ids_is_the_workspace_or_omitted(tmp_path):
+    import pathlib
+    results = A.parse_eslint(_fx("eslint-boundary.json"), root="/repo")
+    with_root = A.build_sarif(results, version="x", src_root=str(tmp_path))["runs"][0]
+    assert with_root["originalUriBaseIds"] == {"%SRCROOT%": {"uri": pathlib.Path(tmp_path).as_uri() + "/"}}
+    # No workspace known: say nothing rather than assert file:/// (wrong for every viewer but GitHub).
+    assert "originalUriBaseIds" not in A.build_sarif(results, version="x")["runs"][0]
+
+
 # ---------- fix round 1: minors (singular "finding") ----------
 
 def test_summary_text_singularises_one_finding():

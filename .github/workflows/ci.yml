@@ -206,18 +206,26 @@ jobs:
       - name: assert the expected outcome
         env:
           SUMMARY: ${{ steps.pl.outputs.summary-file }}
+          CATEGORY: ${{ steps.pl.outputs.category }}
           TREE: ${{ matrix.tree }}
+          SUBROOT: examples/${{ matrix.fixture }}/${{ matrix.tree }}
         run: |
-          python3 - "$SUMMARY" "$TREE" <<'EOF'
+          python3 - "$SUMMARY" "$TREE" "$CATEGORY" "$SUBROOT" <<'EOF'
           import json, os, sys
-          s = json.load(open(sys.argv[1])); tree = sys.argv[2]
+          s = json.load(open(sys.argv[1])); tree, category, subroot = sys.argv[2:5]
           states = {k: v["state"] for k, v in s["capabilities"].items()}
           assert states, "no capabilities ran — the manifest enforces nothing"
           assert all(v == "ran" for v in states.values()), states
           assert os.path.isabs(s["sarif"]) and os.path.isfile(s["sarif"]), s["sarif"]
+          # One category per root, so a second root's upload never replaces this one's alerts.
+          assert category == "plumb-line/" + subroot, category
+          # Results are repository-relative: every located URI carries the subroot.
+          results = json.load(open(s["sarif"]))["runs"][0]["results"]
+          uris = [r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] for r in results if "locations" in r]
+          assert all(u.startswith(subroot + "/") for u in uris), uris
           if tree == "broken":
-              assert s["findings"] >= 1, s
+              assert s["findings"] >= 1 and uris, s
           else:
               assert s["findings"] == 0, s
-          print("ok:", states, "findings", s["findings"])
+          print("ok:", states, "findings", s["findings"], "category", category)
           EOF

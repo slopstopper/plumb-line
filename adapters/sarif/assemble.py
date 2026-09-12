@@ -260,7 +260,13 @@ def parse_import_linter(text, root, root_package):
 
 # ---------- SARIF ----------
 
-def build_sarif(results, version):
+def build_sarif(results, version, src_root=None):
+    """src_root: the checkout every result's `file` is relative to. When
+    given, %SRCROOT% is declared as that directory's file: URI so viewers
+    other than GitHub (which resolves %SRCROOT% itself) can open the files;
+    when None, originalUriBaseIds is omitted rather than asserting a base
+    the assembler does not know."""
+    import pathlib
     rule_ids = list(RULES)
     rules = [{"id": rid, "name": r["name"], "shortDescription": {"text": r["shortDescription"]},
               "helpUri": r["helpUri"], "defaultConfiguration": {"level": r["level"]}}
@@ -280,11 +286,12 @@ def build_sarif(results, version):
                 phys["region"] = region
             item["locations"] = [{"physicalLocation": phys}]
         out.append(item)
-    return {"$schema": SARIF_SCHEMA, "version": SARIF_VERSION,
-            "runs": [{"tool": {"driver": {"name": "plumb-line", "version": version,
-                                          "informationUri": _REPO, "rules": rules}},
-                      "originalUriBaseIds": {"%SRCROOT%": {"uri": "file:///"}},
-                      "results": out}]}
+    run = {"tool": {"driver": {"name": "plumb-line", "version": version,
+                               "informationUri": _REPO, "rules": rules}}}
+    if src_root is not None:
+        run["originalUriBaseIds"] = {"%SRCROOT%": {"uri": pathlib.Path(os.path.abspath(src_root)).as_uri() + "/"}}
+    run["results"] = out
+    return {"$schema": SARIF_SCHEMA, "version": SARIF_VERSION, "runs": [run]}
 
 
 # ---------- summary ----------
