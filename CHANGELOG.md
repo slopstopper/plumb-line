@@ -64,8 +64,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   reference section that links into `primitives/README.md`, `SPEC.md` and
   `ACTION.md`. Badges sit where their claim is discussed: version, CI and
   license at the top, the OpenSSF and Socket badges under Security, the
-  decorative ones gone. No claim changed maturity; the Status paragraph is
-  the same set of `current` facts in fewer words. Repo description and topics
+  decorative ones gone. One claim changed maturity, upward and on evidence:
+  the golden-baseline CLI (#117, closed 2026-09-11) moves from the planned
+  list to current on `main`. The rest of the Status paragraph is the same set
+  of `current` facts in fewer words. Repo description and topics
   refreshed to match. `ROADMAP.md`'s milestone list caught up with the
   third renumber ([#378](https://github.com/slopstopper/plumb-line/issues/378)):
   v0.10.0 shipped as *Pay down the ledger*, so *Honest over time* is v0.11.0

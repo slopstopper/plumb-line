@@ -157,8 +157,9 @@ Version themes for the near-term releases, and the GitHub issues under each.
   packages (the #208/#209/#216 audit and adapter fixes, the #293 audit-skill
   format fix), release tooling (#268), doc-honesty riders (#267, #270), the
   deferral batch assigned at scoping, and the first portable-beyond-Claude
-  slice (#303: skills executable by non-Claude agents). The
-  [changelog](CHANGELOG.md) has the per-item detail.
+  slice (#303 slice 1: the host-neutral entry point; a measured non-Claude
+  run stays planned, #313). The [changelog](CHANGELOG.md) has the per-item
+  detail.
 
 - **v0.11.0 — Honest over time** (P9 tooling + CI-native) · *renumbered from
   v0.8.0, then from v0.9.0, then from v0.10.0 (see the numbering note).* Principle 9 finally gets an implementation: `plumb-line baseline`
@@ -168,10 +169,9 @@ Version themes for the near-term releases, and the GitHub issues under each.
   adoption on legacy codebases (#26 / GH #119, deps #1, closed in v0.7.0). Also
   takes the bundle vendor-set enumeration footgun (GH #157), which needs a
   glob-vs-enumerate ADR rather than a scope-filler fix. Deterministic-only, no
-  wire-format dependency. Also picks up the second half of bootstrap Step 4c —
-  the step describes an offer the skill cannot carry out (GH #228) alongside
-  the already-scheduled missing install step (GH #214); they are one piece of
-  code and belong in one milestone. Plus the board auto-add chore (GH #230),
+  wire-format dependency. The second half of bootstrap Step 4c (GH #228) and
+  the missing install step (GH #214) were scheduled here as one piece of code
+  and shipped early, in v0.10.0. Plus the board auto-add chore (GH #230),
   which is repo infrastructure rather than shipped surface but has to carry a
   milestone under the one-of-two rule. (The Node floor resolution, GH #233,
   moved on from here to v0.9.0 — The front door, the next minor to ship.)
@@ -186,13 +186,9 @@ Version themes for the near-term releases, and the GitHub issues under each.
   decisions this milestone has to settle anyway: the `http.py` stdlib-shadow
   rename (GH #171, which breaks the documented flat copy-paste path) and the
   wrapper/`mark` default `source='derived'` producing an audit-dirty leaf
-  (GH #177, inherited from the primitive's own default). Also takes the
-  `check_report_format.py` cluster — the validator shipped in v0.8.0, now with
-  four findings against it: it accepts any principles-revision without
-  comparing it to the ruleset (GH #220), records nothing about what produced
-  its own output (GH #221), checks the record's Action column but not its
-  Class column (GH #222), and keeps six copies of lists the skills already
-  define (GH #223). One file, one unit of work.
+  (GH #177, inherited from the primitive's own default). The
+  `check_report_format.py` cluster once scheduled here (GH #220–#223: the
+  validator's own four findings) was pulled forward and closed under v0.11.0.
 
 - **v1.0.0 — A contract you can build on** (no due date; sequenced after
   v0.12.0; gated on state, not a date).
@@ -323,21 +319,27 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
 2. ~~**Now:** v0.8.1~~ — **shipped 2026-08-14**, four fix-only
    claim-enforcement gaps drained (the fifth, GH #233, rides v0.9.0 — see the
    milestone note).
-3. **Now:** v0.9.0 — The front door (distribution: adopt skill + fit-map,
-   README pass, snippet guard, Node floor). Sequenced ahead because the adopt
-   skill is finished, user-facing, and must not sit behind a stale tag.
+3. ~~**Now:** v0.9.0~~ — **shipped 2026-08-15**, 5 issues closed (The front
+   door: adopt skill + fit-map, README pass, snippet guard, Node floor).
+   Sequenced ahead because the adopt skill was finished, user-facing, and must
+   not sit behind a stale tag.
 4. **After the v0.9.0 tag, before any P9 (now v0.11.0) work:** the outreach automation
    engine (GH #260: #255 release-to-content first, run on the fresh v0.9.0
    release as its first live input, then #256 watcher, #257 digest), then
    GH #128 in the same distribution lane. Owner-sequenced 2026-08-15,
    recorded on #260: the renumber made distribution the current phase, and
    the engine is part of it — the milestones only track versioned scope, so
-   this ordering lives here and on the parent issue.
-5. **Next:** v0.11.0 (P9 tooling + CI-native). No wire dependency; #119's
-   prerequisite (#1 / GH #91) closed in v0.7.0, so the milestone is unblocked.
-6. **Then:** v0.12.0 — sequenced after wire v2 so the envelope fields it adds
+   this ordering lives here and on the parent issue. Status: #255 and #256
+   shipped in v0.10.0; #257 and #128 open.
+5. ~~v0.10.0~~ — **shipped 2026-08-19**, 12 issues closed (Pay down the
+   ledger: the integrity fixes and the small-issue sweep, taking the number the
+   P9 milestone had held — see the numbering note).
+6. **Next:** v0.11.0 (P9 tooling + CI-native). No wire dependency; #119's
+   prerequisite (#1 / GH #91) closed in v0.7.0, so the milestone is unblocked;
+   the baseline CLI (#117) and the Action (#118) are on `main` ahead of the tag.
+7. **Then:** v0.12.0 — sequenced after wire v2 so the envelope fields it adds
    are settled.
-7. **After that:** v1.0.0 — the coverage guarantee, the API-surface
+8. **After that:** v1.0.0 — the coverage guarantee, the API-surface
    definition (GH #236) that everything else freezes against, canonical
    serialization (GH #124), and the last-call breaking-change pass (GH #239,
    after #236). No due date; gated on state, not on a date.
