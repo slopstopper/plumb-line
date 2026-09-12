@@ -132,3 +132,129 @@ def test_summary_text_states_the_denominators():
     text = A.summary_text(s)
     assert "1 check ran, 1 not enforced here, 1 tool missing, 1 errored; 0 findings" in text
     assert "fail-on: none" in text
+
+
+# ---------- fix round 1 (task review): import-linter multi-line / structural headings ----------
+
+def test_parse_import_linter_joins_multiple_line_numbers():
+    text = ("Contracts: 0 kept, 1 broken.\n"
+            "\n"
+            "Broken contracts\n"
+            "----------------\n"
+            "\n"
+            "src.data is not allowed to import src.ui:\n"
+            "\n"
+            "- src.data.schema -> src.ui.report (l.7, l.12)\n")
+    r = A.parse_import_linter(text, root="/repo", root_package="src")
+    assert [x["ruleId"] for x in r] == ["PL/boundary", "PL/boundary"]
+    assert [x["line"] for x in r] == [7, 12]
+    assert r[0]["message"] == r[1]["message"] == "src.data.schema -> src.ui.report: src.data is not allowed to import src.ui"
+
+
+def test_parse_import_linter_unknown_line_is_none():
+    text = ("Contracts: 0 kept, 1 broken.\n"
+            "\n"
+            "Broken contracts\n"
+            "----------------\n"
+            "\n"
+            "src.data is not allowed to import src.ui:\n"
+            "\n"
+            "- src.data.schema -> src.ui.report (l.?)\n")
+    r = A.parse_import_linter(text, root="/repo", root_package="src")
+    assert len(r) == 1
+    assert r[0]["ruleId"] == "PL/boundary" and r[0]["line"] is None
+
+
+def test_parse_import_linter_two_violations_under_one_header():
+    text = ("Contracts: 0 kept, 1 broken.\n"
+            "\n"
+            "Broken contracts\n"
+            "----------------\n"
+            "\n"
+            "src.data is not allowed to import src.ui:\n"
+            "\n"
+            "- src.data.schema -> src.ui.report (l.7)\n"
+            "- src.data.other -> src.ui.report (l.12)\n")
+    r = A.parse_import_linter(text, root="/repo", root_package="src")
+    assert [x["ruleId"] for x in r] == ["PL/boundary", "PL/boundary"]
+    assert [x["line"] for x in r] == [7, 12]
+    assert r[0]["message"] == "src.data.schema -> src.ui.report: src.data is not allowed to import src.ui"
+    assert r[1]["message"] == "src.data.other -> src.ui.report: src.data is not allowed to import src.ui"
+
+
+def test_parse_import_linter_arbitrary_contract_name_not_unparsed():
+    text = ("Contracts: 0 kept, 1 broken.\n"
+            "\n"
+            "Broken contracts\n"
+            "----------------\n"
+            "\n"
+            "My layers\n"
+            "---------\n"
+            "\n"
+            "src.data is not allowed to import src.ui:\n"
+            "\n"
+            "- src.data.schema -> src.ui.report (l.7)\n")
+    r = A.parse_import_linter(text, root="/repo", root_package="src")
+    assert [x["ruleId"] for x in r] == ["PL/boundary"]
+    assert not any("My layers" in x["message"] for x in r)
+
+
+def test_parse_import_linter_broken_count_with_no_violations_is_unparsed():
+    text = ("Contracts: 0 kept, 1 broken.\n"
+            "\n"
+            "Broken contracts\n"
+            "----------------\n")
+    r = A.parse_import_linter(text, root="/repo", root_package="src")
+    assert r == [A.unparsed("Contracts: 1 broken reported but no violation line was recognised", "import-linter")]
+
+
+# ---------- fix round 1: JSON parsers must be total (never [] or raise on bad shape) ----------
+
+def test_parse_eslint_non_list_json_is_unparsed():
+    r = A.parse_eslint("{}", root="/repo")
+    assert len(r) == 1 and r[0]["ruleId"] == "PL/unparsed"
+
+
+def test_parse_provenance_lint_non_list_json_is_unparsed():
+    r = A.parse_provenance_lint("null", root="/repo")
+    assert len(r) == 1 and r[0]["ruleId"] == "PL/unparsed"
+
+
+def test_parse_baseline_non_dict_json_is_unparsed():
+    r = A.parse_baseline("[]", root="/repo")
+    assert len(r) == 1 and r[0]["ruleId"] == "PL/unparsed"
+
+
+def test_parse_eslint_non_dict_entry_is_unparsed_not_raise():
+    r = A.parse_eslint(json.dumps(["x"]), root="/repo")
+    assert len(r) == 1 and r[0]["ruleId"] == "PL/unparsed"
+
+
+def test_parse_eslint_null_messages_is_unparsed_not_raise():
+    r = A.parse_eslint(json.dumps([{"messages": None}]), root="/repo")
+    assert len(r) == 1 and r[0]["ruleId"] == "PL/unparsed"
+
+
+def test_parse_provenance_lint_non_dict_entry_is_unparsed_not_raise():
+    r = A.parse_provenance_lint(json.dumps([1]), root="/repo")
+    assert len(r) == 1 and r[0]["ruleId"] == "PL/unparsed"
+
+
+def test_parse_baseline_entry_missing_file_is_unparsed_not_raise():
+    r = A.parse_baseline(json.dumps({"dir": "/repo/x", "files": [{"issues": ["boom"]}]}), root="/repo")
+    assert len(r) == 1 and r[0]["ruleId"] == "PL/unparsed"
+
+
+def test_parse_baseline_non_string_issues_is_unparsed_not_raise():
+    r = A.parse_baseline(json.dumps({"dir": "/repo/x", "files": [{"file": "x.json", "issues": [123]}]}), root="/repo")
+    assert len(r) == 1 and r[0]["ruleId"] == "PL/unparsed"
+
+
+# ---------- fix round 1: minors (singular "finding") ----------
+
+def test_summary_text_singularises_one_finding():
+    states = {"js.boundary": ("ran", "json", None)}
+    s = A.build_summary(states, [A.tool_missing("python.boundary", "x")], fail_on="none", sarif_path="/tmp/x.sarif")
+    text = A.summary_text(s)
+    assert "1 finding (" in text
+    assert "1 findings" not in text

@@ -63,7 +63,8 @@ _ESLINT_RULE = {
 }
 _PB = re.compile(r"^PB([1-4])\b")
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
-_IL_VIOLATION = re.compile(r"^- (?P<importer>[\w.]+) -> (?P<imported>[\w.]+) \(l\.(?P<line>\d+)\)$")
+_IL_VIOLATION = re.compile(r"^- (?P<importer>[\w.]+) -> (?P<imported>[\w.]+) \((?P<lines>l\.[^)]*)\)$")
+_IL_LINENO = re.compile(r"l\.(\d+|\?)")
 _IL_HEADER = re.compile(r"^(?P<a>[\w.]+) is not allowed to import (?P<b>[\w.]+):$")
 _IL_SUMMARY = re.compile(r"^Contracts: (?P<kept>\d+) kept, (?P<broken>\d+) broken\.$")
 
@@ -73,8 +74,9 @@ def result(rule_id, message, file=None, line=None, column=None, tool="action", p
             "file": file, "line": line, "column": column, "tool": tool, "parser": parser}
 
 
-def unparsed(line, tool):
-    return result("PL/unparsed", f"unparsed {tool} output: {line}", tool=tool, parser="text")
+def unparsed(text, tool, *, file=None, line=None, column=None, parser="text"):
+    return result("PL/unparsed", f"unparsed {tool} output: {text}", file=file, line=line,
+                  column=column, tool=tool, parser=parser)
 
 
 def tool_missing(capability, hint):
@@ -102,8 +104,15 @@ def parse_eslint(text, root):
         files = json.loads(text)
     except ValueError:
         return [unparsed(text.strip()[:200], "eslint")]
+    if not isinstance(files, list):
+        # Valid JSON, wrong shape (object/null/number/...): a shape change
+        # must never read as "no findings" — see parse_provenance_lint/parse_baseline.
+        return [unparsed(text.strip()[:200], "eslint")]
     out = []
-    for f in files if isinstance(files, list) else []:
+    for f in files:
+        if not isinstance(f, dict) or not isinstance(f.get("messages", []), list):
+            out.append(unparsed(json.dumps(f)[:200], "eslint"))
+            continue
         for m in f.get("messages", []):
             rid = m.get("ruleId")
             mapped = _ESLINT_RULE.get(rid, "missing")
@@ -111,8 +120,9 @@ def parse_eslint(text, root):
                 pb = _PB.match(m.get("message", ""))
                 mapped = f"PL/PB{pb.group(1)}" if pb else "missing"
             if mapped == "missing":
-                out.append(unparsed(f"{rid}: {m.get('message', '')}", "eslint"))
-                out[-1].update(file=_rel(f.get("filePath"), root), line=_line(m.get("line")), column=_line(m.get("column")), parser="json")
+                out.append(unparsed(f"{rid}: {m.get('message', '')}", "eslint",
+                                    file=_rel(f.get("filePath"), root), line=_line(m.get("line")),
+                                    column=_line(m.get("column")), parser="json"))
                 continue
             out.append(result(mapped, m.get("message", ""), file=_rel(f.get("filePath"), root),
                               line=_line(m.get("line")), column=_line(m.get("column")), tool="eslint"))
@@ -124,17 +134,21 @@ def parse_provenance_lint(text, root):
         issues = json.loads(text)
     except ValueError:
         return [unparsed(text.strip()[:200], "provenance_lint")]
+    if not isinstance(issues, list):
+        return [unparsed(text.strip()[:200], "provenance_lint")]
     out = []
-    for i in issues if isinstance(issues, list) else []:
+    for i in issues:
+        if not isinstance(i, dict):
+            out.append(unparsed(json.dumps(i)[:200], "provenance_lint"))
+            continue
         rule = i.get("rule", "")
         if rule in ("PB1", "PB2", "PB3", "PB4"):
             rid = "PL/" + rule
         elif rule == "REQ-OUTPUT":
             rid = "PL/untagged-output"
         else:
-            r = unparsed(f"{rule}: {i.get('message', '')}", "provenance_lint")
-            r.update(file=_rel(i.get("filename"), root), line=_line(i.get("line")), parser="json")
-            out.append(r)
+            out.append(unparsed(f"{rule}: {i.get('message', '')}", "provenance_lint",
+                                file=_rel(i.get("filename"), root), line=_line(i.get("line")), parser="json"))
             continue
         out.append(result(rid, i.get("message", ""), file=_rel(i.get("filename"), root),
                           line=_line(i.get("line")), tool="provenance_lint"))
@@ -146,9 +160,18 @@ def parse_baseline(text, root):
         data = json.loads(text)
     except ValueError:
         return [unparsed(text.strip()[:200], "baseline")]
+    if not isinstance(data, dict):
+        return [unparsed(text.strip()[:200], "baseline")]
     out = []
     d = _rel(data.get("dir"), root) or ""
     for f in data.get("files", []):
+        if (not isinstance(f, dict) or not isinstance(f.get("file"), str)
+                or not isinstance(f.get("issues", []), list)
+                or not all(isinstance(x, str) for x in f.get("issues", []))):
+            # Malformed entry (no dict / no "file" string / non-list or
+            # non-string "issues"): report it, don't KeyError/TypeError.
+            out.append(unparsed(json.dumps(f)[:200], "baseline"))
+            continue
         if f.get("issues"):
             out.append(result("PL/baseline-invalid", "; ".join(f["issues"]),
                               file=(d + "/" if d else "") + f["file"], tool="baseline"))
@@ -169,19 +192,39 @@ def parse_import_linter(text, root, root_package):
     """import-linter 2.x text report -> results. `partial`: the report is not
     a versioned contract; anything unrecognised in the Broken contracts
     section becomes PL/unparsed, and a report with no Contracts: summary line
-    is one PL/unparsed result for the whole text."""
+    is one PL/unparsed result for the whole text.
+
+    Section headings (the contract-name line under "Broken contracts", e.g.
+    "plumb-line one-way layering" or a user-chosen contract name) are
+    recognised structurally — a non-blank line immediately followed by a
+    dash-only line — never by matching a hardcoded name/prefix. A single
+    violation line can carry more than one location, joined by import-linter
+    as "(l.7, l.12)", or an unresolvable "(l.?)"; each number in that list
+    becomes its own result sharing the violation's message."""
     lines = [_ANSI.sub("", ln).rstrip() for ln in text.splitlines()]
-    if not any(_IL_SUMMARY.match(ln) for ln in lines):
+    summary = next((m for m in (_IL_SUMMARY.match(ln) for ln in lines) if m), None)
+    if summary is None:
         body = " ".join(ln for ln in lines if ln.strip())
         return [unparsed(body[:200], "import-linter")]
     out = []
     in_broken = False
     header = None
-    for ln in lines:
+    for i, ln in enumerate(lines):
         if ln == "Broken contracts":
             in_broken = True
             continue
-        if not in_broken or not ln.strip() or set(ln) <= {"-"}:
+        if not in_broken:
+            continue
+        if not ln.strip():
+            continue
+        if set(ln) <= {"-"}:
+            continue
+        if ln.startswith(("Contracts:", "Analyzed", "Checking")):
+            continue
+        nxt = lines[i + 1] if i + 1 < len(lines) else ""
+        if nxt.strip() and set(nxt) <= {"-"}:
+            # A heading of any name: this line is text, the next is its
+            # dash underline. Structural — no name/prefix matching.
             continue
         h = _IL_HEADER.match(ln)
         if h:
@@ -192,13 +235,17 @@ def parse_import_linter(text, root, root_package):
             msg = f"{v.group('importer')} -> {v.group('imported')}"
             if header:
                 msg += f": {header}"
-            out.append(result("PL/boundary", msg, file=_module_to_file(v.group("importer"), root, root_package),
-                              line=int(v.group("line")), tool="import-linter", parser="text"))
+            file = _module_to_file(v.group("importer"), root, root_package)
+            for lm in _IL_LINENO.finditer(v.group("lines")):
+                n = lm.group(1)
+                out.append(result("PL/boundary", msg, file=file, line=(int(n) if n != "?" else None),
+                                  tool="import-linter", parser="text"))
             continue
-        if ln.strip() and not ln.startswith("plumb-line") and ln != ln.strip("-"):
-            continue
-        if ln.strip() and _IL_HEADER.match(ln) is None and not _IL_VIOLATION.match(ln) and not ln.startswith(("plumb", "-")):
-            out.append(unparsed(ln, "import-linter"))
+        out.append(unparsed(ln, "import-linter"))
+    broken = int(summary.group("broken"))
+    if broken > 0 and not any(r["ruleId"] == "PL/boundary" for r in out):
+        out.append(unparsed(f"Contracts: {broken} broken reported but no violation line was recognised",
+                            "import-linter"))
     return out
 
 
@@ -253,11 +300,13 @@ def _owner(r):
 def summary_text(s):
     states = [c["state"] for c in s["capabilities"].values()]
     ran = states.count("ran")
+    missing = states.count("tool-missing")
+    findings = s["findings"]
     parts = [f"{ran} check{'s' if ran != 1 else ''} ran",
              f"{states.count('not-enforced')} not enforced here",
-             f"{states.count('tool-missing')} tool missing" if states.count("tool-missing") == 1 else f"{states.count('tool-missing')} tools missing",
+             f"{missing} tool{'' if missing == 1 else 's'} missing",
              f"{states.count('errored')} errored"]
-    head = ", ".join(parts) + f"; {s['findings']} findings"
+    head = ", ".join(parts) + f"; {findings} finding{'' if findings == 1 else 's'}"
     lines = [f"plumb-line enforcement — {head} (fail-on: {s['fail_on']})", ""]
     lines.append("| capability | state | results | parser | note |")
     lines.append("| --- | --- | --- | --- | --- |")
