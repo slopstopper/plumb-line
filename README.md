@@ -123,11 +123,9 @@ flowchart TB
 
 ## What is deterministic, and what is not
 
-The library is deterministic: the same inputs always produce the same labels, and a [conformance suite](primitives/conformance/) checks that the JavaScript and Python versions behave identically, case by case. So are the lint rules, hooks and the Action: a rule either fires or it does not, and the [validation results](docs/validation-results.md) show every planted violation caught with no false positives.
+The library, the lint rules, the hooks and the Action are deterministic: the same inputs always give the same result. A [conformance suite](primitives/conformance/) holds the JavaScript and Python versions to identical behaviour, and the [validation results](docs/validation-results.md) show every planted violation caught with no false positives.
 
-The audit and remediate skills use an LLM. They are useful reviewers and not authorities, so plumb-line measures them instead of trusting them. Before any release that changes them, they run blind against test repositories with known violations planted and the answers removed. Independent auditors run separately, and a missed violation blocks the release unless a maintainer waives it in writing ([the harness](docs/release-harness.md)).
-
-For v0.10.0 that meant six auditors, each given only the skill's instructions and a repository with the answers stripped. All six found every planted violation and invented none in the clean repositories ([the record](docs/validation-results.md#v0100-release-harness-record--2026-08-19-pre-tag)). Misses and false positives from earlier releases sit in the same file.
+The audit and remediate skills use an LLM, so plumb-line measures them instead of trusting them. Before any release that changes them, independent auditors run them blind against test repositories with violations planted and the answers removed; a missed violation blocks the release unless a maintainer waives it in writing ([the harness](docs/release-harness.md)). For v0.10.0, all six auditors found every planted violation and invented none ([the record](docs/validation-results.md#v0100-release-harness-record--2026-08-19-pre-tag)).
 
 ## It audits itself
 
