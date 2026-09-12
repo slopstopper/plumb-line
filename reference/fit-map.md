@@ -320,3 +320,9 @@ Two things remain true in the anti-profile case:
   `plumb-line-audit` — it needs no setup.
 - API details for everything quoted above: `docs/api.md` and
   `primitives/SPEC.md` in the repository.
+
+Once bootstrap has installed enforcement, it doesn't stop at review time:
+the GitHub Action runs the same checks on every PR from the
+`.plumb-line/enforcement.json` manifest bootstrap wrote, assembling one
+SARIF log into GitHub's code-scanning UI — no agent required. See
+`ACTION.md` in the repository root.

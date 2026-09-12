@@ -62,6 +62,8 @@ The first command registers the repo as a marketplace; the second installs the f
 2. Run `plumb-line-method` if you want the reasoning first. It teaches the discipline in a few minutes.
 3. Run `plumb-line-bootstrap` when you're ready to set the project up, and `plumb-line-audit` whenever you review a change.
 
+- **Run it in CI.** Once enforcement is installed, add the [GitHub Action](ACTION.md) to your workflow so every PR gets the same checks, with SARIF landing in code scanning — no agent required.
+
 Updates come through `/plugin`. To install manually instead, clone the repository and point Claude Code at the plugin directory, or add it under `plugins` in your `.claude/settings.json`:
 
 ```bash
@@ -142,7 +144,7 @@ The deterministic adapters (boundary checks and the `no-provenance-bypass` lint,
 
 The long-run direction. All of it is **planned**: this section names intent, not shipped capability, and the [roadmap](ROADMAP.md) tracks each item.
 
-- **Deepen the promise.** Tooling for the last unimplemented principle (a golden-baseline CLI with lineage-attributed drift), CI-native enforcement (GitHub Action, SARIF, an adoption ratchet for legacy codebases), and runtime primitives that refuse and explain: an egress guard at output boundaries, human-readable lineage, a per-artifact trust summary.
+- **Deepen the promise.** Tooling for the last unimplemented principle (a golden-baseline CLI with lineage-attributed drift), CI-native enforcement (the [GitHub Action + SARIF](ACTION.md) are now current; an adoption ratchet for legacy codebases stays planned), and runtime primitives that refuse and explain: an egress guard at output boundaries, human-readable lineage, a per-artifact trust summary.
 - **Provenance across boundaries.** Today the taint guarantee holds inside one process. Envelopes should survive serialization, file artifacts (provenance sidecars), and HTTP (a provenance-context header), so honesty becomes a property of a *system*, not a function call.
 - **Agent epistemic state.** The audit skill already reports its own coverage honestly: a traversal plan, a read/partial/not-read map, an honest denominator. The plan is to generalize that machinery into a spec any agent can adopt, and a convention for agent-produced claims and code to carry provenance envelopes. In a world where agents produce most code and most analysis, "who claimed this, based on what, and how sure were they" is basic infrastructure. plumb-line builds it from the epistemic-honesty end.
 

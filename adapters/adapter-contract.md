@@ -61,6 +61,20 @@ and parameterizes these files into the target repo.
   primitive's API), not domain-neutral. It is grouped with the adapters as
   enforcement for now and may move under `primitives/` in a future version.
 
+## 6. Enforcement manifest (`.plumb-line/enforcement.json`)
+
+- Purpose: the one place a repo states which of capabilities 1, 5 and 5b it
+  carries (plus a baselines directory), so the GitHub Action (`action.yml`,
+  ADR-0016) can run them without guessing. `enforcement-format: v1`;
+  validator `scripts/check_enforcement_manifest.py`.
+- Every capability is optional. Absence is "not enforced here" — stated in
+  the Action's summary, never counted as a pass. Nothing in the file is a
+  default: bootstrap writes it from the interview (Step 4d), or a maintainer
+  writes it by hand (shape in ACTION.md).
+- Shape: `languages`; per language `boundary.config`, `provenance.config`
+  (JS), `provenance.globs`, `provenance.outputGlobs` (the ADR-0011 declared
+  surface — in Python this is its first home); `baselines.dir`.
+
 ## Hook I/O convention (shared)
 
 - Contract version: 1.

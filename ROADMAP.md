@@ -750,14 +750,17 @@ just diffed. Deterministic; both languages; no wire dependency.
 
 ### 25. GitHub Action + SARIF output for the deterministic adapters
 
-**Priority: high** · Milestone: v0.10.0 · GitHub: #118
+**Priority: high** · Milestone: v0.11.0 · GitHub: #118 · **current on main, unreleased**
 
 Review-time enforcement currently assumes a Claude session. A composite GitHub
-Action running the boundary check, provenance lint, and (once shipped) the
-baseline check — emitting **SARIF** so findings land in GitHub's native
+Action running the boundary check, provenance lint, and the baseline
+validator — emitting **SARIF** so findings land in GitHub's native
 code-scanning UI — works for every contributor regardless of agent, at zero
 marginal cost. The LLM audit stays out of scope: this is the always-on
-deterministic floor.
+deterministic floor. Import-linter's text-parsed boundary report is
+`partial` (no machine-readable output upstream yet), and the bootstrap step
+that writes the manifest is `planned` until a release-harness blind run
+proves it.
 
 ---
 

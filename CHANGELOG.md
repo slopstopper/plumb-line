@@ -10,6 +10,23 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Added
+- **GitHub Action + SARIF: the deterministic floor runs without an agent**
+  ([#118](https://github.com/slopstopper/plumb-line/issues/118)). A
+  composite action (`uses: slopstopper/plumb-line@<tag>`) runs whatever
+  plumb-line enforcement a repo carries — boundary checks, the provenance
+  lints, the output-tag rule, `baseline validate` — from an explicit
+  `.plumb-line/enforcement.json` (`enforcement-format: v1`, validator
+  `scripts/check_enforcement_manifest.py`), assembles one SARIF 2.1.0 log
+  with a single rules catalogue (`PL/boundary`, `PL/PB1`–`PL/PB4`,
+  `PL/untagged-output`, `PL/baseline-invalid`, `PL/tool-missing`,
+  `PL/unparsed`), uploads it to code scanning, and fails on findings
+  (`fail-on: none` for incremental adoption). It ships no layers, globs or
+  defaults; a missing tool is a finding, never a clean check; the step
+  summary states its denominators. `provenance_lint.py` and both baseline
+  CLIs gain `--json`. Exercised in this repo's CI via `uses: ./` against the
+  planted fixtures. Maturity: Action `current`; import-linter text parsing
+  `partial`; the bootstrap manifest step `planned` until a harness run
+  proves it. ADR-0016.
 - **Principle 9 ships: `baseline` library + inspection CLI** (#117). Golden
   baseline + lineage-attributed drift, in both languages:
   - Pins a derived value *with its full envelope* as a golden record

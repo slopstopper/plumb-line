@@ -262,6 +262,38 @@ blanket disable, after which it catches nothing.
   is silent by design outside its surface, so "no output" is not evidence it is
   working.
 
+## Step 4d — Write the enforcement manifest
+
+Write `.plumb-line/enforcement.json` from the answers already given — never
+from a default. Include only what was installed:
+
+```json
+{
+  "enforcement-format": "v1",
+  "languages": ["<js|python>", ...],
+  "js": { "boundary": { "config": "<the boundary config written in Step 4>" },
+          "provenance": { "config": "<the provenance config from 4b>",
+                          "globs": <the __GLOBS__ value>,
+                          "outputGlobs": <the __OUTPUT_GLOBS__ value, only if 4c was accepted> } },
+  "python": { "boundary": { "config": "<the import-linter config from Step 4>" },
+              "provenance": { "globs": <the files 4b scaffolded>,
+                              "outputGlobs": <the declared surface from 4c, only if accepted> } },
+  "baselines": { "dir": ".plumb-line/baselines" }   // only if the builder recorded a baseline
+}
+```
+
+Omit a language section the project does not have; omit `provenance` if 4b
+was declined; omit `outputGlobs` if 4c was declined; omit `baselines` unless
+a baseline exists. Then run
+`python3 scripts/check_enforcement_manifest.py .plumb-line/enforcement.json`
+and show its output. The manifest is what the GitHub Action reads
+(`ACTION.md`); a repo without it gets a failure naming this step, not a
+guessed configuration.
+
+Maturity: this step is `planned` until a release-harness blind run proves a
+bootstrap writes the file (the validator and the hand-written shape are
+`current`).
+
 ## Step 5 — Report (audit format)
 
 Open with the same **required header block** as the audit format (`report-format:
