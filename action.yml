@@ -70,13 +70,22 @@ runs:
         PL_ABS_ROOT="$(realpath "$PL_ROOT/$PL_SUBROOT")" || {
           echo "::error::plumb-line: root '$PL_SUBROOT' not found under the checkout"
           echo "code=1" >> "$GITHUB_OUTPUT"; echo "sarif_written=false" >> "$GITHUB_OUTPUT"; exit 0; }
+        # Existence is not containment: `root: ../sibling` resolves fine and
+        # would re-base every URI to `../sibling/...`. Compare realpaths so a
+        # symlinked workspace does not false-positive.
+        PL_ABS_WS="$(realpath "$PL_ROOT")"
+        case "$PL_ABS_ROOT" in
+          "$PL_ABS_WS"|"$PL_ABS_WS"/*) ;;
+          *) echo "::error::plumb-line: root '$PL_SUBROOT' resolves outside the checkout"
+             echo "code=1" >> "$GITHUB_OUTPUT"; echo "sarif_written=false" >> "$GITHUB_OUTPUT"; exit 0 ;;
+        esac
         # A stale file from an earlier invocation must never read as this
         # run's output — sarif_written below means written by THIS run.
         rm -f "$PL_SARIF" "$PL_SUMMARY"
         # --workspace: the tools run in the root, but code scanning resolves
         # every URI against the repository root, so results are re-based.
         python3 "$PL_SCRIPTS/adapters/sarif/run_checks.py" \
-          --root "$PL_ABS_ROOT" --workspace "$PL_ROOT" \
+          --root "$PL_ABS_ROOT" --workspace "$PL_ABS_WS" \
           --manifest "$PL_MANIFEST" --scripts-dir "$PL_SCRIPTS" \
           --fail-on "$PL_FAIL_ON" --sarif "$PL_SARIF" --summary "$PL_SUMMARY" \
           --step-summary "$GITHUB_STEP_SUMMARY" --version "${PL_VERSION:-dev}"

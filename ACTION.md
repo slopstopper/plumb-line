@@ -68,7 +68,7 @@ sha on this repository instead.
 | Input | Default | Meaning |
 | --- | --- | --- |
 | `manifest` | `.plumb-line/enforcement.json` | Path to the enforcement manifest, relative to `root`. |
-| `root` | `.` | For monorepos: the consumer root within the checkout. The tools run there, but every result is repository-relative (`<root>/src/x.js`, resolved against `%SRCROOT%` = the checkout), and each root uploads under its own category (`plumb-line/<root>`; `plumb-line` for `.`), so two roots in one workflow never replace each other's alerts. |
+| `root` | `.` | For monorepos: the consumer root within the checkout. The tools run there, but every result is repository-relative (`<root>/src/x.js`, resolved against `%SRCROOT%` = the checkout), and each root uploads under its own category (`plumb-line/<root>`; `plumb-line` for `.`), so two roots in one workflow never replace each other's alerts. The checkout is `github.workspace`, which is the repository root only when `actions/checkout` runs at its default `path`; a checkout under `path: app` is not a proven configuration. |
 | `fail-on` | `findings` | `findings` fails the job on any result; `none` is advisory — the SARIF still uploads (the seam the ratchet, GH #119, will use). |
 | `sarif-file` | `${{ runner.temp }}/plumb-line.sarif` | Where the SARIF log is written. |
 | `upload` | `true` | Upload to code scanning (needs `security-events: write`). `false` still writes the file. |
@@ -78,7 +78,8 @@ and `contents: read`.
 
 A `root` that does not exist under the checkout fails the job immediately,
 naming the missing path (`plumb-line: root '<root>' not found under the
-checkout`), and writes no SARIF.
+checkout`), and writes no SARIF; one that exists but resolves outside it
+(`../sibling`) fails the same way (`resolves outside the checkout`).
 
 **Outputs**
 
