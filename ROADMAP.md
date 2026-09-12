@@ -13,7 +13,7 @@ The long-run identity (status: **planned** — this names direction, not current
 capability): plumb-line is **the epistemic honesty layer for agent-built
 software**, with the provenance library as its runtime enforcement arm. Three
 horizons: (1) deepen the existing promise — P9 tooling, boundary gates,
-CI-native enforcement (v0.10.0–v0.11.0); (2) make provenance a property of a
+CI-native enforcement (v0.11.0–v0.12.0); (2) make provenance a property of a
 *system*, not a process — taint that survives serialization, files, and HTTP
 (Provenance across boundaries); (3) make honest self-reporting a spec any agent
 can adopt — coverage maps, honest denominators, and envelopes on agent-produced
@@ -151,8 +151,17 @@ Version themes for the near-term releases, and the GitHub issues under each.
   finished adopt skill reaches installed users instead of waiting behind the
   larger milestone below.
 
-- **v0.10.0 — Honest over time** (P9 tooling + CI-native) · *renumbered from
-  v0.8.0, then again from v0.9.0 (see the numbering note).* Principle 9 finally gets an implementation: `plumb-line baseline`
+- **v0.10.0 — Pay down the ledger** (integrity fixes + small-issue sweep) ·
+  *created 2026-08-19, shipped the same day, taking the number from the P9
+  milestone below (see the numbering note).* Integrity fixes to the published
+  packages (the #208/#209/#216 audit and adapter fixes, the #293 audit-skill
+  format fix), release tooling (#268), doc-honesty riders (#267, #270), the
+  deferral batch assigned at scoping, and the first portable-beyond-Claude
+  slice (#303: skills executable by non-Claude agents). The
+  [changelog](CHANGELOG.md) has the per-item detail.
+
+- **v0.11.0 — Honest over time** (P9 tooling + CI-native) · *renumbered from
+  v0.8.0, then from v0.9.0, then from v0.10.0 (see the numbering note).* Principle 9 finally gets an implementation: `plumb-line baseline`
   CLI — golden baseline with lineage-attributed drift (#24 / GH #117); a GitHub
   Action running the deterministic adapters with SARIF output (#25 / GH #118);
   a provenance ratchet — "no *new* untagged outputs vs. main" — for incremental
@@ -167,8 +176,8 @@ Version themes for the near-term releases, and the GitHub issues under each.
   milestone under the one-of-two rule. (The Node floor resolution, GH #233,
   moved on from here to v0.9.0 — The front door, the next minor to ship.)
 
-- **v0.11.0 — Refuse and explain** (runtime gates + legibility) · *renumbered
-  from v0.9.0, then again from v0.10.0 (see the numbering note).* The runtime learns to say no and to explain itself: egress guard
+- **v0.12.0 — Refuse and explain** (runtime gates + legibility) · *renumbered
+  from v0.9.0, then from v0.10.0, then from v0.11.0 (see the numbering note).* The runtime learns to say no and to explain itself: egress guard
   `require()` (#27 / GH #120), `explain()` human-readable lineage + Mermaid/DOT
   (#28 / GH #121), `summarize()` trust summary for artifacts (#29 / GH #122),
   pytest/vitest quarantine plugins (#30 / GH #123). Sequenced after wire v2 so
@@ -186,7 +195,7 @@ Version themes for the near-term releases, and the GitHub issues under each.
   define (GH #223). One file, one unit of work.
 
 - **v1.0.0 — A contract you can build on** (no due date; sequenced after
-  v0.11.0; gated on state, not a date).
+  v0.12.0; gated on state, not a date).
 
   **What makes it a major:** not size, and not any particular breaking change
   — SemVer requires neither. It is what the bump *forecloses*. Pre-1.0 the
@@ -317,16 +326,16 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
 3. **Now:** v0.9.0 — The front door (distribution: adopt skill + fit-map,
    README pass, snippet guard, Node floor). Sequenced ahead because the adopt
    skill is finished, user-facing, and must not sit behind a stale tag.
-4. **After the v0.9.0 tag, before any v0.10.0 work:** the outreach automation
+4. **After the v0.9.0 tag, before any P9 (now v0.11.0) work:** the outreach automation
    engine (GH #260: #255 release-to-content first, run on the fresh v0.9.0
    release as its first live input, then #256 watcher, #257 digest), then
    GH #128 in the same distribution lane. Owner-sequenced 2026-08-15,
    recorded on #260: the renumber made distribution the current phase, and
    the engine is part of it — the milestones only track versioned scope, so
    this ordering lives here and on the parent issue.
-5. **Next:** v0.10.0 (P9 tooling + CI-native). No wire dependency; #119's
+5. **Next:** v0.11.0 (P9 tooling + CI-native). No wire dependency; #119's
    prerequisite (#1 / GH #91) closed in v0.7.0, so the milestone is unblocked.
-6. **Then:** v0.11.0 — sequenced after wire v2 so the envelope fields it adds
+6. **Then:** v0.12.0 — sequenced after wire v2 so the envelope fields it adds
    are settled.
 7. **After that:** v1.0.0 — the coverage guarantee, the API-surface
    definition (GH #236) that everything else freezes against, canonical
@@ -340,12 +349,14 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
    credibility-bearing, do it whenever; OpenLineage/dbt wait for a pilot user.
 
 A note on the numbering: the P9 and runtime-gates milestones have been
-renumbered twice, both times for the same reason — a finished, user-facing
+renumbered three times, each time for the same reason — a finished, user-facing
 change must not sit behind a stale tag (the 0.2.0 lesson). First v0.8.0/v0.9.0
 became v0.9.0/v0.10.0 when the merged Python floor change (minor under pre-1.0
 SemVer) forced a release ahead of the P9 work. Then, 2026-08-14, they became
 v0.10.0/v0.11.0 when the distribution lane's adopt skill (GH #176) shipped
-ahead of them and took v0.9.0 — The front door.
+ahead of them and took v0.9.0 — The front door. Then, 2026-08-19, they became
+v0.11.0/v0.12.0 when the integrity fixes and ledger sweep shipped as v0.10.0 —
+Pay down the ledger (recorded on the milestone; this file caught up in GH #378).
 
 ---
 
@@ -766,7 +777,7 @@ proves it.
 
 ### 26. Provenance ratchet — no new untagged outputs vs. main
 
-**Priority: high** · Milestone: v0.10.0 · GitHub: #119 · depends on #1 (GH #91, closed in v0.7.0)
+**Priority: high** · Milestone: v0.11.0 · GitHub: #119 · depends on #1 (GH #91, closed in v0.7.0)
 
 The honest answer to "how does a 300k-line legacy repo adopt this?" is
 currently "it can't, realistically." The proven incremental pattern from
@@ -779,7 +790,7 @@ pre-commit gate.
 
 ### 27. Egress guard — `require(x, { noMock, minConfidence })`
 
-**Priority: high** · Milestone: v0.11.0 · GitHub: #120
+**Priority: high** · Milestone: v0.12.0 · GitHub: #120
 
 `auditMeta` flags problems after the fact; nothing *stops* a tainted value at
 the door. A small guard that throws (or returns a typed refusal) at
@@ -792,7 +803,7 @@ conformance rows per predicate; failing test first.
 
 ### 28. `explain(envelope)` — human-readable lineage
 
-**Priority: medium** · Milestone: v0.11.0 · GitHub: #121
+**Priority: medium** · Milestone: v0.12.0 · GitHub: #121
 
 Lineage is stored but not legible: no way to ask an envelope *why* it is
 low-confidence and get "tainted at step 2: `rate` was mock", and no visual
@@ -805,7 +816,7 @@ Deterministic output, parity-pinned.
 
 ### 29. `summarize(envelopes)` — trust summary for artifacts
 
-**Priority: medium** · Milestone: v0.11.0 · GitHub: #122
+**Priority: medium** · Milestone: v0.12.0 · GitHub: #122
 
 One small record per artifact — % derived-from-mock, weakest source present,
 confidence floor, lineage depth — printable at the bottom of any report or
@@ -819,7 +830,7 @@ grade.
 
 ### 30. Test-harness plugins — automatic fixture quarantine
 
-**Priority: medium** · Milestone: v0.11.0 · GitHub: #123
+**Priority: medium** · Milestone: v0.12.0 · GitHub: #123
 
 Tests are where fake data is *supposed* to live; make the quarantine automatic
 there. A pytest plugin and vitest helper that auto-mark fixture-constructed
