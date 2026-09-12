@@ -75,6 +75,13 @@ and parameterizes these files into the target repo.
 - Shape: `languages`; per language `boundary.config`, `provenance.config`
   (JS), `provenance.globs`, `provenance.outputGlobs` (the ADR-0011 declared
   surface — in Python this is its first home); `baselines.dir`.
+- The JS configs the manifest names (`boundary.config`, `provenance.config`)
+  must each be a standalone flat config — a complete `module.exports = [ … ]`
+  registering its plugin and carrying only plumb-line rules — because the
+  Action runs each with `--no-config-lookup`: the Step 4 boundary `rules`
+  fragment is not one (bootstrap writes `eslint-boundary.config.cjs` beside
+  it for this), and a consumer's full `eslint.config.*` turns every
+  non-plumb-line finding into `PL/unparsed`.
 
 ## Hook I/O convention (shared)
 

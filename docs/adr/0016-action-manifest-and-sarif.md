@@ -40,7 +40,7 @@ taken 2026-09-11/12 against real alternatives.
   ratchet to come, and the skills. Its validator is the gate.
 - import-linter's text report is not a versioned contract; the parser is
   pinned to the tested version and a format change degrades to `PL/unparsed`
-  warnings. Follow-up filed upstream-facing.
+  warnings. Follow-up filed upstream-facing (#376).
 - The bootstrap step is instruction, proven only by the harness — `planned`
   until then.
 - This repo's own CI fails outright if the end-to-end SARIF test

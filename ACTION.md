@@ -174,7 +174,7 @@ every issue — against a manifest that doesn't pass it.
   "enforcement-format": "v1",
   "languages": ["js", "python"],
   "js": {
-    "boundary": { "config": "eslint-boundary.cjs" },
+    "boundary": { "config": "eslint-boundary.config.cjs" },
     "provenance": { "config": "eslint-provenance.cjs",
                     "globs": ["src/**/*.mjs"],
                     "outputGlobs": ["src/pricing/**/*.mjs"] }
@@ -194,11 +194,24 @@ exception: `languages` must always be a non-empty list naming a section
 that's actually present, even for a baselines-only manifest — the
 validator requires it, so a project with nothing but `baseline validate`
 still declares one (possibly empty) language section. Paths (configs,
-globs, `baselines.dir`) are relative to `root`. Validate a manifest locally
-with:
+globs, `baselines.dir`) are relative to `root`.
+
+`js.boundary.config` and `js.provenance.config` must each be a
+**standalone** flat config — a complete `module.exports = [ … ]` that
+registers its plugin and carries only plumb-line rules — because the Action
+runs each one on its own with `--no-config-lookup`. `eslint-provenance.cjs`
+as bootstrap writes it is one; the Step 4 boundary *fragment*
+(`eslint-boundary.cjs`) is not — ESLint exits 2 on it alone — so the
+manifest names the wrapper bootstrap writes beside it,
+`eslint-boundary.config.cjs` (the shape is in the bootstrap skill, Step 4d,
+and in both `examples/js-payments-service` trees). Pointing the manifest at
+the consumer's full `eslint.config.*` makes every non-plumb-line rule's
+finding a `PL/unparsed` warning — do not.
+
+Validate a manifest locally, from the consumer root, with:
 
 ```bash
-python3 scripts/check_enforcement_manifest.py .plumb-line/enforcement.json
+python3 <plumb-line checkout>/scripts/check_enforcement_manifest.py .plumb-line/enforcement.json
 ```
 
 ## Failure modes
