@@ -205,7 +205,8 @@ Every outcome is a named state; nothing passes by silence.
   unproven outside this repo until someone adopts it.
 - **import-linter's text parsing: `partial`** — see *Unparsed*, above; a
   follow-up issue tracks asking upstream for a machine-readable report and
-  pins this parser to the tested version until then.
+  pins this parser to the tested version until then
+  ([#376](https://github.com/slopstopper/plumb-line/issues/376)).
 - **The bootstrap manifest step (Step 4d): `planned`** until a
   release-harness blind run proves a bootstrap run writes the file; the
   validator and the hand-written shape it targets are `current`.
