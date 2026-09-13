@@ -64,7 +64,12 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   reference section that links into `primitives/README.md`, `SPEC.md` and
   `ACTION.md`. Badges sit where their claim is discussed: version, CI and
   license at the top, the OpenSSF and Socket badges under Security, the
-  decorative ones gone. One claim changed maturity, upward and on evidence:
+  decorative ones gone. A second pass ([#381](https://github.com/slopstopper/plumb-line/pull/381))
+  made it show rather than tell: install moved up under the example, the
+  toolserver incident demo's real output without and with provenance, the
+  three incidents as a table, a diagram of the two layers, and the
+  release-harness and dogfood results told in plain words with links to
+  the records. One claim changed maturity, upward and on evidence:
   the golden-baseline CLI (#117, closed 2026-09-11) moves from the planned
   list to current on `main`. The rest of the Status paragraph is the same set
   of `current` facts in fewer words. Repo description and topics
