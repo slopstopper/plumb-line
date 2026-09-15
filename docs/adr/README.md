@@ -39,3 +39,4 @@ record is append-only.
 | [0014](0014-unreadable-signal-degrades.md)               | A signal an adapter can see but cannot read degrades confidence, never upgrades | Accepted |
 | [0015](0015-baseline-library-first.md)                   | Baseline: library-first capture, explained updates, wire-form files, inspection-only CLI | Accepted |
 | [0016](0016-action-manifest-and-sarif.md)                | The GitHub Action reads an explicit enforcement manifest and emits one SARIF log | Accepted |
+| [0017](0017-provenance-ratchet.md)                       | The provenance ratchet is site-keyed, a mode of the output check, and written only by its CLI | Accepted |

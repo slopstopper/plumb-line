@@ -175,3 +175,44 @@ def test_paths_must_stay_inside_the_repository(tmp_path):
     m["baselines"]["dir"] = "../outside"
     issues = cem.validate_manifest(m, root)
     assert any("baselines.dir must be a relative path inside the repository" in i for i in issues)
+
+
+# ---------- #119 ratchet ----------
+
+def test_ratchet_file_key_is_accepted_without_checking_existence(tmp_path):
+    root = _root(tmp_path)
+    m = dict(_manifest(), ratchet={"file": ".plumb-line/ratchet.json"})
+    assert cem.validate_manifest(m, root) == []          # the file does not exist yet: update creates it
+    assert "ratchet" not in cem.capabilities(m)          # not a capability
+
+
+def test_ratchet_file_must_be_a_relative_inside_path(tmp_path):
+    root = _root(tmp_path)
+    for bad in ("/abs/ratchet.json", "../ratchet.json", "-x", "", 3):
+        m = dict(_manifest(), ratchet={"file": bad})
+        assert any("ratchet.file" in i for i in cem.validate_manifest(m, root)), bad
+
+
+def test_ratchet_rejects_unknown_keys_and_non_objects(tmp_path):
+    root = _root(tmp_path)
+    assert any("unknown key: ratchet.dir" in i
+               for i in cem.validate_manifest(dict(_manifest(), ratchet={"file": "r.json", "dir": "x"}), root))
+    assert any("ratchet must be an object" in i for i in cem.validate_manifest(dict(_manifest(), ratchet="r.json"), root))
+
+
+def test_ratchet_needs_an_output_capability_to_ratchet(tmp_path):
+    root = _root(tmp_path)
+    m = _manifest()
+    del m["js"]["provenance"]["outputGlobs"]
+    del m["python"]["provenance"]["outputGlobs"]
+    m["ratchet"] = {"file": "r.json"}
+    assert any("nothing to ratchet" in i for i in cem.validate_manifest(m, root))
+
+
+def test_ratchet_with_malformed_language_section_does_not_raise(tmp_path):
+    root = _root(tmp_path)
+    m = {"enforcement-format": "v1", "languages": ["js"], "js": "not-a-dict", "ratchet": {"file": "r.json"}}
+    # Should not raise an exception
+    issues = cem.validate_manifest(m, root)
+    # Should contain the "js must be an object" error
+    assert any("js must be an object" in i for i in issues), issues

@@ -19,6 +19,12 @@
 // dead (#212). They are removed rather than kept as a no-op: an option that
 // silently does nothing is the overstated capability P6 forbids. The bypass
 // rule (no-provenance-bypass) genuinely uses tracking and keeps those options.
+//
+// #119: every report carries data.name — the enclosing exported function — rendered
+// as "[site: name]" at the end of the message. That suffix is the site identity the
+// SARIF assembler (adapters/sarif/assemble.py) extracts for the ratchet; ESLint's
+// JSON has no per-message data field, so the message text is the carrier. Change the
+// template and the assembler's regex together.
 
 module.exports = {
   meta: {
@@ -31,7 +37,7 @@ module.exports = {
     schema: [],
     messages: {
       untagged:
-        "Untagged output: this exported function returns a raw computed value not wrapped by mark/derive. Wrap the returned value with derive()/mark() so provenance propagates. (ADR-0011)",
+        "Untagged output: this exported function returns a raw computed value not wrapped by mark/derive. Wrap the returned value with derive()/mark() so provenance propagates. (ADR-0011) [site: {{name}}]",
     },
   },
 
@@ -40,11 +46,11 @@ module.exports = {
     const isRaw = (n) => n && n.type === "BinaryExpression" && RAW_OPS.has(n.operator);
 
     // Classify a function body's returns using single-pass local const/let tracking.
-    function checkFunctionBody(fnNode) {
+    function checkFunctionBody(fnNode, name) {
       if (!fnNode.body || fnNode.body.type !== "BlockStatement") {
         // Concise arrow body: `=> expr`. Flag iff expr is raw.
         if (fnNode.body && isRaw(fnNode.body)) {
-          context.report({ node: fnNode.body, messageId: "untagged" });
+          context.report({ node: fnNode.body, messageId: "untagged", data: { name } });
         }
         return;
       }
@@ -80,30 +86,30 @@ module.exports = {
       for (const stmt of fnNode.body.body) {
         if (stmt.type !== "ReturnStatement" || !stmt.argument) continue;
         const arg = stmt.argument;
-        if (isRaw(arg)) context.report({ node: arg, messageId: "untagged" });
+        if (isRaw(arg)) context.report({ node: arg, messageId: "untagged", data: { name } });
         else if (arg.type === "Identifier" && localClass.get(arg.name) === "raw") {
-          context.report({ node: arg, messageId: "untagged" });
+          context.report({ node: arg, messageId: "untagged", data: { name } });
         }
       }
     }
 
     // Only EXPORTED functions are in scope.
-    function handleExportedFn(fnNode) {
+    function handleExportedFn(fnNode, name) {
       if (!fnNode) return;
       if (fnNode.type === "FunctionDeclaration" || fnNode.type === "FunctionExpression" ||
           fnNode.type === "ArrowFunctionExpression") {
-        checkFunctionBody(fnNode);
+        checkFunctionBody(fnNode, name);
       }
     }
 
     return {
       ExportNamedDeclaration(node) {
         if (node.declaration && node.declaration.type === "FunctionDeclaration") {
-          handleExportedFn(node.declaration);
+          handleExportedFn(node.declaration, node.declaration.id ? node.declaration.id.name : "default");
         } else if (node.declaration && node.declaration.type === "VariableDeclaration") {
           for (const d of node.declaration.declarations) {
             if (d.init && (d.init.type === "ArrowFunctionExpression" || d.init.type === "FunctionExpression")) {
-              handleExportedFn(d.init);
+              handleExportedFn(d.init, d.id.type === "Identifier" ? d.id.name : "default");
             }
           }
         }
@@ -112,7 +118,9 @@ module.exports = {
         const d = node.declaration;
         if (d && (d.type === "FunctionDeclaration" || d.type === "FunctionExpression" ||
                   d.type === "ArrowFunctionExpression")) {
-          handleExportedFn(d);
+          // #119 site identity: a named default keeps its name; an anonymous
+          // one is `default` — one file can carry at most one such site.
+          handleExportedFn(d, d.id ? d.id.name : "default");
         }
       },
     };

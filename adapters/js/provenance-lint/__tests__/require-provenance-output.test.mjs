@@ -50,32 +50,43 @@ ruleTester.run("require-provenance-output", rule, {
     IMPORT + `export function f(x, r) { let t = derive([x, r], g); t = x * r; return t; }`,
   ],
   invalid: [
-    {
-      // Direct raw arithmetic return.
-      code: IMPORT + `export function f(x, r) { return x * r; }`,
-      errors: [{ messageId: "untagged" }],
-    },
-    {
-      // Raw arithmetic through a local variable.
-      code: IMPORT + `export function f(x, r) { const t = x * r; return t; }`,
-      errors: [{ messageId: "untagged" }],
-    },
-    {
-      // Exported arrow assigned to a const.
-      code: IMPORT + `export const f = (x, r) => { const t = x + r; return t; };`,
-      errors: [{ messageId: "untagged" }],
-    },
-    {
-      // export default function.
-      code: IMPORT + `export default function (x, r) { return x - r; }`,
-      errors: [{ messageId: "untagged" }],
-    },
-    {
-      // #212: a raw return is flagged with NO primitive import in the file —
-      // the verdict is expression shape alone.
-      code: `export function f(x, r) { return x * r; }`,
-      errors: [{ messageId: "untagged" }],
-    },
+    // Direct raw return.
+    { code: IMPORT + `export function f(x, r) { return x * r; }`,
+      errors: [{ messageId: "untagged", data: { name: "f" } }] },
+    // Raw via a local.
+    { code: IMPORT + `export function f(x, r) { const t = x * r; return t; }`,
+      errors: [{ messageId: "untagged", data: { name: "f" } }] },
+    // Concise arrow body on an exported const.
+    { code: IMPORT + `export const g = (x, r) => x * r;`,
+      errors: [{ messageId: "untagged", data: { name: "g" } }] },
+    // Function expression on an exported const.
+    { code: IMPORT + `export const h = function (x, r) { return x - r; };`,
+      errors: [{ messageId: "untagged", data: { name: "h" } }] },
+    // Named default export.
+    { code: IMPORT + `export default function named(x, r) { return x / r; }`,
+      errors: [{ messageId: "untagged", data: { name: "named" } }] },
+    // Anonymous default export → "default".
+    { code: IMPORT + `export default (x, r) => x % r;`,
+      errors: [{ messageId: "untagged", data: { name: "default" } }] },
+    // Anonymous default function expression → "default".
+    { code: IMPORT + `export default function (x, r) { return x ** r; }`,
+      errors: [{ messageId: "untagged", data: { name: "default" } }] },
+    // Two raw returns in one function: two reports, same site name.
+    { code: IMPORT + `export function two(x, r) { const t = x * r; return t; return x + r; }`,
+      errors: [{ messageId: "untagged", data: { name: "two" } }, { messageId: "untagged", data: { name: "two" } }] },
+    // The rendered text ends with the site marker the SARIF assembler extracts.
+    { code: IMPORT + `export function f(x, r) { return x * r; }`,
+      errors: [{ message: /\[site: f\]$/ }] },
+    // Exported arrow with a block body (not concise) assigned to a const.
+    { code: IMPORT + `export const f = (x, r) => { const t = x + r; return t; };`,
+      errors: [{ messageId: "untagged", data: { name: "f" } }] },
+    // export default function, anonymous, another operator.
+    { code: IMPORT + `export default function (x, r) { return x - r; }`,
+      errors: [{ messageId: "untagged", data: { name: "default" } }] },
+    // #212: a raw return is flagged with NO primitive import in the file —
+    // the verdict is expression shape alone.
+    { code: `export function f(x, r) { return x * r; }`,
+      errors: [{ messageId: "untagged", data: { name: "f" } }] },
   ],
 });
 

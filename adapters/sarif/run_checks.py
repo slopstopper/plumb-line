@@ -10,6 +10,10 @@ summary states the denominators, so an empty green is legible as empty,
 never as clean. A capability the manifest omits has no state: it is not
 run and never appears in the summary (adapter-contract §6).
 
+When the manifest names a ratchet file (#119), pinned untagged-output sites
+are notes and only new ones fail; the runner reads the file and never writes
+it — see ratchet.py.
+
     python3 adapters/sarif/run_checks.py --root . [--workspace <checkout root>] \
         --manifest .plumb-line/enforcement.json \
         --scripts-dir <plumb-line checkout> --fail-on findings|none \
@@ -28,6 +32,9 @@ _ROOT = os.path.dirname(os.path.dirname(_HERE))
 sys.path.insert(0, _ROOT)
 from scripts.check_enforcement_manifest import load_manifest, capabilities  # noqa: E402
 from adapters.sarif import assemble as A  # noqa: E402
+from adapters.sarif import ratchet as RT  # noqa: E402
+
+NO_MATCH_NOTE = RT.NO_MATCH_NOTE
 
 BOOTSTRAP_HINT = ("no enforcement manifest — run the plumb-line-bootstrap skill (Step 4d writes "
                   ".plumb-line/enforcement.json), or write it by hand: "
@@ -133,27 +140,25 @@ def _looks_unparsed(parsed, out):
     return not out.strip() or (len(parsed) == 1 and parsed[0]["ruleId"] == "PL/unparsed" and parsed[0].get("whole"))
 
 
-def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, step_summary_path=None,
-        version="dev", runner=None, workspace=None):
-    """workspace: the checkout root (GitHub resolves %SRCROOT% as the
-    repository root). The tools run in `root`, and every result's file is
-    re-based from root to workspace — a monorepo subroot's findings would
-    otherwise point at paths that do not exist at the repository root.
-    Defaults to root, i.e. no prefix."""
-    runner = runner or _default_runner
-    which = getattr(runner, "which", None) or _resolver(root)
-    workspace = workspace or root
-    prefix = os.path.relpath(root, workspace).replace(os.sep, "/")
-    manifest, issues = load_manifest(manifest_path, root)
-    if manifest is None:
-        for i in issues:
-            print(f"✗ {i}")
-        if issues and issues[0].startswith("manifest not found"):
-            print(f"  {BOOTSTRAP_HINT}")
-        return 1
-    caps = capabilities(manifest)
+def _eslint_linted_nothing(out):
+    """True when ESLint's JSON report lists no file at all. Anything that is
+    not an empty JSON array — a report with files, or output that doesn't
+    parse — is left to the parser and the errored check."""
+    try:
+        return json.loads(out) == []
+    except ValueError:
+        return False
+
+
+def _run_capabilities(root, caps, scripts_dir, runner, which, only=None):
+    """Run every capability in caps (or only those named in `only`).
+    Returns (states, results) with every result's file ROOT-relative and
+    stamped with its capability. No workspace rebase here: the ratchet's
+    sites are root-relative, so apply() must see root-relative files."""
     states, results = {}, []
     for key, cfg in caps.items():
+        if only is not None and key not in only:
+            continue
         tool, hint = TOOLS[key]
         found = which(tool)
         if found is None:
@@ -167,10 +172,20 @@ def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, ste
             globs = cfg["globs"] if key == "python.provenance" else cfg["outputGlobs"]
             files = _expand(root, globs)
             if not files:
-                states[key] = ("ran", "json", "no files matched the globs")
+                states[key] = ("ran", "json", NO_MATCH_NOTE)
                 continue
             cmd = cmd[:-len(globs)] + files
         rc, out, err = runner(cmd, root)
+        if rc == 0 and key in ("js.boundary", "js.provenance", "js.output") and _eslint_linted_nothing(out):
+            # ESLint --format json emits one entry per LINTED file, messages
+            # or not, so an EMPTY top-level array means no file was linted:
+            # the globs matched nothing. Same note as the Python side, and
+            # for the same reason — a lint that never ran proves nothing.
+            # Without it a typo'd outputGlobs reads as a clean surface, and
+            # the ratchet would "measure" it: `update` pins [], `prune`
+            # erases every JS site, both at exit 0.
+            states[key] = ("ran", "json", NO_MATCH_NOTE)
+            continue
         try:
             if key in ("js.boundary", "js.provenance", "js.output"):
                 parsed, parser = A.parse_eslint(out, root), "json"
@@ -194,15 +209,66 @@ def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, ste
             parsed = [r for r in parsed if r["ruleId"] in ("PL/untagged-output", "PL/unparsed")]
         for r in parsed:
             r["capability"] = key
-            if prefix != "." and r.get("file"):
-                r["file"] = posixpath.join(prefix, r["file"])
         results.extend(parsed)
         states[key] = ("ran", parser, None)
+    return states, results
+
+
+def _apply_ratchet(root, manifest, states, results):
+    """Read-only. Returns (results, {file, state, known, new, stale,
+    unmeasured} | None). A missing or
+    invalid file is a PL/ratchet-invalid ERROR under a synthetic `ratchet`
+    capability in the errored state — the job fails regardless of fail-on,
+    as with tool-missing — and the output checks stand unratcheted."""
+    cfg = manifest.get("ratchet")
+    if not cfg:
+        return results, None
+    rel = cfg["file"]
+    # Which output capabilities the ratchet could not measure — tool missing,
+    # errored, or globs that matched no file. Reported alongside the counts so
+    # "0 known, 0 new, 0 stale" can never pass for "ratcheted and clean".
+    unmeasured = sorted(c for c in RT.OUTPUT_CAPS if c in capabilities(manifest) and not RT._measured(states, c))
+    data, problems = RT.load_ratchet(os.path.join(root, rel))
+    if data is None:
+        r = A.result("PL/ratchet-invalid", f"{rel}: " + "; ".join(problems), file=rel, tool="action")
+        r["capability"] = "ratchet"
+        states["ratchet"] = ("errored", "json", problems[0])
+        return results + [r], {"file": rel, "state": "invalid", "known": 0, "new": 0, "stale": 0,
+                               "unmeasured": unmeasured}
+    results, counts = RT.apply(results, states, data)
+    return results, {"file": rel, "state": "ran", **counts, "unmeasured": unmeasured}
+
+
+def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, step_summary_path=None,
+        version="dev", runner=None, workspace=None):
+    """workspace: the checkout root (GitHub resolves %SRCROOT% as the
+    repository root). The tools run in `root`, and every result's file is
+    re-based from root to workspace — a monorepo subroot's findings would
+    otherwise point at paths that do not exist at the repository root.
+    Defaults to root, i.e. no prefix."""
+    runner = runner or _default_runner
+    which = getattr(runner, "which", None) or _resolver(root)
+    workspace = workspace or root
+    prefix = os.path.relpath(root, workspace).replace(os.sep, "/")
+    manifest, issues = load_manifest(manifest_path, root)
+    if manifest is None:
+        for i in issues:
+            print(f"✗ {i}")
+        if issues and issues[0].startswith("manifest not found"):
+            print(f"  {BOOTSTRAP_HINT}")
+        return 1
+    caps = capabilities(manifest)
+    states, results = _run_capabilities(root, caps, scripts_dir, runner, which)
+    results, ratchet = _apply_ratchet(root, manifest, states, results)
+    if prefix != ".":
+        for r in results:
+            if r.get("file"):
+                r["file"] = posixpath.join(prefix, r["file"])
     log = A.build_sarif(results, version, src_root=workspace)
     os.makedirs(os.path.dirname(os.path.abspath(sarif_path)), exist_ok=True)
     with open(sarif_path, "w", encoding="utf-8") as fh:
         json.dump(log, fh, indent=2)
-    summary = A.build_summary(states, results, fail_on, sarif_path)
+    summary = A.build_summary(states, results, fail_on, sarif_path, ratchet=ratchet)
     with open(summary_path, "w", encoding="utf-8") as fh:
         json.dump(summary, fh, indent=2)
     text = A.summary_text(summary)

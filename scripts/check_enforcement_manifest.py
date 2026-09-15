@@ -9,6 +9,10 @@ is optional, absence means "not enforced here" (stated, never counted as a
 pass), and nothing in it is a default — bootstrap fills it from the
 interview, or a maintainer writes it by hand.
 
+An optional top-level "ratchet": {"file": ...} names the provenance-ratchet
+file (#119, ADR-0017); it is not a capability and its existence is checked by
+the runner, not here.
+
 P7 contract: version constant + key lists + validator. Exit 0 when valid,
 1 with one issue per line otherwise.
 """
@@ -24,11 +28,12 @@ DEFAULT_PATH = os.path.join(".plumb-line", "enforcement.json")
 CAPABILITY_KEYS = ["js.boundary", "js.provenance", "js.output",
                    "python.boundary", "python.provenance", "python.output", "baselines"]
 
-_TOP_KEYS = {"enforcement-format", "languages", "js", "python", "baselines"}
+_TOP_KEYS = {"enforcement-format", "languages", "js", "python", "baselines", "ratchet"}
 _LANG_KEYS = {"boundary", "provenance"}
 _BOUNDARY_KEYS = {"config"}
 _PROVENANCE_KEYS = {"js": {"config", "globs", "outputGlobs"}, "python": {"globs", "outputGlobs"}}
 _BASELINES_KEYS = {"dir"}
+_RATCHET_KEYS = {"file"}
 _LANGUAGES = ["js", "python"]
 
 
@@ -44,17 +49,17 @@ def _glob_list(value, where, issues):
         issues.append(_DASH.format(where))
 
 
-def _path(value, where, root, kind, issues):
+def _path(value, where, root, kind, issues, exists=True):
     """A config file (kind="file") or directory (kind="dir") named by the
     manifest: a non-empty string, not flag-shaped, relative and inside root,
-    and present on disk."""
+    and present on disk. When exists=False, skip the on-disk check."""
     if not isinstance(value, str) or not value:
         issues.append(f"{where} must be a non-empty string")
     elif value.startswith("-"):
         issues.append(_DASH.format(where))
     elif _inside(root, value) is None:
         issues.append(f"{where} must be a relative path inside the repository: {value}")
-    elif not (os.path.isfile if kind == "file" else os.path.isdir)(_inside(root, value)):
+    elif exists and not (os.path.isfile if kind == "file" else os.path.isdir)(_inside(root, value)):
         issues.append(f"{where} not found: {value}")
 
 
@@ -133,6 +138,20 @@ def validate_manifest(manifest, root):
         else:
             _unknown(bl, _BASELINES_KEYS, "baselines.", issues)
             _path(bl.get("dir"), "baselines.dir", root, "dir", issues)
+    rt = manifest.get("ratchet")
+    if rt is not None:
+        if not isinstance(rt, dict):
+            issues.append("ratchet must be an object")
+        else:
+            _unknown(rt, _RATCHET_KEYS, "ratchet.", issues)
+            # Existence is deliberately NOT checked here: `ratchet.py update`
+            # creates the file, and it needs a valid manifest to do so. The
+            # runner (run_checks.py) is what fails on a missing file.
+            _path(rt.get("file"), "ratchet.file", root, "file", issues, exists=False)
+            if not any(isinstance(manifest.get(lang), dict)
+                       and isinstance(manifest[lang].get("provenance"), dict)
+                       and "outputGlobs" in manifest[lang]["provenance"] for lang in _LANGUAGES):
+                issues.append("ratchet names nothing to ratchet: no provenance.outputGlobs in any language section")
     return issues
 
 

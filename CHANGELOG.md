@@ -36,6 +36,25 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   enforced", which the summary has never been able to claim.
 
 ### Added
+- **Provenance ratchet: legacy adoption without demanding zero**
+  ([#119](https://github.com/slopstopper/plumb-line/issues/119), ROADMAP
+  #26, ADR-0017). One manifest key, `"ratchet": {"file":
+  ".plumb-line/ratchet.json"}`, and one command, `adapters/sarif/ratchet.py
+  update --because "initial pin"`, pin every `require-provenance-output`
+  site (`<file>::<symbol>`) a repo carries today. From then on the Action
+  reports pinned sites as `note`-level `PL/untagged-output` results and
+  fails only on **new** sites; a pinned site that disappears is a
+  `PL/ratchet-stale` note until `ratchet.py prune` removes it. Growing the
+  set needs a non-empty `--because`, recorded in the file's history;
+  shrinking never fails and needs no reason. The runner reads the file and
+  never writes it. Both lints now name their site: Python `REQ-OUTPUT`
+  issues carry `symbol`; the JS rule's message ends with `[site: name]`.
+  The summary gains `notes` and a `ratchet` block, and `findings` no longer
+  counts notes — so `summary-format` moves to **v2**: a v1 consumer summing
+  `findings` under-counts (only with a ratchet configured), and a changed
+  meaning is a changed contract. Proven end to end on the new `examples/ratchet-adoption`
+  fixture pair (Python); the JS marker is unit-proven at the rule and
+  assembler. Not a grade: three counts, never one score.
 - **GitHub Action + SARIF: the deterministic floor runs without an agent**
   ([#118](https://github.com/slopstopper/plumb-line/issues/118)). A
   composite action (`uses: slopstopper/plumb-line@<tag>`) runs whatever

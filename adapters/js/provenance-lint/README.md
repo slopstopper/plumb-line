@@ -119,6 +119,13 @@ here: `hooks/__tests__/provenance-lint-gate.integration.test.mjs` (JS) and
 (Python) each run the real shipped rule over a real untagged-output file on disk
 and assert `decide()` blocks.
 
+Every report ends with `[site: <name>]` — the enclosing exported function
+(`default` for an anonymous default export). That suffix is the site
+identity the GitHub Action's ratchet keys on (ACTION.md, "Ratchet mode");
+the SARIF assembler extracts it and treats a marker-less message as
+unparsed, so change the template and `adapters/sarif/assemble.py`'s
+`SITE_RE` together.
+
 What is **not** covered, stated plainly: the shipped CLI path — `pre-commit-gate`
 spawning a command via `PLUMBLINE_TEST_CMD` and reading its exit code. Both tests
 call `decide()` in-process with their own runner, and the CLI wrapper is excluded

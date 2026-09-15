@@ -24,7 +24,10 @@ import re
 
 SARIF_VERSION = "2.1.0"
 SARIF_SCHEMA = "https://json.schemastore.org/sarif-2.1.0.json"
-SUMMARY_FORMAT = "v1"
+# v2 (#119): `findings` no longer counts note-level results, and `notes` +
+# `ratchet` were added. A changed MEANING is a changed contract (P7), so the
+# version moves even though every v1 key is still there.
+SUMMARY_FORMAT = "v2"
 _REPO = "https://github.com/slopstopper/plumb-line"
 _BLOB = _REPO + "/blob/main/"
 
@@ -56,6 +59,12 @@ RULES = {
     "PL/unparsed": {"name": "Unparsed", "level": "warning",
                     "shortDescription": "A tool produced output the assembler could not map to a rule; the raw line is in the message.",
                     "helpUri": _BLOB + "ACTION.md#unparsed"},
+    "PL/ratchet-invalid": {"name": "RatchetInvalid", "level": "error",
+                           "shortDescription": "The manifest names a ratchet file that is missing or fails its contract (ratchet-format v1); the output checks ran unratcheted.",
+                           "helpUri": _BLOB + "ACTION.md#ratchet-mode"},
+    "PL/ratchet-stale": {"name": "RatchetStale", "level": "note",
+                         "shortDescription": "A site pinned in the ratchet file is no longer reported; prune it (ratchet.py prune).",
+                         "helpUri": _BLOB + "ACTION.md#ratchet-mode"},
 }
 
 _ESLINT_RULE = {
@@ -64,6 +73,10 @@ _ESLINT_RULE = {
     "plumb-line/require-provenance-output": "PL/untagged-output",
 }
 _PB = re.compile(r"^PB([1-4])\b")
+# #119: the site marker require-provenance-output appends to its message.
+# ESLint's JSON has no per-message data, so the message is the carrier;
+# the template lives in adapters/js/provenance-lint/require-provenance-output.cjs.
+SITE_RE = re.compile(r" \[site: ([^\]]+)\]$")
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 # import-linter's human report is not a versioned contract. The _IL_* grammar
 # below is the one observed at IMPORT_LINTER_TESTED (the CI pin in
@@ -78,10 +91,10 @@ _IL_HEADER = re.compile(r"^(?P<a>[\w.]+) is not allowed to import (?P<b>[\w.]+):
 _IL_SUMMARY = re.compile(r"^Contracts: (?P<kept>\d+) kept, (?P<broken>\d+) broken\.$")
 
 
-def result(rule_id, message, file=None, line=None, column=None, tool="action", parser="json"):
+def result(rule_id, message, file=None, line=None, column=None, tool="action", parser="json", site=None):
     return {"ruleId": rule_id, "level": RULES[rule_id]["level"], "message": message,
             "file": file, "line": line, "column": column, "tool": tool, "parser": parser,
-            "whole": False}
+            "whole": False, "site": site}
 
 
 def unparsed(text, tool, *, file=None, line=None, column=None, parser="text", whole=False):
@@ -142,8 +155,17 @@ def parse_eslint(text, root):
                                     file=_rel(f.get("filePath"), root), line=_line(m.get("line")),
                                     column=_line(m.get("column")), parser="json"))
                 continue
+            site = None
+            if mapped == "PL/untagged-output":
+                m_site = SITE_RE.search(m.get("message", ""))
+                if not m_site:
+                    out.append(unparsed(f"{rid}: no [site: …] marker in message: {m.get('message', '')}", "eslint",
+                                        file=_rel(f.get("filePath"), root), line=_line(m.get("line")),
+                                        column=_line(m.get("column")), parser="json"))
+                    continue
+                site = m_site.group(1)
             out.append(result(mapped, m.get("message", ""), file=_rel(f.get("filePath"), root),
-                              line=_line(m.get("line")), column=_line(m.get("column")), tool="eslint"))
+                              line=_line(m.get("line")), column=_line(m.get("column")), tool="eslint", site=site))
     return out
 
 
@@ -164,12 +186,17 @@ def parse_provenance_lint(text, root):
             rid = "PL/" + rule
         elif rule == "REQ-OUTPUT":
             rid = "PL/untagged-output"
+            if not isinstance(i.get("symbol"), str) or not i["symbol"]:
+                out.append(unparsed(f"REQ-OUTPUT without a symbol: {i.get('message', '')}", "provenance_lint",
+                                    file=_rel(i.get("filename"), root), line=_line(i.get("line")), parser="json"))
+                continue
         else:
             out.append(unparsed(f"{rule}: {i.get('message', '')}", "provenance_lint",
                                 file=_rel(i.get("filename"), root), line=_line(i.get("line")), parser="json"))
             continue
         out.append(result(rid, i.get("message", ""), file=_rel(i.get("filename"), root),
-                          line=_line(i.get("line")), tool="provenance_lint"))
+                          line=_line(i.get("line")), tool="provenance_lint",
+                          site=i.get("symbol") if rid == "PL/untagged-output" else None))
     return out
 
 
@@ -284,6 +311,10 @@ def build_sarif(results, version, src_root=None):
     for r in results:
         item = {"ruleId": r["ruleId"], "ruleIndex": rule_ids.index(r["ruleId"]), "level": r["level"],
                 "message": {"text": r["message"]}, "properties": {"tool": r["tool"], "parser": r["parser"]}}
+        if r.get("site"):
+            # The site (<symbol>) is what the ratchet keys on; without it an
+            # uploaded alert cannot be matched back to a ratchet entry.
+            item["properties"]["site"] = r["site"]
         if r.get("file"):
             phys = {"artifactLocation": {"uri": r["file"], "uriBaseId": "%SRCROOT%"}}
             region = {}
@@ -305,17 +336,20 @@ def build_sarif(results, version, src_root=None):
 
 # ---------- summary ----------
 
-def build_summary(capability_states, results, fail_on, sarif_path):
-    """capability_states: {key: (state, parser|None, note|None)}."""
+def build_summary(capability_states, results, fail_on, sarif_path, ratchet=None):
+    """capability_states: {key: (state, parser|None, note|None)}.
+    ratchet: None when the manifest names no ratchet, else
+    {file, state, known, new, stale, unmeasured} from run_checks._apply_ratchet."""
     caps = {}
     for key, (state, parser, note) in capability_states.items():
         caps[key] = {"state": state, "parser": parser, "note": note,
                      "results": sum(1 for r in results if _owner(r) == key)}
+    notes = sum(1 for r in results if r["level"] == "note")
     return {"summary-format": SUMMARY_FORMAT, "fail_on": fail_on, "capabilities": caps,
-            "findings": len(results),
+            "findings": len(results) - notes, "notes": notes,
             "unlocated": sum(1 for r in results if not r.get("file")),
             "unparsed": sum(1 for r in results if r["ruleId"] == "PL/unparsed"),
-            "sarif": sarif_path}
+            "ratchet": ratchet, "sarif": sarif_path}
 
 
 def _owner(r):
@@ -335,7 +369,21 @@ def summary_text(s):
              f"{missing} tool{'' if missing == 1 else 's'} missing",
              f"{states.count('errored')} errored"]
     head = ", ".join(parts) + f"; {findings} finding{'' if findings == 1 else 's'}"
+    rt = s.get("ratchet")
+    if rt and rt.get("state") == "ran" and "known" in rt:
+        head += f"; ratchet: {rt['known']} known, {rt['new']} new, {rt['stale']} stale"
+        # An output capability that could not be measured makes the three
+        # counts a partial denominator; say so rather than let zeros read
+        # as "ratcheted and clean".
+        unmeasured = rt.get("unmeasured") or []
+        if unmeasured:
+            head += f", {len(unmeasured)} unmeasured"
+    elif rt and rt.get("state") == "invalid":
+        head += "; ratchet: invalid (checks ran unratcheted)"
     lines = [f"plumb-line enforcement — {head} (fail-on: {s['fail_on']})", ""]
+    if rt:
+        lines.append(f"ratchet file: {rt['file']} ({rt['state']})")
+        lines.append("")
     lines.append("| capability | state | results | parser | note |")
     lines.append("| --- | --- | --- | --- | --- |")
     for key in sorted(s["capabilities"]):

@@ -82,6 +82,12 @@ and parameterizes these files into the target repo.
   fragment is not one (bootstrap writes `eslint-boundary.config.cjs` beside
   it for this), and a consumer's full `eslint.config.*` turns every
   non-plumb-line finding into `PL/unparsed`.
+- Optional top-level `ratchet.file` (#119, ADR-0017): the provenance-ratchet
+  file, itself a contracted output (`ratchet-format: v1`, validator and
+  writer `adapters/sarif/ratchet.py`). The manifest validator does not
+  check the file exists — `ratchet.py update` creates it; the Action fails
+  on its absence. Not a capability: it changes how `<lang>.output` results
+  are levelled, it does not add a check.
 
 ## Hook I/O convention (shared)
 
