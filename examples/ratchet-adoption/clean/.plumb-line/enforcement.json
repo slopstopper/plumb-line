@@ -1,0 +1,3 @@
+{ "enforcement-format": "v1", "languages": ["python"],
+  "python": { "provenance": { "globs": ["src/**/*.py"], "outputGlobs": ["src/pricing/**/*.py"] } },
+  "ratchet": { "file": ".plumb-line/ratchet.json" } }

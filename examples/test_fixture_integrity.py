@@ -109,3 +109,18 @@ def test_py_p8_lineage_present_in_clean_absent_in_broken():
         "clean PY services/source.py must record a lineage field (P8)"
     assert "lineage" not in broken, \
         "broken PY services/source.py should drop lineage (the planted P8 violation)"
+
+
+# --- ratchet-adoption fixture (#119) -----------------------------------------
+
+RATCHET = EXAMPLES / "ratchet-adoption"
+
+
+def test_ratchet_fixture_pins_all_sites_in_clean_and_one_fewer_in_broken():
+    import json
+    clean = json.loads(read(RATCHET, "clean/.plumb-line/ratchet.json"))["sites"]["python.output"]
+    broken = json.loads(read(RATCHET, "broken/.plumb-line/ratchet.json"))["sites"]["python.output"]
+    assert clean == ["src/pricing/fx.py::apply_fx", "src/pricing/fx.py::total"]
+    assert broken == ["src/pricing/fx.py::apply_fx"], "broken leaves `total` unpinned so it is a NEW site"
+    assert read(RATCHET, "clean/src/pricing/fx.py") == read(RATCHET, "broken/src/pricing/fx.py"), \
+        "the two trees differ only in the ratchet file"

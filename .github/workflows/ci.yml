@@ -183,7 +183,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        fixture: [js-payments-service, python-data-pipeline]
+        fixture: [js-payments-service, python-data-pipeline, ratchet-adoption]
         tree: [broken, clean]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
@@ -222,6 +222,10 @@ jobs:
           states = {k: v["state"] for k, v in s["capabilities"].items()}
           assert states, "no capabilities ran — the manifest enforces nothing"
           assert all(v == "ran" for v in states.values()), states
+          if "ratchet" in s and s["ratchet"] is not None:
+              rt = s["ratchet"]
+              assert rt["state"] == "ran", rt
+              assert (rt["known"], rt["new"]) == ((2, 0) if tree == "clean" else (1, 1)), rt
           assert os.path.isabs(s["sarif"]) and os.path.isfile(s["sarif"]), s["sarif"]
           # One category per root, so a second root's upload never replaces this one's alerts.
           assert category == "plumb-line/" + subroot, category

@@ -1,0 +1,16 @@
+{
+  "history": [
+    {
+      "because": "initial pin: adopting the ratchet over the legacy pricing surface",
+      "change": "pinned 2 sites (python.output: 2)",
+      "date": "2026-09-15"
+    }
+  ],
+  "ratchet-format": "v1",
+  "sites": {
+    "python.output": [
+      "src/pricing/fx.py::apply_fx",
+      "src/pricing/fx.py::total"
+    ]
+  }
+}

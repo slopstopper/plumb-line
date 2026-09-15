@@ -422,7 +422,8 @@ def test_end_to_end_over_the_planted_fixtures(tmp_path):
         if not os.path.isdir(mod):
             pytest.skip(f"JS fixture toolchain not installed: run npm ci in examples/js-payments-service/{tree}")
     for fixture, expect in (("examples/js-payments-service", {"PL/boundary"}),
-                            ("examples/python-data-pipeline", {"PL/boundary"})):
+                            ("examples/python-data-pipeline", {"PL/boundary"}),
+                            ("examples/ratchet-adoption", {"PL/untagged-output"})):
         root = os.path.join(_ROOT, fixture, "broken")
         p = _paths(tmp_path / os.path.basename(fixture))
         os.makedirs(os.path.dirname(p["sarif_path"]), exist_ok=True)
@@ -431,10 +432,16 @@ def test_end_to_end_over_the_planted_fixtures(tmp_path):
         assert code == 1, fixture
         ids = {r["ruleId"] for r in json.load(open(p["sarif_path"]))["runs"][0]["results"]}
         assert expect <= ids, (fixture, ids)
+        if fixture == "examples/ratchet-adoption":
+            s = json.load(open(p["summary_path"]))
+            assert (s["ratchet"]["known"], s["ratchet"]["new"], s["findings"]) == (1, 1, 1), s
         clean = os.path.join(_ROOT, fixture, "clean")
         code = R.run(clean, os.path.join(clean, ".plumb-line", "enforcement.json"), _ROOT, "findings",
                      version="t", **p)
         assert code == 0, (fixture, open(p["step_summary_path"]).read())
+        if fixture == "examples/ratchet-adoption":
+            s = json.load(open(p["summary_path"]))
+            assert s["ratchet"] == {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 2, "new": 0, "stale": 0}, s
     # I1: run one fixture as a subroot of this checkout (the way ci.yml's
     # `root:` input does) — every located result must carry the subroot
     # prefix, so code scanning resolves it against the repository root.
