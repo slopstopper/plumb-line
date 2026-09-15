@@ -265,7 +265,7 @@ From then on, for each `js.output` / `python.output` capability that ran:
 | --- | --- |
 | Pinned in the file and still reported | `PL/untagged-output` at level **note**, message prefixed `known (ratchet):`. Never fails. |
 | Reported but **not** pinned | `PL/untagged-output` at level **error**; the message says how to accept it. Fails under `fail-on: findings`. |
-| Pinned but no longer reported | one `PL/ratchet-stale` **note** naming the site. Never fails; `ratchet.py prune` removes it. |
+| Pinned but no longer reported | one `PL/ratchet-stale` **note** naming the site. Never fails; `ratchet.py prune` removes it. A pinned *capability* the manifest no longer enforces at all yields the same `PL/ratchet-stale` note, one per capability — but that one is cleared by `ratchet.py update`, not `prune` (prune only shrinks site lists for capabilities still enforced). |
 
 The head line gains `ratchet: N known, M new, S stale`, and the summary
 names the file and its state.
@@ -288,7 +288,11 @@ write it:
   refuses when any output capability could not be measured (tool missing,
   errored, no files matched): you cannot pin what you could not see.
 - `ratchet.py prune` — removes stale sites only, never adds; records
-  `because: "prune"`. Shrinking needs no reason.
+  `because: "prune"`. Shrinking needs no reason, but it refuses under the
+  same guard as `update` when any output capability could not be measured —
+  a capability the manifest has dropped entirely is left untouched (that is
+  `update`'s job, since dropping a capability is a state change, not a
+  shrink).
 
 The Action **reads and never writes** the file: a rewrite in CI is never
 committed, and a rewrite in a pre-commit hook lands after staging. Stale
@@ -332,14 +336,18 @@ Every outcome is a named state; nothing passes by silence.
 | `fail-on: none` | Findings still upload, the summary states the mode, exit 0 — unless a capability is `tool-missing` or `errored`, which fail regardless. |
 | Manifest names a ratchet file that is missing or invalid | One `PL/ratchet-invalid` error naming the problems; the output checks still run, unratcheted (every site an error); job fails even under `fail-on: none`. |
 | A pinned ratchet site is no longer reported | One `PL/ratchet-stale` note per site; never fails. `ratchet.py prune` removes it. |
+| A pinned ratchet capability is dropped from the manifest entirely | One `PL/ratchet-stale` note naming the capability; never fails. `ratchet.py update` clears it (not `prune`, which only shrinks sites for capabilities still enforced). |
 
 ## Maturity
 
-- **The Action itself: `current`** — four CI matrix cells (two fixtures ×
+- **The Action itself: `current`** — six CI matrix cells (three fixtures ×
   `clean`/`broken`) run `uses: ./` against the planted fixtures and pass, on
-  this branch. Both fixture manifests enable only `boundary`, so that CI
-  and end-to-end proof covers `js.boundary` and `python.boundary`; the
-  other five capabilities are proven by unit tests over recorded tool
+  this branch. `js-payments-service` and `python-data-pipeline` enable only
+  `boundary`, so that CI and end-to-end proof covers `js.boundary` and
+  `python.boundary`; `examples/ratchet-adoption` enables
+  `python.provenance`, `python.output` and `ratchet`, so that same CI also
+  covers those three end to end. The remaining capabilities — `js.provenance`,
+  `js.output`, `baselines` — are proven by unit tests over recorded tool
   output.
 - **Uploading to a consumer's code scanning: `current` by construction** —
   the upload step delegates to the sha-pinned `github/codeql-action/upload-sarif`
@@ -359,7 +367,7 @@ Every outcome is a named state; nothing passes by silence.
 - **The bootstrap manifest step (Step 4d): `planned`** until a
   release-harness blind run proves a bootstrap run writes the file; the
   validator and the hand-written shape it targets are `current`.
-- Ratchet mode: **current** for `python.output` (end-to-end on
+- **Ratchet mode: `current`** for `python.output` (end-to-end on
   `examples/ratchet-adoption`; also exercised by the Action's CI matrix,
   cell `ratchet-adoption`); the JS site marker is `current` at the
   rule/assembler level and **not yet proven end to end** on a planted JS

@@ -16,6 +16,9 @@ Three parties touch it:
     reported now; a reason is required because the set may have grown.
   - `ratchet.py prune` WRITES it: removes stale sites only; no reason needed.
 
+The manifest validator does not check this file exists — `update` creates
+it; the runner is what fails on absence (PL/ratchet-invalid).
+
 P7 contract: version constant + key lists + validator. Stdlib only.
 """
 import argparse

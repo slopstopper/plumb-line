@@ -43,8 +43,10 @@ existing codebase. That is why enforcement is opt-in and scoped: the
 boundary you explicitly draw, and the ratchet (`ratchet.file` in the
 enforcement manifest, GH #119) pins a legacy surface's existing untagged
 outputs so only *new* ones fail — **current** for the Action's
-`python.output` and `js.output` checks. Adopt the envelopes per-path now;
-draw enforcement boundaries if and when you want them.
+`python.output` and `js.output` checks (proven end to end for
+`python.output`; the JS site marker is unit-proven at the rule and
+assembler). Adopt the envelopes per-path now; draw enforcement boundaries
+if and when you want them.
 
 **Worried about using it wrong?** The same user signal, in full: *"I
 didn't understand enough how the primitives would work, and since I had

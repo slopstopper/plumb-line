@@ -147,7 +147,7 @@ Current on `main`: the library with JS/Python parity, published to npm and PyPI 
 
 ## Where this is going
 
-- **Deepen the promise:** run-time primitives that refuse and explain. (The adoption ratchet for legacy codebases — no *new* untagged outputs — shipped in 0.11.0; see [ACTION.md](ACTION.md#ratchet-mode).)
+- **Deepen the promise:** run-time primitives that refuse and explain. (The adoption ratchet for legacy codebases — no *new* untagged outputs — is current on `main`, unreleased; see [ACTION.md](ACTION.md#ratchet-mode).)
 - **Provenance across boundaries:** envelopes that survive serialization, files and HTTP.
 - **Agent epistemic state:** the audit skill's coverage map and honest denominator, generalized into a spec any agent can adopt.
 

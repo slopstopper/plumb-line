@@ -8,8 +8,11 @@
 codebase: every existing untagged output fails at once, so the honest answer
 to "how does a 300k-line repo adopt this?" was "it can't" (ROADMAP #26, GH
 #119). The proven incremental shape from type-coverage tooling is a ratchet:
-pin the current debt, refuse regression. Five decisions were taken
-2026-09-14/15 against real alternatives.
+pin the current debt, refuse regression. The GitHub Action already reads an
+explicit enforcement manifest and emits one SARIF log (ADR-0016); the
+ratchet is a new mode of that same manifest and runner rather than a
+separate check. Five decisions were taken 2026-09-14/15 against real
+alternatives.
 
 ## Decision
 
@@ -25,10 +28,11 @@ pin the current debt, refuse regression. Five decisions were taken
    Principle 9's explain-the-drift idiom applied asymmetrically, on
    purpose: the ratchet resists one direction.
 3. **A mode of the output capability, not a new capability.** One rule id
-   (`PL/untagged-output`), one manifest key (`ratchet.file`); pinned sites
-   stay *visible* in SARIF as notes rather than vanishing. Rejected: a
-   `js.ratchet` / `python.ratchet` capability with its own rule — two checks
-   over the same globs producing overlapping findings.
+   (`PL/untagged-output`), one manifest key (`ratchet.file`, on the same
+   `.plumb-line/enforcement.json` the Action already reads, ADR-0016);
+   pinned sites stay *visible* in SARIF as notes rather than vanishing.
+   Rejected: a `js.ratchet` / `python.ratchet` capability with its own
+   rule — two checks over the same globs producing overlapping findings.
 4. **The runner never writes.** Rejected: auto-pruning from
    `run_checks.py` — in the Action the rewrite is never committed; in the
    pre-commit gate it lands after staging and leaves a dirty tree. Stale
