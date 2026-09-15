@@ -9,6 +9,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Changed
+- **import-linter install hints pinned to the tested version; the text
+  parser's upstream ask linked**
+  ([#376](https://github.com/slopstopper/plumb-line/issues/376)). The
+  SARIF assembler text-parses import-linter's human report (`partial`), and
+  that grammar is only known good at the version CI tests (2.15). The
+  `pip install import-linter` hints in ACTION.md, DEVELOPMENT.md and the
+  Action's `tool-missing` note now say `==2.15`, read from one constant
+  (`IMPORT_LINTER_TESTED` in `adapters/sarif/assemble.py`) that a test holds
+  equal to the `requirements-test.in` pin. The machine-readable output that
+  would retire the parser is requested upstream in
+  [seddonym/import-linter#291](https://github.com/seddonym/import-linter/issues/291);
+  ACTION.md, ADR-0016 and the parser now link it.
+
 ### Fixed
 - **Action step summary: the always-zero "N not enforced here" head-line
   slot is gone** ([#377](https://github.com/slopstopper/plumb-line/issues/377)).

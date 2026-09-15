@@ -74,6 +74,17 @@ def test_parse_import_linter_strips_ansi_and_maps_module_to_file(tmp_path):
                   "tool": "import-linter", "parser": "text", "whole": False}]
 
 
+def test_import_linter_tested_version_matches_the_ci_pin():
+    """Drift gate (#376): the version the text parser is pinned to — the one
+    the install hint names — must be the version CI actually tests against
+    (requirements-test.in, hashed into requirements-test.txt). Bump both or
+    neither."""
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    with open(os.path.join(root, "requirements-test.in"), encoding="utf-8") as fh:
+        pins = [ln.strip() for ln in fh if ln.startswith("import-linter==")]
+    assert pins == [f"import-linter=={A.IMPORT_LINTER_TESTED}"]
+
+
 def test_parse_import_linter_kept_report_is_empty():
     assert A.parse_import_linter(_fx("import-linter-kept.txt"), root="/repo", root_package="src") == []
 
