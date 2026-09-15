@@ -207,3 +207,12 @@ def test_ratchet_needs_an_output_capability_to_ratchet(tmp_path):
     del m["python"]["provenance"]["outputGlobs"]
     m["ratchet"] = {"file": "r.json"}
     assert any("nothing to ratchet" in i for i in cem.validate_manifest(m, root))
+
+
+def test_ratchet_with_malformed_language_section_does_not_raise(tmp_path):
+    root = _root(tmp_path)
+    m = {"enforcement-format": "v1", "languages": ["js"], "js": "not-a-dict", "ratchet": {"file": "r.json"}}
+    # Should not raise an exception
+    issues = cem.validate_manifest(m, root)
+    # Should contain the "js must be an object" error
+    assert any("js must be an object" in i for i in issues), issues
