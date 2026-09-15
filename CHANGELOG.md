@@ -9,6 +9,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Fixed
+- **Action step summary: the always-zero "N not enforced here" head-line
+  slot is gone** ([#377](https://github.com/slopstopper/plumb-line/issues/377)).
+  `run_checks.py` only ever builds states for the capabilities a manifest
+  carries — an omitted capability is not run and never appears in the
+  summary (adapter-contract §6) — so the head line's `not-enforced` count
+  could not read anything but 0. The slot and the dead `not-enforced` state
+  are removed; the head line now reads `N checks ran, N tools missing, N
+  errored; N findings`. A number that never moves is a weaker signal than
+  no number: it invites reading "0 not enforced" as "everything is
+  enforced", which the summary has never been able to claim.
+
 ### Added
 - **GitHub Action + SARIF: the deterministic floor runs without an agent**
   ([#118](https://github.com/slopstopper/plumb-line/issues/118)). A
