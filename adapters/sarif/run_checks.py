@@ -40,7 +40,7 @@ TOOLS = {
     "js.boundary": ("eslint", "npm ci (eslint + eslint-plugin-import-x from the consumer's package.json)"),
     "js.provenance": ("eslint", "npm ci (eslint from the consumer's package.json)"),
     "js.output": ("eslint", "npm ci (eslint from the consumer's package.json)"),
-    "python.boundary": ("lint-imports", "pip install import-linter"),
+    "python.boundary": ("lint-imports", f"pip install import-linter=={A.IMPORT_LINTER_TESTED}"),
     "python.provenance": ("python3", "python3 on PATH"),
     "python.output": ("python3", "python3 on PATH"),
     "baselines": ("node", "node >= 22 on PATH"),

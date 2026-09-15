@@ -46,7 +46,7 @@ steps:
   - uses: actions/checkout@<sha>  # v7
   - uses: actions/setup-node@<sha>  # v6   (JS consumers)
   - run: npm ci                            # ESLint + the bootstrap-installed rules
-  - run: pip install import-linter         # Python consumers with a boundary contract
+  - run: pip install import-linter==2.15   # Python consumers with a boundary contract (the tested version; see Tools)
   - uses: slopstopper/plumb-line@v0.11.0
     with:
       fail-on: findings   # or none, for incremental adoption
@@ -108,7 +108,7 @@ mode is about findings, never about the Action being unable to run at all
 | `js.boundary` | `node_modules/.bin/eslint` (walking up from `root`; Yarn PnP has no `node_modules` and reports `tool-missing`) | `npm ci` (eslint + eslint-plugin-import-x from the consumer's package.json) |
 | `js.provenance` | `node_modules/.bin/eslint` (walk-up from `root`, as above) | `npm ci` (eslint from the consumer's package.json) |
 | `js.output` | `node_modules/.bin/eslint` (walk-up from `root`, as above) | `npm ci` (eslint from the consumer's package.json) |
-| `python.boundary` | `lint-imports` | `pip install import-linter` |
+| `python.boundary` | `lint-imports` | `pip install import-linter==2.15` (the version the text parser is tested against; unpinned installs may shift the report format ahead of this repo) |
 | `python.provenance` | `python3` | `python3` on `PATH` |
 | `python.output` | `python3` | `python3` on `PATH` |
 | `baselines` | `node` | `node >= 22` on `PATH` |
@@ -180,11 +180,14 @@ continuation line becomes a `PL/unparsed` warning; and the importer-to-file
 mapping reads the singular `root_package` key from an ini-style config, so
 a config using `root_packages` (plural) or living in `pyproject.toml`
 yields results that are all `unlocated` (the module name is kept in the
-message). The parser is pinned to the tested import-linter version (`2.15`, in
-`requirements-test.txt`); a consumer's own `pip install import-linter` in
-the *Usage* workflow above is unpinned, so a future import-linter release
-could shift the report format before this repo's pin catches up. A
-follow-up issue tracks asking upstream for a machine-readable report (see
+message). The parser is pinned to the tested import-linter version (`2.15`:
+`IMPORT_LINTER_TESTED` in `adapters/sarif/assemble.py`, held equal to the
+`requirements-test.in` pin by a test), and the install hints above name
+that same version; an unpinned `pip install import-linter` on a consumer's
+runner could pick up a release that shifts the report format before this
+repo's pin catches up. The upstream ask for a machine-readable report is
+[seddonym/import-linter#291](https://github.com/seddonym/import-linter/issues/291) (tracked here as
+[#376](https://github.com/slopstopper/plumb-line/issues/376); see
 *Maturity*, below).
 
 ## The manifest
@@ -271,8 +274,8 @@ Every outcome is a named state; nothing passes by silence.
   own CI runs the Action with `upload: "false"`, so code-scanning ingestion
   of this Action's SARIF is unproven anywhere until an adopter observes it.
 - **import-linter's text parsing: `partial`** — see *Unparsed*, above; a
-  follow-up issue tracks asking upstream for a machine-readable report and
-  pins this parser to the tested version until then
+  machine-readable report is asked for upstream in [seddonym/import-linter#291](https://github.com/seddonym/import-linter/issues/291),
+  and this parser is pinned to the tested version until then
   ([#376](https://github.com/slopstopper/plumb-line/issues/376)).
 - **Known gap, tracked separately:** the summary head-line's "N not
   enforced here" count is never actually computed — `run_checks.py`
