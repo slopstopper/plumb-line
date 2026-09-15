@@ -217,7 +217,7 @@ def test_js_provenance_and_output_filter_by_rule(tmp_path):
                            "messages": [{"ruleId": "plumb-line/no-provenance-bypass",
                                         "message": "PB1 laundered", "line": 1, "column": 1},
                                        {"ruleId": "plumb-line/require-provenance-output",
-                                        "message": "untagged output", "line": 2, "column": 1}]}])
+                                        "message": "untagged output [site: f]", "line": 2, "column": 1}]}])
     fake = FakeRunner({"eslint": (0, payload, "")})
     p = _paths(tmp_path)
     R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",

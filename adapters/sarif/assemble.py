@@ -54,6 +54,12 @@ RULES = {
     "PL/unparsed": {"name": "Unparsed", "level": "warning",
                     "shortDescription": "A tool produced output the assembler could not map to a rule; the raw line is in the message.",
                     "helpUri": _BLOB + "ACTION.md#unparsed"},
+    "PL/ratchet-invalid": {"name": "RatchetInvalid", "level": "error",
+                           "shortDescription": "The manifest names a ratchet file that is missing or fails its contract (ratchet-format v1); the output checks ran unratcheted.",
+                           "helpUri": _BLOB + "ACTION.md#ratchet-mode"},
+    "PL/ratchet-stale": {"name": "RatchetStale", "level": "note",
+                         "shortDescription": "A site pinned in the ratchet file is no longer reported; prune it (ratchet.py prune).",
+                         "helpUri": _BLOB + "ACTION.md#ratchet-mode"},
 }
 
 _ESLINT_RULE = {
@@ -62,6 +68,10 @@ _ESLINT_RULE = {
     "plumb-line/require-provenance-output": "PL/untagged-output",
 }
 _PB = re.compile(r"^PB([1-4])\b")
+# #119: the site marker require-provenance-output appends to its message.
+# ESLint's JSON has no per-message data, so the message is the carrier;
+# the template lives in adapters/js/provenance-lint/require-provenance-output.cjs.
+SITE_RE = re.compile(r" \[site: ([^\]]+)\]$")
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 _IL_VIOLATION = re.compile(r"^- (?P<importer>[\w.]+) -> (?P<imported>[\w.]+) \((?P<lines>l\.[^)]*)\)$")
 _IL_LINENO = re.compile(r"l\.(\d+|\?)")
@@ -69,10 +79,10 @@ _IL_HEADER = re.compile(r"^(?P<a>[\w.]+) is not allowed to import (?P<b>[\w.]+):
 _IL_SUMMARY = re.compile(r"^Contracts: (?P<kept>\d+) kept, (?P<broken>\d+) broken\.$")
 
 
-def result(rule_id, message, file=None, line=None, column=None, tool="action", parser="json"):
+def result(rule_id, message, file=None, line=None, column=None, tool="action", parser="json", site=None):
     return {"ruleId": rule_id, "level": RULES[rule_id]["level"], "message": message,
             "file": file, "line": line, "column": column, "tool": tool, "parser": parser,
-            "whole": False}
+            "whole": False, "site": site}
 
 
 def unparsed(text, tool, *, file=None, line=None, column=None, parser="text", whole=False):
@@ -133,8 +143,17 @@ def parse_eslint(text, root):
                                     file=_rel(f.get("filePath"), root), line=_line(m.get("line")),
                                     column=_line(m.get("column")), parser="json"))
                 continue
+            site = None
+            if mapped == "PL/untagged-output":
+                m_site = SITE_RE.search(m.get("message", ""))
+                if not m_site:
+                    out.append(unparsed(f"{rid}: no [site: …] marker in message: {m.get('message', '')}", "eslint",
+                                        file=_rel(f.get("filePath"), root), line=_line(m.get("line")),
+                                        column=_line(m.get("column")), parser="json"))
+                    continue
+                site = m_site.group(1)
             out.append(result(mapped, m.get("message", ""), file=_rel(f.get("filePath"), root),
-                              line=_line(m.get("line")), column=_line(m.get("column")), tool="eslint"))
+                              line=_line(m.get("line")), column=_line(m.get("column")), tool="eslint", site=site))
     return out
 
 
@@ -155,12 +174,17 @@ def parse_provenance_lint(text, root):
             rid = "PL/" + rule
         elif rule == "REQ-OUTPUT":
             rid = "PL/untagged-output"
+            if not isinstance(i.get("symbol"), str) or not i["symbol"]:
+                out.append(unparsed(f"REQ-OUTPUT without a symbol: {i.get('message', '')}", "provenance_lint",
+                                    file=_rel(i.get("filename"), root), line=_line(i.get("line")), parser="json"))
+                continue
         else:
             out.append(unparsed(f"{rule}: {i.get('message', '')}", "provenance_lint",
                                 file=_rel(i.get("filename"), root), line=_line(i.get("line")), parser="json"))
             continue
         out.append(result(rid, i.get("message", ""), file=_rel(i.get("filename"), root),
-                          line=_line(i.get("line")), tool="provenance_lint"))
+                          line=_line(i.get("line")), tool="provenance_lint",
+                          site=i.get("symbol") if rid == "PL/untagged-output" else None))
     return out
 
 
@@ -296,17 +320,20 @@ def build_sarif(results, version, src_root=None):
 
 # ---------- summary ----------
 
-def build_summary(capability_states, results, fail_on, sarif_path):
-    """capability_states: {key: (state, parser|None, note|None)}."""
+def build_summary(capability_states, results, fail_on, sarif_path, ratchet=None):
+    """capability_states: {key: (state, parser|None, note|None)}.
+    ratchet: None when the manifest names no ratchet, else
+    {file, state, known, new, stale} from ratchet.apply()."""
     caps = {}
     for key, (state, parser, note) in capability_states.items():
         caps[key] = {"state": state, "parser": parser, "note": note,
                      "results": sum(1 for r in results if _owner(r) == key)}
+    notes = sum(1 for r in results if r["level"] == "note")
     return {"summary-format": SUMMARY_FORMAT, "fail_on": fail_on, "capabilities": caps,
-            "findings": len(results),
+            "findings": len(results) - notes, "notes": notes,
             "unlocated": sum(1 for r in results if not r.get("file")),
             "unparsed": sum(1 for r in results if r["ruleId"] == "PL/unparsed"),
-            "sarif": sarif_path}
+            "ratchet": ratchet, "sarif": sarif_path}
 
 
 def _owner(r):
@@ -323,7 +350,13 @@ def summary_text(s):
              f"{missing} tool{'' if missing == 1 else 's'} missing",
              f"{states.count('errored')} errored"]
     head = ", ".join(parts) + f"; {findings} finding{'' if findings == 1 else 's'}"
+    rt = s.get("ratchet")
+    if rt and "known" in rt:
+        head += f"; ratchet: {rt['known']} known, {rt['new']} new, {rt['stale']} stale"
     lines = [f"plumb-line enforcement — {head} (fail-on: {s['fail_on']})", ""]
+    if rt:
+        lines.append(f"ratchet file: {rt['file']} ({rt['state']})")
+        lines.append("")
     lines.append("| capability | state | results | parser | note |")
     lines.append("| --- | --- | --- | --- | --- |")
     for key in sorted(s["capabilities"]):

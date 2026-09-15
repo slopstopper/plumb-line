@@ -21,11 +21,67 @@ def _fx(name):
 def test_rules_catalogue_is_the_spec_list():
     assert sorted(A.RULES) == sorted(["PL/boundary", "PL/PB1", "PL/PB2", "PL/PB3", "PL/PB4",
                                       "PL/untagged-output", "PL/baseline-invalid",
-                                      "PL/tool-missing", "PL/unparsed"])
+                                      "PL/tool-missing", "PL/unparsed",
+                                      "PL/ratchet-invalid", "PL/ratchet-stale"])
     for rid, r in A.RULES.items():
         assert set(r) == {"name", "shortDescription", "helpUri", "level"}, rid
-        assert r["level"] in ("error", "warning")
+        assert r["level"] in ("error", "warning", "note")
     assert A.RULES["PL/unparsed"]["level"] == "warning"
+    assert A.RULES["PL/ratchet-stale"]["level"] == "note"
+    assert A.RULES["PL/ratchet-invalid"]["level"] == "error"
+
+
+def test_result_carries_site_default_none():
+    assert A.result("PL/boundary", "m")["site"] is None
+    assert A.result("PL/untagged-output", "m", site="f")["site"] == "f"
+
+
+def test_parse_provenance_lint_carries_symbol_as_site():
+    r = A.parse_provenance_lint(_fx("provenance-lint.json"), root="/repo")
+    assert r[1]["ruleId"] == "PL/untagged-output" and r[1]["site"] == "rate"
+    assert r[0]["site"] is None  # PB1 has no site
+
+
+def test_parse_provenance_lint_untagged_without_symbol_is_unparsed():
+    text = json.dumps([{"filename": "/repo/a.py", "line": 2, "rule": "REQ-OUTPUT", "message": "m"}])
+    r = A.parse_provenance_lint(text, root="/repo")
+    assert r[0]["ruleId"] == "PL/unparsed" and "symbol" in r[0]["message"] and r[0]["file"] == "a.py"
+
+
+def test_parse_eslint_extracts_site_from_the_message_suffix():
+    r = A.parse_eslint(_fx("eslint-provenance.json"), root="/repo")
+    out = [x for x in r if x["ruleId"] == "PL/untagged-output"]
+    assert out and out[0]["site"] == "applyFx"
+    assert [x["site"] for x in r if x["ruleId"] == "PL/PB1"] == [None]
+
+
+def test_parse_eslint_untagged_without_site_suffix_is_unparsed():
+    text = json.dumps([{"filePath": "/repo/a.mjs", "messages": [
+        {"ruleId": "plumb-line/require-provenance-output", "severity": 2,
+         "message": "Untagged output: old template with no marker", "line": 1, "column": 1}]}])
+    r = A.parse_eslint(text, root="/repo")
+    assert r[0]["ruleId"] == "PL/unparsed" and "site" in r[0]["message"] and r[0]["line"] == 1
+
+
+def test_build_summary_counts_notes_separately_from_findings():
+    results = [A.result("PL/untagged-output", "m", file="a.py", site="f"),
+               dict(A.result("PL/untagged-output", "known (ratchet): m", file="b.py", site="g"), level="note"),
+               A.result("PL/ratchet-stale", "stale")]
+    for r in results:
+        r["capability"] = "python.output"
+    s = A.build_summary({"python.output": ("ran", "json", None)}, results, "findings", "/o.sarif",
+                        ratchet={"file": ".plumb-line/ratchet.json", "state": "ran", "known": 1, "new": 1, "stale": 1})
+    assert s["findings"] == 1 and s["notes"] == 2
+    assert s["ratchet"] == {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 1, "new": 1, "stale": 1}
+    text = A.summary_text(s)
+    assert "; ratchet: 1 known, 1 new, 1 stale" in text.splitlines()[0]
+    assert "ratchet file: .plumb-line/ratchet.json (ran)" in text
+
+
+def test_summary_without_ratchet_has_no_ratchet_clause():
+    s = A.build_summary({}, [], "findings", "/o.sarif")
+    assert s["ratchet"] is None and s["notes"] == 0
+    assert "ratchet" not in A.summary_text(s)
 
 
 def test_parse_eslint_boundary_maps_rule_and_location():
@@ -33,7 +89,7 @@ def test_parse_eslint_boundary_maps_rule_and_location():
     assert r == [{"ruleId": "PL/boundary", "level": "error",
                   "message": 'Unexpected path "../ui/checkout.js" imported in restricted zone.',
                   "file": "src/data/rates.js", "line": 8, "column": 38, "tool": "eslint", "parser": "json",
-                  "whole": False}]
+                  "whole": False, "site": None}]
 
 
 def test_parse_eslint_provenance_maps_pb_and_output():
@@ -71,7 +127,7 @@ def test_parse_import_linter_strips_ansi_and_maps_module_to_file(tmp_path):
     assert r == [{"ruleId": "PL/boundary", "level": "error",
                   "message": "src.data.schema -> src.ui.report: src.data is not allowed to import src.ui",
                   "file": "src/data/schema.py", "line": 7, "column": None,
-                  "tool": "import-linter", "parser": "text", "whole": False}]
+                  "tool": "import-linter", "parser": "text", "whole": False, "site": None}]
 
 
 def test_parse_import_linter_kept_report_is_empty():
@@ -273,11 +329,14 @@ def test_js_and_python_parity_per_rule(rule, expected):
     # first token (parse_eslint reads it from there); require-provenance-output
     # is REQ-OUTPUT's counterpart. provenance_lint.py names the rule directly.
     if rule == "REQ-OUTPUT":
-        js_msg = {"ruleId": "plumb-line/require-provenance-output", "message": "returns a raw computation", "line": 3, "column": 1}
+        js_msg = {"ruleId": "plumb-line/require-provenance-output",
+                  "message": "returns a raw computation [site: f]", "line": 3, "column": 1}
+        py_entry = {"filename": "src/x.py", "line": 3, "rule": rule, "message": "m", "symbol": "f"}
     else:
         js_msg = {"ruleId": "plumb-line/no-provenance-bypass", "message": f"{rule} something laundered", "line": 3, "column": 1}
+        py_entry = {"filename": "src/x.py", "line": 3, "rule": rule, "message": "m"}
     js = A.parse_eslint(json.dumps([{"filePath": "/repo/src/x.mjs", "messages": [js_msg]}]), root="/repo")
-    py = A.parse_provenance_lint(json.dumps([{"filename": "src/x.py", "line": 3, "rule": rule, "message": "m"}]), root="/repo")
+    py = A.parse_provenance_lint(json.dumps([py_entry]), root="/repo")
     assert [r["ruleId"] for r in js] == [expected] == [r["ruleId"] for r in py]
     assert js[0]["level"] == py[0]["level"] == "error"
 
