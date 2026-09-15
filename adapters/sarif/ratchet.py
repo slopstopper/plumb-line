@@ -110,7 +110,7 @@ def validate_ratchet(data):
                 p.append(f"history[{i}].date must be YYYY-MM-DD")
             if not isinstance(h["because"], str) or not h["because"].strip():
                 p.append(f"history[{i}].because must be a non-empty string")
-            if not isinstance(h["change"], str) or not h["change"]:
+            if not isinstance(h["change"], str) or not h["change"].strip():
                 p.append(f"history[{i}].change must be a non-empty string")
     return p
 
@@ -263,6 +263,11 @@ def update(root, manifest_path, scripts_dir, because, runner=None, today=None):
     if err:
         return 2, err, None
     new_sites = {cap: sites for cap, (_, sites) in measured.items()}
+    if existing is not None and new_sites == existing["sites"]:
+        # Idempotent: re-running update on an unchanged tree must not append
+        # a history entry for a change that did not happen. Compared whole,
+        # so an emptied list or a dropped capability still counts as change.
+        return 0, "nothing changed", existing
     data = empty()
     data["sites"] = new_sites
     data["history"] = list(existing["history"]) if existing else []
@@ -318,7 +323,7 @@ def prune(root, manifest_path, scripts_dir, runner=None, today=None):
     data["history"].append({"date": today or datetime.date.today().isoformat(), "because": "prune",
                             "change": f"-{removed} sites (" + "; ".join(parts) + ")"})
     write_ratchet(path, data)
-    return 0, f"pruned {_count(removed)} stale from {os.path.relpath(path, root)}", data
+    return 0, f"pruned {removed} stale site{'' if removed == 1 else 's'} from {os.path.relpath(path, root)}", data
 
 
 def main(argv=None):

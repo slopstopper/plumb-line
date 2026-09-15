@@ -58,9 +58,11 @@ alternatives.
 - An absent `sites` key means "never measured"; an empty list means
   "measured and clean" — the null result is expressible (portable
   principles, the spine).
-- `summary-format` gains `notes` and `ratchet`; `findings` no longer counts
-  note-level results. Consumers of the summary JSON that summed `findings`
-  see fewer, not more.
+- The summary format is bumped to **v2** because `findings` changed meaning:
+  it no longer counts note-level results, and `notes` and `ratchet` were
+  added. A v1 consumer summing `findings` would under-count only when a
+  ratchet is configured, but a changed meaning is a changed contract (P7),
+  so the version moves rather than the keys quietly shifting under it.
 - The JS site marker is a text convention inside a message. The assembler
   turns a marker-less `require-provenance-output` message into
   `PL/unparsed`, so template drift is loud, never a silently site-less

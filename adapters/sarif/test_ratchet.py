@@ -229,7 +229,7 @@ def test_prune_removes_only_stale_sites_and_needs_no_reason(tmp_path):
     # b fixed, c is new: prune drops b and does NOT add c.
     code, msg, data = RT.prune(root, m, _REPO, today="2026-09-16",
                                runner=FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "a"), ("src/p/b.py", "c")), "")}))
-    assert code == 0 and "pruned 1" in msg
+    assert code == 0 and "pruned 1 stale site" in msg
     assert data["sites"] == {"python.output": ["src/p/b.py::a"]}
     assert data["history"][-1] == {"date": "2026-09-16", "because": "prune", "change": "-1 sites (python.output: -1)"}
 
@@ -305,3 +305,61 @@ def test_main_update_and_prune_verbs(tmp_path, capsys, monkeypatch):
     assert out["sites"] == {"python.output": ["src/p/b.py::a"]}
     assert RT.main(["prune", "--root", root, "--scripts-dir", _REPO]) == 0
     assert "nothing to prune" in capsys.readouterr().out
+
+
+# ---------- final review: JS no-match, idempotent update, blank `change` ----------
+
+JS_MAN = {"enforcement-format": "v1", "languages": ["js"],
+          "js": {"provenance": {"config": "eslint-provenance.cjs",
+                                "globs": ["src/**/*.js"], "outputGlobs": ["src/p/**/*.js"]}},
+          "ratchet": {"file": ".plumb-line/ratchet.json"}}
+
+
+def _js_ratchet(root):
+    d = RT.empty()
+    d["sites"] = {"js.output": ["src/p/b.js::f"]}
+    d["history"] = [{"date": "2026-09-15", "because": "initial pin", "change": "pinned 1 site"}]
+    path = os.path.join(root, ".plumb-line", "ratchet.json")
+    RT.write_ratchet(path, d)
+    return path
+
+
+def test_update_refuses_when_js_output_matched_no_files(tmp_path):
+    # An empty ESLint file list means nothing was linted. Pinning [] here
+    # would silently erase the JS debt register on a typo'd outputGlobs.
+    root = _consumer(tmp_path, JS_MAN)
+    code, msg, _ = RT.update(root, os.path.join(root, ".plumb-line", "enforcement.json"), _REPO, "x",
+                             runner=FakeRunner({"eslint": (0, "[]", "")}))
+    assert code == 2 and "js.output" in msg and RT.NO_MATCH_NOTE in msg
+    assert not os.path.exists(os.path.join(root, ".plumb-line", "ratchet.json"))
+
+
+def test_prune_refuses_when_js_output_matched_no_files(tmp_path):
+    root = _consumer(tmp_path, JS_MAN)
+    path = _js_ratchet(root)
+    before = open(path, "rb").read()
+    code, msg, _ = RT.prune(root, os.path.join(root, ".plumb-line", "enforcement.json"), _REPO,
+                            runner=FakeRunner({"eslint": (0, "[]", "")}))
+    assert code == 2 and "js.output" in msg and RT.NO_MATCH_NOTE in msg
+    assert open(path, "rb").read() == before
+
+
+def test_update_over_an_unchanged_tree_writes_nothing_and_says_so(tmp_path):
+    # Idempotence: a second `update` on an unchanged tree must not append a
+    # history entry (or a fresh date) for a change that did not happen.
+    root = _consumer(tmp_path, MAN)
+    m = os.path.join(root, ".plumb-line", "enforcement.json")
+    fake = FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "a")), "")})
+    RT.update(root, m, _REPO, "initial pin", runner=fake, today="2026-09-15")
+    path = os.path.join(root, ".plumb-line", "ratchet.json")
+    before = open(path, "rb").read()
+    code, msg, data = RT.update(root, m, _REPO, "initial pin", runner=fake, today="2026-09-16")
+    assert code == 0 and msg == "nothing changed"
+    assert open(path, "rb").read() == before
+    assert data["sites"] == {"python.output": ["src/p/b.py::a"]} and len(data["history"]) == 1
+
+
+def test_history_change_must_not_be_blank():
+    d = _ok()
+    d["history"] = [{"date": "2026-09-15", "because": "why", "change": "  "}]
+    assert any("change" in x for x in RT.validate_ratchet(d))

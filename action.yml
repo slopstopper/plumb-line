@@ -16,7 +16,7 @@ inputs:
     description: "For monorepos: the consumer root within the checkout (default: the repository root)."
     default: "."
   fail-on:
-    description: "`findings` (default) fails the job on any result; `none` is advisory — the SARIF still uploads."
+    description: "`findings` (default) fails the job on any error/warning result; `none` is advisory — the SARIF still uploads. Ratchet notes never count either way."
     default: findings
   sarif-file:
     description: Where to write the SARIF log.

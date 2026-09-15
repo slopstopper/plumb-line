@@ -69,12 +69,13 @@ def test_build_summary_counts_notes_separately_from_findings():
                A.result("PL/ratchet-stale", "stale")]
     for r in results:
         r["capability"] = "python.output"
-    s = A.build_summary({"python.output": ("ran", "json", None)}, results, "findings", "/o.sarif",
-                        ratchet={"file": ".plumb-line/ratchet.json", "state": "ran", "known": 1, "new": 1, "stale": 1})
+    rt = {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 1, "new": 1, "stale": 1, "unmeasured": []}
+    s = A.build_summary({"python.output": ("ran", "json", None)}, results, "findings", "/o.sarif", ratchet=rt)
     assert s["findings"] == 1 and s["notes"] == 2
-    assert s["ratchet"] == {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 1, "new": 1, "stale": 1}
+    assert s["ratchet"] == rt
     text = A.summary_text(s)
     assert "; ratchet: 1 known, 1 new, 1 stale" in text.splitlines()[0]
+    assert "unmeasured" not in text.splitlines()[0]
     assert "ratchet file: .plumb-line/ratchet.json (ran)" in text
 
 
@@ -82,6 +83,23 @@ def test_summary_without_ratchet_has_no_ratchet_clause():
     s = A.build_summary({}, [], "findings", "/o.sarif")
     assert s["ratchet"] is None and s["notes"] == 0
     assert "ratchet" not in A.summary_text(s)
+
+
+def test_head_line_says_invalid_rather_than_three_zeros():
+    # An invalid ratchet measured nothing; "0 known, 0 new, 0 stale" reads
+    # as "ratcheted and clean" — the one shape this summary must never take.
+    s = A.build_summary({"ratchet": ("errored", "json", "not found")}, [], "findings", "/o.sarif",
+                        ratchet={"file": ".plumb-line/ratchet.json", "state": "invalid",
+                                 "known": 0, "new": 0, "stale": 0, "unmeasured": ["python.output"]})
+    head = A.summary_text(s).splitlines()[0]
+    assert "; ratchet: invalid (checks ran unratcheted)" in head and "0 known" not in head
+
+
+def test_head_line_counts_unmeasured_output_capabilities():
+    s = A.build_summary({"python.output": ("tool-missing", None, "python3 on PATH")}, [], "findings", "/o.sarif",
+                        ratchet={"file": ".plumb-line/ratchet.json", "state": "ran",
+                                 "known": 0, "new": 0, "stale": 0, "unmeasured": ["python.output"]})
+    assert "; ratchet: 0 known, 0 new, 0 stale, 1 unmeasured" in A.summary_text(s).splitlines()[0]
 
 
 def test_parse_eslint_boundary_maps_rule_and_location():
@@ -172,6 +190,16 @@ def test_build_sarif_shape_and_catalogue():
     assert res[0]["ruleIndex"] == [r["id"] for r in drv["rules"]].index("PL/boundary")
 
 
+def test_build_sarif_carries_the_site_in_properties():
+    # The site is what the ratchet keys on; dropping it at the SARIF
+    # boundary makes an alert unmatchable against the ratchet file.
+    with_site = A.result("PL/untagged-output", "m", file="a.py", site="f")
+    without = A.result("PL/boundary", "m", file="a.py", tool="eslint")
+    res = A.build_sarif([with_site, without], version="x")["runs"][0]["results"]
+    assert res[0]["properties"] == {"tool": "action", "parser": "json", "site": "f"}
+    assert res[1]["properties"] == {"tool": "eslint", "parser": "json"}
+
+
 def test_build_sarif_region_omits_missing_line_and_column():
     r = A.parse_provenance_lint(_fx("provenance-lint.json"), root="/repo")
     log = A.build_sarif(r, version="x")
@@ -187,7 +215,7 @@ def test_build_summary_counts_by_state_and_kind():
     results = A.parse_import_linter(_fx("garbled.txt"), root="/repo", root_package="src") + \
         [A.tool_missing("python.boundary", "pip install import-linter")]
     s = A.build_summary(states, results, fail_on="findings", sarif_path="/tmp/x.sarif")
-    assert s["summary-format"] == "v1" and s["fail_on"] == "findings" and s["sarif"] == "/tmp/x.sarif"
+    assert s["summary-format"] == "v2" and s["fail_on"] == "findings" and s["sarif"] == "/tmp/x.sarif"
     assert s["capabilities"]["js.boundary"] == {"state": "ran", "results": 0, "parser": "json", "note": None}
     assert s["capabilities"]["python.boundary"]["note"] == "pip install import-linter"
     assert s["findings"] == 2 and s["unparsed"] == 1 and s["unlocated"] == 2

@@ -441,7 +441,8 @@ def test_end_to_end_over_the_planted_fixtures(tmp_path):
         assert code == 0, (fixture, open(p["step_summary_path"]).read())
         if fixture == "examples/ratchet-adoption":
             s = json.load(open(p["summary_path"]))
-            assert s["ratchet"] == {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 2, "new": 0, "stale": 0}, s
+            assert s["ratchet"] == {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 2, "new": 0,
+                                    "stale": 0, "unmeasured": []}, s
     # I1: run one fixture as a subroot of this checkout (the way ci.yml's
     # `root:` input does) — every located result must carry the subroot
     # prefix, so code scanning resolves it against the repository root.
@@ -490,7 +491,8 @@ def test_ratchet_known_is_a_note_new_is_an_error_and_only_new_fails(tmp_path):
                        "provenance_lint.py:output": (1, _untagged_issues(("src/p/b.py", "pinned"), ("src/p/b.py", "fresh")), "")})
     code, s, sarif, text = _run(root, tmp_path, fake)
     assert code == 1
-    assert s["ratchet"] == {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 1, "new": 1, "stale": 0}
+    assert s["ratchet"] == {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 1, "new": 1,
+                            "stale": 0, "unmeasured": []}
     assert s["findings"] == 1 and s["notes"] == 1
     levels = {(r["message"]["text"][:16], r["level"]) for r in sarif["runs"][0]["results"] if r["ruleId"] == "PL/untagged-output"}
     assert ("known (ratchet):", "note") in levels
@@ -542,8 +544,12 @@ def test_ratchet_tool_missing_output_capability_is_not_split(tmp_path):
     root = _consumer(tmp_path, PY_OUT)
     _ratchet(root, {"python.output": ["src/p/b.py::gone"]})
     fake = FakeRunner({}, missing=("python3",))
-    code, s, _, _ = _run(root, tmp_path, fake)
-    assert code == 1 and s["ratchet"] == {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 0, "new": 0, "stale": 0}
+    code, s, _, text = _run(root, tmp_path, fake)
+    assert code == 1 and s["ratchet"] == {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 0,
+                                          "new": 0, "stale": 0, "unmeasured": ["python.output"]}
+    # Three zeros alone would read as "ratcheted and clean"; the head line
+    # has to say the output capability was never measured.
+    assert "1 unmeasured" in text.splitlines()[0]
 
 
 def test_ratchet_sites_are_root_relative_but_sarif_is_workspace_relative(tmp_path):
@@ -567,3 +573,36 @@ def test_no_ratchet_key_means_no_ratchet_block(tmp_path):
     # prints. Assert the absence of the ratchet clause/block specifically.
     assert code == 0 and s["ratchet"] is None and "ratchet:" not in text and "ratchet file:" not in text
     assert "| ratchet |" not in text
+
+
+# ---------- final review A: an empty ESLint file list is no match, not clean ----------
+
+JS_OUT = {"enforcement-format": "v1", "languages": ["js"],
+          "js": {"provenance": {"config": "eslint-provenance.cjs",
+                                "globs": ["src/**/*.js"], "outputGlobs": ["src/p/**/*.js"]}},
+          "ratchet": {"file": ".plumb-line/ratchet.json"}}
+
+
+def test_js_output_empty_eslint_array_is_no_match_not_clean(tmp_path):
+    # ESLint --format json emits one entry per LINTED file even when that file
+    # has zero messages, so a top-level `[]` means no file was linted at all —
+    # a broken outputGlobs. Read as "clean", the ratchet would conclude every
+    # pinned JS site was fixed: `prune` would erase them and `update` pin [].
+    root = _consumer(tmp_path, JS_OUT)
+    _ratchet(root, {"js.output": ["src/p/b.js::f"]})
+    code, s, sarif, _ = _run(root, tmp_path, FakeRunner({"eslint": (0, "[]", "")}))
+    cap = s["capabilities"]["js.output"]
+    assert code == 0 and cap["state"] == "ran" and cap["note"] == R.NO_MATCH_NOTE
+    assert s["ratchet"]["stale"] == 0 and s["ratchet"]["unmeasured"] == ["js.output"]
+    assert not [r for r in sarif["runs"][0]["results"] if r["ruleId"] == "PL/ratchet-stale"]
+
+
+def test_js_output_one_clean_linted_file_is_a_real_ran_with_no_note(tmp_path):
+    # The other side of the same coin: ESLint DID lint a file and found
+    # nothing. That is a measured, clean run — state `ran`, no note.
+    root = _consumer(tmp_path, {k: v for k, v in JS_OUT.items() if k != "ratchet"})
+    payload = json.dumps([{"filePath": os.path.join(root, "src", "p", "b.js"), "messages": []}])
+    code, s, _, _ = _run(root, tmp_path, FakeRunner({"eslint": (0, payload, "")}))
+    cap = s["capabilities"]["js.output"]
+    assert code == 0 and (cap["state"], cap["parser"], cap["note"]) == ("ran", "json", None)
+    assert cap["results"] == 0

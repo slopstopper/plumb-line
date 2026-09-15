@@ -24,7 +24,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   never writes it. Both lints now name their site: Python `REQ-OUTPUT`
   issues carry `symbol`; the JS rule's message ends with `[site: name]`.
   The summary gains `notes` and a `ratchet` block, and `findings` no longer
-  counts notes. Proven end to end on the new `examples/ratchet-adoption`
+  counts notes — so `summary-format` moves to **v2**: a v1 consumer summing
+  `findings` under-counts (only with a ratchet configured), and a changed
+  meaning is a changed contract. Proven end to end on the new `examples/ratchet-adoption`
   fixture pair (Python); the JS marker is unit-proven at the rule and
   assembler. Not a grade: three counts, never one score.
 - **GitHub Action + SARIF: the deterministic floor runs without an agent**

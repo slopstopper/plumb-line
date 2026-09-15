@@ -1,7 +1,7 @@
 {
   "history": [
     {
-      "because": "initial pin: adopting the ratchet over the legacy pricing surface",
+      "because": "initial pin over the pricing surface; total() was added after this pin and is deliberately left unpinned so the tree plants a NEW site",
       "change": "pinned 1 site (python.output: 1)",
       "date": "2026-09-15"
     }

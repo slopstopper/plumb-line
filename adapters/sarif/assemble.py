@@ -22,7 +22,10 @@ import re
 
 SARIF_VERSION = "2.1.0"
 SARIF_SCHEMA = "https://json.schemastore.org/sarif-2.1.0.json"
-SUMMARY_FORMAT = "v1"
+# v2 (#119): `findings` no longer counts note-level results, and `notes` +
+# `ratchet` were added. A changed MEANING is a changed contract (P7), so the
+# version moves even though every v1 key is still there.
+SUMMARY_FORMAT = "v2"
 _REPO = "https://github.com/slopstopper/plumb-line"
 _BLOB = _REPO + "/blob/main/"
 
@@ -299,6 +302,10 @@ def build_sarif(results, version, src_root=None):
     for r in results:
         item = {"ruleId": r["ruleId"], "ruleIndex": rule_ids.index(r["ruleId"]), "level": r["level"],
                 "message": {"text": r["message"]}, "properties": {"tool": r["tool"], "parser": r["parser"]}}
+        if r.get("site"):
+            # The site (<symbol>) is what the ratchet keys on; without it an
+            # uploaded alert cannot be matched back to a ratchet entry.
+            item["properties"]["site"] = r["site"]
         if r.get("file"):
             phys = {"artifactLocation": {"uri": r["file"], "uriBaseId": "%SRCROOT%"}}
             region = {}
@@ -323,7 +330,7 @@ def build_sarif(results, version, src_root=None):
 def build_summary(capability_states, results, fail_on, sarif_path, ratchet=None):
     """capability_states: {key: (state, parser|None, note|None)}.
     ratchet: None when the manifest names no ratchet, else
-    {file, state, known, new, stale} from ratchet.apply()."""
+    {file, state, known, new, stale, unmeasured} from run_checks._apply_ratchet."""
     caps = {}
     for key, (state, parser, note) in capability_states.items():
         caps[key] = {"state": state, "parser": parser, "note": note,
@@ -351,8 +358,16 @@ def summary_text(s):
              f"{states.count('errored')} errored"]
     head = ", ".join(parts) + f"; {findings} finding{'' if findings == 1 else 's'}"
     rt = s.get("ratchet")
-    if rt and "known" in rt:
+    if rt and rt.get("state") == "ran" and "known" in rt:
         head += f"; ratchet: {rt['known']} known, {rt['new']} new, {rt['stale']} stale"
+        # An output capability that could not be measured makes the three
+        # counts a partial denominator; say so rather than let zeros read
+        # as "ratcheted and clean".
+        unmeasured = rt.get("unmeasured") or []
+        if unmeasured:
+            head += f", {len(unmeasured)} unmeasured"
+    elif rt and rt.get("state") == "invalid":
+        head += "; ratchet: invalid (checks ran unratcheted)"
     lines = [f"plumb-line enforcement — {head} (fail-on: {s['fail_on']})", ""]
     if rt:
         lines.append(f"ratchet file: {rt['file']} ({rt['state']})")

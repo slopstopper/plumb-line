@@ -139,6 +139,16 @@ def _looks_unparsed(parsed, out):
     return not out.strip() or (len(parsed) == 1 and parsed[0]["ruleId"] == "PL/unparsed" and parsed[0].get("whole"))
 
 
+def _eslint_linted_nothing(out):
+    """True when ESLint's JSON report lists no file at all. Anything that is
+    not an empty JSON array — a report with files, or output that doesn't
+    parse — is left to the parser and the errored check."""
+    try:
+        return json.loads(out) == []
+    except ValueError:
+        return False
+
+
 def _run_capabilities(root, caps, scripts_dir, runner, which, only=None):
     """Run every capability in caps (or only those named in `only`).
     Returns (states, results) with every result's file ROOT-relative and
@@ -165,6 +175,16 @@ def _run_capabilities(root, caps, scripts_dir, runner, which, only=None):
                 continue
             cmd = cmd[:-len(globs)] + files
         rc, out, err = runner(cmd, root)
+        if rc == 0 and key in ("js.boundary", "js.provenance", "js.output") and _eslint_linted_nothing(out):
+            # ESLint --format json emits one entry per LINTED file, messages
+            # or not, so an EMPTY top-level array means no file was linted:
+            # the globs matched nothing. Same note as the Python side, and
+            # for the same reason — a lint that never ran proves nothing.
+            # Without it a typo'd outputGlobs reads as a clean surface, and
+            # the ratchet would "measure" it: `update` pins [], `prune`
+            # erases every JS site, both at exit 0.
+            states[key] = ("ran", "json", NO_MATCH_NOTE)
+            continue
         try:
             if key in ("js.boundary", "js.provenance", "js.output"):
                 parsed, parser = A.parse_eslint(out, root), "json"
@@ -194,7 +214,8 @@ def _run_capabilities(root, caps, scripts_dir, runner, which, only=None):
 
 
 def _apply_ratchet(root, manifest, states, results):
-    """Read-only. Returns (results, ratchet summary | None). A missing or
+    """Read-only. Returns (results, {file, state, known, new, stale,
+    unmeasured} | None). A missing or
     invalid file is a PL/ratchet-invalid ERROR under a synthetic `ratchet`
     capability in the errored state — the job fails regardless of fail-on,
     as with tool-missing — and the output checks stand unratcheted."""
@@ -202,14 +223,19 @@ def _apply_ratchet(root, manifest, states, results):
     if not cfg:
         return results, None
     rel = cfg["file"]
+    # Which output capabilities the ratchet could not measure — tool missing,
+    # errored, or globs that matched no file. Reported alongside the counts so
+    # "0 known, 0 new, 0 stale" can never pass for "ratcheted and clean".
+    unmeasured = sorted(c for c in RT.OUTPUT_CAPS if c in capabilities(manifest) and not RT._measured(states, c))
     data, problems = RT.load_ratchet(os.path.join(root, rel))
     if data is None:
         r = A.result("PL/ratchet-invalid", f"{rel}: " + "; ".join(problems), file=rel, tool="action")
         r["capability"] = "ratchet"
         states["ratchet"] = ("errored", "json", problems[0])
-        return results + [r], {"file": rel, "state": "invalid", "known": 0, "new": 0, "stale": 0}
+        return results + [r], {"file": rel, "state": "invalid", "known": 0, "new": 0, "stale": 0,
+                               "unmeasured": unmeasured}
     results, counts = RT.apply(results, states, data)
-    return results, {"file": rel, "state": "ran", **counts}
+    return results, {"file": rel, "state": "ran", **counts, "unmeasured": unmeasured}
 
 
 def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, step_summary_path=None,
