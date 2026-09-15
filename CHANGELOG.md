@@ -10,6 +10,17 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Changed
+- **Audit skill: three report-format rules stated where the checker
+  enforces them.** The v0.11.0 release harness found the `plumb-line-audit`
+  skill's reports drifting from the `report-format: v3` contract in three
+  ways the checker (`scripts/check_report_format.py`) rejects: a title line
+  above the header block, a composed `commit` value instead of one of the
+  three exact literals, and bare `P#` codes in prose sections and table
+  column headers. `SKILL.md` now says each rule explicitly — the header is
+  the first thing in the report, `commit` is exactly one of three forms, and
+  "elsewhere" means everywhere outside the glossary. Re-validated blind:
+  6/6 planted-violation runs pass and 6/6 reports conform (see
+  `docs/validation-results.md`, v0.11.0 record).
 - **import-linter install hints pinned to the tested version; the text
   parser's upstream ask linked**
   ([#376](https://github.com/slopstopper/plumb-line/issues/376)). The

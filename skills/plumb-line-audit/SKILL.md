@@ -130,7 +130,11 @@ table**, **coverage map**. The shape is fixed — same input, same shape, every 
 (the audit owes its own output the reproducibility it demands of the code it
 reviews).
 
-**1. Header block** — verbatim keys, so a stored report is reproducible:
+**1. Header block** — verbatim keys, so a stored report is reproducible. The
+header block is the **first thing in the report**: no title line, heading, or
+prose above it, whether the report is a chat message or a saved file — the
+checker (`scripts/check_report_format.py`) reads the first line as the contract
+key and fails a report that opens with anything else:
 
 ```
 report-format: v3
@@ -139,6 +143,12 @@ principles-revision: <the "Principles revision" from reference/portable-principl
 date:                <YYYY-MM-DD>
 commit:              <git SHA of the audited tree, or "working tree (uncommitted)", or "no repository (not version-controlled)">
 ```
+
+`commit` is **exactly one** of those three forms — a git SHA, the literal
+`working tree (uncommitted)`, or the literal `no repository (not
+version-controlled)`. Do not compose a hybrid or add an explanation inside the
+value (an audited directory that is not a git repository is `no repository (not
+version-controlled)`, nothing more); the checker rejects any other string.
 
 **2. Principle glossary** — one line per principle *referenced anywhere in this
 report*, emitted before the findings, so a reader never meets a bare code
@@ -154,7 +164,11 @@ spine — null-result expressibility
 ```
 
 Every `P#` reference elsewhere in the report renders with its name inline
-(`P3 — Confidence + provenance`), never a bare `P3`.
+(`P3 — Confidence + provenance`), never a bare `P3` — and "elsewhere" means
+everywhere outside the glossary block: prose sections you add (a declared-
+architecture recap, a summary), table column headers (`Provenance (P3 —
+Confidence + provenance)`, not `Provenance (P3)`), parenthetical asides, and
+the omission-pass table. The checker scans the whole report for bare codes.
 
 **3. Findings table** — ALWAYS this table, never freeform prose. One row per
 finding, columns in this exact order:
