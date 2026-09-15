@@ -180,7 +180,7 @@ def _run_capabilities(root, caps, scripts_dir, runner, which, only=None):
             note = f"exit {rc}: {(err or out).strip()[:500]}"
             states[key] = ("errored", parser, " ".join(note.split()))
             continue
-        if key in ("js.provenance", "python.provenance"):
+        if key == "js.provenance":
             parsed = [r for r in parsed if r["ruleId"] != "PL/untagged-output"]
         if key == "js.output":
             # PL/unparsed stays: a surface file ESLint could not parse is one

@@ -40,7 +40,11 @@ class FakeRunner:
     """Answers each tool by whichever token in its command names the tool
     itself — a .py/.mjs script path, or a bare "eslint"/"lint-imports" —
     found anywhere in cmd, falling back to cmd[0] if none matches; records
-    calls."""
+    calls. A `--require-output` flag folds into the key (":output" suffix)
+    so python.provenance and python.output — both provenance_lint.py — can
+    be answered differently, matching the real tool: main() swaps in a
+    different check entirely on that flag (adapters/python/provenance_lint.py),
+    so python.provenance's own command can never emit REQ-OUTPUT."""
     def __init__(self, answers, missing=()):
         self.answers, self.missing, self.calls = answers, set(missing), []
 
@@ -51,6 +55,7 @@ class FakeRunner:
         self.calls.append((cmd, cwd))
         key = next((os.path.basename(a) for a in cmd if a.endswith((".py", ".mjs")) or a in ("eslint", "lint-imports")),
                    os.path.basename(cmd[0]))
+        key = key + ":output" if "--require-output" in cmd else key
         return self.answers.get(key, (0, "[]", ""))
 
 
@@ -474,7 +479,8 @@ def _run(root, tmp_path, fake, fail_on="findings", **kw):
 def test_ratchet_known_is_a_note_new_is_an_error_and_only_new_fails(tmp_path):
     root = _consumer(tmp_path, PY_OUT)
     _ratchet(root, {"python.output": ["src/p/b.py::pinned"]})
-    fake = FakeRunner({"provenance_lint.py": (1, _untagged_issues(("src/p/b.py", "pinned"), ("src/p/b.py", "fresh")), "")})
+    fake = FakeRunner({"provenance_lint.py": (0, "[]", ""),
+                       "provenance_lint.py:output": (1, _untagged_issues(("src/p/b.py", "pinned"), ("src/p/b.py", "fresh")), "")})
     code, s, sarif, text = _run(root, tmp_path, fake)
     assert code == 1
     assert s["ratchet"] == {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 1, "new": 1, "stale": 0}
@@ -491,16 +497,21 @@ def test_ratchet_known_is_a_note_new_is_an_error_and_only_new_fails(tmp_path):
 def test_ratchet_stale_is_a_note_that_never_fails(tmp_path):
     root = _consumer(tmp_path, PY_OUT)
     _ratchet(root, {"python.output": ["src/p/b.py::gone"]})
+    ratchet_path = os.path.join(root, ".plumb-line", "ratchet.json")
+    before = open(ratchet_path, "rb").read()
     fake = FakeRunner({"provenance_lint.py": (0, "[]", "")})
     code, s, sarif, _ = _run(root, tmp_path, fake)
     assert code == 0 and s["ratchet"]["stale"] == 1 and s["findings"] == 0
     stale = [r for r in sarif["runs"][0]["results"] if r["ruleId"] == "PL/ratchet-stale"]
     assert len(stale) == 1 and stale[0]["level"] == "note" and "src/p/b.py::gone" in stale[0]["message"]["text"]
+    # The runner is read-only: the ratchet file is byte-for-byte unchanged.
+    assert open(ratchet_path, "rb").read() == before
 
 
 def test_ratchet_missing_file_is_invalid_fails_and_runs_unratcheted(tmp_path):
     root = _consumer(tmp_path, PY_OUT)  # no ratchet file written
-    fake = FakeRunner({"provenance_lint.py": (1, _untagged_issues(("src/p/b.py", "x")), "")})
+    fake = FakeRunner({"provenance_lint.py": (0, "[]", ""),
+                       "provenance_lint.py:output": (1, _untagged_issues(("src/p/b.py", "x")), "")})
     code, s, sarif, text = _run(root, tmp_path, fake, fail_on="none")
     assert code == 1, "fails even under fail-on: none, like tool-missing"
     assert s["ratchet"]["state"] == "invalid" and s["capabilities"]["ratchet"]["state"] == "errored"
@@ -532,10 +543,12 @@ def test_ratchet_sites_are_root_relative_but_sarif_is_workspace_relative(tmp_pat
     (tmp_path / "packages").mkdir()
     root = _consumer(tmp_path / "packages", PY_OUT)
     _ratchet(root, {"python.output": ["src/p/b.py::pinned"]})
-    fake = FakeRunner({"provenance_lint.py": (1, _untagged_issues(("src/p/b.py", "pinned")), "")})
+    fake = FakeRunner({"provenance_lint.py": (0, "[]", ""),
+                       "provenance_lint.py:output": (1, _untagged_issues(("src/p/b.py", "pinned")), "")})
     code, s, sarif, _ = _run(root, tmp_path, fake, workspace=str(tmp_path))
     assert code == 0 and s["ratchet"]["known"] == 1
-    uri = sarif["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
+    result = next(r for r in sarif["runs"][0]["results"] if r["ruleId"] == "PL/untagged-output")
+    uri = result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
     assert uri == "packages/repo/src/p/b.py"
 
 
@@ -546,3 +559,4 @@ def test_no_ratchet_key_means_no_ratchet_block(tmp_path):
     # own name embeds "ratchet" in the SARIF path the summary always
     # prints. Assert the absence of the ratchet clause/block specifically.
     assert code == 0 and s["ratchet"] is None and "ratchet:" not in text and "ratchet file:" not in text
+    assert "| ratchet |" not in text
