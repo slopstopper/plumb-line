@@ -142,7 +142,7 @@ def test_missing_tool_is_a_finding_and_a_failure(tmp_path):
     assert code == 1
     s = json.load(open(p["summary_path"]))
     assert s["capabilities"]["python.boundary"]["state"] == "tool-missing"
-    assert "pip install import-linter" in s["capabilities"]["python.boundary"]["note"]
+    assert "pip install import-linter==2.15" in s["capabilities"]["python.boundary"]["note"]
     res = json.load(open(p["sarif_path"]))["runs"][0]["results"]
     assert res[0]["ruleId"] == "PL/tool-missing"
 

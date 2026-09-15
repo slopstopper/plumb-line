@@ -60,6 +60,11 @@ append-only history. Inspect the files with
 `node baseline-cli.mjs <list|show <name>|validate> [--dir D]` (read-only: only
 running code carries the envelope, so it cannot check or update).
 
+Compared: each lineage step's trust fields and `of`, the lineage length, the
+top-level trust fields and `basis`, then the value. `basis` counts as drift on
+its own — a transform label moving from `@v3` to `@v4` is reported even when
+the value did not move.
+
 Three drift classes are `not-implemented`: cross-step causality (the finding
 names the field that moved, not the earlier step that caused it), structural
 diffing inside a nested value (reported as "value moved"), and float tolerance

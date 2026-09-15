@@ -267,6 +267,16 @@ code carries the envelope): `node primitives/js/baseline-cli.mjs list|show|valid
 and `python3 -m plumb_line_provenance.baseline list|show|validate` (or
 `python3 primitives/python/baseline.py ...` run flat), both accepting `--dir`.
 
+**What is compared.** Each lineage step's `source`, `confidence`,
+`confidenceScore`, `derivedFromMock` and `of`; the lineage length; the
+top-level `source`, `confidence`, `confidenceScore`, `derivedFromMock` and
+`basis`; then the value. `basis` is compared as a top-level field because it
+is the only place the envelope records *what was done*: a transform-label
+change (`pricing.applyFx@v3` -> `@v4`) is drift even when every input and the
+value held, since the same number reached by a different computation is not
+the state that was pinned. The finding text for every one of these is pinned
+verbatim in `conformance/baseline-cases.json`.
+
 Three drift classes are deliberately `not-implemented`: cross-step causality
 (the finding names the field that moved, not which earlier lineage step
 caused it to move), structural value diff (a changed nested field inside a

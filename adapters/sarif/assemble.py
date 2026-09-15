@@ -8,6 +8,8 @@ speaks its own machine-readable form:
     provenance_lint.py --json            -> parse_provenance_lint
     baseline validate --json             -> parse_baseline
     lint-imports (TEXT; no JSON upstream)-> parse_import_linter   [partial]
+                                            (pinned to IMPORT_LINTER_TESTED;
+                                            upstream ask: seddonym/import-linter#291)
 
 Anything a parser cannot map becomes a PL/unparsed WARNING carrying the raw
 line, so a tool changing its output degrades to visible noise, never
@@ -76,6 +78,13 @@ _PB = re.compile(r"^PB([1-4])\b")
 # the template lives in adapters/js/provenance-lint/require-provenance-output.cjs.
 SITE_RE = re.compile(r" \[site: ([^\]]+)\]$")
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+# import-linter's human report is not a versioned contract. The _IL_* grammar
+# below is the one observed at IMPORT_LINTER_TESTED (the CI pin in
+# requirements-test.in; a test holds the two equal), and the install hint in
+# run_checks.py names the same version so a consumer runs what we parsed. The
+# upstream ask for a machine-readable `--format json`, which would retire
+# this parser, is https://github.com/seddonym/import-linter/issues/291 (#376).
+IMPORT_LINTER_TESTED = "2.15"
 _IL_VIOLATION = re.compile(r"^- (?P<importer>[\w.]+) -> (?P<imported>[\w.]+) \((?P<lines>l\.[^)]*)\)$")
 _IL_LINENO = re.compile(r"l\.(\d+|\?)")
 _IL_HEADER = re.compile(r"^(?P<a>[\w.]+) is not allowed to import (?P<b>[\w.]+):$")
@@ -352,8 +361,11 @@ def summary_text(s):
     ran = states.count("ran")
     missing = states.count("tool-missing")
     findings = s["findings"]
+    # No "not enforced here" slot: a capability the manifest omits never
+    # enters the states at all (adapter-contract §6), so such a count could
+    # only ever read 0 — a number that never moves is weaker than no number
+    # (#377).
     parts = [f"{ran} check{'s' if ran != 1 else ''} ran",
-             f"{states.count('not-enforced')} not enforced here",
              f"{missing} tool{'' if missing == 1 else 's'} missing",
              f"{states.count('errored')} errored"]
     head = ", ".join(parts) + f"; {findings} finding{'' if findings == 1 else 's'}"

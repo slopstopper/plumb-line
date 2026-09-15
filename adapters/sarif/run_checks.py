@@ -5,9 +5,10 @@ Reads the manifest (and ONLY the manifest), preflights the tools it needs,
 runs each enabled capability, feeds the outputs to assemble.py, writes the
 SARIF log + summary JSON + a GitHub step summary, and returns the exit code.
 
-Every outcome is a named state — ran | not-enforced | tool-missing | errored —
-and the step summary states the denominators, so an empty green is legible
-as empty, never as clean.
+Every outcome is a named state — ran | tool-missing | errored — and the step
+summary states the denominators, so an empty green is legible as empty,
+never as clean. A capability the manifest omits has no state: it is not
+run and never appears in the summary (adapter-contract §6).
 
 When the manifest names a ratchet file (#119), pinned untagged-output sites
 are notes and only new ones fail; the runner reads the file and never writes
@@ -47,7 +48,7 @@ TOOLS = {
     "js.boundary": ("eslint", "npm ci (eslint + eslint-plugin-import-x from the consumer's package.json)"),
     "js.provenance": ("eslint", "npm ci (eslint from the consumer's package.json)"),
     "js.output": ("eslint", "npm ci (eslint from the consumer's package.json)"),
-    "python.boundary": ("lint-imports", "pip install import-linter"),
+    "python.boundary": ("lint-imports", f"pip install import-linter=={A.IMPORT_LINTER_TESTED}"),
     "python.provenance": ("python3", "python3 on PATH"),
     "python.output": ("python3", "python3 on PATH"),
     "baselines": ("node", "node >= 22 on PATH"),

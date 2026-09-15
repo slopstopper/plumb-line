@@ -19,7 +19,9 @@ export const KNOWN_BASELINE_FORMATS = new Set(["v1"]);
 export const DEFAULT_DIR = ".plumb-line/baselines";
 export const NAME_RE = /^[A-Za-z0-9._-]+$/;
 export const STEP_FIELDS = ["source", "confidence", "confidenceScore", "derivedFromMock", "of"];
-export const TOP_FIELDS = ["source", "confidence", "confidenceScore", "derivedFromMock"];
+// `basis` is top-level only (SPEC §4: an operation label, never a step field),
+// so a transform change is drift even when every input and the value held.
+export const TOP_FIELDS = ["source", "confidence", "confidenceScore", "derivedFromMock", "basis"];
 const RECORD_KEYS = ["baseline-format", "name", "provenanceVersion", "value", "meta", "history"];
 const DATE_RE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 

@@ -9,6 +9,32 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Changed
+- **import-linter install hints pinned to the tested version; the text
+  parser's upstream ask linked**
+  ([#376](https://github.com/slopstopper/plumb-line/issues/376)). The
+  SARIF assembler text-parses import-linter's human report (`partial`), and
+  that grammar is only known good at the version CI tests (2.15). The
+  `pip install import-linter` hints in ACTION.md, DEVELOPMENT.md and the
+  Action's `tool-missing` note now say `==2.15`, read from one constant
+  (`IMPORT_LINTER_TESTED` in `adapters/sarif/assemble.py`) that a test holds
+  equal to the `requirements-test.in` pin. The machine-readable output that
+  would retire the parser is requested upstream in
+  [seddonym/import-linter#291](https://github.com/seddonym/import-linter/issues/291);
+  ACTION.md, ADR-0016 and the parser now link it.
+
+### Fixed
+- **Action step summary: the always-zero "N not enforced here" head-line
+  slot is gone** ([#377](https://github.com/slopstopper/plumb-line/issues/377)).
+  `run_checks.py` only ever builds states for the capabilities a manifest
+  carries — an omitted capability is not run and never appears in the
+  summary (adapter-contract §6) — so the head line's `not-enforced` count
+  could not read anything but 0. The slot and the dead `not-enforced` state
+  are removed; the head line now reads `N checks ran, N tools missing, N
+  errored; N findings`. A number that never moves is a weaker signal than
+  no number: it invites reading "0 not enforced" as "everything is
+  enforced", which the summary has never been able to claim.
+
 ### Added
 - **Provenance ratchet: legacy adoption without demanding zero**
   ([#119](https://github.com/slopstopper/plumb-line/issues/119), ROADMAP
@@ -71,6 +97,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     `plumb_line_provenance` package in Python.
   - Three deliberate omissions ship labelled `not-implemented`: cross-step
     causality, structural value diff, and float tolerance.
+  - **`meta.basis` drift is now attributed**
+    ([#373](https://github.com/slopstopper/plumb-line/issues/373)): `basis`
+    joins the compared top-level fields in both languages, so the same value
+    recomputed under a different operation label (`pricing.applyFx@v3` ->
+    `@v4`) reads as drift (`meta.basis: "pricing.applyFx@v3" ->
+    "pricing.applyFx@v4"`) instead of `match`. Previously the label was
+    persisted in the record but ignored by `compare`. The conformance table
+    also gains the `attribute` cases the #117 review found missing — lineage
+    shrink, a step's `of` moving, and top-level-only drift with no step
+    finding — plus two `basis` cases (moved; appeared where none was pinned),
+    so both languages are held to those findings by data, not only by
+    per-language unit tests.
 
 ### Changed
 - **README rewritten as a funnel**
