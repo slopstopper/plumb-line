@@ -334,10 +334,11 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
 5. ~~v0.10.0~~ — **shipped 2026-08-19**, 12 issues closed (Pay down the
    ledger: the integrity fixes and the small-issue sweep, taking the number the
    P9 milestone had held — see the numbering note).
-6. **Next:** v0.11.0 (P9 tooling + CI-native). No wire dependency; #119's
-   prerequisite (#1 / GH #91) closed in v0.7.0, so the milestone is unblocked;
-   the baseline CLI (#117) and the Action (#118) are on `main` ahead of the tag.
-7. **Then:** v0.12.0 — sequenced after wire v2 so the envelope fields it adds
+6. ~~v0.11.0~~ — **shipped 2026-09-15**, 37 issues closed (Honest over time:
+   the golden baseline #117, the GitHub Action + SARIF #118, the provenance
+   ratchet #119, and the deferral sweep; harness record in
+   `docs/validation-results.md`).
+7. **Next:** v0.12.0 — sequenced after wire v2 so the envelope fields it adds
    are settled.
 8. **After that:** v1.0.0 — the coverage guarantee, the API-surface
    definition (GH #236) that everything else freezes against, canonical
@@ -745,7 +746,7 @@ The Agent epistemic state track (#35) needs a ladder position to point at.
 
 ### 24. `baseline` library + inspection CLI — golden baseline + lineage-attributed drift
 
-**Priority: high** · Milestone: v0.11.0 · GitHub: #117 · **current on main, unreleased**
+**Priority: high** · Milestone: v0.11.0 · GitHub: #117 · **shipped in v0.11.0 (2026-09-15)**
 
 Principle 9 (golden baseline + explain-the-drift) is implemented on main as a
 library + inspection CLI in both languages (`current`); rides the v0.11.0
@@ -763,7 +764,7 @@ just diffed. Deterministic; both languages; no wire dependency.
 
 ### 25. GitHub Action + SARIF output for the deterministic adapters
 
-**Priority: high** · Milestone: v0.11.0 · GitHub: #118 · **current on main, unreleased**
+**Priority: high** · Milestone: v0.11.0 · GitHub: #118 · **shipped in v0.11.0 (2026-09-15)**
 
 Review-time enforcement currently assumes a Claude session. A composite GitHub
 Action running the boundary check, provenance lint, and the baseline
@@ -779,7 +780,7 @@ proves it.
 
 ### 26. Provenance ratchet — no new untagged outputs vs. main
 
-**Priority: high** · Milestone: v0.11.0 · GitHub: #119 · **current on main, unreleased**
+**Priority: high** · Milestone: v0.11.0 · GitHub: #119 · **shipped in v0.11.0 (2026-09-15)**
 
 The honest answer to "how does a 300k-line legacy repo adopt this?" is
 implemented on main as a site-keyed ratchet (`current`, ADR-0017): pin

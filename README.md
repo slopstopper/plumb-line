@@ -134,7 +134,7 @@ The audit and remediate skills use an LLM, so plumb-line measures them instead o
 
 ## It audits itself
 
-Before each of those releases, plumb-line also runs its own audit skill over its own code and publishes what it found in the [dogfooding report](docs/dogfood.md). For v0.10.0: six findings, all places where the project's own docs promised more than its tooling enforced; four fixed on the spot, two tracked as issues ([#316](https://github.com/slopstopper/plumb-line/issues/316), [#317](https://github.com/slopstopper/plumb-line/issues/317)). "The auditor found no problem" is never treated as proof that no problem exists.
+Before each of those releases, plumb-line also runs its own audit skill over its own code and publishes what it found in the [dogfooding report](docs/dogfood.md). For v0.11.0: nine findings, all places where the project's own docs promised more than its tooling enforced; six fixed on the spot, three tracked as issues ([#398](https://github.com/slopstopper/plumb-line/issues/398), [#399](https://github.com/slopstopper/plumb-line/issues/399), [#400](https://github.com/slopstopper/plumb-line/issues/400)). The same run caught its own operator error: the first six auditors had been dispatched through a stale plugin install, and the format checker failed all six before any were scored. "The auditor found no problem" is never treated as proof that no problem exists.
 
 ## What plumb-line does not claim
 
