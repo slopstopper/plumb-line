@@ -124,3 +124,35 @@ def test_ratchet_fixture_pins_all_sites_in_clean_and_one_fewer_in_broken():
     assert broken == ["src/pricing/fx.py::apply_fx"], "broken leaves `total` unpinned so it is a NEW site"
     assert read(RATCHET, "clean/src/pricing/fx.py") == read(RATCHET, "broken/src/pricing/fx.py"), \
         "the two trees differ only in the ratchet file"
+
+
+# --- the incident demos must RUN in CI, never skip (ADR-0016) ----------------
+
+CI_WORKFLOW = EXAMPLES.parent / ".github" / "workflows" / "ci.yml"
+
+
+def ci_step(name_fragment):
+    """The `run:` body of the first ci.yml step whose name contains the fragment."""
+    ci = read(CI_WORKFLOW)
+    start = ci.index("- name: " + name_fragment)
+    rest = ci[start:]
+    end = rest.find("\n      - ", 1)
+    return rest if end < 0 else rest[:end]
+
+
+def test_every_incident_demo_test_is_named_the_way_the_ci_guard_greps_for_it():
+    demos = sorted(p.name for p in EXAMPLES.glob("incident-*/test_*_demo.py"))
+    assert demos == ["test_loadsheet_demo.py", "test_pipeline_demo.py",
+                     "test_toolserver_demo.py"], demos
+
+
+def test_ci_fails_if_an_incident_demo_test_skips():
+    # ADR-0016: a skipped proof is a lost proof. test_toolserver_demo.py skips
+    # without node, and these three tests are the only proof of the transcripts
+    # the README publishes — so CI must require them to run, the way it already
+    # does for the end-to-end SARIF test.
+    step = ci_step("examples — fixtures")
+    assert "-rs" in step, "pytest needs -rs for the skip guard to have anything to grep"
+    assert "_demo.py" in step and "SKIPPED" in step, \
+        "the examples step must grep its own output for a skipped incident-demo test"
+    assert "::error::" in step, "a skipped demo must fail the job, not warn"

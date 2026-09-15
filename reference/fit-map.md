@@ -325,8 +325,12 @@ Two things remain true in the anti-profile case:
   `primitives/SPEC.md` in the repository.
 
 Once enforcement is installed, it doesn't stop at review time: the GitHub
-Action runs the same deterministic checks on every PR, from the
-`.plumb-line/enforcement.json` manifest bootstrap writes (Step 4d) or you
-write by hand, assembling one SARIF log into GitHub's code-scanning UI — no
-agent required. See
-`ACTION.md` in the repository root.
+Action runs the same deterministic checks on every PR, from a
+`.plumb-line/enforcement.json` manifest, and assembles one SARIF log — no
+agent required. Writing that manifest by hand is `current` (the shape and
+its validator are in `ACTION.md`); having `plumb-line-bootstrap` write it
+(Step 4d) is `planned` until a blind harness run proves it. Handing the log
+to GitHub's code-scanning UI is wired to the sha-pinned upload action, but
+this repo's own CI runs with `upload: "false"`, so that ingestion is
+unobserved until an adopter reports it. See `ACTION.md` in the repository
+root.

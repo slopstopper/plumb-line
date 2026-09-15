@@ -27,7 +27,7 @@ BLOCK = textwrap.dedent("""\
     - License is **Apache-2.0** in both manifests.
     - Python floor is **`requires-python = ">=3.11"`**; the CI matrix tests **3.11, 3.12 and 3.13**.
     - Node floor as published is **`engines.node >= 22`**; the CI matrix tests **Node 22 and 24**.
-    - Report contracts are **report-format v3** and **remediation-format v1**, validated by `scripts/check_report_format.py`.
+    - Report contracts are **report-format v3**, **remediation-format v1** and **routing-format v1**, validated by `scripts/check_report_format.py`.
     """)
 
 DOC = "# Constraints\n\nprose\n\n<!-- constraints:begin -->\n" + BLOCK + "<!-- constraints:end -->\n\n## Why\n"
@@ -41,6 +41,7 @@ SOURCES = {
     "python_matrix": ["3.11", "3.12", "3.13"],
     "node_floor": ">=22",
     "node_matrix": ["22", "24"],
+    "report_contracts": ["remediation-format v1", "report-format v3", "routing-format v1"],
 }
 
 
@@ -130,3 +131,36 @@ def test_the_real_repo_is_consistent():
     # the manifests, provenance source, pyproject, and ci.yml actually hold.
     findings = ccc.run(_ROOT)
     assert findings == [], "\n".join(ccc.format_finding(f) for f in findings)
+
+
+def test_report_contract_versions_are_read_from_the_validator_constants():
+    # The exemption this replaced claimed there was "no constant to read".
+    # There are three: KNOWN_REPORT_VERSIONS, KNOWN_REMEDIATION_VERSIONS and
+    # KNOWN_ROUTING_VERSIONS in scripts/check_report_format.py.
+    validator = textwrap.dedent("""\
+        KNOWN_REPORT_VERSIONS = {"v1", "v2", "v3"}
+        KNOWN_REMEDIATION_VERSIONS = {"v1"}
+        KNOWN_ROUTING_VERSIONS = {"v1"}
+        """)
+    assert ccc.read_report_contracts(validator) == [
+        "remediation-format v1", "report-format v3", "routing-format v1"]
+
+
+def test_an_omitted_report_contract_is_flagged():
+    # routing-format v1 shipped in 0.10.0 and the canonical block kept
+    # naming two contracts — the drift the UNCHECKED exemption hid.
+    block = dict(SOURCES, report_contracts=["remediation-format v1", "report-format v3"])
+    findings = ccc.compare(block, SOURCES)
+    assert [f.key for f in findings] == ["report_contracts"]
+
+
+def test_a_stale_report_contract_version_is_flagged():
+    block = dict(SOURCES, report_contracts=[
+        "remediation-format v1", "report-format v2", "routing-format v1"])
+    findings = ccc.compare(block, SOURCES)
+    assert [f.key for f in findings] == ["report_contracts"]
+
+
+def test_report_contracts_are_no_longer_excused_from_the_gate():
+    assert not any("report-format" in item for item in ccc.UNCHECKED), \
+        "the report-contract line is checked now; it must not also be listed as unchecked"

@@ -162,8 +162,21 @@ jobs:
           if grep -q 'SKIPPED.*test_run_checks.py' /tmp/sarif-pytest.txt; then
             echo "::error::the end-to-end SARIF test skipped in CI — the fixture toolchain is missing"; exit 1
           fi
-      - name: examples — fixtures + real import-linter boundary
-        run: python -m pytest -q examples
+      - name: examples — fixtures + real import-linter boundary (the incident demos must RUN here, never skip)
+        # ADR-0016: a skipped proof is a lost proof. The three
+        # examples/incident-*/test_*_demo.py suites are the only proof of the
+        # transcripts the README publishes, and the toolserver one skips
+        # without node — so this step greps its own -rs summary the same way
+        # the SARIF end-to-end step above does. Node is set up earlier in this
+        # job; the skip stays in place for local runs without it.
+        run: |
+          set -o pipefail
+          python -m pytest -q -rs examples | tee /tmp/examples-pytest.txt
+          # pytest's -rs line names the file, never the test, so the pattern
+          # matches the demo modules by name — all three, present and future.
+          if grep -qE 'SKIPPED.*test_[a-z]+_demo\.py' /tmp/examples-pytest.txt; then
+            echo "::error::an incident-demo test skipped in CI — the demo toolchain (node) is missing"; exit 1
+          fi
       - name: conformance against the plugin-bundled Python copy
         run: python -m pytest -q scripts/test_bundle_conformance.py
       # The repo-infrastructure checkers (wire-version prose #160, report-format

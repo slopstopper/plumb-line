@@ -35,6 +35,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   ACTION.md, ADR-0016 and the parser now link it.
 
 ### Fixed
+- **v0.11.0 dogfood self-audit: six prose-vs-enforcement gaps closed in
+  place** (see `docs/dogfood.md`, v0.11.0 section). The README's "In CI" line
+  and `reference/fit-map.md`'s closing paragraph claimed a `planned` bootstrap
+  step and unobserved code-scanning ingestion as current; both now claim only
+  what is `current`. `docs/constraints.md`'s canonical block omitted
+  `routing-format v1`, and the exemption that let it drift in
+  `scripts/check_constraints_canonical.py` gave a false reason — the line is
+  now checked against the known-format constants. The toolserver demo's
+  integrity tests could skip silently in CI; the existing skipped-proof guard
+  now covers them. The README's toolserver transcript marked one silent cut.
+  Three findings deferred as `audit-deferral` issues (#398, #399, #400) and
+  one pre-existing spec note filed (#401).
 - **Action step summary: the always-zero "N not enforced here" head-line
   slot is gone** ([#377](https://github.com/slopstopper/plumb-line/issues/377)).
   `run_checks.py` only ever builds states for the capabilities a manifest
@@ -279,11 +291,14 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   canonical file, but nothing checked the canonical file against the code:
   the 0.10.0 release moved the manifests and the block kept stating 0.9.0
   with every gate green. `scripts/check_constraints_canonical.py` (in the
-  `versions` CI job) parses the eight machine-readable lines — release
-  version, `PROVENANCE_VERSION`, package name, license, both floors and both
-  CI matrices — and compares each to its source; a line it cannot find is a
-  finding, not a pass, and each run prints what it checked and names what it
-  cannot (the report-contract line has no constant to read). `bump-version`
+  `versions` CI job) parses the nine machine-readable lines — release
+  version, `PROVENANCE_VERSION`, package name, license, both floors, both
+  CI matrices, and the report contracts (against the validator's
+  `KNOWN_REPORT_VERSIONS`, `KNOWN_REMEDIATION_VERSIONS` and
+  `KNOWN_ROUTING_VERSIONS`) — and compares each to its source; a line it
+  cannot find is a finding, not a pass, and each run prints what it checked
+  and names what it cannot (the two lines that state a discipline rather
+  than a value). `bump-version`
   now rewrites the release line alongside the manifests. No package, plugin,
   or wire-format change.
 
