@@ -547,3 +547,47 @@ Calibration note: all six findings again came from prose-vs-enforcement gaps
 rather than code defects — the presence pass over 84 read files was quiet,
 consistent with every change in this diff having carried failing-first tests
 and at least one adversarial review before the harness ran.
+
+## v0.11.0 dogfood self-audit — 2026-09-15
+
+Scope: release diff v0.10.0...`dbb6431` (143 touched files; the baseline
+subsystem #117, the GitHub Action + SARIF #118, the provenance ratchet #119,
+the deferral fixes #373/#376/#377, the audit-skill format clarifications,
+docs). Report format v3, validated with `scripts/check_report_format.py` —
+clean (exit 0) after one format-only rewrap (a hard-wrapped principle name;
+the same class as [#397](https://github.com/slopstopper/plumb-line/issues/397)).
+Coverage, honest and not complete: 58/143 read, 34 partial, 51 not-read (the
+not-read set is lockfiles, recorded fixtures, the two incident-demo trees and
+most new test suites); conformance 41/41, bundle sync, both baseline worked
+examples and both toolserver demos executed as evidence. The auditor read the
+skill file from the worktree directly — a first dispatch by plugin name had
+loaded the stale 0.9.0 install and was discarded (see the validation record).
+
+**9 findings: 7 violations, 2 needs-review** — every one a prose-vs-enforcement
+gap in this release's own docs and tooling; the presence pass over the read
+set was quiet.
+
+| Path | Issue | Principle | Resolution |
+| ---- | ----- | --------- | ---------- |
+| `README.md` ("In CI" line) | routes setup through bootstrap Step 4d, which ACTION.md marks `planned`, and asserts results land in the code-scanning tab, which ACTION.md says is unproven until an adopter observes it | P6 — Maturity vocabulary | **fixed in place** — claims only what is `current` |
+| `reference/fit-map.md` (closing paragraph) | repeats both unqualified claims while the same file qualifies the ratchet carefully | P6 — Maturity vocabulary | **fixed in place** |
+| `docs/constraints.md` (canonical block) | names report-format v3 and remediation-format v1 but omits routing-format v1, validated since 0.10.0; every sha-pinned copy inherits the gap | P9 — Golden baseline + explain-the-drift | **fixed in place** |
+| `scripts/check_constraints_canonical.py` (`UNCHECKED` exemption) | the exemption's reason ("no constant to read") is false — the known-format constants exist; the one excused line is the one that drifted | P9 — Golden baseline + explain-the-drift | **fixed in place** — the line is now checked against the constants, with a test |
+| `adapters/sarif/assemble.py` (`build_summary`) | `summary-format: v2` ships version-only: no key list, no validator, unlike the manifest, ratchet and baseline contracts added in the same release | P7 — Contracted outputs | **deferred** → [#398](https://github.com/slopstopper/plumb-line/issues/398) |
+| `adapters/sarif/assemble.py` (SARIF + summary) | no tool versions, manifest path or globs recorded — a stored run cannot say what produced it | P8 — State-first lineage | **deferred** → [#399](https://github.com/slopstopper/plumb-line/issues/399) |
+| `scripts/trigger_check.py` (`build_payload`) | results record omits `--timeout` and the hard-coded max-turns; `--validate` proves self-consistency, not the reproducibility the docs claim | P8 — State-first lineage | **deferred** → [#400](https://github.com/slopstopper/plumb-line/issues/400) |
+| `examples/incident-toolserver/test_toolserver_demo.py` | the only proof of the README's published transcripts skips silently without node, while ADR-0016 in this diff says a skipped proof is a lost proof | P6 — Maturity vocabulary (needs-review) | **fixed in place** — the CI skip guard now covers these tests |
+| `README.md` (toolserver transcript) | silently drops the `confidence: none` line the program prints; every other cut in the block is marked `...` | P6 — Maturity vocabulary (needs-review) | **fixed in place** |
+
+Out of scope, recorded rather than dropped: `primitives/SPEC.md`'s step-id
+canonical form says `confidenceScore=<JSON number>` while both implementations
+hash the IEEE-754 hex — pre-existing, untouched by this diff, filed as
+[#401](https://github.com/slopstopper/plumb-line/issues/401).
+
+Calibration note: the omission-pass table over the 15 output shapes new or
+changed in this diff is what produced the three deferred findings — each is
+"the field every sibling carries is missing here", which a presence pass
+cannot see. The harness's own operating error (a stale plugin install loading
+a 0.9.0 skill) was caught by the format checker before it could be scored, and
+is the second time this release cycle that an unupdated local install misled a
+maintainer; the install is updated as the last step of this release.

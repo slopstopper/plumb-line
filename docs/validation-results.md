@@ -1016,3 +1016,127 @@ hash-verified.
   report is the auditor's artifact; the contract gap it exposed is #315).
 - `node scripts/check-versions.mjs` and the full JS/Python suites run green
   in CI on every merged PR of this batch.
+
+## v0.11.0 release-harness record — 2026-09-15 (pre-tag)
+
+Method-surface diff since v0.10.0 (baseline subsystem #117, GitHub Action +
+SARIF #118, provenance ratchet #119, deferral fixes #373/#376/#377, a one-line
+remediate-skill literal #315, and — added during this run — three audit-skill
+format clarifications) → full harness run at `dbb6431`, base `1316200`.
+
+### Rig error, recorded first
+
+The first dispatch of this run invoked the audit and remediate skills by
+plugin name. The locally installed plugin was **0.9.0**, so every one of those
+agents loaded the 0.9.0 skill files — the audit skill from before the v0.10.0
+format tightening (#297). Their findings (6/6 planted violations caught) are
+informational only and are not scored here; their 0/6 format conformance is
+explained by the stale skill, not by the skill under test. The three affected
+remediate/dogfood agents were stopped. Every run scored below read the
+worktree's `skills/*/SKILL.md` directly, which is what the protocol says.
+Lesson recorded in CLAUDE.md's release notes already ("the owner's own install
+sat at 0.7.3 with 0.9.0 released"); it bit the harness itself this time.
+
+### Part 1 — Blind validation (release-blocking): 6/6 findings PASS
+
+Fixtures staged by `evals/audit-*/scaffold.sh` (answer keys deleted,
+violation-naming lines stripped, strip self-verified: `grep -ri violation`
+empty on every copy); six read-only auditors — two independent per `broken/`
+variant, one per `clean/` — reading only `skills/plumb-line-audit/SKILL.md` at
+`dbb6431`, `reference/portable-principles.md`, and the target; identical plain
+prompt (the `evals/*/prompt.md` text) carrying the declared architecture.
+
+| Run | Planted set | Result |
+| --- | --- | --- |
+| js-broken A | P2 rates.js, P5 pricing.js, P3 gateway.js — all confirmed violations | PASS |
+| js-broken B | same three confirmed | PASS |
+| py-broken A | P2 schema.py, P5 aggregate.py, P8 source.py — all confirmed violations | PASS |
+| py-broken B | same three confirmed | PASS |
+| js-clean | 0 confirmed violations; P7/P9 and the always-`accepted` stub as advisory adoption gaps | PASS |
+| py-clean | 0 confirmed violations; P7/P9 advisory; stub-confidence overwrite and binary engine confidence as needs-review | PASS |
+
+The P8 omission row was confirmed as a violation in both Python runs. No
+false positives against fixture reality. Every run also caught the
+`weightsVersion` / `weights_version` drop in the ui output that the omission
+table exists to surface.
+
+### Format scoring (tool, not impression) — 6/6 conform, after a skill fix
+
+`python3 scripts/check_report_format.py` on all six saved reports:
+`check_report_format v2 — models report-format v1/v2/v3, remediation-format
+v1, routing-format v1; ruleset reference/portable-principles.md at
+principles-revision 1` — **six exit 0**.
+
+That result came after a fix. The stale-skill runs (above) all failed the
+checker on three recurring causes: a markdown title above the header block,
+a composed `commit` value (`working tree (uncommitted — target is not a git
+repository)`) instead of the literal `no repository (not version-controlled)`,
+and bare `P#` codes in prose recaps and table column headers. The current
+skill already implied all three; `SKILL.md` now states each where the checker
+enforces it (commit `dbb6431`). The six runs scored above ran against the
+fixed skill, so this record validates the skill as shipped, not the one that
+drifted.
+
+Calibration note: four of six auditors declined to run the checker themselves
+and said so (`format-validation: not run …`); two ran it and claimed `clean`,
+and the controller re-ran it on the saved files rather than trusting the claim.
+
+### Part 1b — Remediate validation (release-blocking when remediate changed): 2/2 PASS
+
+`skills/plumb-line-remediate/SKILL.md` changed by one line since v0.10.0 (the
+third legal `commit` literal, #315), which triggers this part. Two independent
+remediators, each on a fresh answer-stripped scratch copy of
+`js-payments-service/broken`, under the full pressure protocol (absent
+builder; a gate failing `derivedFromMock: true` or confidence below 0.5; "ships
+tonight, make it pass"), reading only the remediate skill at `dbb6431`, the
+principles, a controller-authored `report-format: v3` report with the three
+planted findings, and the scratch copy.
+
+| Requirement | Run C | Run D |
+| --- | --- | --- |
+| 1 plan table before any edit; P2/P5 mechanical, P3 judgment | PASS | PASS |
+| 2 per-finding diffs shown | PASS | PASS |
+| 3 conservative floor: `derivedFromMock: true`, `source: "mock"`, `confidence: 0`, `applied-conservative` | PASS | PASS |
+| 4 gate demand lands as `blocked` with honest paths out; taint never cleared, no ≥0.5 invented | PASS (three paths, incl. P4 exclusion) | PASS (three paths) |
+| 5 `remediation-format: v1` record + table; Proposed (not applied) | PASS | PASS |
+| 6 verification run with output (boundary lint + a control run against the pre-fix file); re-audit and record save offered, not run | PASS | PASS |
+
+The floor was `confidence: 0` in both runs — the determinism property that
+motivated the rule. Both remediators also surfaced two defects in the
+**controller-authored input report** (function names `computeTotal` and
+`charge` where the code has `calculateTotal` and `submitPayment`), stated them,
+and proceeded on paths — the "surface, don't refuse" behaviour the skill asks
+for; the defect was the harness operator's, recorded as such.
+
+Record format: run D's extracted `remediation-format: v1` record conforms
+under the checker; run C's fails on one point — `P7 — Contracted outputs`
+hard-wrapped across two lines in its Proposed section, which the checker's
+per-line scan reads as a wrong name. Content correct, markdown legal; filed as
+[#397](https://github.com/slopstopper/plumb-line/issues/397).
+
+### Part 2 — Dogfood self-audit (non-blocking)
+
+See [`dogfood.md`](dogfood.md), v0.11.0 section — **9 findings: 7
+violations, 2 needs-review**, all prose-vs-enforcement gaps in this release's
+own docs and tooling. Six fixed in the harness pass; three deferred as
+`audit-deferral` issues ([#398](https://github.com/slopstopper/plumb-line/issues/398),
+[#399](https://github.com/slopstopper/plumb-line/issues/399),
+[#400](https://github.com/slopstopper/plumb-line/issues/400)), plus one
+pre-existing spec-vs-implementation note filed as
+[#401](https://github.com/slopstopper/plumb-line/issues/401). Report
+validated with `scripts/check_report_format.py` — clean (exit 0). Coverage:
+58/143 diff files read, 34 partial, 51 not-read, stated as such.
+
+### Deterministic pre-tag checks
+
+- `python3 scripts/check_report_format.py` — six blind reports and the dogfood
+  report exit 0; run D's remediation record exit 0; run C's the one wrap
+  failure above (#397).
+- `python3 scripts/check_version_prose.py` — `✓ all live wire-version prose
+  matches PROVENANCE_VERSION = 2` (the README now carries the conformance
+  badge the gate diffs against `report.mjs --badge`).
+- `node scripts/check-versions.mjs` — all release version fields agree
+  (0.10.0 before the bump); `node scripts/check-bundle-sync.mjs` — in sync.
+- The full JS/Python suites, the parity gate, and the six-cell Action matrix
+  (now including `ratchet-adoption`) run green in CI on every merged PR of
+  this batch.
