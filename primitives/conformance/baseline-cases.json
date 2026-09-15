@@ -87,6 +87,71 @@
         { "path": "provenanceVersion", "before": 1, "after": 2, "text": "pinned under wire v1, running v2" },
         { "path": "value", "before": 1, "after": 2, "text": "value moved with no input change" } ],
       "expectSummary": "pinned under wire v1, running v2; value moved with no input change"
+    },
+    {
+      "name": "lineage shrank; nothing else moved",
+      "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": 1,
+        "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false,
+          "lineage": [ { "id": "sha256:000000000000", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false },
+                       { "id": "sha256:000000000001", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false } ] },
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false,
+        "lineage": [ { "id": "sha256:000000000000", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false } ] },
+      "value": 1, "runningVersion": 2,
+      "expectFindings": [
+        { "path": "meta.lineage.length", "before": 2, "after": 1, "text": "lineage shrank by 1 (first missing step: meta.lineage[1])" } ],
+      "expectSummary": "lineage shrank by 1 (first missing step: meta.lineage[1])"
+    },
+    {
+      "name": "step 0 `of` moved input -> fx_rate; value unchanged",
+      "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": 1,
+        "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false,
+          "lineage": [ { "id": "sha256:000000000000", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false } ] },
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false,
+        "lineage": [ { "id": "sha256:000000000000", "of": "fx_rate", "source": "real", "confidence": "high", "derivedFromMock": false } ] },
+      "value": 1, "runningVersion": 2,
+      "expectFindings": [
+        { "path": "meta.lineage[0].of", "before": "input", "after": "fx_rate", "text": "meta.lineage[0].of: \"input\" -> \"fx_rate\"" } ],
+      "expectSummary": "meta.lineage[0].of: \"input\" -> \"fx_rate\""
+    },
+    {
+      "name": "top-level taint with no step finding — reported at the top; value followed",
+      "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": 1,
+        "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false,
+          "lineage": [ { "id": "sha256:000000000000", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false } ] },
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": true,
+        "lineage": [ { "id": "sha256:000000000000", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false } ] },
+      "value": 2, "runningVersion": 2,
+      "expectFindings": [
+        { "path": "meta.derivedFromMock", "before": false, "after": true, "text": "meta.derivedFromMock: false -> true" },
+        { "path": "value", "before": 1, "after": 2, "text": "value moved; attributed to the findings above" } ],
+      "expectSummary": "meta.derivedFromMock: false -> true; value moved; attributed to the findings above"
+    },
+    {
+      "name": "basis moved @v3 -> @v4 with identical inputs and value — a transform change is drift",
+      "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": 0.0412,
+        "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false, "basis": "pricing.applyFx@v3",
+          "lineage": [ { "id": "sha256:000000000000", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false } ] },
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "basis": "pricing.applyFx@v4",
+        "lineage": [ { "id": "sha256:000000000000", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false } ] },
+      "value": 0.0412, "runningVersion": 2,
+      "expectFindings": [
+        { "path": "meta.basis", "before": "pricing.applyFx@v3", "after": "pricing.applyFx@v4", "text": "meta.basis: \"pricing.applyFx@v3\" -> \"pricing.applyFx@v4\"" } ],
+      "expectSummary": "meta.basis: \"pricing.applyFx@v3\" -> \"pricing.applyFx@v4\""
+    },
+    {
+      "name": "basis appeared where none was pinned; value unchanged",
+      "record": { "baseline-format": "v1", "name": "r", "provenanceVersion": 2, "value": 1,
+        "meta": { "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+        "history": [ { "date": "2026-09-10", "because": "initial pin", "change": "initial" } ] },
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "basis": "aggregate.sum", "lineage": [] },
+      "value": 1, "runningVersion": 2,
+      "expectFindings": [
+        { "path": "meta.basis", "before": null, "after": "aggregate.sum", "text": "meta.basis: null -> \"aggregate.sum\"" } ],
+      "expectSummary": "meta.basis: null -> \"aggregate.sum\""
     }
   ],
   "canonical": [

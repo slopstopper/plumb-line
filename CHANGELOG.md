@@ -78,6 +78,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     `plumb_line_provenance` package in Python.
   - Three deliberate omissions ship labelled `not-implemented`: cross-step
     causality, structural value diff, and float tolerance.
+  - **`meta.basis` drift is now attributed**
+    ([#373](https://github.com/slopstopper/plumb-line/issues/373)): `basis`
+    joins the compared top-level fields in both languages, so the same value
+    recomputed under a different operation label (`pricing.applyFx@v3` ->
+    `@v4`) reads as drift (`meta.basis: "pricing.applyFx@v3" ->
+    "pricing.applyFx@v4"`) instead of `match`. Previously the label was
+    persisted in the record but ignored by `compare`. The conformance table
+    also gains the `attribute` cases the #117 review found missing — lineage
+    shrink, a step's `of` moving, and top-level-only drift with no step
+    finding — plus two `basis` cases (moved; appeared where none was pinned),
+    so both languages are held to those findings by data, not only by
+    per-language unit tests.
 
 ### Changed
 - **README rewritten as a funnel**
