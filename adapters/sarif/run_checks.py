@@ -9,6 +9,10 @@ Every outcome is a named state — ran | not-enforced | tool-missing | errored �
 and the step summary states the denominators, so an empty green is legible
 as empty, never as clean.
 
+When the manifest names a ratchet file (#119), pinned untagged-output sites
+are notes and only new ones fail; the runner reads the file and never writes
+it — see ratchet.py.
+
     python3 adapters/sarif/run_checks.py --root . [--workspace <checkout root>] \
         --manifest .plumb-line/enforcement.json \
         --scripts-dir <plumb-line checkout> --fail-on findings|none \
@@ -27,6 +31,9 @@ _ROOT = os.path.dirname(os.path.dirname(_HERE))
 sys.path.insert(0, _ROOT)
 from scripts.check_enforcement_manifest import load_manifest, capabilities  # noqa: E402
 from adapters.sarif import assemble as A  # noqa: E402
+from adapters.sarif import ratchet as RT  # noqa: E402
+
+NO_MATCH_NOTE = RT.NO_MATCH_NOTE
 
 BOOTSTRAP_HINT = ("no enforcement manifest — run the plumb-line-bootstrap skill (Step 4d writes "
                   ".plumb-line/enforcement.json), or write it by hand: "
@@ -132,6 +139,79 @@ def _looks_unparsed(parsed, out):
     return not out.strip() or (len(parsed) == 1 and parsed[0]["ruleId"] == "PL/unparsed" and parsed[0].get("whole"))
 
 
+def _run_capabilities(root, caps, scripts_dir, runner, which, only=None):
+    """Run every capability in caps (or only those named in `only`).
+    Returns (states, results) with every result's file ROOT-relative and
+    stamped with its capability. No workspace rebase here: the ratchet's
+    sites are root-relative, so apply() must see root-relative files."""
+    states, results = {}, []
+    for key, cfg in caps.items():
+        if only is not None and key not in only:
+            continue
+        tool, hint = TOOLS[key]
+        found = which(tool)
+        if found is None:
+            states[key] = ("tool-missing", None, hint)
+            r = A.tool_missing(key, hint)
+            r["capability"] = key
+            results.append(r)
+            continue
+        cmd = _command(key, cfg, scripts_dir, found)
+        if key in ("python.provenance", "python.output"):
+            globs = cfg["globs"] if key == "python.provenance" else cfg["outputGlobs"]
+            files = _expand(root, globs)
+            if not files:
+                states[key] = ("ran", "json", NO_MATCH_NOTE)
+                continue
+            cmd = cmd[:-len(globs)] + files
+        rc, out, err = runner(cmd, root)
+        try:
+            if key in ("js.boundary", "js.provenance", "js.output"):
+                parsed, parser = A.parse_eslint(out, root), "json"
+            elif key in ("python.provenance", "python.output"):
+                parsed, parser = A.parse_provenance_lint(out, root), "json"
+            elif key == "python.boundary":
+                parsed, parser = A.parse_import_linter(out, root, _root_package(root, cfg["config"])), "text"
+            else:
+                parsed, parser = A.parse_baseline(out, root), "json"
+        except Exception as e:  # a parser must never take the run down
+            parsed, parser = [A.unparsed(f"{type(e).__name__}: {e}", key)], "text"
+        if rc != 0 and _looks_unparsed(parsed, out):
+            note = f"exit {rc}: {(err or out).strip()[:500]}"
+            states[key] = ("errored", parser, " ".join(note.split()))
+            continue
+        if key in ("js.provenance", "python.provenance"):
+            parsed = [r for r in parsed if r["ruleId"] != "PL/untagged-output"]
+        if key == "js.output":
+            # PL/unparsed stays: a surface file ESLint could not parse is one
+            # require-provenance-output never ran on, not a clean file.
+            parsed = [r for r in parsed if r["ruleId"] in ("PL/untagged-output", "PL/unparsed")]
+        for r in parsed:
+            r["capability"] = key
+        results.extend(parsed)
+        states[key] = ("ran", parser, None)
+    return states, results
+
+
+def _apply_ratchet(root, manifest, states, results):
+    """Read-only. Returns (results, ratchet summary | None). A missing or
+    invalid file is a PL/ratchet-invalid ERROR under a synthetic `ratchet`
+    capability in the errored state — the job fails regardless of fail-on,
+    as with tool-missing — and the output checks stand unratcheted."""
+    cfg = manifest.get("ratchet")
+    if not cfg:
+        return results, None
+    rel = cfg["file"]
+    data, problems = RT.load_ratchet(os.path.join(root, rel))
+    if data is None:
+        r = A.result("PL/ratchet-invalid", f"{rel}: " + "; ".join(problems), file=rel, tool="action")
+        r["capability"] = "ratchet"
+        states["ratchet"] = ("errored", "json", problems[0])
+        return results + [r], {"file": rel, "state": "invalid", "known": 0, "new": 0, "stale": 0}
+    results, counts = RT.apply(results, states, data)
+    return results, {"file": rel, "state": "ran", **counts}
+
+
 def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, step_summary_path=None,
         version="dev", runner=None, workspace=None):
     """workspace: the checkout root (GitHub resolves %SRCROOT% as the
@@ -151,57 +231,17 @@ def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, ste
             print(f"  {BOOTSTRAP_HINT}")
         return 1
     caps = capabilities(manifest)
-    states, results = {}, []
-    for key, cfg in caps.items():
-        tool, hint = TOOLS[key]
-        found = which(tool)
-        if found is None:
-            states[key] = ("tool-missing", None, hint)
-            r = A.tool_missing(key, hint)
-            r["capability"] = key
-            results.append(r)
-            continue
-        cmd = _command(key, cfg, scripts_dir, found)
-        if key in ("python.provenance", "python.output"):
-            globs = cfg["globs"] if key == "python.provenance" else cfg["outputGlobs"]
-            files = _expand(root, globs)
-            if not files:
-                states[key] = ("ran", "json", "no files matched the globs")
-                continue
-            cmd = cmd[:-len(globs)] + files
-        rc, out, err = runner(cmd, root)
-        try:
-            if key in ("js.boundary", "js.provenance", "js.output"):
-                parsed, parser = A.parse_eslint(out, root), "json"
-            elif key in ("python.provenance", "python.output"):
-                parsed, parser = A.parse_provenance_lint(out, root), "json"
-            elif key == "python.boundary":
-                parsed, parser = A.parse_import_linter(out, root, _root_package(root, cfg["config"])), "text"
-            else:
-                parsed, parser = A.parse_baseline(out, root), "json"
-        except Exception as e:  # a parser must never take the run down
-            parsed, parser = [A.unparsed(f"{type(e).__name__}: {e}", key)], "text"
-        if rc != 0 and _looks_unparsed(parsed, out):
-            note = f"exit {rc}: {(err or out).strip()[:500]}"
-            states[key] = ("errored", parser, " ".join(note.split()))
-            continue
-        if key == "js.provenance":
-            parsed = [r for r in parsed if r["ruleId"] != "PL/untagged-output"]
-        if key == "js.output":
-            # PL/unparsed stays: a surface file ESLint could not parse is one
-            # require-provenance-output never ran on, not a clean file.
-            parsed = [r for r in parsed if r["ruleId"] in ("PL/untagged-output", "PL/unparsed")]
-        for r in parsed:
-            r["capability"] = key
-            if prefix != "." and r.get("file"):
+    states, results = _run_capabilities(root, caps, scripts_dir, runner, which)
+    results, ratchet = _apply_ratchet(root, manifest, states, results)
+    if prefix != ".":
+        for r in results:
+            if r.get("file"):
                 r["file"] = posixpath.join(prefix, r["file"])
-        results.extend(parsed)
-        states[key] = ("ran", parser, None)
     log = A.build_sarif(results, version, src_root=workspace)
     os.makedirs(os.path.dirname(os.path.abspath(sarif_path)), exist_ok=True)
     with open(sarif_path, "w", encoding="utf-8") as fh:
         json.dump(log, fh, indent=2)
-    summary = A.build_summary(states, results, fail_on, sarif_path)
+    summary = A.build_summary(states, results, fail_on, sarif_path, ratchet=ratchet)
     with open(summary_path, "w", encoding="utf-8") as fh:
         json.dump(summary, fh, indent=2)
     text = A.summary_text(summary)

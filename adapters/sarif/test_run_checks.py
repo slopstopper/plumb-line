@@ -442,3 +442,107 @@ def test_end_to_end_over_the_planted_fixtures(tmp_path):
     uris = [r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] for r in results if "locations" in r]
     assert code == 1 and uris and all(u.startswith("examples/js-payments-service/broken/") for u in uris), uris
     assert len(uris) == len(results), "every fixture result carries a location"
+
+
+# ---------- #119 ratchet ----------
+
+PY_OUT = {"enforcement-format": "v1", "languages": ["python"],
+          "python": {"provenance": {"globs": ["src/**/*.py"], "outputGlobs": ["src/p/**/*.py"]}},
+          "ratchet": {"file": ".plumb-line/ratchet.json"}}
+
+
+def _untagged_issues(*sites):
+    return json.dumps([{"filename": f, "line": 2, "rule": "REQ-OUTPUT", "symbol": s,
+                        "message": "REQ-OUTPUT untagged output"} for f, s in sites])
+
+
+def _ratchet(root, sites):
+    from adapters.sarif import ratchet as RT
+    d = RT.empty()
+    d["sites"] = sites
+    d["history"] = [{"date": "2026-09-15", "because": "initial pin", "change": "pinned"}]
+    RT.write_ratchet(os.path.join(root, ".plumb-line", "ratchet.json"), d)
+
+
+def _run(root, tmp_path, fake, fail_on="findings", **kw):
+    p = _paths(tmp_path)
+    code = R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, fail_on,
+                 runner=fake, version="t", **p, **kw)
+    return code, json.load(open(p["summary_path"])), json.load(open(p["sarif_path"])), open(p["step_summary_path"]).read()
+
+
+def test_ratchet_known_is_a_note_new_is_an_error_and_only_new_fails(tmp_path):
+    root = _consumer(tmp_path, PY_OUT)
+    _ratchet(root, {"python.output": ["src/p/b.py::pinned"]})
+    fake = FakeRunner({"provenance_lint.py": (1, _untagged_issues(("src/p/b.py", "pinned"), ("src/p/b.py", "fresh")), "")})
+    code, s, sarif, text = _run(root, tmp_path, fake)
+    assert code == 1
+    assert s["ratchet"] == {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 1, "new": 1, "stale": 0}
+    assert s["findings"] == 1 and s["notes"] == 1
+    levels = {(r["message"]["text"][:16], r["level"]) for r in sarif["runs"][0]["results"] if r["ruleId"] == "PL/untagged-output"}
+    assert ("known (ratchet):", "note") in levels
+    assert "ratchet: 1 known, 1 new, 0 stale" in text.splitlines()[0]
+    # Only the pinned site → green.
+    _ratchet(root, {"python.output": ["src/p/b.py::fresh", "src/p/b.py::pinned"]})
+    code, s, _, _ = _run(root, tmp_path, fake)
+    assert code == 0 and s["findings"] == 0 and s["ratchet"]["known"] == 2
+
+
+def test_ratchet_stale_is_a_note_that_never_fails(tmp_path):
+    root = _consumer(tmp_path, PY_OUT)
+    _ratchet(root, {"python.output": ["src/p/b.py::gone"]})
+    fake = FakeRunner({"provenance_lint.py": (0, "[]", "")})
+    code, s, sarif, _ = _run(root, tmp_path, fake)
+    assert code == 0 and s["ratchet"]["stale"] == 1 and s["findings"] == 0
+    stale = [r for r in sarif["runs"][0]["results"] if r["ruleId"] == "PL/ratchet-stale"]
+    assert len(stale) == 1 and stale[0]["level"] == "note" and "src/p/b.py::gone" in stale[0]["message"]["text"]
+
+
+def test_ratchet_missing_file_is_invalid_fails_and_runs_unratcheted(tmp_path):
+    root = _consumer(tmp_path, PY_OUT)  # no ratchet file written
+    fake = FakeRunner({"provenance_lint.py": (1, _untagged_issues(("src/p/b.py", "x")), "")})
+    code, s, sarif, text = _run(root, tmp_path, fake, fail_on="none")
+    assert code == 1, "fails even under fail-on: none, like tool-missing"
+    assert s["ratchet"]["state"] == "invalid" and s["capabilities"]["ratchet"]["state"] == "errored"
+    ids = [r["ruleId"] for r in sarif["runs"][0]["results"]]
+    assert "PL/ratchet-invalid" in ids and "PL/untagged-output" in ids
+    untagged = next(r for r in sarif["runs"][0]["results"] if r["ruleId"] == "PL/untagged-output")
+    assert untagged["level"] == "error" and "ratchet" not in untagged["message"]["text"]
+    assert "ratchet file: .plumb-line/ratchet.json (invalid)" in text
+
+
+def test_ratchet_invalid_file_names_the_problem(tmp_path):
+    root = _consumer(tmp_path, PY_OUT)
+    (tmp_path / "repo" / ".plumb-line" / "ratchet.json").write_text('{"ratchet-format": "v9"}', encoding="utf-8")
+    code, s, sarif, _ = _run(root, tmp_path, FakeRunner({"provenance_lint.py": (0, "[]", "")}))
+    assert code == 1
+    msg = next(r for r in sarif["runs"][0]["results"] if r["ruleId"] == "PL/ratchet-invalid")["message"]["text"]
+    assert "ratchet-format" in msg
+
+
+def test_ratchet_tool_missing_output_capability_is_not_split(tmp_path):
+    root = _consumer(tmp_path, PY_OUT)
+    _ratchet(root, {"python.output": ["src/p/b.py::gone"]})
+    fake = FakeRunner({}, missing=("python3",))
+    code, s, _, _ = _run(root, tmp_path, fake)
+    assert code == 1 and s["ratchet"] == {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 0, "new": 0, "stale": 0}
+
+
+def test_ratchet_sites_are_root_relative_but_sarif_is_workspace_relative(tmp_path):
+    (tmp_path / "packages").mkdir()
+    root = _consumer(tmp_path / "packages", PY_OUT)
+    _ratchet(root, {"python.output": ["src/p/b.py::pinned"]})
+    fake = FakeRunner({"provenance_lint.py": (1, _untagged_issues(("src/p/b.py", "pinned")), "")})
+    code, s, sarif, _ = _run(root, tmp_path, fake, workspace=str(tmp_path))
+    assert code == 0 and s["ratchet"]["known"] == 1
+    uri = sarif["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
+    assert uri == "packages/repo/src/p/b.py"
+
+
+def test_no_ratchet_key_means_no_ratchet_block(tmp_path):
+    root = _consumer(tmp_path, {k: v for k, v in PY_OUT.items() if k != "ratchet"})
+    code, s, _, text = _run(root, tmp_path, FakeRunner({"provenance_lint.py": (0, "[]", "")}))
+    # Not a bare "ratchet" not in text: the pytest tmp_path for this test's
+    # own name embeds "ratchet" in the SARIF path the summary always
+    # prints. Assert the absence of the ratchet clause/block specifically.
+    assert code == 0 and s["ratchet"] is None and "ratchet:" not in text and "ratchet file:" not in text
