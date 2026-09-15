@@ -327,8 +327,11 @@ def summary_text(s):
     ran = states.count("ran")
     missing = states.count("tool-missing")
     findings = s["findings"]
+    # No "not enforced here" slot: a capability the manifest omits never
+    # enters the states at all (adapter-contract §6), so such a count could
+    # only ever read 0 — a number that never moves is weaker than no number
+    # (#377).
     parts = [f"{ran} check{'s' if ran != 1 else ''} ran",
-             f"{states.count('not-enforced')} not enforced here",
              f"{missing} tool{'' if missing == 1 else 's'} missing",
              f"{states.count('errored')} errored"]
     head = ", ".join(parts) + f"; {findings} finding{'' if findings == 1 else 's'}"

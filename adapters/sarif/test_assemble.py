@@ -136,7 +136,7 @@ def test_build_sarif_region_omits_missing_line_and_column():
 
 
 def test_build_summary_counts_by_state_and_kind():
-    states = {"js.boundary": ("ran", "json", None), "js.provenance": ("not-enforced", None, None),
+    states = {"js.boundary": ("ran", "json", None),
               "python.boundary": ("tool-missing", None, "pip install import-linter"),
               "baselines": ("errored", None, "exit 3: boom")}
     results = A.parse_import_linter(_fx("garbled.txt"), root="/repo", root_package="src") + \
@@ -149,11 +149,14 @@ def test_build_summary_counts_by_state_and_kind():
 
 
 def test_summary_text_states_the_denominators():
-    states = {"js.boundary": ("ran", "json", None), "js.provenance": ("not-enforced", None, None),
+    states = {"js.boundary": ("ran", "json", None),
               "python.boundary": ("tool-missing", None, "x"), "baselines": ("errored", None, "y")}
     s = A.build_summary(states, [], fail_on="none", sarif_path="/tmp/x.sarif")
     text = A.summary_text(s)
-    assert "1 check ran, 1 not enforced here, 1 tool missing, 1 errored; 0 findings" in text
+    assert "1 check ran, 1 tool missing, 1 errored; 0 findings" in text
+    # An omitted capability never enters the states at all (adapter-contract
+    # §6), so the head line carries no "not enforced here" slot (#377).
+    assert "not enforced" not in text
     assert "fail-on: none" in text
 
 

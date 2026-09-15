@@ -277,12 +277,6 @@ Every outcome is a named state; nothing passes by silence.
   machine-readable report is asked for upstream in [seddonym/import-linter#291](https://github.com/seddonym/import-linter/issues/291),
   and this parser is pinned to the tested version until then
   ([#376](https://github.com/slopstopper/plumb-line/issues/376)).
-- **Known gap, tracked separately:** the summary head-line's "N not
-  enforced here" count is never actually computed — `run_checks.py`
-  iterates only the capabilities a manifest carries, so an omitted
-  capability is correctly absent from the per-capability table but the
-  aggregate count for it never leaves zero
-  ([#377](https://github.com/slopstopper/plumb-line/issues/377)).
 - **The bootstrap manifest step (Step 4d): `planned`** until a
   release-harness blind run proves a bootstrap run writes the file; the
   validator and the hand-written shape it targets are `current`.

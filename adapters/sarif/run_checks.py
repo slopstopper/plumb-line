@@ -5,9 +5,10 @@ Reads the manifest (and ONLY the manifest), preflights the tools it needs,
 runs each enabled capability, feeds the outputs to assemble.py, writes the
 SARIF log + summary JSON + a GitHub step summary, and returns the exit code.
 
-Every outcome is a named state — ran | not-enforced | tool-missing | errored —
-and the step summary states the denominators, so an empty green is legible
-as empty, never as clean.
+Every outcome is a named state — ran | tool-missing | errored — and the step
+summary states the denominators, so an empty green is legible as empty,
+never as clean. A capability the manifest omits has no state: it is not
+run and never appears in the summary (adapter-contract §6).
 
     python3 adapters/sarif/run_checks.py --root . [--workspace <checkout root>] \
         --manifest .plumb-line/enforcement.json \
