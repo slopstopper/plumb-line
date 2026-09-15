@@ -6,7 +6,7 @@
   &nbsp;plumb-line
 </h1>
 
-<p align="center"><b>Values that remember where they came from, and review tooling that notices when they don't.</b></p>
+<p align="center"><b>Values that remember where they came from, and review tooling that detects when they don't.</b></p>
 
 <p align="center">
 <a href="https://www.npmjs.com/package/plumb-line-provenance"><img src="https://img.shields.io/npm/v/plumb-line-provenance?logo=npm" alt="npm"></a>
@@ -124,6 +124,10 @@ flowchart TB
 ## What is deterministic, and what is not
 
 The library, the lint rules, the hooks and the Action are deterministic: the same inputs always give the same result. A [conformance suite](primitives/conformance/) holds the JavaScript and Python versions to identical behaviour, and the [validation results](docs/validation-results.md) show every planted violation caught with no false positives.
+
+[![provenance: plumb-line v2](https://img.shields.io/badge/provenance-plumb--line_v2-3b82f6)](https://github.com/slopstopper/plumb-line/blob/main/primitives/SPEC.md)
+
+That badge is earned, not decorative: `node primitives/conformance/report.mjs` passes every case in the suite against the current envelope schema. Any project that enforces provenance with plumb-line, or ships its own conformant implementation, can generate and carry the same badge ([how](primitives/conformance/README.md#the-badge)).
 
 The audit and remediate skills use an LLM, so plumb-line measures them instead of trusting them. Before any release that changes them, independent auditors run them blind against test repositories with violations planted and the answers removed; a missed violation blocks the release unless a maintainer waives it in writing ([the harness](docs/release-harness.md)). For v0.10.0, all six auditors found every planted violation and invented none ([the record](docs/validation-results.md#v0100-release-harness-record--2026-08-19-pre-tag)).
 
