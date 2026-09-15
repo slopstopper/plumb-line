@@ -252,6 +252,48 @@ def test_prune_without_a_file_refuses(tmp_path):
     assert code == 2 and "not found" in msg
 
 
+def test_update_refuses_an_invalid_manifest(tmp_path):
+    root = _consumer(tmp_path, dict(MAN, **{"enforcement-format": "v9"}))
+    code, msg, _ = RT.update(root, os.path.join(root, ".plumb-line", "enforcement.json"), _REPO, "x",
+                             runner=FakeRunner({"provenance_lint.py:output": (0, "[]", "")}))
+    assert code == 2 and "manifest invalid" in msg
+    assert not os.path.exists(os.path.join(root, ".plumb-line", "ratchet.json"))
+
+
+def test_update_refuses_a_manifest_without_a_ratchet_key(tmp_path):
+    no_ratchet = {k: v for k, v in MAN.items() if k != "ratchet"}
+    root = _consumer(tmp_path, no_ratchet)
+    code, msg, _ = RT.update(root, os.path.join(root, ".plumb-line", "enforcement.json"), _REPO, "x",
+                             runner=FakeRunner({"provenance_lint.py:output": (0, "[]", "")}))
+    assert code == 2 and "names no ratchet file" in msg
+    assert not os.path.exists(os.path.join(root, ".plumb-line", "ratchet.json"))
+
+
+def test_update_and_prune_refuse_an_invalid_existing_file_and_leave_it_untouched(tmp_path):
+    root = _consumer(tmp_path, MAN)
+    m = os.path.join(root, ".plumb-line", "enforcement.json")
+    path = os.path.join(root, ".plumb-line", "ratchet.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"bogus": 1}))
+    before = open(path, encoding="utf-8").read()
+    fake = FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "a")), "")})
+    code, msg, _ = RT.update(root, m, _REPO, "x", runner=fake)
+    assert code == 2 and ("unknown key" in msg or "ratchet-format" in msg)
+    assert open(path, encoding="utf-8").read() == before
+    code, msg, _ = RT.prune(root, m, _REPO, runner=fake)
+    assert code == 2 and ("unknown key" in msg or "ratchet-format" in msg)
+    assert open(path, encoding="utf-8").read() == before
+
+
+def test_update_without_a_manifest_points_at_bootstrap(tmp_path):
+    root = str(tmp_path / "repo")
+    os.makedirs(root, exist_ok=True)
+    code, msg, _ = RT.update(root, os.path.join(root, ".plumb-line", "enforcement.json"), _REPO, "x",
+                             runner=FakeRunner({"provenance_lint.py:output": (0, "[]", "")}))
+    assert code == 2 and "bootstrap" in msg
+
+
 def test_main_update_and_prune_verbs(tmp_path, capsys, monkeypatch):
     root = _consumer(tmp_path, MAN)
     fake = FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "a")), "")})

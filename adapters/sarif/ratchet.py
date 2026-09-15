@@ -221,9 +221,13 @@ def measure(root, manifest, scripts_dir, runner=None):
 
 def _load_manifest(root, manifest_path):
     from scripts.check_enforcement_manifest import load_manifest
+    from adapters.sarif.run_checks import BOOTSTRAP_HINT
     manifest, issues = load_manifest(manifest_path, root)
     if manifest is None:
-        return None, None, "manifest invalid: " + "; ".join(issues)
+        err = "manifest invalid: " + "; ".join(issues)
+        if issues and issues[0].startswith("manifest not found"):
+            err += " — " + BOOTSTRAP_HINT
+        return None, None, err
     if not manifest.get("ratchet"):
         return None, None, "manifest names no ratchet file (add \"ratchet\": {\"file\": \".plumb-line/ratchet.json\"})"
     return manifest, os.path.join(root, manifest["ratchet"]["file"]), None
@@ -311,7 +315,7 @@ def prune(root, manifest_path, scripts_dir, runner=None, today=None):
     data["history"].append({"date": today or datetime.date.today().isoformat(), "because": "prune",
                             "change": f"-{removed} sites (" + "; ".join(parts) + ")"})
     write_ratchet(path, data)
-    return 0, f"pruned {removed} stale site{'' if removed == 1 else 's'} from {os.path.relpath(path, root)}", data
+    return 0, f"pruned {_count(removed)} stale from {os.path.relpath(path, root)}", data
 
 
 def main(argv=None):
