@@ -18,6 +18,8 @@ Three parties touch it:
 
 P7 contract: version constant + key lists + validator. Stdlib only.
 """
+import argparse
+import datetime
 import json
 import os
 import re
@@ -187,3 +189,155 @@ def apply(results, states, ratchet):
             out.append(r)
             stale += 1
     return out, {"known": known, "new": new, "stale": stale}
+
+
+# ---------- measure / update / prune (the only writers) ----------
+
+def _runner_for(root):
+    """The real tools; tests monkeypatch this."""
+    from adapters.sarif import run_checks as R
+    return R._default_runner
+
+
+def measure(root, manifest, scripts_dir, runner=None):
+    """{output capability: (state, sorted sites)} for every <lang>.output the
+    manifest carries. sites is [] unless state is a real `ran`."""
+    from adapters.sarif import run_checks as R
+    from scripts.check_enforcement_manifest import capabilities
+    runner = runner or _runner_for(root)
+    which = getattr(runner, "which", None) or R._resolver(root)
+    caps = capabilities(manifest)
+    states, results = R._run_capabilities(root, caps, scripts_dir, runner, which, only=OUTPUT_CAPS)
+    out = {}
+    for cap in OUTPUT_CAPS:
+        if cap not in caps:
+            continue
+        st = states[cap]
+        sites = sorted({site_of(r) for r in results
+                        if r.get("capability") == cap and r["ruleId"] == "PL/untagged-output" and site_of(r)})
+        out[cap] = (st, sites if _measured(states, cap) else [])
+    return out
+
+
+def _load_manifest(root, manifest_path):
+    from scripts.check_enforcement_manifest import load_manifest
+    manifest, issues = load_manifest(manifest_path, root)
+    if manifest is None:
+        return None, None, "manifest invalid: " + "; ".join(issues)
+    if not manifest.get("ratchet"):
+        return None, None, "manifest names no ratchet file (add \"ratchet\": {\"file\": \".plumb-line/ratchet.json\"})"
+    return manifest, os.path.join(root, manifest["ratchet"]["file"]), None
+
+
+def _unmeasurable(measured):
+    bad = [f"{cap}: {st[0]}" + (f" ({st[2]})" if st[2] else "") for cap, (st, _) in measured.items()
+           if not (st[0] == "ran" and st[2] != NO_MATCH_NOTE)]
+    return "cannot pin what could not be measured — " + "; ".join(bad) if bad else None
+
+
+def _count(n):
+    return f"{n} site{'' if n == 1 else 's'}"
+
+
+def update(root, manifest_path, scripts_dir, because, runner=None, today=None):
+    if not isinstance(because, str) or not because.strip():
+        return 2, BECAUSE_REQUIRED, None
+    manifest, path, err = _load_manifest(root, manifest_path)
+    if err:
+        return 2, err, None
+    if os.path.isfile(path):
+        existing, problems = load_ratchet(path)
+        if existing is None:
+            return 2, "existing ratchet file is invalid: " + "; ".join(problems), None
+    else:
+        existing = None
+    measured = measure(root, manifest, scripts_dir, runner)
+    err = _unmeasurable(measured)
+    if err:
+        return 2, err, None
+    new_sites = {cap: sites for cap, (_, sites) in measured.items()}
+    data = empty()
+    data["sites"] = new_sites
+    data["history"] = list(existing["history"]) if existing else []
+    if existing is None:
+        total = sum(len(v) for v in new_sites.values())
+        change = f"pinned {_count(total)} (" + ", ".join(f"{c}: {len(new_sites[c])}" for c in sorted(new_sites)) + ")"
+        msg = f"pinned {_count(total)} in {os.path.relpath(path, root)}"
+    else:
+        parts, plus, minus = [], 0, 0
+        for cap in sorted(set(existing["sites"]) | set(new_sites)):
+            old = set(existing["sites"].get(cap, []))
+            if cap not in new_sites:
+                parts.append(f"{cap}: dropped {len(old)}")
+                minus += len(old)
+                continue
+            new = set(new_sites[cap])
+            a, r = len(new - old), len(old - new)
+            plus, minus = plus + a, minus + r
+            parts.append(f"{cap}: +{a} -{r}")
+        change = f"+{plus} -{minus} sites (" + "; ".join(parts) + ")"
+        msg = f"updated {os.path.relpath(path, root)}: {change}"
+    data["history"].append({"date": today or datetime.date.today().isoformat(), "because": because.strip(),
+                            "change": change})
+    write_ratchet(path, data)
+    return 0, msg, data
+
+
+def prune(root, manifest_path, scripts_dir, runner=None, today=None):
+    manifest, path, err = _load_manifest(root, manifest_path)
+    if err:
+        return 2, err, None
+    existing, problems = load_ratchet(path)
+    if existing is None:
+        return 2, "; ".join(problems), None
+    measured = measure(root, manifest, scripts_dir, runner)
+    err = _unmeasurable(measured)
+    if err:
+        return 2, err, None
+    data = json.loads(dumps(existing))
+    parts, removed = [], 0
+    for cap in sorted(data["sites"]):
+        if cap not in measured:
+            continue  # a dropped capability is update's job; prune only shrinks lists
+        seen = set(measured[cap][1])
+        keep = [s for s in data["sites"][cap] if s in seen]
+        gone = len(data["sites"][cap]) - len(keep)
+        if gone:
+            parts.append(f"{cap}: -{gone}")
+            removed += gone
+            data["sites"][cap] = keep
+    if not removed:
+        return 0, "nothing to prune", existing
+    data["history"].append({"date": today or datetime.date.today().isoformat(), "because": "prune",
+                            "change": f"-{removed} sites (" + "; ".join(parts) + ")"})
+    write_ratchet(path, data)
+    return 0, f"pruned {removed} stale site{'' if removed == 1 else 's'} from {os.path.relpath(path, root)}", data
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="pin or prune the provenance ratchet (#119)")
+    sub = ap.add_subparsers(dest="verb", required=True)
+    for verb in ("update", "prune"):
+        p = sub.add_parser(verb)
+        p.add_argument("--root", default=".")
+        p.add_argument("--manifest", default=os.path.join(".plumb-line", "enforcement.json"))
+        p.add_argument("--scripts-dir", default=_ROOT)
+        p.add_argument("--json", action="store_true", help="print the resulting file instead of a one-line result")
+        if verb == "update":
+            p.add_argument("--because", default="", help="why the new state is correct (required, non-empty)")
+    a = ap.parse_args(argv)
+    root = os.path.realpath(a.root)
+    manifest = a.manifest if os.path.isabs(a.manifest) else os.path.join(root, a.manifest)
+    if a.verb == "update":
+        code, msg, data = update(root, manifest, os.path.abspath(a.scripts_dir), a.because)
+    else:
+        code, msg, data = prune(root, manifest, os.path.abspath(a.scripts_dir))
+    if a.json and data is not None and code == 0:
+        print(dumps(data), end="")
+    else:
+        print(("✓ " if code == 0 else "✗ ") + msg)
+    return code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

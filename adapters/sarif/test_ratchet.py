@@ -137,3 +137,129 @@ def test_non_output_results_pass_through_untouched():
     r["capability"] = "python.provenance"
     out, s = RT.apply([r], {"python.provenance": RAN, "python.output": RAN, "js.output": RAN}, RT.empty())
     assert out == [r] and s == {"known": 0, "new": 0, "stale": 0}
+
+
+# ---------- CLI: update / prune ----------
+
+from adapters.sarif.test_run_checks import FakeRunner, _consumer, _ROOT as _REPO  # noqa: E402
+
+MAN = {"enforcement-format": "v1", "languages": ["python"],
+       "python": {"provenance": {"globs": ["src/**/*.py"], "outputGlobs": ["src/p/**/*.py"]}},
+       "ratchet": {"file": ".plumb-line/ratchet.json"}}
+
+
+def _issues(*sites):
+    return json.dumps([{"filename": f, "line": 2, "rule": "REQ-OUTPUT", "symbol": s, "message": "m"} for f, s in sites])
+
+
+def _read(root):
+    return json.load(open(os.path.join(root, ".plumb-line", "ratchet.json"), encoding="utf-8"))
+
+
+def test_update_refuses_an_empty_because_and_writes_nothing(tmp_path):
+    root = _consumer(tmp_path, MAN)
+    for because in ("", "   ", None):
+        code, msg, _ = RT.update(root, os.path.join(root, ".plumb-line", "enforcement.json"), _REPO, because,
+                                 runner=FakeRunner({"provenance_lint.py": (0, "[]", "")}))
+        assert code == 2 and msg == RT.BECAUSE_REQUIRED
+    assert not os.path.exists(os.path.join(root, ".plumb-line", "ratchet.json"))
+
+
+def test_update_creates_the_file_on_first_run_with_an_initial_pin(tmp_path):
+    root = _consumer(tmp_path, MAN)
+    fake = FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "z"), ("src/p/b.py", "a"), ("src/p/b.py", "a")), "")})
+    code, msg, data = RT.update(root, os.path.join(root, ".plumb-line", "enforcement.json"), _REPO,
+                                "initial pin", runner=fake, today="2026-09-15")
+    assert code == 0 and "pinned 2 sites" in msg
+    on_disk = _read(root)
+    assert on_disk == data and RT.validate_ratchet(on_disk) == []
+    assert on_disk["sites"] == {"python.output": ["src/p/b.py::a", "src/p/b.py::z"]}
+    assert on_disk["history"] == [{"date": "2026-09-15", "because": "initial pin",
+                                   "change": "pinned 2 sites (python.output: 2)"}]
+
+
+def test_update_records_growth_and_shrink_in_the_change_summary(tmp_path):
+    root = _consumer(tmp_path, MAN)
+    m = os.path.join(root, ".plumb-line", "enforcement.json")
+    RT.update(root, m, _REPO, "initial pin", today="2026-09-15",
+              runner=FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "a"), ("src/p/b.py", "b")), "")}))
+    code, msg, data = RT.update(root, m, _REPO, "vendored module c", today="2026-09-16",
+                                runner=FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "b"), ("src/p/b.py", "c")), "")}))
+    assert code == 0
+    assert data["sites"]["python.output"] == ["src/p/b.py::b", "src/p/b.py::c"]
+    assert data["history"][-1] == {"date": "2026-09-16", "because": "vendored module c",
+                                   "change": "+1 -1 sites (python.output: +1 -1)"}
+    assert len(data["history"]) == 2
+
+
+def test_update_refuses_when_an_output_capability_could_not_be_measured(tmp_path):
+    root = _consumer(tmp_path, MAN)
+    code, msg, _ = RT.update(root, os.path.join(root, ".plumb-line", "enforcement.json"), _REPO, "x",
+                             runner=FakeRunner({}, missing=("python3",)))
+    assert code == 2 and "python.output" in msg and "tool-missing" in msg
+    assert not os.path.exists(os.path.join(root, ".plumb-line", "ratchet.json"))
+
+
+def test_update_measured_but_empty_pins_an_empty_list_not_an_absent_key(tmp_path):
+    root = _consumer(tmp_path, MAN)
+    code, _, data = RT.update(root, os.path.join(root, ".plumb-line", "enforcement.json"), _REPO, "clean start",
+                              runner=FakeRunner({"provenance_lint.py": (0, "[]", ""),
+                                                  "provenance_lint.py:output": (0, "[]", "")}), today="2026-09-15")
+    assert code == 0 and data["sites"] == {"python.output": []}
+
+
+def test_update_drops_a_capability_the_manifest_no_longer_carries(tmp_path):
+    root = _consumer(tmp_path, MAN)
+    m = os.path.join(root, ".plumb-line", "enforcement.json")
+    d = RT.empty()
+    d["sites"] = {"js.output": ["src/x.mjs::f"], "python.output": ["src/p/b.py::a"]}
+    d["history"] = [{"date": "2026-09-01", "because": "old", "change": "pinned 2 sites"}]
+    RT.write_ratchet(os.path.join(root, ".plumb-line", "ratchet.json"), d)
+    code, _, data = RT.update(root, m, _REPO, "js surface removed", today="2026-09-15",
+                              runner=FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "a")), "")}))
+    assert code == 0 and data["sites"] == {"python.output": ["src/p/b.py::a"]}
+    assert data["history"][-1]["change"] == "+0 -1 sites (js.output: dropped 1; python.output: +0 -0)"
+
+
+def test_prune_removes_only_stale_sites_and_needs_no_reason(tmp_path):
+    root = _consumer(tmp_path, MAN)
+    m = os.path.join(root, ".plumb-line", "enforcement.json")
+    RT.update(root, m, _REPO, "initial pin", today="2026-09-15",
+              runner=FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "a"), ("src/p/b.py", "b")), "")}))
+    # b fixed, c is new: prune drops b and does NOT add c.
+    code, msg, data = RT.prune(root, m, _REPO, today="2026-09-16",
+                               runner=FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "a"), ("src/p/b.py", "c")), "")}))
+    assert code == 0 and "pruned 1" in msg
+    assert data["sites"] == {"python.output": ["src/p/b.py::a"]}
+    assert data["history"][-1] == {"date": "2026-09-16", "because": "prune", "change": "-1 sites (python.output: -1)"}
+
+
+def test_prune_is_a_byte_identical_noop_when_nothing_is_stale(tmp_path):
+    root = _consumer(tmp_path, MAN)
+    m = os.path.join(root, ".plumb-line", "enforcement.json")
+    fake = FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "a")), "")})
+    RT.update(root, m, _REPO, "initial pin", runner=fake, today="2026-09-15")
+    path = os.path.join(root, ".plumb-line", "ratchet.json")
+    before = open(path, encoding="utf-8").read()
+    code, msg, _ = RT.prune(root, m, _REPO, runner=fake)
+    assert code == 0 and msg == "nothing to prune" and open(path, encoding="utf-8").read() == before
+
+
+def test_prune_without_a_file_refuses(tmp_path):
+    root = _consumer(tmp_path, MAN)
+    code, msg, _ = RT.prune(root, os.path.join(root, ".plumb-line", "enforcement.json"), _REPO,
+                            runner=FakeRunner({"provenance_lint.py": (0, "[]", "")}))
+    assert code == 2 and "not found" in msg
+
+
+def test_main_update_and_prune_verbs(tmp_path, capsys, monkeypatch):
+    root = _consumer(tmp_path, MAN)
+    fake = FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "a")), "")})
+    monkeypatch.setattr(RT, "_runner_for", lambda root: fake)
+    assert RT.main(["update", "--root", root, "--scripts-dir", _REPO, "--because", ""]) == 2
+    assert RT.BECAUSE_REQUIRED in capsys.readouterr().out
+    assert RT.main(["update", "--root", root, "--scripts-dir", _REPO, "--because", "initial pin", "--json"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["sites"] == {"python.output": ["src/p/b.py::a"]}
+    assert RT.main(["prune", "--root", root, "--scripts-dir", _REPO]) == 0
+    assert "nothing to prune" in capsys.readouterr().out
