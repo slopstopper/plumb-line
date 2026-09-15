@@ -38,7 +38,12 @@ Follow the blind protocol in
    unreliable — the v0.2.0 run only revealed the missed P8 because several runs
    showed the same gap; one run can pass or miss by luck.
 2. Each auditor reads ONLY `skills/plumb-line-audit/SKILL.md`,
-   `reference/portable-principles.md`, and the target dir. **Withhold the answer
+   `reference/portable-principles.md`, and the target dir. **Point it at the
+   file in the checkout under test, never at the installed plugin skill by
+   name**: the local install lags releases (it sat at 0.9.0 during the
+   v0.11.0 harness), so a plugin-invoked auditor validates whatever version
+   happens to be installed — the v0.11.0 run lost its first dispatch to
+   exactly this and had to be re-run. **Withhold the answer
    keys**: the fixture's `VIOLATIONS.md` and `README.md`, this file,
    `AUDIT-EXPECTATIONS.md`, and the sibling variant. Supply the declared
    architecture verbatim from `AUDIT-EXPECTATIONS.md` step 3 (it names the

@@ -23,13 +23,19 @@ to its source of truth:
     Python CI matrix       .github/workflows/ci.yml  `python: [...]`
     Node floor             package.json engines.node
     Node CI matrix         .github/workflows/ci.yml  `node: [...]`
+    report contracts       scripts/check_report_format.py
+                           KNOWN_REPORT_VERSIONS, KNOWN_REMEDIATION_VERSIONS,
+                           KNOWN_ROUTING_VERSIONS — the block must name every
+                           contract the validator models, at its latest version
 
-Deliberately NOT checked, and said so on every run: the report-contract
-line (the validator declares its formats in prose, not as a constant) and
-the lines that state discipline rather than a value (envelope shapes,
-tag-triggered releases). A block line the parser cannot find is a finding,
-not a pass — checking fewer constraints than the block states is the #249
-failure shape, so the run prints how many it checked.
+Deliberately NOT checked, and said so on every run: the lines that state
+discipline rather than a value (envelope shapes, tag-triggered releases).
+The report-contract line used to sit here too, excused as "no constant to
+read"; there are three constants, and the excused line was the one that had
+drifted — it omitted routing-format v1 from 0.10.0 onward. A block line the
+parser cannot find is a finding, not a pass — checking fewer constraints
+than the block states is the #249 failure shape, so the run prints how many
+it checked.
 
 Exit 0 when every checked line matches; exit 1 naming each drift.
 """
@@ -62,10 +68,18 @@ BLOCK_PATTERNS = {
                    "package.json engines.node"),
     "node_matrix": (r"Node floor[^\n]*the CI matrix tests \*\*Node ([^*]+)\*\*", "Node CI matrix",
                     "ci.yml node matrix"),
+    "report_contracts": (r"Report contracts are ([^\n]+?), validated by", "report contracts",
+                         "check_report_format.py KNOWN_*_VERSIONS"),
+}
+
+# contract name as the block writes it -> the constant the validator holds it in
+REPORT_CONTRACT_CONSTANTS = {
+    "report-format": "KNOWN_REPORT_VERSIONS",
+    "remediation-format": "KNOWN_REMEDIATION_VERSIONS",
+    "routing-format": "KNOWN_ROUTING_VERSIONS",
 }
 
 UNCHECKED = [
-    "report contracts (report-format / remediation-format — validator states them in prose, no constant to read)",
     "envelope shapes + conformance parity (a discipline, held by the conformance suites)",
     "tag-triggered releases (a discipline, held by release.yml)",
 ]
@@ -98,6 +112,32 @@ def _version_list(prose):
     return re.findall(r"\d+(?:\.\d+)?", prose)
 
 
+def _contract_list(prose):
+    # "**report-format v3**, **remediation-format v1** and **routing-format v1**"
+    return sorted("%s v%s" % pair
+                  for pair in re.findall(r"\*\*([a-z]+-format) v(\d+)\*\*", prose))
+
+
+def read_report_contracts(validator_text):
+    """The contracts check_report_format.py models, each at its latest version.
+
+    Sorted "<name> v<n>" strings, the same shape the block line parses to, so a
+    contract the block omits (routing-format, #248) is a list mismatch and a
+    finding rather than something the gate excuses itself from reading.
+    """
+    contracts = []
+    for name, const in REPORT_CONTRACT_CONSTANTS.items():
+        m = re.search(r"^%s\s*=\s*\{([^}]*)\}" % re.escape(const), validator_text, re.M)
+        if not m:
+            raise ConstraintsError(
+                "check_report_format.py: no `%s = {...}` constant found" % const)
+        versions = [int(v) for v in re.findall(r"v(\d+)", m.group(1))]
+        if not versions:
+            raise ConstraintsError("check_report_format.py: %s is empty" % const)
+        contracts.append("%s v%d" % (name, max(versions)))
+    return sorted(contracts)
+
+
 def read_block_values(block):
     values = {}
     for key, (pattern, _label, _src) in BLOCK_PATTERNS.items():
@@ -105,7 +145,9 @@ def read_block_values(block):
         if not m:
             continue
         raw = m.group(1).strip()
-        if key.endswith("_matrix"):
+        if key == "report_contracts":
+            values[key] = _contract_list(raw)
+        elif key.endswith("_matrix"):
             values[key] = _version_list(raw)
         elif key.endswith("_floor"):
             values[key] = normalise_range(raw)
@@ -159,6 +201,7 @@ def read_source_values(root):
         "python_matrix": read_ci_matrix(ci, "python"),
         "node_floor": normalise_range(pkg.get("engines", {}).get("node", "")),
         "node_matrix": read_ci_matrix(ci, "node"),
+        "report_contracts": read_report_contracts(_read(root, "scripts/check_report_format.py")),
     }
 
 

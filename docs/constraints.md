@@ -43,13 +43,13 @@ the copy mechanism is for documents that must carry the values with them.
      between the markers is the copyable unit. -->
 
 <!-- constraints:begin -->
-- Release version is **0.10.0**, and the three manifests must always agree: `primitives/js/package.json`, `primitives/python/pyproject.toml`, `.claude-plugin/plugin.json`. Bump only via `node scripts/bump-version.mjs <version>`.
+- Release version is **0.11.0**, and the three manifests must always agree: `primitives/js/package.json`, `primitives/python/pyproject.toml`, `.claude-plugin/plugin.json`. Bump only via `node scripts/bump-version.mjs <version>`.
 - `PROVENANCE_VERSION` is **2**, identical in `primitives/js/provenance.mjs` and `primitives/python/provenance.py`. It is the envelope wire version and moves independently of the release version; `bump-version` does not touch it.
 - Published package name is **`plumb-line-provenance`**, identical on npm and PyPI.
 - License is **Apache-2.0** in both manifests.
 - Python floor is **`requires-python = ">=3.11"`**; the CI matrix tests **3.11, 3.12 and 3.13**.
 - Node floor as published is **`engines.node >= 22`**; the CI matrix tests **Node 22 and 24**.
-- Report contracts are **report-format v3** and **remediation-format v1**, validated by `scripts/check_report_format.py`.
+- Report contracts are **report-format v3**, **remediation-format v1** and **routing-format v1**, validated by `scripts/check_report_format.py`.
 - JS envelopes are flat/spread and camelCase; Python envelopes are nested under `meta` and snake_case. Both must behave identically against `primitives/conformance/cases.json`.
 - Releases are **tag-triggered only** (`.github/workflows/release.yml`). Never hand-publish; the tag must equal the manifests.
 <!-- constraints:end -->
