@@ -9,6 +9,8 @@ is optional, absence means "not enforced here" (stated, never counted as a
 pass), and nothing in it is a default — bootstrap fills it from the
 interview, or a maintainer writes it by hand.
 
+An optional top-level "ratchet": {"file": ...} names the provenance-ratchet file (#119, ADR-0017); it is not a capability and its existence is checked by the runner, not here.
+
 P7 contract: version constant + key lists + validator. Exit 0 when valid,
 1 with one issue per line otherwise.
 """
@@ -24,11 +26,12 @@ DEFAULT_PATH = os.path.join(".plumb-line", "enforcement.json")
 CAPABILITY_KEYS = ["js.boundary", "js.provenance", "js.output",
                    "python.boundary", "python.provenance", "python.output", "baselines"]
 
-_TOP_KEYS = {"enforcement-format", "languages", "js", "python", "baselines"}
+_TOP_KEYS = {"enforcement-format", "languages", "js", "python", "baselines", "ratchet"}
 _LANG_KEYS = {"boundary", "provenance"}
 _BOUNDARY_KEYS = {"config"}
 _PROVENANCE_KEYS = {"js": {"config", "globs", "outputGlobs"}, "python": {"globs", "outputGlobs"}}
 _BASELINES_KEYS = {"dir"}
+_RATCHET_KEYS = {"file"}
 _LANGUAGES = ["js", "python"]
 
 
@@ -133,6 +136,25 @@ def validate_manifest(manifest, root):
         else:
             _unknown(bl, _BASELINES_KEYS, "baselines.", issues)
             _path(bl.get("dir"), "baselines.dir", root, "dir", issues)
+    rt = manifest.get("ratchet")
+    if rt is not None:
+        if not isinstance(rt, dict):
+            issues.append("ratchet must be an object")
+        else:
+            _unknown(rt, _RATCHET_KEYS, "ratchet.", issues)
+            f = rt.get("file")
+            # Existence is deliberately NOT checked here: `ratchet.py update`
+            # creates the file, and it needs a valid manifest to do so. The
+            # runner (run_checks.py) is what fails on a missing file.
+            if not isinstance(f, str) or not f:
+                issues.append("ratchet.file must be a non-empty string")
+            elif f.startswith("-"):
+                issues.append(_DASH.format("ratchet.file"))
+            elif _inside(root, f) is None:
+                issues.append(f"ratchet.file must be a relative path inside the repository: {f}")
+            if not any(isinstance((manifest.get(lang) or {}).get("provenance"), dict)
+                       and "outputGlobs" in manifest[lang]["provenance"] for lang in _LANGUAGES):
+                issues.append("ratchet names nothing to ratchet: no provenance.outputGlobs in any language section")
     return issues
 
 
