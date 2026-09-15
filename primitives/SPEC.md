@@ -189,7 +189,9 @@ the transform (e.g. `"pricing.applyFx@v3"`, `"aggregate.sum"`). This is a
 convention, not an enforced field: the law neither writes nor validates `basis`,
 and its absence is never an audit finding. It exists so that a human or a
 downstream tool reading the envelope can tell *what was done*, which the lineage
-alone does not say.
+alone does not say. One such tool is the baseline library (Principle 9), which
+compares `basis` as a top-level field: a changed label is reported as drift
+even when the value and every lineage step are unchanged.
 
 ---
 

@@ -39,7 +39,9 @@ KNOWN_BASELINE_FORMATS = {'v1'}
 DEFAULT_DIR = os.path.join('.plumb-line', 'baselines')
 NAME_RE = re.compile(r'^[A-Za-z0-9._-]+$')
 STEP_FIELDS = ['source', 'confidence', 'confidenceScore', 'derivedFromMock', 'of']
-TOP_FIELDS = ['source', 'confidence', 'confidenceScore', 'derivedFromMock']
+# `basis` is top-level only (SPEC §4: an operation label, never a step field),
+# so a transform change is drift even when every input and the value held.
+TOP_FIELDS = ['source', 'confidence', 'confidenceScore', 'derivedFromMock', 'basis']
 _RECORD_KEYS = ['baseline-format', 'name', 'provenanceVersion', 'value', 'meta', 'history']
 _DATE_RE = re.compile(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
 
