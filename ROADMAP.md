@@ -779,14 +779,18 @@ proves it.
 
 ### 26. Provenance ratchet — no new untagged outputs vs. main
 
-**Priority: high** · Milestone: v0.11.0 · GitHub: #119 · depends on #1 (GH #91, closed in v0.7.0)
+**Priority: high** · Milestone: v0.11.0 · GitHub: #119 · **current on main, unreleased**
 
 The honest answer to "how does a 300k-line legacy repo adopt this?" is
-currently "it can't, realistically." The proven incremental pattern from
-type-coverage tooling: measure untagged output-producing functions on main,
-fail CI only when a PR *increases* the count. A ratchet mode for the lint
-(JS + Python) with a committed manifest, wired into the Action (#25) and the
-pre-commit gate.
+implemented on main as a site-keyed ratchet (`current`, ADR-0017): pin
+today's untagged-output sites (`<file>::<symbol>`) in a committed
+`.plumb-line/ratchet.json`, and fail only on sites that are *new* against
+that pin. Wired into the Action (`ratchet.file` in the enforcement
+manifest, #25) and reachable from the pre-commit gate by pointing
+`PLUMBLINE_TEST_CMD` at the runner. Proven end to end on
+`examples/ratchet-adoption` (Python); the JS site marker is unit-tested at
+the rule and assembler level, not yet proven end to end on a planted JS
+fixture.
 
 ---
 

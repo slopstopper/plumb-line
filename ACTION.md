@@ -69,7 +69,7 @@ sha on this repository instead.
 | --- | --- | --- |
 | `manifest` | `.plumb-line/enforcement.json` | Path to the enforcement manifest, relative to `root`. |
 | `root` | `.` | For monorepos: the consumer root within the checkout. The tools run there, but every result is repository-relative (`<root>/src/x.js`, resolved against `%SRCROOT%` = the checkout), and each root uploads under its own category (`plumb-line/<root>`; `plumb-line` for `.`), so two roots in one workflow never replace each other's alerts. The checkout is `github.workspace`, which is the repository root only when `actions/checkout` runs at its default `path`; a checkout under `path: app` is not a proven configuration. |
-| `fail-on` | `findings` | `findings` fails the job on any result; `none` is advisory — the SARIF still uploads (the seam the ratchet, GH #119, will use). |
+| `fail-on` | `findings` | `findings` fails the job on any error/warning result; `none` is advisory — the SARIF still uploads. Ratchet notes never count either way. |
 | `sarif-file` | `${{ runner.temp }}/plumb-line.sarif` | Where the SARIF log is written. |
 | `upload` | `true` | Upload to code scanning (needs `security-events: write`). `false` still writes the file. |
 
@@ -211,7 +211,8 @@ every issue — against a manifest that doesn't pass it.
     "provenance": { "globs": ["src/**/*.py"],
                     "outputGlobs": ["src/pricing/**/*.py"] }
   },
-  "baselines": { "dir": ".plumb-line/baselines" }
+  "baselines": { "dir": ".plumb-line/baselines" },
+  "ratchet": { "file": ".plumb-line/ratchet.json" }
 }
 ```
 
@@ -241,6 +242,79 @@ Validate a manifest locally, from the consumer root, with:
 python3 <plumb-line checkout>/scripts/check_enforcement_manifest.py .plumb-line/enforcement.json
 ```
 
+## Ratchet mode
+
+A legacy repo cannot switch `require-provenance-output` on: every existing
+untagged output fails at once. The ratchet (#119, ADR-0017) pins today's
+sites and refuses only **new** ones — don't demand zero, refuse regression.
+
+Add one key to the manifest and pin the current state:
+
+```json
+"ratchet": { "file": ".plumb-line/ratchet.json" }
+```
+
+```bash
+python3 <plumb-line checkout>/adapters/sarif/ratchet.py update --because "initial pin"
+git add .plumb-line/ratchet.json
+```
+
+From then on, for each `js.output` / `python.output` capability that ran:
+
+| Site | Result |
+| --- | --- |
+| Pinned in the file and still reported | `PL/untagged-output` at level **note**, message prefixed `known (ratchet):`. Never fails. |
+| Reported but **not** pinned | `PL/untagged-output` at level **error**; the message says how to accept it. Fails under `fail-on: findings`. |
+| Pinned but no longer reported | one `PL/ratchet-stale` **note** naming the site. Never fails; `ratchet.py prune` removes it. |
+
+The head line gains `ratchet: N known, M new, S stale`, and the summary
+names the file and its state.
+
+A **site** is `<file>::<symbol>` — the enclosing exported (JS) or
+module-level (Python) function, never a line number. Two returns in one
+function are one site. **Renaming or moving a pinned function makes it a
+new site**: fix it, or accept it with `ratchet.py update --because
+"renamed X to Y"`. That is the honest cost of keying on sites rather than
+counts (a count cannot tell "fixed one, added one" from "no change").
+
+The file (`ratchet-format: v1`) is a contracted output: sorted, unique
+sites per output capability, and an append-only `history` of
+`{date, because, change}`. A capability key that is **absent** was never
+measured; an **empty list** was measured and clean. Only two commands ever
+write it:
+
+- `ratchet.py update --because "<reason>"` — sets the sites to exactly what
+  is reported now. Refuses an empty reason (the set may have grown) and
+  refuses when any output capability could not be measured (tool missing,
+  errored, no files matched): you cannot pin what you could not see.
+- `ratchet.py prune` — removes stale sites only, never adds; records
+  `because: "prune"`. Shrinking needs no reason.
+
+The Action **reads and never writes** the file: a rewrite in CI is never
+committed, and a rewrite in a pre-commit hook lands after staging. Stale
+entries are notes, not failures, until someone prunes.
+
+Two deliberate asymmetries, so nobody "fixes" them:
+
+- The manifest validator accepts `ratchet.file` **without** checking the
+  file exists — `update` has to be able to create it. The Action is what
+  fails on a missing or invalid file (`PL/ratchet-invalid`, and the job
+  fails regardless of `fail-on`, as with a missing tool), and it runs the
+  output checks unratcheted in that case rather than silently skipping.
+- The lints themselves are ratchet-unaware. ESLint in an editor still
+  shows every site as an error; the ratchet lives in the runner, once, in
+  one language, with no JS/Python parity to maintain.
+
+**Pre-commit:** point the gate at the runner — no new wiring:
+
+```bash
+PLUMBLINE_TEST_CMD="python3 <plumb-line>/adapters/sarif/run_checks.py --manifest .plumb-line/enforcement.json --sarif /dev/null --summary /dev/null --fail-on findings"
+```
+
+Proven end to end on `examples/ratchet-adoption` (Python). The JS site
+marker is unit-tested in the rule and the assembler; no planted JS fixture
+carries an output surface yet.
+
 ## Failure modes
 
 Every outcome is a named state; nothing passes by silence.
@@ -256,6 +330,8 @@ Every outcome is a named state; nothing passes by silence.
 | Valid manifest, zero capabilities | Job succeeds, empty SARIF run, the summary says plainly that zero checks ran — an empty green is legible as empty, never as clean. |
 | Upload step fails (no `security-events: write`, code scanning off) | `continue-on-error: true` on that step ties the job's exit code to the enforcement result alone; a follow-on step emits a `::warning::` naming the permission (`security-events: write`) and the code-scanning setting as the two things to check; the SARIF file is still written and named in the summary. |
 | `fail-on: none` | Findings still upload, the summary states the mode, exit 0 — unless a capability is `tool-missing` or `errored`, which fail regardless. |
+| Manifest names a ratchet file that is missing or invalid | One `PL/ratchet-invalid` error naming the problems; the output checks still run, unratcheted (every site an error); job fails even under `fail-on: none`. |
+| A pinned ratchet site is no longer reported | One `PL/ratchet-stale` note per site; never fails. `ratchet.py prune` removes it. |
 
 ## Maturity
 
@@ -283,6 +359,11 @@ Every outcome is a named state; nothing passes by silence.
 - **The bootstrap manifest step (Step 4d): `planned`** until a
   release-harness blind run proves a bootstrap run writes the file; the
   validator and the hand-written shape it targets are `current`.
+- Ratchet mode: **current** for `python.output` (end-to-end on
+  `examples/ratchet-adoption`; also exercised by the Action's CI matrix,
+  cell `ratchet-adoption`); the JS site marker is `current` at the
+  rule/assembler level and **not yet proven end to end** on a planted JS
+  surface.
 
 See [ADR-0016](docs/adr/0016-action-manifest-and-sarif.md) for the five
 decisions behind this design and their rejected alternatives.

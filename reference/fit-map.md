@@ -40,10 +40,11 @@ What *is* harder mid-project is repo-wide **enforcement** — a lint
 demanding provenance on every output would fail everywhere at once on an
 existing codebase. That is why enforcement is opt-in and scoped: the
 `require-provenance-output` lint inverts the default only inside a
-boundary you explicitly draw, and a ratchet mode for incremental legacy
-adoption ("no *new* untagged outputs") is **planned**, not current
-(GH #119). Adopt the envelopes per-path now; draw enforcement boundaries
-if and when you want them.
+boundary you explicitly draw, and the ratchet (`ratchet.file` in the
+enforcement manifest, GH #119) pins a legacy surface's existing untagged
+outputs so only *new* ones fail — **current** for the Action's
+`python.output` and `js.output` checks. Adopt the envelopes per-path now;
+draw enforcement boundaries if and when you want them.
 
 **Worried about using it wrong?** The same user signal, in full: *"I
 didn't understand enough how the primitives would work, and since I had
