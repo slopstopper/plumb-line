@@ -246,6 +246,36 @@ def test_outputs_has_no_injection_parameters():
         pl.check_outputs("x = 1", extra_modules={'myorg_data'})
 
 
+# --- #119 site identity: every REQ-OUTPUT issue names its function ---
+
+def test_output_issue_carries_the_function_symbol():
+    issues = pl.check_outputs(IMPORT + "def apply_fx(x, r):\n    return x * r\n", "src/fx.py")
+    assert [(i['rule'], i['symbol'], i['line']) for i in issues] == [('REQ-OUTPUT', 'apply_fx', 3)]
+
+def test_async_output_issue_carries_the_symbol():
+    issues = pl.check_outputs(IMPORT + "async def total(a, b):\n    return a + b\n", "src/t.py")
+    assert issues[0]['symbol'] == 'total'
+
+def test_two_returns_in_one_function_share_one_symbol():
+    src = IMPORT + "def f(x, r):\n    t = x * r\n    return t\n    return x + r\n"
+    assert [i['symbol'] for i in pl.check_outputs(src)] == ['f', 'f']
+
+def test_json_output_carries_symbol(tmp_path, capsys):
+    p = tmp_path / "fx.py"
+    p.write_text("def apply_fx(x, r):\n    return x * r\n", encoding='utf-8')
+    assert pl.main(['--require-output', '--json', str(p)]) == 1
+    import json
+    out = json.loads(capsys.readouterr().out)
+    assert out[0]['symbol'] == 'apply_fx' and out[0]['rule'] == 'REQ-OUTPUT'
+
+def test_text_output_is_unchanged_by_symbol(tmp_path, capsys):
+    p = tmp_path / "fx.py"
+    p.write_text("def apply_fx(x, r):\n    return x * r\n", encoding='utf-8')
+    pl.main(['--require-output', str(p)])
+    line = capsys.readouterr().out.strip()
+    assert line.startswith(f"{p}:2: REQ-OUTPUT") and 'symbol' not in line
+
+
 def test_main_require_output_flag_clean_returns_zero(tmp_path):
     p = tmp_path / "m.py"
     p.write_text(IMPORT + "def f(x, r):\n    return derive([x, r], lambda p, q: p * q)\n")

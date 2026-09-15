@@ -182,10 +182,11 @@ class _OutputVisitor:
             v = node.value
             if v is None:
                 continue
-            if self._is_raw(v):
-                self.issues.append({'line': node.lineno, 'rule': 'REQ-OUTPUT', 'message': _OUTPUT_MESSAGE})
-            elif isinstance(v, ast.Name) and local.get(v.id) == "raw":
-                self.issues.append({'line': node.lineno, 'rule': 'REQ-OUTPUT', 'message': _OUTPUT_MESSAGE})
+            if self._is_raw(v) or (isinstance(v, ast.Name) and local.get(v.id) == "raw"):
+                # #119: `symbol` is the site identity the ratchet keys on — the
+                # enclosing module-level function, never the line (lines move).
+                self.issues.append({'line': node.lineno, 'rule': 'REQ-OUTPUT',
+                                    'message': _OUTPUT_MESSAGE, 'symbol': fn.name})
 
     @staticmethod
     def _returns_of(fn):
