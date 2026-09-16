@@ -62,7 +62,21 @@ Two independent version numbers:
 6. **Watch the Release workflow.** Its first step re-runs the guard
    (`check-versions.mjs <tag>` + a CHANGELOG `## [<version>]` check); if the tag
    doesn't match the manifests or the CHANGELOG has no section for it, the run
-   fails *before* publishing. Then it runs the full suite and publishes.
+   fails *before* publishing. Then it runs the full suite and publishes, and
+   its last step opens a `Content draft due: v<version>` issue.
+7. **Draft the release write-up.** One short piece per release, drafted from
+   what actually shipped, under [`docs/content/TEMPLATE.md`](docs/content/TEMPLATE.md)
+   and its four gates (audit, language standard, disclosure, cap). Source
+   material is the CHANGELOG section, the harness record in
+   `docs/validation-results.md`, the dogfood section, and the closed
+   milestone. Open it as a PR that closes the draft-due issue; the owner
+   edits and approves by merging. After the merge, render the approved piece
+   where readers already look, per the template's Publishing section: embed
+   it in the GitHub release body above the generated notes, and add the dated
+   row to the site's writing list. Update the README's "It audits itself" and
+   harness paragraphs to the new release's numbers in the same PR — both
+   cite a specific release and go stale otherwise (the v0.11.0 write-up PR
+   is where this step was added, after exactly that staleness).
 
 ## Releasing without a terminal
 
