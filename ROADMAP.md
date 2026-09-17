@@ -182,13 +182,38 @@ Version themes for the near-term releases, and the GitHub issues under each.
   (#28 / GH #121), `summarize()` trust summary for artifacts (#29 / GH #122),
   pytest/vitest quarantine plugins (#30 / GH #123). Sequenced after wire v2 so
   new envelope fields are settled; every primitive lands in both languages with
-  conformance rows. Two deferrals ride here because both are API-semantics
-  decisions this milestone has to settle anyway: the `http.py` stdlib-shadow
-  rename (GH #171, which breaks the documented flat copy-paste path) and the
-  wrapper/`mark` default `source='derived'` producing an audit-dirty leaf
-  (GH #177, inherited from the primitive's own default). The
+  conformance rows. One deferral rides here because it is an API-semantics
+  decision this milestone has to settle anyway: the wrapper/`mark` default
+  `source='derived'` producing an audit-dirty leaf (GH #177, inherited from
+  the primitive's own default). The `http.py` stdlib-shadow rename (GH #171)
+  once scheduled here moved to the v0.11.2 patch on 2026-09-17: it is a fix,
+  not a feature. Also here after the post-0.11.0 roadmap review: the canonical
+  JSON serialization convention (#31 / GH #124, pulled forward from v1.0.0
+  because two shipped contracts already commit to a form), the PROV-O mapping
+  (#37 / GH #130, docs rider), and the lineage-growth design pass (GH #302,
+  outcome decides whether it ships here or under v1.0.0). The
   `check_report_format.py` cluster once scheduled here (GH #220–#223: the
   validator's own four findings) was pulled forward and closed under v0.11.0.
+
+- **v0.11.1 — Ratchet and Action hardening** and **v0.11.2 — Tooling and docs
+  tidy** (patches, fix-only) · *created 2026-09-17.* The deferral outbox drained
+  after v0.11.0: seven correctness and hygiene fixes to the ratchet and the
+  Action (GH #389–#393, #395, #397; two of them stricter for adopters and
+  called out as such), and five tooling and docs fixes (GH #171, #369, #374,
+  #400, #401, plus the content-template drift, GH #405). Neither waits on the
+  minors.
+
+- **v0.13.0 — Reproducible enforcement** · *split from v0.12.0 on 2026-09-17,
+  when that milestone reached thirteen issues.* Every enforcement output
+  records what produced it: `ratchet-format` v2 with reproduction inputs
+  (GH #388), a lineage block in the SARIF log and summary (GH #399) with the
+  `summary-format` v2 key list and validator that covers it (GH #398),
+  append-only history enforced in the ratchet and baseline validators
+  (GH #394), and the blind-validation harness as a `claude plugin eval` suite
+  (GH #291 — gated on Anthropic enabling the feature for this account; the
+  suite can be authored and reviewed before then). Sequenced after v0.12.0 so
+  the lineage block can reuse any envelope fields `explain()`/`summarize()`
+  settle.
 
 - **v1.0.0 — A contract you can build on** (no due date; sequenced after
   v0.12.0; gated on state, not a date).
@@ -338,8 +363,9 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
    the golden baseline #117, the GitHub Action + SARIF #118, the provenance
    ratchet #119, and the deferral sweep; harness record in
    `docs/validation-results.md`).
-7. **Next:** v0.12.0 — sequenced after wire v2 so the envelope fields it adds
-   are settled.
+7. **Next:** the v0.11.1 and v0.11.2 patches (fix-only, drain the deferral
+   outbox), then v0.12.0 — sequenced after wire v2 so the envelope fields it
+   adds are settled — then v0.13.0, split from it on 2026-09-17.
 8. **After that:** v1.0.0 — the coverage guarantee, the API-surface
    definition (GH #236) that everything else freezes against, canonical
    serialization (GH #124), and the last-call breaking-change pass (GH #239,
