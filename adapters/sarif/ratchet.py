@@ -140,12 +140,21 @@ def dumps(data):
 
 
 def write_ratchet(path, data):
-    """Canonical, atomic: tmp + os.replace, so a crash leaves the old file."""
+    """Canonical, atomic: tmp + os.replace, so a crash leaves the old file.
+
+    If writing or replacing raises (disk full, permission), the tmp file is
+    unlinked before the exception propagates — it must never linger inside
+    .plumb-line/ where it could be committed."""
     os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
     tmp = f"{path}.tmp-{os.getpid()}"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        fh.write(dumps(data))
-    os.replace(tmp, path)
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(dumps(data))
+        os.replace(tmp, path)
+    except Exception:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
 
 
 # ---------- apply (read-only) ----------

@@ -88,6 +88,26 @@ def test_write_is_canonical_and_stable(tmp_path):
     assert not [f for f in os.listdir(os.path.dirname(path)) if f != "r.json"], "no tmp file left behind"
 
 
+def test_write_unlinks_the_tmp_file_when_the_write_raises(tmp_path, monkeypatch):
+    path = str(tmp_path / "r.json")
+    original = "not touched"
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(original)
+
+    def _boom(data):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(RT, "dumps", _boom)
+    try:
+        RT.write_ratchet(path, _ok())
+        assert False, "expected RuntimeError to propagate"
+    except RuntimeError:
+        pass
+    assert not [f for f in os.listdir(str(tmp_path)) if f.startswith("r.json.tmp-")], \
+        "no tmp file left behind after a failed write"
+    assert open(path, encoding="utf-8").read() == original, "existing target left untouched"
+
+
 # ---------- apply ----------
 
 RAN = ("ran", "json", None)
