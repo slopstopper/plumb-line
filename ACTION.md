@@ -399,15 +399,19 @@ Every outcome is a named state; nothing passes by silence.
 ## Maturity
 
 - **The Action itself: `current`** — eight CI matrix cells (four fixtures ×
-  `clean`/`broken`) run `uses: ./` against the planted fixtures and pass, on
-  this branch. `js-payments-service` and `python-data-pipeline` enable only
-  `boundary`, so that CI and end-to-end proof covers `js.boundary` and
+  `clean`/`broken`) run `uses: ./` against the planted fixtures, configured on
+  this branch, with results recorded in CI's run on the pull request.
+  `js-payments-service` and `python-data-pipeline` enable only `boundary`,
+  so that CI and end-to-end proof covers `js.boundary` and
   `python.boundary`; `examples/ratchet-adoption` enables
-  `python.provenance`, `python.output` and `ratchet`, and
-  `examples/ratchet-adoption-js` enables `js.provenance`, `js.output` and
-  `ratchet`, so that same CI covers those end to end too. The one remaining
-  capability — `baselines` — is proven by unit tests over recorded tool
-  output.
+  `python.provenance`, `python.output` and `ratchet`, so that same CI covers
+  those end to end too. `examples/ratchet-adoption-js` enables
+  `js.provenance`, `js.output` and `ratchet`; its fixture rule only ever
+  triggers `require-provenance-output`, so `js.output` and `ratchet` are the
+  capabilities newly proven end to end there, while `js.provenance` runs and
+  parses but detects nothing in this fixture. The two capabilities not
+  proven end to end this way — `js.provenance` and `baselines` — are proven
+  by unit tests over recorded tool output.
 - **Uploading to a consumer's code scanning: `current` by construction** —
   the upload step delegates to the sha-pinned `github/codeql-action/upload-sarif`
   (the same action and sha the scorecard workflow uses) — but this repo's

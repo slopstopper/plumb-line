@@ -133,11 +133,15 @@ def _mask_code_spans(text):
     return _CODE_SPAN.sub(lambda m: " " * len(m.group(0)), text)
 
 
-# A `key:` line the format uses at top level (header keys, and the
+# The `key:` prefix the format uses at top level (header keys, and the
 # denominator/coverage/scope note/fit/handoff/format-validation lines that sit
-# outside any header block). Kept out of soft-wrap joining below so those
-# lines never fuse into a neighbouring prose paragraph.
-_KEY_LINE = re.compile(r"^[a-z][a-z -]*:(\s|$)")
+# outside any header block). Shared so a key-line line definition never
+# drifts between the two places that need it.
+_KEY_LINE_PREFIX = r"^[a-z][a-z -]*:"
+
+# Kept out of soft-wrap joining below so key lines never fuse into a
+# neighbouring prose paragraph.
+_KEY_LINE = re.compile(_KEY_LINE_PREFIX + r"(\s|$)")
 
 
 def _join_soft_wraps(text):
@@ -413,7 +417,7 @@ def _glossary_codes(text):
             break
 
     head = "\n".join(ln for ln in lines[:end]
-                     if not re.match(r"^[a-z][a-z-]*:", ln))
+                     if not re.match(_KEY_LINE_PREFIX, ln))
     return {"P" + m.group(1) for m in _PRINCIPLE_CODE.finditer(head)}
 
 

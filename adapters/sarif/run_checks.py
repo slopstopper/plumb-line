@@ -19,7 +19,10 @@ Dependency direction: run_checks imports ratchet at MODULE level; ratchet
 imports run_checks's PUBLIC surface — run_capabilities, resolver,
 default_runner — lazily, inside the function bodies that need it, because a
 module-level import back would close the cycle. That surface is the whole
-contract: nothing in ratchet.py may reach into a run_checks underscore name
+contract, guarded in both directions: nothing in ratchet.py may reach into a
+run_checks underscore name, and nothing in run_checks.py may reach into a
+ratchet underscore name — run_checks uses ratchet's public `measured`, not a
+private name
 (test_ratchet.py::test_ratchet_only_uses_the_public_run_checks_surface).
 
     python3 adapters/sarif/run_checks.py --root . [--workspace <checkout root>] \
@@ -256,7 +259,7 @@ def _apply_ratchet(root, manifest, states, results):
     # errored, or globs that matched no file. Reported alongside the counts so
     # "0 known, 0 new, 0 stale" can never pass for "ratcheted and clean", and
     # failed on by run() regardless of fail-on (#395).
-    unmeasured = sorted(c for c in RT.OUTPUT_CAPS if c in capabilities(manifest) and not RT._measured(states, c))
+    unmeasured = sorted(c for c in RT.OUTPUT_CAPS if c in capabilities(manifest) and not RT.measured(states, c))
     data, problems = RT.load_ratchet(os.path.join(root, rel))
     if data is None:
         r = A.result("PL/ratchet-invalid", f"{rel}: " + "; ".join(problems), file=rel, tool="action")

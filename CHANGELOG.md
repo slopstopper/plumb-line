@@ -25,9 +25,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   error on one, previously left the capability `ran`, so `update` could pin a
   set computed as though the file had no sites. The capability now carries
   `unparsed surface file: <path>`; `apply` neither splits nor prunes,
-  `update` and `prune` refuse, and under #395 the job fails. No
-  `--allow-unparsed` flag; fix the file. Scoped to `js.output` and
-  `python.output`.
+  `update` and `prune` refuse, and under #395 the job fails. The
+  capability's pinned sites therefore report at error level rather than as
+  `known (ratchet)` notes until the file parses, which surfaces as new
+  code-scanning alerts. No `--allow-unparsed` flag; fix the file. Scoped to
+  `js.output` and `python.output`.
 
 - **README opening tightened.** Three paragraphs reach "you probably want
   this if" on the first screen; the Install section is unchanged and the

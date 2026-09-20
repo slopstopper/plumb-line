@@ -152,8 +152,10 @@ def write_ratchet(path, data):
             fh.write(dumps(data))
         os.replace(tmp, path)
     except Exception:
-        if os.path.exists(tmp):
+        try:
             os.unlink(tmp)
+        except OSError:
+            pass  # tmp was never created, or is already gone — fine either way
         raise
 
 
@@ -184,7 +186,7 @@ def measures_nothing(note):
     return note == NO_MATCH_NOTE or (isinstance(note, str) and note.startswith(UNPARSED_PREFIX))
 
 
-def _measured(states, cap):
+def measured(states, cap):
     st = states.get(cap)
     return st is not None and st[0] == "ran" and not measures_nothing(st[2])
 
@@ -201,7 +203,7 @@ def apply(results, states, ratchet):
     for r in results:
         cap = r.get("capability")
         s = site_of(r)
-        if r["ruleId"] == "PL/untagged-output" and cap in OUTPUT_CAPS and s and _measured(states, cap):
+        if r["ruleId"] == "PL/untagged-output" and cap in OUTPUT_CAPS and s and measured(states, cap):
             seen[cap].add(s)
             if s in pinned[cap]:
                 r = dict(r, level="note", message=KNOWN_PREFIX + r["message"])
@@ -220,7 +222,7 @@ def apply(results, states, ratchet):
             out.append(r)
             stale += 1
             continue
-        if not _measured(states, cap):
+        if not measured(states, cap):
             continue
         for s in sorted(pinned[cap] - seen[cap]):
             r = A.result("PL/ratchet-stale", STALE_TEXT.format(site=s), file=s.partition("::")[0],
@@ -263,7 +265,7 @@ def measure(root, manifest, scripts_dir, runner=None):
         st = states[cap]
         sites = sorted({site_of(r) for r in results
                         if r.get("capability") == cap and r["ruleId"] == "PL/untagged-output" and site_of(r)})
-        out[cap] = (st, sites if _measured(states, cap) else [])
+        out[cap] = (st, sites if measured(states, cap) else [])
     return out
 
 
@@ -281,14 +283,14 @@ def _load_manifest(root, manifest_path):
     return manifest, os.path.join(root, manifest["ratchet"]["file"]), None
 
 
-def _unmeasurable(measured):
+def _unmeasurable(measures):
     """Why the writers cannot pin this surface, or None. measure() threads
-    each capability's RAW state through, so this asks _measured — the one
+    each capability's RAW state through, so this asks measured() — the one
     predicate apply() reads — instead of re-deriving it over a second shape;
     reader and writers can then never drift apart about what `measured` means."""
-    states = {cap: st for cap, (st, _) in measured.items()}
+    states = {cap: st for cap, (st, _) in measures.items()}
     bad = [f"{cap}: {st[0]}" + (f" ({st[2]})" if st[2] else "")
-           for cap, st in states.items() if not _measured(states, cap)]
+           for cap, st in states.items() if not measured(states, cap)]
     return "cannot pin what could not be measured — " + "; ".join(bad) if bad else None
 
 

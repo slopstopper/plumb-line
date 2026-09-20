@@ -108,6 +108,24 @@ def test_write_unlinks_the_tmp_file_when_the_write_raises(tmp_path, monkeypatch)
     assert open(path, encoding="utf-8").read() == original, "existing target left untouched"
 
 
+def test_write_reraises_the_original_error_even_when_the_tmp_cleanup_also_fails(tmp_path, monkeypatch):
+    # The cleanup unlink is best-effort: if it raises too (e.g. the tmp file
+    # is gone, or another permission problem), the ORIGINAL write/replace
+    # error must still be what propagates, not the cleanup's OSError.
+    path = str(tmp_path / "r.json")
+
+    def _boom(data):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(RT, "dumps", _boom)
+    monkeypatch.setattr(RT.os, "unlink", lambda p: (_ for _ in ()).throw(OSError("cleanup also failed")))
+    try:
+        RT.write_ratchet(path, _ok())
+        assert False, "expected RuntimeError to propagate"
+    except RuntimeError as e:
+        assert "disk full" in str(e), "the original error, not the cleanup's OSError"
+
+
 # ---------- apply ----------
 
 RAN = ("ran", "json", None)
@@ -452,7 +470,7 @@ def _shape(tmp_path, name, manifest, runner, cap):
 
 def test_measured_and_unmeasurable_agree_over_every_state_shape(tmp_path):
     # The shapes run_capabilities() can leave on an OUTPUT capability.
-    # _measured is the reader's predicate (apply) and _unmeasurable is the
+    # measured is the reader's predicate (apply) and _unmeasurable is the
     # writers' (update/prune); #389 made the second ask the first, and this
     # pins that they answer the same over every shape the runner produces.
     no_glob = json.loads(json.dumps(MAN))
@@ -483,14 +501,14 @@ def test_measured_and_unmeasurable_agree_over_every_state_shape(tmp_path):
 
     for why, st in shapes.items():
         cap = "js.output" if "eslint" in why else "python.output"
-        measurable = RT._measured({cap: st}, cap)
+        measurable = RT.measured({cap: st}, cap)
         err = RT._unmeasurable({cap: (st, [])})
         assert measurable == (err is None), (why, st, err)
         if not measurable:
             assert cap in err and st[0] in err, (why, err)
     # An absent capability is unmeasured for the reader and invisible to the
     # writers (measure never yields a key the manifest does not carry).
-    assert RT._measured({}, "python.output") is False
+    assert RT.measured({}, "python.output") is False
     assert RT._unmeasurable({}) is None
 
 
@@ -506,3 +524,15 @@ def test_ratchet_only_uses_the_public_run_checks_surface():
     from adapters.sarif import run_checks as RC
     for name in ("run_capabilities", "resolver", "default_runner"):
         assert callable(getattr(RC, name)), name
+
+
+def test_run_checks_only_uses_the_public_ratchet_surface():
+    # The reverse direction is guarded too: run_checks imports ratchet at
+    # module level as `RT`, so nothing stops it reaching into a ratchet
+    # underscore name (e.g. RT._unmeasurable) instead of the public
+    # `measured`. Scanned as SOURCE for the same reason as the sibling test.
+    import re
+    import adapters.sarif.run_checks as RC
+    src = open(RC.__file__, encoding="utf-8").read()
+    reaches = re.findall(r"(?<![A-Za-z0-9_])(?:ratchet|RT)\._[A-Za-z0-9_]*", src)
+    assert reaches == [], f"run_checks.py reaches into ratchet privates: {reaches}"

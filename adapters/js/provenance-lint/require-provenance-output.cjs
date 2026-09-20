@@ -58,7 +58,7 @@ module.exports = {
     const nameOf = (id) => {
       if (!id) return "default";
       if (id.type === "Identifier") return id.name;
-      const text = context.sourceCode.getText(id).replace(/\s+/g, " ").trim()
+      const text = (context.sourceCode || context.getSourceCode()).getText(id).replace(/\s+/g, " ").trim()
         .replace(/\[/g, "(").replace(/\]/g, ")");
       return `destructured ${text}`;
     };
