@@ -10,12 +10,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Changed
-- **README leads with the audit.** The opening is three paragraphs and
-  reaches "you probably want this if" on the first screen; a new "Try it on
-  your repository" section gives the two ways in (the plugin, then
-  `plumb-line-adopt` as the router; or the portable path and the agent-free
-  tooling) equal weight before the library, with two findings from a blind audit of the broken
-  toolserver demo shown verbatim (the full report is committed at
+- **README opening tightened.** Three paragraphs reach "you probably want
+  this if" on the first screen; the Install section is unchanged and the
+  library snippet follows it under its own heading. The incident demo now
+  also shows two findings from a blind audit of its broken half, verbatim
+  (the full report is committed at
   `examples/incident-toolserver/audit-2026-09-20.md`). The conformance badge
   moved into the badge row and its explanatory paragraph was cut; the
   how-to-earn-it link lives in Reference. No tooling or package change.
