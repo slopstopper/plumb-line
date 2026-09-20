@@ -591,3 +591,44 @@ cannot see. The harness's own operating error (a stale plugin install loading
 a 0.9.0 skill) was caught by the format checker before it could be scored, and
 is the second time this release cycle that an unupdated local install misled a
 maintainer; the install is updated as the last step of this release.
+
+## v0.11.1 dogfood self-audit — 2026-09-20
+
+Scope: the method-surface diff v0.11.0...`370908c` restricted to its 26
+touched files (the seven v0.11.1 fixes: `adapters/sarif`, the JS lint rule,
+the report-format checker, the new `examples/ratchet-adoption-js` fixture,
+CI, ACTION.md, ADR-0017). Report format v3, validated with
+`scripts/check_report_format.py` — clean (exit 0) on the first run. Coverage,
+honest and not complete: 13/26 read, 12 partial (diff-scoped), 1 not-read
+(`broken/package-lock.json`). The auditor read the skill file from the
+worktree directly.
+
+**6 findings: 3 violations, 3 needs-review.** The three violations are all
+contract or lineage gaps in the ratchet machinery that #392 and #395 made
+load-bearing; two were already tracked before this run.
+
+| Path | Issue | Principle | Resolution |
+| ---- | ----- | --------- | ---------- |
+| `adapters/sarif/ratchet.py` (`update`) | the history entry records `date`, `because` and `change` but none of the inputs needed to regenerate the pinned set (globs, tool and rule versions, commit), so the file cannot answer "was this surface fully measured when pinned" | P8 — State-first lineage | **already tracked** → [#388](https://github.com/slopstopper/plumb-line/issues/388) (v0.13.0) |
+| `adapters/sarif/run_checks.py` (`run`) | the summary JSON is a public shape (summary-format v2, asserted on by CI) with no key list and no validator, unlike every sibling contract | P7 — Contracted outputs | **already tracked** → [#398](https://github.com/slopstopper/plumb-line/issues/398) |
+| `scripts/check_report_format.py` (`check_report`) | the v3 omission-pass table is REQUIRED by the audit skill and never validated; a report can carry `format-validation: clean` without one | P7 — Contracted outputs | **deferred** → [#411](https://github.com/slopstopper/plumb-line/issues/411) (enforcing it now would fail committed reports) |
+| `examples/incident-toolserver/audit-2026-09-20.md` | [needs-review] carries `format-validation: clean` and is the README's exemplar, but nothing in CI re-runs the checker over committed reports, so the claim was dated the moment the checker changed (#397, in this same release) | P6 — Maturity vocabulary | **fixed in place** — `scripts/test_report_format.py` now validates every committed `examples/**/audit-*.md` against the current checker; the exemplar passes |
+| `examples/ratchet-adoption-js/README.md` | [needs-review] claims the clean `ratchet.json` is byte-identical to `update`'s output and stays byte-stable; the integrity test asserts only site lists | P6 — Maturity vocabulary | **deferred** → [#412](https://github.com/slopstopper/plumb-line/issues/412) (one test for both ratchet fixtures) |
+| `adapters/js/provenance-lint/require-provenance-output.cjs` (`nameOf`) | [needs-review] a destructured site name derives from the pattern's source text, so reformatting the pattern renames the site and reads as a NEW output; ADR-0017 accepts only rename or move | P7 — Contracted outputs | **deferred** → [#413](https://github.com/slopstopper/plumb-line/issues/413) |
+
+### What was clean
+
+The CHANGELOG's two behaviour-change entries, ACTION.md's `current` claim for
+`js.output` under ratchet mode, the eight-cell Action matrix and its
+`unmeasured == []` assertions, and the run_checks ↔ ratchet dependency
+direction (now enforced both ways by source-scanning tests) were checked
+against the code and found to state only what the tooling does.
+
+### Calibration note
+
+Every finding is in the ratchet and report-format machinery, none in the
+seven fixes' own logic; the auditor's omission pass over the eight
+output-producing units in the diff found provenance and confidence present
+on all of them and lineage missing only where #388 already says so. The
+exemplar-report finding is the kind the skill catches well: a stated claim
+(`clean`) whose enforcement had quietly lapsed when its checker changed.

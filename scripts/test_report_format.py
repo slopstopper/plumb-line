@@ -9,9 +9,12 @@ list, and a VALIDATOR. The first two shipped with report-format v1; this is the
 third (#139). Until it existed, "no format FAILs" in docs/validation-results.md
 was a human judgement repeated across six release runs.
 """
+import glob
 import importlib.util
 import os
 import re
+
+import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
@@ -738,3 +741,24 @@ def test_commit_literals_match_both_skill_header_templates():
         line = next(ln for ln in block.split("\n") if ln.startswith("commit:"))
         for literal in crf.COMMIT_LITERALS:
             assert '"%s"' % literal in line, (literal, line)
+
+
+# --- committed reports stay valid against the current checker ---------------
+# A report committed as an exemplar (the README's audit excerpt links one)
+# carries `format-validation: clean` as a claim about the checker that ran
+# when it was written. Re-running the current checker over every committed
+# report keeps that claim live instead of dated (v0.11.1 dogfood finding).
+
+_COMMITTED_REPORTS = sorted(
+    glob.glob(os.path.join(_ROOT, "examples", "**", "audit-*.md"), recursive=True))
+
+
+def test_committed_reports_are_listed():
+    assert _COMMITTED_REPORTS, "expected at least one committed audit-*.md under examples/"
+
+
+@pytest.mark.parametrize("path", _COMMITTED_REPORTS,
+                         ids=[os.path.relpath(p, _ROOT) for p in _COMMITTED_REPORTS])
+def test_committed_report_conforms(path):
+    text = open(path, encoding="utf-8").read()
+    assert _check(text) == []
