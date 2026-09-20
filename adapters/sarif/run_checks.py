@@ -15,6 +15,13 @@ are notes and only new ones fail; the runner reads the file and never writes
 it — see ratchet.py. An output capability that ratchet could not measure
 fails the job regardless of fail-on (#395), as a missing tool does.
 
+Dependency direction: run_checks imports ratchet at MODULE level; ratchet
+imports run_checks's PUBLIC surface — run_capabilities, resolver,
+default_runner — lazily, inside the function bodies that need it, because a
+module-level import back would close the cycle. That surface is the whole
+contract: nothing in ratchet.py may reach into a run_checks underscore name
+(test_ratchet.py::test_ratchet_only_uses_the_public_run_checks_surface).
+
     python3 adapters/sarif/run_checks.py --root . [--workspace <checkout root>] \
         --manifest .plumb-line/enforcement.json \
         --scripts-dir <plumb-line checkout> --fail-on findings|none \
@@ -69,7 +76,7 @@ TOOLS = {
 }
 
 
-def _default_runner(cmd, cwd):
+def default_runner(cmd, cwd):
     p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
     return p.returncode, p.stdout, p.stderr
 
@@ -90,7 +97,7 @@ def _find_eslint(root):
         d = parent
 
 
-def _resolver(root):
+def resolver(root):
     """The default one-argument which(tool): ESLint by the walk-up above,
     everything else from PATH. A runner may carry its own `which`."""
     def which(tool):
@@ -164,7 +171,7 @@ def _eslint_linted_nothing(out):
         return False
 
 
-def _run_capabilities(root, caps, scripts_dir, runner, which, only=None):
+def run_capabilities(root, caps, scripts_dir, runner, which, only=None):
     """Run every capability in caps (or only those named in `only`).
     Returns (states, results) with every result's file ROOT-relative and
     stamped with its capability. No workspace rebase here: the ratchet's
@@ -280,8 +287,8 @@ def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, ste
     re-based from root to workspace — a monorepo subroot's findings would
     otherwise point at paths that do not exist at the repository root.
     Defaults to root, i.e. no prefix."""
-    runner = runner or _default_runner
-    which = getattr(runner, "which", None) or _resolver(root)
+    runner = runner or default_runner
+    which = getattr(runner, "which", None) or resolver(root)
     workspace = workspace or root
     prefix = os.path.relpath(root, workspace).replace(os.sep, "/")
     manifest, issues = load_manifest(manifest_path, root)
@@ -292,7 +299,7 @@ def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, ste
             print(f"  {BOOTSTRAP_HINT}")
         return 1
     caps = capabilities(manifest)
-    states, results = _run_capabilities(root, caps, scripts_dir, runner, which)
+    states, results = run_capabilities(root, caps, scripts_dir, runner, which)
     results, ratchet = _apply_ratchet(root, manifest, states, results)
     if prefix != ".":
         for r in results:

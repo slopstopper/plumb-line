@@ -233,21 +233,29 @@ def apply(results, states, ratchet):
 
 # ---------- measure / update / prune (the only writers) ----------
 
-def _runner_for(root):
-    """The real tools; tests monkeypatch this."""
+def _runner_for():
+    """The real tools; tests monkeypatch this. Takes no argument: the runner
+    is a plain (cmd, cwd) subprocess call and resolves nothing from root —
+    `which` is what root parameterises, and measure() builds that separately.
+
+    run_checks is imported HERE, not at module level: run_checks imports this
+    module at import time, so an import back would close the cycle. Only its
+    PUBLIC surface — default_runner, resolver, run_capabilities — may be used
+    (see run_checks.py's "Dependency direction" note)."""
     from adapters.sarif import run_checks as R
-    return R._default_runner
+    return R.default_runner
 
 
 def measure(root, manifest, scripts_dir, runner=None):
     """{output capability: (state, sorted sites)} for every <lang>.output the
     manifest carries. sites is [] unless state is a real `ran`."""
+    # Lazily imported for the cycle _runner_for() explains; public surface only.
     from adapters.sarif import run_checks as R
     from scripts.check_enforcement_manifest import capabilities
-    runner = runner or _runner_for(root)
-    which = getattr(runner, "which", None) or R._resolver(root)
+    runner = runner or _runner_for()
+    which = getattr(runner, "which", None) or R.resolver(root)
     caps = capabilities(manifest)
-    states, results = R._run_capabilities(root, caps, scripts_dir, runner, which, only=OUTPUT_CAPS)
+    states, results = R.run_capabilities(root, caps, scripts_dir, runner, which, only=OUTPUT_CAPS)
     out = {}
     for cap in OUTPUT_CAPS:
         if cap not in caps:
@@ -274,8 +282,13 @@ def _load_manifest(root, manifest_path):
 
 
 def _unmeasurable(measured):
-    bad = [f"{cap}: {st[0]}" + (f" ({st[2]})" if st[2] else "") for cap, (st, _) in measured.items()
-           if st[0] != "ran" or measures_nothing(st[2])]
+    """Why the writers cannot pin this surface, or None. measure() threads
+    each capability's RAW state through, so this asks _measured — the one
+    predicate apply() reads — instead of re-deriving it over a second shape;
+    reader and writers can then never drift apart about what `measured` means."""
+    states = {cap: st for cap, (st, _) in measured.items()}
+    bad = [f"{cap}: {st[0]}" + (f" ({st[2]})" if st[2] else "")
+           for cap, st in states.items() if not _measured(states, cap)]
     return "cannot pin what could not be measured — " + "; ".join(bad) if bad else None
 
 

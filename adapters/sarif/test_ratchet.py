@@ -318,7 +318,7 @@ def test_update_without_a_manifest_points_at_bootstrap(tmp_path):
 def test_main_update_and_prune_verbs(tmp_path, capsys, monkeypatch):
     root = _consumer(tmp_path, MAN)
     fake = FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "a")), "")})
-    monkeypatch.setattr(RT, "_runner_for", lambda root: fake)
+    monkeypatch.setattr(RT, "_runner_for", lambda: fake)
     assert RT.main(["update", "--root", root, "--scripts-dir", _REPO, "--because", ""]) == 2
     assert RT.BECAUSE_REQUIRED in capsys.readouterr().out
     assert RT.main(["update", "--root", root, "--scripts-dir", _REPO, "--because", "initial pin", "--json"]) == 0
@@ -437,3 +437,72 @@ def test_history_change_must_not_be_blank():
     d = _ok()
     d["history"] = [{"date": "2026-09-15", "because": "why", "change": "  "}]
     assert any("change" in x for x in RT.validate_ratchet(d))
+
+
+# ---------- #389: one measurability predicate, one public runner surface ----------
+
+def _shape(tmp_path, name, manifest, runner, cap):
+    """The raw (state, parser, note) the real runner hands `cap`, harvested
+    through measure() rather than hand-written, so a runner that grows a new
+    state shape shows up here instead of silently escaping the predicate."""
+    root = _consumer(tmp_path / name, manifest)
+    measured = RT.measure(root, manifest, _REPO, runner=runner)
+    return measured[cap][0]
+
+
+def test_measured_and_unmeasurable_agree_over_every_state_shape(tmp_path):
+    # The shapes run_capabilities() can leave on an OUTPUT capability.
+    # _measured is the reader's predicate (apply) and _unmeasurable is the
+    # writers' (update/prune); #389 made the second ask the first, and this
+    # pins that they answer the same over every shape the runner produces.
+    no_glob = json.loads(json.dumps(MAN))
+    no_glob["python"]["provenance"]["outputGlobs"] = ["nowhere/**/*.py"]
+    shapes = {
+        "ran, no findings": _shape(tmp_path, "clean", MAN,
+                                   FakeRunner({"provenance_lint.py:output": (0, "[]", "")}), "python.output"),
+        "ran, sites found": _shape(tmp_path, "sites", MAN,
+                                   FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "a")), "")}),
+                                   "python.output"),
+        "ran, no files matched": _shape(tmp_path, "nomatch", no_glob,
+                                        FakeRunner({"provenance_lint.py:output": (0, "[]", "")}), "python.output"),
+        "ran, unparsed surface file (#392)": _shape(
+            tmp_path, "unparsed", MAN,
+            FakeRunner({"provenance_lint.py:output": (1, _syntax_error("src/p/b.py"), "")}), "python.output"),
+        "tool-missing": _shape(tmp_path, "missing", MAN, FakeRunner({}, missing=("python3",)), "python.output"),
+        "errored": _shape(tmp_path, "errored", MAN,
+                          FakeRunner({"provenance_lint.py:output": (2, "", "boom")}), "python.output"),
+        "ran, eslint linted nothing": _shape(tmp_path, "js", JS_MAN, FakeRunner({"eslint": (0, "[]", "")}),
+                                             "js.output"),
+    }
+    # Each shape really is the one it is named for.
+    assert shapes["ran, no findings"] == shapes["ran, sites found"] == ("ran", "json", None)
+    assert shapes["ran, no files matched"][2] == RT.NO_MATCH_NOTE
+    assert shapes["ran, eslint linted nothing"][2] == RT.NO_MATCH_NOTE
+    assert shapes["ran, unparsed surface file (#392)"][2].startswith(RT.UNPARSED_PREFIX)
+    assert shapes["tool-missing"][0] == "tool-missing" and shapes["errored"][0] == "errored"
+
+    for why, st in shapes.items():
+        cap = "js.output" if "eslint" in why else "python.output"
+        measurable = RT._measured({cap: st}, cap)
+        err = RT._unmeasurable({cap: (st, [])})
+        assert measurable == (err is None), (why, st, err)
+        if not measurable:
+            assert cap in err and st[0] in err, (why, err)
+    # An absent capability is unmeasured for the reader and invisible to the
+    # writers (measure never yields a key the manifest does not carry).
+    assert RT._measured({}, "python.output") is False
+    assert RT._unmeasurable({}) is None
+
+
+def test_ratchet_only_uses_the_public_run_checks_surface():
+    # The dependency direction run_checks.py's docstring declares: ratchet
+    # may import run_capabilities / resolver / default_runner lazily, and
+    # nothing else. Scanned as SOURCE because the reach-in is what the
+    # module-load cycle tempts, and no runtime assertion would catch it.
+    import re
+    src = open(RT.__file__, encoding="utf-8").read()
+    reaches = re.findall(r"(?<![A-Za-z0-9_])(?:run_checks|R)\._[A-Za-z0-9_]*", src)
+    assert reaches == [], f"ratchet.py reaches into run_checks privates: {reaches}"
+    from adapters.sarif import run_checks as RC
+    for name in ("run_capabilities", "resolver", "default_runner"):
+        assert callable(getattr(RC, name)), name
