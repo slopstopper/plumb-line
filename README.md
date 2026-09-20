@@ -22,29 +22,33 @@ plumb-line finds those places, and can stop new ones from appearing. A set of re
 
 **You probably want this if** AI agents write or modify your code; if mocks, fixtures, fallbacks or synthetic values sit anywhere between an input and an output; or if your outputs are claims: a figure in a paper, a risk score, a forecast, a "safe to proceed". Common in agent-built systems, research code, data and ML pipelines, and inherited codebases. If your app reads a trusted database and shows what it finds, you probably don't need the run-time layer; the [fit map](reference/fit-map.md) says so plainly.
 
-## Try it on your repository
+## Install
 
-The repository is its own Claude Code marketplace:
+**As a Claude Code plugin.** The repository is its own marketplace:
 
 ```
 /plugin marketplace add slopstopper/plumb-line
 /plugin install plumb-line@plumb-line
 ```
 
-Then, in a repository you care about, run `plumb-line-audit`. It reads the code and writes a findings report, each finding tied to a file, a principle, and a suggested fix. This is what it wrote when pointed at the broken half of [the incident demo](examples/incident-toolserver/) below, with the answer key hidden from it:
+Then run `plumb-line-adopt`. It looks at your repository and tells you which parts of plumb-line fit and what to run first. Updates arrive through `/plugin`.
 
-| Path | Line | Function | Issue | Principle |
-| ---- | ---- | -------- | ----- | --------- |
-| `broken/toolserver.mjs` | 25-27 | `spawnWorker` | Stub returns a hardcoded `success: true` payload (`workerId: "worker-1"`, `status: "ready"`) with no worker actually spawned, and no label marking the value as mock; it flows straight into the shared `results` array used for the aggregate health report. | P4 — Quarantined fakery |
-| `broken/toolserver.mjs` | 50-52 | (health report) | `system health: operational (5/5 tools succeeded)` is printed when 3 of the 5 "tools" are unbuilt stubs; no `mock` / `not-implemented` maturity label is applied anywhere in the file to `spawnWorker`, `orchestrateTasks`, or `storeMemory`, so the report claims a fully operational, current system. | P6 — Maturity vocabulary |
+**The library**, with or without the plugin:
 
-Two of its seven findings, with the suggested-fix column dropped for width; [the full report](examples/incident-toolserver/audit-2026-09-20.md) is committed as written. Set against the demo's [answer key](examples/incident-toolserver/broken/VIOLATIONS.md), which the auditor could not see, every planted violation is there.
+```bash
+npm install plumb-line-provenance      # JavaScript
+pip install plumb-line-provenance      # Python
+```
 
-The audit is LLM-assisted: it reads, it reasons, and it is measured rather than trusted ([how](#what-is-deterministic-and-what-is-not)). `plumb-line-remediate` applies a report's fixes only if you ask. `plumb-line-adopt` looks at a repository and says which parts of plumb-line fit it and what to run first. Updates arrive through `/plugin`. **Not using Claude?** [portable/README.md](portable/README.md) is the entry point without the plugin.
+Zero dependencies. You can also copy `primitives/js/` or `primitives/python/` straight into your project.
+
+**In CI.** Add the [GitHub Action](ACTION.md). On every pull request it runs the checks your `.plumb-line/enforcement.json` manifest names and writes one SARIF log, with no agent involved. Write that manifest by hand — the shape is in [ACTION.md](ACTION.md); having `plumb-line-bootstrap` write it is planned, not yet proven. Uploading the log to GitHub's code-scanning tab is wired (a sha-pinned `upload-sarif` step), but this repo's own CI uploads nothing, so ingestion is unobserved until an adopter reports it.
+
+**Not using Claude?** [portable/README.md](portable/README.md) is the entry point without the plugin.
 
 ## The library
 
-Where the audit finds a mock that reached an output, the library is how you make that impossible from then on. One rule sits underneath it: combining values can keep or lower their trust level, never raise it ([the combination law](primitives/SPEC.md#3-the-combination-law)).
+One rule sits underneath all of it: combining values can keep or lower their trust level, never raise it ([the combination law](primitives/SPEC.md#3-the-combination-law)).
 
 ```js
 const base  = mark(1000, { source: "real", confidence: "high" });
@@ -56,15 +60,6 @@ total.confidence;      // 'low'  only as certain as the weakest input
 ```
 
 `mark` puts the labels on a value (`real`, `mock`, `inferred`, `fallback`; confidence `high` down to `none`). `derive` runs your own function on labelled values and carries the labels through, keeping the weakest. The library never does the arithmetic and never changes a value; it only keeps the labels honest.
-
-```bash
-npm install plumb-line-provenance      # JavaScript
-pip install plumb-line-provenance      # Python
-```
-
-Zero dependencies. You can also copy `primitives/js/` or `primitives/python/` straight into your project.
-
-**In CI.** Add the [GitHub Action](ACTION.md). On every pull request it runs the checks your `.plumb-line/enforcement.json` manifest names and writes one SARIF log, with no agent involved. Write that manifest by hand — the shape is in [ACTION.md](ACTION.md); having `plumb-line-bootstrap` write it is planned, not yet proven. Uploading the log to GitHub's code-scanning tab is wired (a sha-pinned `upload-sarif` step), but this repo's own CI uploads nothing, so ingestion is unobserved until an adopter reports it.
 
 ## A real incident, reconstructed
 
@@ -122,6 +117,17 @@ flowchart TB
 ```
 
 **Run time** is the library: labels travel with values inside your own code. **Review time** looks at a repository or a pull request for places where a mock was treated as real, a guess as a fact, or a claim has nothing behind it. The lint rules, hooks and the Action are deterministic; `plumb-line-audit` is LLM-assisted and writes a findings report, which `plumb-line-remediate` applies only if you ask. `adopt` and `method` route you in and teach the ideas. Use either layer on its own, or both.
+
+## What the audit writes
+
+A findings report, each finding tied to a file, a principle and a suggested fix. This is `plumb-line-audit` run over the broken half of the toolserver demo above with the answer key withheld from it; two of its seven findings, the suggested-fix column dropped for width:
+
+| Path | Line | Function | Issue | Principle |
+| ---- | ---- | -------- | ----- | --------- |
+| `broken/toolserver.mjs` | 25-27 | `spawnWorker` | Stub returns a hardcoded `success: true` payload (`workerId: "worker-1"`, `status: "ready"`) with no worker actually spawned, and no label marking the value as mock; it flows straight into the shared `results` array used for the aggregate health report. | P4 — Quarantined fakery |
+| `broken/toolserver.mjs` | 50-52 | (health report) | `system health: operational (5/5 tools succeeded)` is printed when 3 of the 5 "tools" are unbuilt stubs; no `mock` / `not-implemented` maturity label is applied anywhere in the file to `spawnWorker`, `orchestrateTasks`, or `storeMemory`, so the report claims a fully operational, current system. | P6 — Maturity vocabulary |
+
+[The full report](examples/incident-toolserver/audit-2026-09-20.md) is committed as written. Set against the demo's [answer key](examples/incident-toolserver/broken/VIOLATIONS.md), every planted violation is there. The audit is measured rather than trusted; the next section says how.
 
 ## What is deterministic, and what is not
 
