@@ -429,13 +429,19 @@ def test_end_to_end_over_the_planted_fixtures(tmp_path):
     missing = [t for t in ("node", "lint-imports") if shutil.which(t) is None]
     if missing:
         pytest.skip(f"real tools not installed locally: {missing}")
-    for tree in ("broken", "clean"):
-        mod = os.path.join(_ROOT, "examples", "js-payments-service", tree, "node_modules", "eslint-plugin-import-x")
-        if not os.path.isdir(mod):
-            pytest.skip(f"JS fixture toolchain not installed: run npm ci in examples/js-payments-service/{tree}")
+    # Each JS fixture needs the CONSUMER's own install: the boundary one needs
+    # import-x, the ratchet one (#393) only ESLint itself — its config reaches
+    # the plumb-line plugin by relative path.
+    for fixture, mod in (("js-payments-service", "eslint-plugin-import-x"),
+                         ("ratchet-adoption-js", "eslint")):
+        for tree in ("broken", "clean"):
+            if not os.path.isdir(os.path.join(_ROOT, "examples", fixture, tree, "node_modules", mod)):
+                pytest.skip(f"JS fixture toolchain not installed: run npm ci in examples/{fixture}/{tree}")
+    ratcheted = ("examples/ratchet-adoption", "examples/ratchet-adoption-js")
     for fixture, expect in (("examples/js-payments-service", {"PL/boundary"}),
                             ("examples/python-data-pipeline", {"PL/boundary"}),
-                            ("examples/ratchet-adoption", {"PL/untagged-output"})):
+                            ("examples/ratchet-adoption", {"PL/untagged-output"}),
+                            ("examples/ratchet-adoption-js", {"PL/untagged-output"})):
         root = os.path.join(_ROOT, fixture, "broken")
         p = _paths(tmp_path / os.path.basename(fixture))
         os.makedirs(os.path.dirname(p["sarif_path"]), exist_ok=True)
@@ -444,14 +450,15 @@ def test_end_to_end_over_the_planted_fixtures(tmp_path):
         assert code == 1, fixture
         ids = {r["ruleId"] for r in json.load(open(p["sarif_path"]))["runs"][0]["results"]}
         assert expect <= ids, (fixture, ids)
-        if fixture == "examples/ratchet-adoption":
+        if fixture in ratcheted:
             s = json.load(open(p["summary_path"]))
             assert (s["ratchet"]["known"], s["ratchet"]["new"], s["findings"]) == (1, 1, 1), s
+            assert s["ratchet"]["unmeasured"] == [], s
         clean = os.path.join(_ROOT, fixture, "clean")
         code = R.run(clean, os.path.join(clean, ".plumb-line", "enforcement.json"), _ROOT, "findings",
                      version="t", **p)
         assert code == 0, (fixture, open(p["step_summary_path"]).read())
-        if fixture == "examples/ratchet-adoption":
+        if fixture in ratcheted:
             s = json.load(open(p["summary_path"]))
             assert s["ratchet"] == {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 2, "new": 0,
                                     "stale": 0, "unmeasured": []}, s

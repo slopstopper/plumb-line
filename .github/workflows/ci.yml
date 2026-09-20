@@ -139,9 +139,16 @@ jobs:
         with:
           node-version: "22"
       - name: JS fixture toolchain (the end-to-end SARIF test runs real ESLint)
+        # Both JS fixtures: js-payments-service (boundary) and
+        # ratchet-adoption-js (#393, the output surface + ratchet). Neither
+        # installs the plumb-line plugin — the configs reach it by relative
+        # path — but both need the CONSUMER's own ESLint, which run_checks.py
+        # finds by walking up for node_modules/.bin/eslint.
         run: |
-          for tree in broken clean; do
-            (cd "examples/js-payments-service/$tree" && npm ci --no-audit --no-fund)
+          for fixture in js-payments-service ratchet-adoption-js; do
+            for tree in broken clean; do
+              (cd "examples/$fixture/$tree" && npm ci --no-audit --no-fund)
+            done
           done
       - name: adapters/sarif — SARIF assembler (end-to-end must RUN here, never skip; 80% coverage floor)
         # The 80% floor the neighbouring packages set in their pyproject.toml,
@@ -196,7 +203,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        fixture: [js-payments-service, python-data-pipeline, ratchet-adoption]
+        fixture: [js-payments-service, python-data-pipeline, ratchet-adoption, ratchet-adoption-js]
         tree: [broken, clean]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7

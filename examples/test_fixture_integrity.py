@@ -126,6 +126,30 @@ def test_ratchet_fixture_pins_all_sites_in_clean_and_one_fewer_in_broken():
         "the two trees differ only in the ratchet file"
 
 
+# --- ratchet-adoption-js fixture (#393) --------------------------------------
+
+RATCHET_JS = EXAMPLES / "ratchet-adoption-js"
+
+
+def test_js_ratchet_fixture_pins_all_sites_in_clean_and_one_fewer_in_broken():
+    import json
+    clean = json.loads(read(RATCHET_JS, "clean/.plumb-line/ratchet.json"))["sites"]["js.output"]
+    broken = json.loads(read(RATCHET_JS, "broken/.plumb-line/ratchet.json"))["sites"]["js.output"]
+    assert clean == ["src/pricing/fx.js::applyFx", "src/pricing/fx.js::total"]
+    assert broken == ["src/pricing/fx.js::applyFx"], "broken leaves `total` unpinned so it is a NEW site"
+    assert read(RATCHET_JS, "clean/src/pricing/fx.js") == read(RATCHET_JS, "broken/src/pricing/fx.js"), \
+        "the two trees differ only in the ratchet file"
+
+
+def test_js_ratchet_fixture_config_registers_the_adapter_plugin_by_relative_path():
+    # The fixture proves the JS half end to end only if it runs the REAL rule
+    # from adapters/js/provenance-lint — not a copy that could drift.
+    for tree in ("broken", "clean"):
+        cfg = read(RATCHET_JS, tree, "eslint-provenance.cjs")
+        assert 'require("../../../adapters/js/provenance-lint/index.cjs")' in cfg, tree
+        assert '"plumb-line/require-provenance-output": "error"' in cfg, tree
+
+
 # --- the incident demos must RUN in CI, never skip (ADR-0016) ----------------
 
 CI_WORKFLOW = EXAMPLES.parent / ".github" / "workflows" / "ci.yml"

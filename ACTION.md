@@ -371,9 +371,9 @@ Two deliberate asymmetries, so nobody "fixes" them:
 PLUMBLINE_TEST_CMD="python3 <plumb-line>/adapters/sarif/run_checks.py --manifest .plumb-line/enforcement.json --sarif /dev/null --summary /dev/null --fail-on findings"
 ```
 
-Proven end to end on `examples/ratchet-adoption` (Python). The JS site
-marker is unit-tested in the rule and the assembler; no planted JS fixture
-carries an output surface yet.
+Proven end to end on `examples/ratchet-adoption` (Python) and
+`examples/ratchet-adoption-js` (JavaScript, #393) — both run by `uses: ./`
+in CI's Action matrix, `broken` and `clean`.
 
 ## Failure modes
 
@@ -398,14 +398,15 @@ Every outcome is a named state; nothing passes by silence.
 
 ## Maturity
 
-- **The Action itself: `current`** — six CI matrix cells (three fixtures ×
+- **The Action itself: `current`** — eight CI matrix cells (four fixtures ×
   `clean`/`broken`) run `uses: ./` against the planted fixtures and pass, on
   this branch. `js-payments-service` and `python-data-pipeline` enable only
   `boundary`, so that CI and end-to-end proof covers `js.boundary` and
   `python.boundary`; `examples/ratchet-adoption` enables
-  `python.provenance`, `python.output` and `ratchet`, so that same CI also
-  covers those three end to end. The remaining capabilities — `js.provenance`,
-  `js.output`, `baselines` — are proven by unit tests over recorded tool
+  `python.provenance`, `python.output` and `ratchet`, and
+  `examples/ratchet-adoption-js` enables `js.provenance`, `js.output` and
+  `ratchet`, so that same CI covers those end to end too. The one remaining
+  capability — `baselines` — is proven by unit tests over recorded tool
   output.
 - **Uploading to a consumer's code scanning: `current` by construction** —
   the upload step delegates to the sha-pinned `github/codeql-action/upload-sarif`
@@ -419,11 +420,19 @@ Every outcome is a named state; nothing passes by silence.
 - **The bootstrap manifest step (Step 4d): `planned`** until a
   release-harness blind run proves a bootstrap run writes the file; the
   validator and the hand-written shape it targets are `current`.
-- **Ratchet mode: `current`** for `python.output` (end-to-end on
-  `examples/ratchet-adoption`; also exercised by the Action's CI matrix,
-  cell `ratchet-adoption`); the JS site marker is `current` at the
-  rule/assembler level and **not yet proven end to end** on a planted JS
-  surface.
+- **Ratchet mode: `current`** for both `python.output` and `js.output`.
+  `examples/ratchet-adoption` (Python) and `examples/ratchet-adoption-js`
+  (JavaScript, #393) each carry a two-site output surface, a pinned
+  `ratchet.json`, and both trees in the Action's CI matrix: `clean` reports
+  `2 known, 0 new, 0 stale`, `broken` reports `1 known, 1 new, 0 stale`,
+  neither leaves a capability unmeasured, and `test_end_to_end_over_the_planted_fixtures`
+  asserts the same numbers from the real runner. The JS site marker — the
+  rule's `[site: name]` message suffix and the assembler's `SITE_RE`
+  extraction — is therefore no longer proven only by unit tests over recorded
+  ESLint JSON: `examples/ratchet-adoption-js` runs the real ESLint against the
+  real rule and the site keys reach the ratchet file. What is still unproven
+  is the ratchet over a *mixed* JS+Python surface in one manifest, and over a
+  surface large enough for rename churn to be routine.
 
 See [ADR-0016](docs/adr/0016-action-manifest-and-sarif.md) for the five
 decisions behind this design and their rejected alternatives.
