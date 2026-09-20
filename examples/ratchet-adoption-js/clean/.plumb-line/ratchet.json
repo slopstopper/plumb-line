@@ -1,0 +1,16 @@
+{
+  "history": [
+    {
+      "because": "initial pin: adopting the ratchet over the legacy JS pricing surface",
+      "change": "pinned 2 sites (js.output: 2)",
+      "date": "2026-09-20"
+    }
+  ],
+  "ratchet-format": "v1",
+  "sites": {
+    "js.output": [
+      "src/pricing/fx.js::applyFx",
+      "src/pricing/fx.js::total"
+    ]
+  }
+}

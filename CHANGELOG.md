@@ -10,6 +10,27 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Changed
+- **A configured ratchet with an unmeasured output surface now fails the
+  job regardless of `fail-on`** ([#395](https://github.com/slopstopper/plumb-line/issues/395)).
+  In 0.11.0 a typo'd or stale `outputGlobs` left the ratcheted capability
+  unmeasured and the job green, with only a count in the head line to say
+  so. The runner now prints one line per unmeasured capability naming it,
+  why it was not measured, and its globs, and exits non-zero, the same class
+  as a missing tool. Jobs with no ratchet configured are unchanged. CI's
+  fixture assertion checks `unmeasured == []` so a fixture whose globs stop
+  matching is caught.
+- **An output-surface file the tool could not parse leaves that capability
+  unmeasured** ([#392](https://github.com/slopstopper/plumb-line/issues/392)).
+  A `PL/unparsed` result for a file inside `outputGlobs`, or a Python syntax
+  error on one, previously left the capability `ran`, so `update` could pin a
+  set computed as though the file had no sites. The capability now carries
+  `unparsed surface file: <path>`; `apply` neither splits nor prunes,
+  `update` and `prune` refuse, and under #395 the job fails. The
+  capability's pinned sites therefore report at error level rather than as
+  `known (ratchet)` notes until the file parses, which surfaces as new
+  code-scanning alerts. No `--allow-unparsed` flag; fix the file. Scoped to
+  `js.output` and `python.output`.
+
 - **README opening tightened.** Three paragraphs reach "you probably want
   this if" on the first screen; the Install section is unchanged and the
   library snippet follows it under its own heading. A short "What the audit
@@ -19,6 +40,41 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `examples/incident-toolserver/audit-2026-09-20.md`). The conformance badge
   moved into the badge row and its explanatory paragraph was cut; the
   how-to-earn-it link lives in Reference. No tooling or package change.
+
+### Fixed
+- `check_report_format` joined soft-wrapped prose before matching inline
+  principle names, so `(P7 — Contracted` at the end of one line and
+  `outputs)` at the start of the next no longer reads as the wrong name
+  ([#397](https://github.com/slopstopper/plumb-line/issues/397)). Tables,
+  fenced code and `key:` lines are never joined.
+- `write_ratchet` removes its `<path>.tmp-<pid>` file if the write or the
+  replace raises, so a failed write cannot leave a temp file inside
+  `.plumb-line/` ([#391](https://github.com/slopstopper/plumb-line/issues/391)).
+- `require-provenance-output` resolves the `[site: name]` marker through one
+  `nameOf` helper. A destructured export declarator gets a stable derived
+  name (`destructured { a }`, brackets rendered as parentheses so the SARIF
+  assembler's marker regex can read it) instead of `default`, so it cannot
+  collide with an anonymous default export in the same file
+  ([#390](https://github.com/slopstopper/plumb-line/issues/390)).
+- `js.boundary` reports `eslint linted no files under root` instead of the
+  glob-oriented no-match note, since it lints `.` rather than globs
+  ([#395](https://github.com/slopstopper/plumb-line/issues/395)).
+
+### Added
+- `examples/ratchet-adoption-js`: a planted JS fixture with an output
+  surface and a ratchet, run by CI's Action matrix and the end-to-end
+  fixture test, so the JS half of the ratchet (site marker, assembler
+  extraction, `apply` over ESLint results) is proven through `uses: ./`
+  rather than only by unit tests over recorded JSON
+  ([#393](https://github.com/slopstopper/plumb-line/issues/393)).
+
+### Internal
+- `run_checks` exposes `run_capabilities`, `resolver` and `default_runner`
+  as the surface `ratchet.py` consumes; `measure` takes the raw states so one
+  predicate serves the reader and the writers; the unused `root` argument is
+  gone ([#389](https://github.com/slopstopper/plumb-line/issues/389)).
+- The runner's `FakeRunner` test double is keyed per command, so
+  `js.provenance` and `js.output` can be answered differently.
 
 ## [0.11.0] — 2026-09-15
 

@@ -1,0 +1,3 @@
+{ "enforcement-format": "v1", "languages": ["js"],
+  "js": { "provenance": { "config": "eslint-provenance.cjs", "globs": ["src/**/*.js"], "outputGlobs": ["src/pricing/**/*.js"] } },
+  "ratchet": { "file": ".plumb-line/ratchet.json" } }

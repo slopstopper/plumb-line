@@ -87,6 +87,22 @@ ruleTester.run("require-provenance-output", rule, {
     // the verdict is expression shape alone.
     { code: `export function f(x, r) { return x * r; }`,
       errors: [{ messageId: "untagged", data: { name: "f" } }] },
+    // #390: a destructuring declarator (non-Identifier id) gets a stable
+    // name derived from the pattern's source text, never the literal
+    // "default" — a real anonymous default export in the same file must
+    // remain a distinct site.
+    { code: IMPORT + `export const { a } = () => x * r;`,
+      errors: [{ messageId: "untagged", data: { name: "destructured { a }" } }] },
+    { code: IMPORT + `export const { a } = () => x * r;\nexport default (x, r) => x % r;`,
+      errors: [
+        { messageId: "untagged", data: { name: "destructured { a }" } },
+        { messageId: "untagged", data: { name: "default" } },
+      ] },
+    // An array-pattern declarator's brackets would otherwise leak into the
+    // rendered "[site: ...]" marker and break the SARIF assembler's regex
+    // (which stops at the first "]"). They're swapped for parens.
+    { code: IMPORT + `export const [a] = () => x * r;`,
+      errors: [{ messageId: "untagged", data: { name: "destructured (a)" } }] },
   ],
 });
 

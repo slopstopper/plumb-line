@@ -12,7 +12,18 @@ run and never appears in the summary (adapter-contract §6).
 
 When the manifest names a ratchet file (#119), pinned untagged-output sites
 are notes and only new ones fail; the runner reads the file and never writes
-it — see ratchet.py.
+it — see ratchet.py. An output capability that ratchet could not measure
+fails the job regardless of fail-on (#395), as a missing tool does.
+
+Dependency direction: run_checks imports ratchet at MODULE level; ratchet
+imports run_checks's PUBLIC surface — run_capabilities, resolver,
+default_runner — lazily, inside the function bodies that need it, because a
+module-level import back would close the cycle. That surface is the whole
+contract, guarded in both directions: nothing in ratchet.py may reach into a
+run_checks underscore name, and nothing in run_checks.py may reach into a
+ratchet underscore name — run_checks uses ratchet's public `measured`, not a
+private name
+(test_ratchet.py::test_ratchet_only_uses_the_public_run_checks_surface).
 
     python3 adapters/sarif/run_checks.py --root . [--workspace <checkout root>] \
         --manifest .plumb-line/enforcement.json \
@@ -35,6 +46,19 @@ from adapters.sarif import assemble as A  # noqa: E402
 from adapters.sarif import ratchet as RT  # noqa: E402
 
 NO_MATCH_NOTE = RT.NO_MATCH_NOTE
+# js.boundary lints the root (`.`), never a glob list, so NO_MATCH_NOTE would
+# misdescribe what did not happen: ESLint ran and found nothing to lint.
+NO_LINTED_FILES_NOTE = "eslint linted no files under root"
+
+# #395: a ratchet is a standing claim about a surface. When the manifest names
+# one and an output capability was never measured — tool missing, errored, or
+# globs that matched no file — the claim was never checked, so the job fails
+# regardless of fail-on, the same class as tool-missing. A typo'd outputGlobs
+# is otherwise a green job with only a count in the head line to say so.
+UNMEASURED_FAIL = ("✗ {cap}: the manifest names a ratchet, but this output surface was never "
+                   "measured ({note}) — outputGlobs: {globs}")
+UNMEASURED_HINT = ("  a configured ratchet cannot pass over a surface nothing ran on; fix the globs or the "
+                   "tool and re-run. This fails regardless of fail-on, as a missing tool does.")
 
 BOOTSTRAP_HINT = ("no enforcement manifest — run the plumb-line-bootstrap skill (Step 4d writes "
                   ".plumb-line/enforcement.json), or write it by hand: "
@@ -55,7 +79,7 @@ TOOLS = {
 }
 
 
-def _default_runner(cmd, cwd):
+def default_runner(cmd, cwd):
     p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
     return p.returncode, p.stdout, p.stderr
 
@@ -76,7 +100,7 @@ def _find_eslint(root):
         d = parent
 
 
-def _resolver(root):
+def resolver(root):
     """The default one-argument which(tool): ESLint by the walk-up above,
     everything else from PATH. A runner may carry its own `which`."""
     def which(tool):
@@ -150,7 +174,7 @@ def _eslint_linted_nothing(out):
         return False
 
 
-def _run_capabilities(root, caps, scripts_dir, runner, which, only=None):
+def run_capabilities(root, caps, scripts_dir, runner, which, only=None):
     """Run every capability in caps (or only those named in `only`).
     Returns (states, results) with every result's file ROOT-relative and
     stamped with its capability. No workspace rebase here: the ratchet's
@@ -183,8 +207,9 @@ def _run_capabilities(root, caps, scripts_dir, runner, which, only=None):
             # for the same reason — a lint that never ran proves nothing.
             # Without it a typo'd outputGlobs reads as a clean surface, and
             # the ratchet would "measure" it: `update` pins [], `prune`
-            # erases every JS site, both at exit 0.
-            states[key] = ("ran", "json", NO_MATCH_NOTE)
+            # erases every JS site, both at exit 0. js.boundary has no globs
+            # to blame (it lints `.`), so it says what it actually found.
+            states[key] = ("ran", "json", NO_LINTED_FILES_NOTE if key == "js.boundary" else NO_MATCH_NOTE)
             continue
         try:
             if key in ("js.boundary", "js.provenance", "js.output"):
@@ -210,7 +235,13 @@ def _run_capabilities(root, caps, scripts_dir, runner, which, only=None):
         for r in parsed:
             r["capability"] = key
         results.extend(parsed)
-        states[key] = ("ran", parser, None)
+        # #392: a file inside an OUTPUT surface the tool could not parse is
+        # one the output check never ran on, so the capability is `ran` but
+        # measured nothing — the note says which file, and the ratchet reads
+        # the note. Scoped to the output capabilities: an unmappable item in
+        # a provenance or boundary run says nothing about a pinned surface.
+        note = RT.unparsed_note(parsed, key) if key in RT.OUTPUT_CAPS else None
+        states[key] = ("ran", parser, note)
     return states, results
 
 
@@ -226,8 +257,9 @@ def _apply_ratchet(root, manifest, states, results):
     rel = cfg["file"]
     # Which output capabilities the ratchet could not measure — tool missing,
     # errored, or globs that matched no file. Reported alongside the counts so
-    # "0 known, 0 new, 0 stale" can never pass for "ratcheted and clean".
-    unmeasured = sorted(c for c in RT.OUTPUT_CAPS if c in capabilities(manifest) and not RT._measured(states, c))
+    # "0 known, 0 new, 0 stale" can never pass for "ratcheted and clean", and
+    # failed on by run() regardless of fail-on (#395).
+    unmeasured = sorted(c for c in RT.OUTPUT_CAPS if c in capabilities(manifest) and not RT.measured(states, c))
     data, problems = RT.load_ratchet(os.path.join(root, rel))
     if data is None:
         r = A.result("PL/ratchet-invalid", f"{rel}: " + "; ".join(problems), file=rel, tool="action")
@@ -239,6 +271,18 @@ def _apply_ratchet(root, manifest, states, results):
     return results, {"file": rel, "state": "ran", **counts, "unmeasured": unmeasured}
 
 
+def _unmeasured_text(caps, states, unmeasured):
+    """One line per unmeasured output capability, naming it, why it was not
+    measured, and the globs that were supposed to find the surface."""
+    lines = []
+    for cap in unmeasured:
+        state, _, note = states.get(cap) or ("not run", None, None)
+        why = note if state == "ran" else (f"{state} — {note}" if note else state)
+        lines.append(UNMEASURED_FAIL.format(cap=cap, note=why,
+                                            globs=", ".join(caps.get(cap, {}).get("outputGlobs") or ["—"])))
+    return "\n".join(lines + [UNMEASURED_HINT])
+
+
 def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, step_summary_path=None,
         version="dev", runner=None, workspace=None):
     """workspace: the checkout root (GitHub resolves %SRCROOT% as the
@@ -246,8 +290,8 @@ def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, ste
     re-based from root to workspace — a monorepo subroot's findings would
     otherwise point at paths that do not exist at the repository root.
     Defaults to root, i.e. no prefix."""
-    runner = runner or _default_runner
-    which = getattr(runner, "which", None) or _resolver(root)
+    runner = runner or default_runner
+    which = getattr(runner, "which", None) or resolver(root)
     workspace = workspace or root
     prefix = os.path.relpath(root, workspace).replace(os.sep, "/")
     manifest, issues = load_manifest(manifest_path, root)
@@ -258,7 +302,7 @@ def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, ste
             print(f"  {BOOTSTRAP_HINT}")
         return 1
     caps = capabilities(manifest)
-    states, results = _run_capabilities(root, caps, scripts_dir, runner, which)
+    states, results = run_capabilities(root, caps, scripts_dir, runner, which)
     results, ratchet = _apply_ratchet(root, manifest, states, results)
     if prefix != ".":
         for r in results:
@@ -272,11 +316,15 @@ def run(root, manifest_path, scripts_dir, fail_on, sarif_path, summary_path, ste
     with open(summary_path, "w", encoding="utf-8") as fh:
         json.dump(summary, fh, indent=2)
     text = A.summary_text(summary)
+    unmeasured = (ratchet or {}).get("unmeasured") or []
+    if unmeasured:
+        text += "\n\n" + _unmeasured_text(caps, states, unmeasured)
     print(text)
     if step_summary_path:
         with open(step_summary_path, "a", encoding="utf-8") as fh:
             fh.write(text + "\n")
     fail = (any(s[0] in ("tool-missing", "errored") for s in states.values())
+            or bool(unmeasured)
             or (summary["findings"] > 0 and fail_on == "findings"))
     return 1 if fail else 0
 

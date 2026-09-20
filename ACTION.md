@@ -140,7 +140,13 @@ so a `js.provenance`/`js.output` glob that matches no file is likewise
 `ran` with zero results and the same note, where ESLint alone would exit 2:
 ESLint's JSON report carries one entry per *linted* file, messages or not,
 so an empty top-level array means no file was linted — no match, not a
-clean surface.
+clean surface. (`js.boundary` lints `root` itself rather than a glob list,
+so it reports `eslint linted no files under root` instead.)
+
+An empty match is a green `ran` on its own. It is **not** green when the
+manifest names a ratchet and the unmeasured capability is an output
+surface: see [Ratchet mode](#ratchet-mode) — a pinned surface nothing
+measured fails the job regardless of `fail-on` (#395).
 
 ## Unparsed
 
@@ -154,7 +160,11 @@ Two shapes, with different consequences:
   ESLint rule id, a malformed `provenance_lint.py` entry, an import-linter
   line the parser's grammar doesn't recognise — is a real finding. The
   capability's state stays `ran`; that one item just carries `PL/unparsed`
-  instead of a mapped rule.
+  instead of a mapped rule. One exception, in the direction of caution: if
+  the item carries a file and the capability is an **output** surface
+  (`js.output`/`python.output`), that file is one the output check never
+  ran on, so the capability is `ran` but **unmeasured** — see
+  [Ratchet mode](#ratchet-mode) (#392).
 - **A whole payload the parser could not read at all** — empty output,
   non-JSON where JSON was expected, JSON of the wrong shape, or a text
   report with no summary line — makes the parser return exactly one
@@ -286,7 +296,27 @@ names the file and its state. The clause appears only when the ratchet
 actually ran: an invalid file prints `ratchet: invalid (checks ran
 unratcheted)` rather than three zeros, and an output capability that could
 not be measured adds `, U unmeasured` — three zeros over an unmeasured
-surface would read as "ratcheted and clean". When the file is invalid the
+surface would read as "ratcheted and clean".
+
+**An unmeasured output surface fails the job regardless of `fail-on`**
+(#395), the same class as a missing tool: the manifest pins sites on that
+surface and nothing checked them, so a typo'd or stale `outputGlobs` can
+never be a green job. The summary names each unmeasured capability, why it
+was not measured, and the `outputGlobs` that found nothing. Without a
+ratchet configured, an unmeasured capability is still an ordinary green
+`ran` with zero results — there is no pinned claim to contradict.
+
+Unmeasurability is per **file**, not per tool (#392). A file inside the
+output surface that the tool could not parse — a Python syntax error, an
+ESLint fatal, or a `require-provenance-output` message with no `[site: …]`
+marker — is a file the output check never ran on, so the capability is
+`ran` with the note `unparsed surface file: <path>` and counts as
+unmeasured: the ratchet neither splits nor prunes its sites, `update` and
+`prune` refuse, and a configured ratchet fails the job. Otherwise `update`
+would pin a set computed as though the unreadable file held no sites, and
+`prune` would drop the ones it used to hold.
+
+When the file is invalid the
 capability table also carries a synthetic `ratchet` row in state `errored`,
 even though the ratchet is not a capability: that is how a file the runner
 could not read fails the job the way a missing tool does.
@@ -307,8 +337,9 @@ write it:
 - `ratchet.py update --because "<reason>"` — sets the sites to exactly what
   is reported now. Refuses an empty reason (the set may have grown) and
   refuses when any output capability could not be measured (tool missing,
-  errored, no files matched — and an empty ESLint file list counts as no
-  match): you cannot pin what you could not see. It is idempotent: when the
+  errored, no files matched — an empty ESLint file list counts as no match
+  — or a file *inside* the surface the tool could not parse, #392): you
+  cannot pin what you could not see. It is idempotent: when the
   measured sites equal what the file already pins, it writes nothing and
   reports `nothing changed`, so re-running never appends a history entry
   for a change that did not happen.
@@ -340,9 +371,9 @@ Two deliberate asymmetries, so nobody "fixes" them:
 PLUMBLINE_TEST_CMD="python3 <plumb-line>/adapters/sarif/run_checks.py --manifest .plumb-line/enforcement.json --sarif /dev/null --summary /dev/null --fail-on findings"
 ```
 
-Proven end to end on `examples/ratchet-adoption` (Python). The JS site
-marker is unit-tested in the rule and the assembler; no planted JS fixture
-carries an output surface yet.
+Proven end to end on `examples/ratchet-adoption` (Python) and
+`examples/ratchet-adoption-js` (JavaScript, #393) — both run by `uses: ./`
+in CI's Action matrix, `broken` and `clean`.
 
 ## Failure modes
 
@@ -355,25 +386,32 @@ Every outcome is a named state; nothing passes by silence.
 | A needed tool missing | One `PL/tool-missing` result per capability, uploaded like any finding; job fails even under `fail-on: none`. Never counted as a clean check. |
 | A tool exits non-zero and its output is unreadable | Capability is `errored`; the tool's stderr (or stdout when stderr is empty), truncated, is in the summary; job fails even under `fail-on: none`. A check that could not run is not a check that passed. |
 | A tool exits non-zero with parsed findings | Normal: findings are mapped; job fails unless `fail-on: none`. |
-| A capability's globs match no file | `ran`, zero results, never `errored`, with the note `no files matched the globs` — in **both** languages. The Python tools are not invoked at all; ESLint runs with `--no-error-on-unmatched-pattern` and returns an empty file list, which the runner reads as no match (ESLint emits one entry per *linted* file even when that file is clean, so an empty top-level array means nothing was linted). A capability with that note is `ran` but unmeasured: the ratchet neither splits nor prunes its sites, and `ratchet.py update`/`prune` refuse. |
+| A capability's globs match no file | `ran`, zero results, never `errored`, with the note `no files matched the globs` — in **both** languages (`js.boundary` lints `root`, not globs, so its note reads `eslint linted no files under root`). The Python tools are not invoked at all; ESLint runs with `--no-error-on-unmatched-pattern` and returns an empty file list, which the runner reads as no match (ESLint emits one entry per *linted* file even when that file is clean, so an empty top-level array means nothing was linted). A capability with that note is `ran` but unmeasured: the ratchet neither splits nor prunes its sites, and `ratchet.py update`/`prune` refuse. |
+| The manifest names a ratchet and an output capability was never measured | The job fails **even under `fail-on: none`** (#395), whether the surface went unmeasured through a missing tool, an errored tool, globs that matched no file, or a surface file that did not parse. The summary lists each unmeasured capability with its reason and its `outputGlobs`. A ratchet is a standing claim about a surface; a surface nothing ran on cannot uphold it. |
+| A file inside an output surface does not parse | The file's `PL/unparsed` warning is kept (a surface file the tool could not read is not a clean file), and the capability is `ran` with the note `unparsed surface file: <path>`, which makes it **unmeasured** (#392): its sites are neither split nor pruned, `ratchet.py update`/`prune` refuse, and with a ratchet configured the job fails regardless of `fail-on`. Unmeasurability is per file, not per tool. |
 | Valid manifest, zero capabilities | Job succeeds, empty SARIF run, the summary says plainly that zero checks ran — an empty green is legible as empty, never as clean. |
 | Upload step fails (no `security-events: write`, code scanning off) | `continue-on-error: true` on that step ties the job's exit code to the enforcement result alone; a follow-on step emits a `::warning::` naming the permission (`security-events: write`) and the code-scanning setting as the two things to check; the SARIF file is still written and named in the summary. |
-| `fail-on: none` | Findings still upload, the summary states the mode, exit 0 — unless a capability is `tool-missing` or `errored`, which fail regardless. |
+| `fail-on: none` | Findings still upload, the summary states the mode, exit 0 — unless a capability is `tool-missing` or `errored`, or a configured ratchet's output surface was never measured, which fail regardless. |
 | Manifest names a ratchet file that is missing or invalid | One `PL/ratchet-invalid` error naming the problems; the output checks still run, unratcheted (every site an error); job fails even under `fail-on: none`. |
 | A pinned ratchet site is no longer reported | One `PL/ratchet-stale` note per site; never fails. `ratchet.py prune` removes it. |
 | A pinned ratchet capability is dropped from the manifest entirely | One `PL/ratchet-stale` note naming the capability; never fails. `ratchet.py update` clears it (not `prune`, which only shrinks sites for capabilities still enforced). |
 
 ## Maturity
 
-- **The Action itself: `current`** — six CI matrix cells (three fixtures ×
-  `clean`/`broken`) run `uses: ./` against the planted fixtures and pass, on
-  this branch. `js-payments-service` and `python-data-pipeline` enable only
-  `boundary`, so that CI and end-to-end proof covers `js.boundary` and
+- **The Action itself: `current`** — eight CI matrix cells (four fixtures ×
+  `clean`/`broken`) run `uses: ./` against the planted fixtures, configured on
+  this branch, with results recorded in CI's run on the pull request.
+  `js-payments-service` and `python-data-pipeline` enable only `boundary`,
+  so that CI and end-to-end proof covers `js.boundary` and
   `python.boundary`; `examples/ratchet-adoption` enables
-  `python.provenance`, `python.output` and `ratchet`, so that same CI also
-  covers those three end to end. The remaining capabilities — `js.provenance`,
-  `js.output`, `baselines` — are proven by unit tests over recorded tool
-  output.
+  `python.provenance`, `python.output` and `ratchet`, so that same CI covers
+  those end to end too. `examples/ratchet-adoption-js` enables
+  `js.provenance`, `js.output` and `ratchet`; its fixture rule only ever
+  triggers `require-provenance-output`, so `js.output` and `ratchet` are the
+  capabilities newly proven end to end there, while `js.provenance` runs and
+  parses but detects nothing in this fixture. The two capabilities not
+  proven end to end this way — `js.provenance` and `baselines` — are proven
+  by unit tests over recorded tool output.
 - **Uploading to a consumer's code scanning: `current` by construction** —
   the upload step delegates to the sha-pinned `github/codeql-action/upload-sarif`
   (the same action and sha the scorecard workflow uses) — but this repo's
@@ -386,11 +424,19 @@ Every outcome is a named state; nothing passes by silence.
 - **The bootstrap manifest step (Step 4d): `planned`** until a
   release-harness blind run proves a bootstrap run writes the file; the
   validator and the hand-written shape it targets are `current`.
-- **Ratchet mode: `current`** for `python.output` (end-to-end on
-  `examples/ratchet-adoption`; also exercised by the Action's CI matrix,
-  cell `ratchet-adoption`); the JS site marker is `current` at the
-  rule/assembler level and **not yet proven end to end** on a planted JS
-  surface.
+- **Ratchet mode: `current`** for both `python.output` and `js.output`.
+  `examples/ratchet-adoption` (Python) and `examples/ratchet-adoption-js`
+  (JavaScript, #393) each carry a two-site output surface, a pinned
+  `ratchet.json`, and both trees in the Action's CI matrix: `clean` reports
+  `2 known, 0 new, 0 stale`, `broken` reports `1 known, 1 new, 0 stale`,
+  neither leaves a capability unmeasured, and `test_end_to_end_over_the_planted_fixtures`
+  asserts the same numbers from the real runner. The JS site marker — the
+  rule's `[site: name]` message suffix and the assembler's `SITE_RE`
+  extraction — is therefore no longer proven only by unit tests over recorded
+  ESLint JSON: `examples/ratchet-adoption-js` runs the real ESLint against the
+  real rule and the site keys reach the ratchet file. What is still unproven
+  is the ratchet over a *mixed* JS+Python surface in one manifest, and over a
+  surface large enough for rename churn to be routine.
 
 See [ADR-0016](docs/adr/0016-action-manifest-and-sarif.md) for the five
 decisions behind this design and their rejected alternatives.

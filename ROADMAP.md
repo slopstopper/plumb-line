@@ -815,9 +815,10 @@ today's untagged-output sites (`<file>::<symbol>`) in a committed
 that pin. Wired into the Action (`ratchet.file` in the enforcement
 manifest, #25) and reachable from the pre-commit gate by pointing
 `PLUMBLINE_TEST_CMD` at the runner. Proven end to end on
-`examples/ratchet-adoption` (Python); the JS site marker is unit-tested at
-the rule and assembler level, not yet proven end to end on a planted JS
-fixture.
+`examples/ratchet-adoption` (Python) and, since #393,
+`examples/ratchet-adoption-js` — a planted JS output surface whose two sites
+reach the ratchet file through the real ESLint rule and the assembler's
+site-marker extraction, in the Action's CI matrix.
 
 ---
 

@@ -41,9 +41,16 @@ OUTPUT_CAPS = ("js.output", "python.output")
 _HISTORY_KEYS = {"date", "because", "change"}
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-# The only state note run_checks.py writes for a `ran` capability whose tool
-# was never invoked. Such a capability proves nothing about its sites.
+# The two state notes run_checks.py writes for a `ran` output capability that
+# measured nothing after all. Either one proves nothing about its sites.
 NO_MATCH_NOTE = "no files matched the globs"
+# #392: prefix + the surface files the tool could not read. Unmeasurability is
+# per FILE, not per tool: one file inside the surface that ESLint or
+# provenance_lint.py could not parse is one the output check never ran on, so
+# the whole capability is unmeasured. Without this, `update` pins a set
+# computed as though that file held no sites and `prune` erases the ones it
+# used to hold — a silent shrink of the debt register.
+UNPARSED_PREFIX = "unparsed surface file: "
 
 KNOWN_PREFIX = "known (ratchet): "
 NEW_SUFFIX = (" New untagged output (ratchet): wrap it with derive()/mark(), or accept it with: "
@@ -133,12 +140,23 @@ def dumps(data):
 
 
 def write_ratchet(path, data):
-    """Canonical, atomic: tmp + os.replace, so a crash leaves the old file."""
+    """Canonical, atomic: tmp + os.replace, so a crash leaves the old file.
+
+    If writing or replacing raises (disk full, permission), the tmp file is
+    unlinked before the exception propagates — it must never linger inside
+    .plumb-line/ where it could be committed."""
     os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
     tmp = f"{path}.tmp-{os.getpid()}"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        fh.write(dumps(data))
-    os.replace(tmp, path)
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(dumps(data))
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass  # tmp was never created, or is already gone — fine either way
+        raise
 
 
 # ---------- apply (read-only) ----------
@@ -147,9 +165,30 @@ def site_of(r):
     return f"{r['file']}::{r['site']}" if r.get("file") and r.get("site") else None
 
 
-def _measured(states, cap):
+def unparsed_note(results, cap):
+    """The note for an output capability whose tool could not parse a file
+    inside the surface, or None. A capability's results come from its own
+    command, which is given exactly that surface (the expanded globs, or
+    ESLint's outputGlobs), so any PL/unparsed carrying a file is a surface
+    file — no glob matching needed here. `whole` results are excluded: those
+    stand in for an ENTIRE unreadable payload, which the orchestrator
+    already calls `errored` (or keeps as one location-less finding)."""
+    files = sorted({r["file"] for r in results
+                    if r.get("capability") == cap and r["ruleId"] == "PL/unparsed"
+                    and r.get("file") and not r.get("whole")})
+    return UNPARSED_PREFIX + ", ".join(files) if files else None
+
+
+def measures_nothing(note):
+    """True for the notes a `ran` output capability carries when its tool
+    never actually saw the surface: no file matched, or a file in it did
+    not parse. Both leave the capability unmeasured."""
+    return note == NO_MATCH_NOTE or (isinstance(note, str) and note.startswith(UNPARSED_PREFIX))
+
+
+def measured(states, cap):
     st = states.get(cap)
-    return st is not None and st[0] == "ran" and st[2] != NO_MATCH_NOTE
+    return st is not None and st[0] == "ran" and not measures_nothing(st[2])
 
 
 def apply(results, states, ratchet):
@@ -164,7 +203,7 @@ def apply(results, states, ratchet):
     for r in results:
         cap = r.get("capability")
         s = site_of(r)
-        if r["ruleId"] == "PL/untagged-output" and cap in OUTPUT_CAPS and s and _measured(states, cap):
+        if r["ruleId"] == "PL/untagged-output" and cap in OUTPUT_CAPS and s and measured(states, cap):
             seen[cap].add(s)
             if s in pinned[cap]:
                 r = dict(r, level="note", message=KNOWN_PREFIX + r["message"])
@@ -183,7 +222,7 @@ def apply(results, states, ratchet):
             out.append(r)
             stale += 1
             continue
-        if not _measured(states, cap):
+        if not measured(states, cap):
             continue
         for s in sorted(pinned[cap] - seen[cap]):
             r = A.result("PL/ratchet-stale", STALE_TEXT.format(site=s), file=s.partition("::")[0],
@@ -196,21 +235,29 @@ def apply(results, states, ratchet):
 
 # ---------- measure / update / prune (the only writers) ----------
 
-def _runner_for(root):
-    """The real tools; tests monkeypatch this."""
+def _runner_for():
+    """The real tools; tests monkeypatch this. Takes no argument: the runner
+    is a plain (cmd, cwd) subprocess call and resolves nothing from root —
+    `which` is what root parameterises, and measure() builds that separately.
+
+    run_checks is imported HERE, not at module level: run_checks imports this
+    module at import time, so an import back would close the cycle. Only its
+    PUBLIC surface — default_runner, resolver, run_capabilities — may be used
+    (see run_checks.py's "Dependency direction" note)."""
     from adapters.sarif import run_checks as R
-    return R._default_runner
+    return R.default_runner
 
 
 def measure(root, manifest, scripts_dir, runner=None):
     """{output capability: (state, sorted sites)} for every <lang>.output the
     manifest carries. sites is [] unless state is a real `ran`."""
+    # Lazily imported for the cycle _runner_for() explains; public surface only.
     from adapters.sarif import run_checks as R
     from scripts.check_enforcement_manifest import capabilities
-    runner = runner or _runner_for(root)
-    which = getattr(runner, "which", None) or R._resolver(root)
+    runner = runner or _runner_for()
+    which = getattr(runner, "which", None) or R.resolver(root)
     caps = capabilities(manifest)
-    states, results = R._run_capabilities(root, caps, scripts_dir, runner, which, only=OUTPUT_CAPS)
+    states, results = R.run_capabilities(root, caps, scripts_dir, runner, which, only=OUTPUT_CAPS)
     out = {}
     for cap in OUTPUT_CAPS:
         if cap not in caps:
@@ -218,7 +265,7 @@ def measure(root, manifest, scripts_dir, runner=None):
         st = states[cap]
         sites = sorted({site_of(r) for r in results
                         if r.get("capability") == cap and r["ruleId"] == "PL/untagged-output" and site_of(r)})
-        out[cap] = (st, sites if _measured(states, cap) else [])
+        out[cap] = (st, sites if measured(states, cap) else [])
     return out
 
 
@@ -236,9 +283,14 @@ def _load_manifest(root, manifest_path):
     return manifest, os.path.join(root, manifest["ratchet"]["file"]), None
 
 
-def _unmeasurable(measured):
-    bad = [f"{cap}: {st[0]}" + (f" ({st[2]})" if st[2] else "") for cap, (st, _) in measured.items()
-           if not (st[0] == "ran" and st[2] != NO_MATCH_NOTE)]
+def _unmeasurable(measures):
+    """Why the writers cannot pin this surface, or None. measure() threads
+    each capability's RAW state through, so this asks measured() — the one
+    predicate apply() reads — instead of re-deriving it over a second shape;
+    reader and writers can then never drift apart about what `measured` means."""
+    states = {cap: st for cap, (st, _) in measures.items()}
+    bad = [f"{cap}: {st[0]}" + (f" ({st[2]})" if st[2] else "")
+           for cap, st in states.items() if not measured(states, cap)]
     return "cannot pin what could not be measured — " + "; ".join(bad) if bad else None
 
 

@@ -1,0 +1,15 @@
+{
+  "history": [
+    {
+      "because": "initial pin over the JS pricing surface; total() was added after this pin and is deliberately left unpinned so the tree plants a NEW site",
+      "change": "pinned 1 site (js.output: 1)",
+      "date": "2026-09-20"
+    }
+  ],
+  "ratchet-format": "v1",
+  "sites": {
+    "js.output": [
+      "src/pricing/fx.js::applyFx"
+    ]
+  }
+}
