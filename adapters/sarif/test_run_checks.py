@@ -37,26 +37,43 @@ FULL = {"enforcement-format": "v1", "languages": ["js", "python"],
 
 
 class FakeRunner:
-    """Answers each tool by whichever token in its command names the tool
-    itself — a .py/.mjs script path, or a bare "eslint"/"lint-imports" —
-    found anywhere in cmd, falling back to cmd[0] if none matches; records
-    calls. A `--require-output` flag folds into the key (":output" suffix)
-    so python.provenance and python.output — both provenance_lint.py — can
-    be answered differently, matching the real tool: main() swaps in a
-    different check entirely on that flag (adapters/python/provenance_lint.py),
-    so python.provenance's own command can never emit REQ-OUTPUT."""
+    """Answers each COMMAND, not merely each tool. The base key is whichever
+    token in cmd names the tool itself — a .py/.mjs script path, or a bare
+    "eslint"/"lint-imports" — falling back to cmd[0]; it is then narrowed by
+    what that command was asked to do, because one binary serves several
+    capabilities:
+
+        "provenance_lint.py"          python.provenance
+        "provenance_lint.py:output"   python.output  (--require-output; the
+                                      real main() swaps in a different check
+                                      entirely on that flag, so
+                                      python.provenance can never emit
+                                      REQ-OUTPUT)
+        "eslint:."                    js.boundary    (lints the root)
+        "eslint:src/**/*.js"          js.provenance  (its globs)
+        "eslint:src/p/**/*.js"        js.output      (its outputGlobs)
+
+    The narrowed key wins; the bare tool token is the fallback, so a test
+    that does not care answers "eslint" once. Records calls."""
     def __init__(self, answers, missing=()):
         self.answers, self.missing, self.calls = answers, set(missing), []
 
     def which(self, tool):
         return None if tool in self.missing else f"/usr/bin/{tool}"
 
+    def _keys(self, cmd):
+        tool = next((os.path.basename(a) for a in cmd if a.endswith((".py", ".mjs")) or a in ("eslint", "lint-imports")),
+                    os.path.basename(cmd[0]))
+        if "--require-output" in cmd:
+            yield tool + ":output"
+        elif tool == "eslint" and "--no-error-on-unmatched-pattern" in cmd:
+            for target in cmd[cmd.index("--no-error-on-unmatched-pattern") + 1:]:
+                yield f"{tool}:{target}"
+        yield tool
+
     def __call__(self, cmd, cwd):
         self.calls.append((cmd, cwd))
-        key = next((os.path.basename(a) for a in cmd if a.endswith((".py", ".mjs")) or a in ("eslint", "lint-imports")),
-                   os.path.basename(cmd[0]))
-        key = key + ":output" if "--require-output" in cmd else key
-        return self.answers.get(key, (0, "[]", ""))
+        return next((self.answers[k] for k in self._keys(cmd) if k in self.answers), (0, "[]", ""))
 
 
 def _paths(tmp_path):
@@ -208,22 +225,19 @@ def test_tool_missing_and_errored_fail_even_under_fail_on_none(tmp_path):
 
 
 def test_js_provenance_and_output_filter_by_rule(tmp_path):
-    # Not the literal FULL constant: FULL also enables js.boundary, which
-    # invokes eslint through the SAME FakeRunner key ("eslint" — the fake
-    # can't distinguish boundary's config from provenance's), so it would
-    # replay this same payload unfiltered and double every count below.
-    # This keeps FULL's js.provenance/js.output shape and drops js.boundary
-    # so "exactly one of each" is actually checking the capability filters,
-    # not an artifact of the fake sharing one key across three invocations.
-    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["js"],
-                                "js": {"provenance": {"config": "eslint-provenance.cjs",
-                                                      "globs": ["src/**/*.js"], "outputGlobs": ["src/p/**/*.js"]}}})
+    # js.boundary is enabled too, and answered on its own key ("eslint:." —
+    # it lints the root, not globs). Without that separation boundary's
+    # invocation would replay the payload below unfiltered and double every
+    # count, so "exactly one of each" would be an artifact of the fake
+    # rather than the capability filters under test.
+    root = _consumer(tmp_path, {"enforcement-format": "v1", "languages": ["js"], "js": FULL["js"]})
     payload = json.dumps([{"filePath": os.path.join(root, "src", "p", "b.js"),
                            "messages": [{"ruleId": "plumb-line/no-provenance-bypass",
                                         "message": "PB1 laundered", "line": 1, "column": 1},
                                        {"ruleId": "plumb-line/require-provenance-output",
                                         "message": "untagged output [site: f]", "line": 2, "column": 1}]}])
-    fake = FakeRunner({"eslint": (0, payload, "")})
+    clean = json.dumps([{"filePath": os.path.join(root, "src", "a.js"), "messages": []}])
+    fake = FakeRunner({"eslint:.": (0, clean, ""), "eslint": (0, payload, "")})
     p = _paths(tmp_path)
     R.run(root, os.path.join(root, ".plumb-line", "enforcement.json"), _ROOT, "findings",
          runner=fake, version="t", **p)
@@ -271,12 +285,9 @@ def test_js_output_keeps_unparsed_for_a_surface_file_eslint_could_not_parse(tmp_
                          "messages": [{"ruleId": None, "fatal": True, "severity": 2,
                                       "message": "Parsing error: Unexpected token", "line": 1, "column": 8}]}])
 
-    class ByGlob(FakeRunner):
-        """The js.output run (outputGlobs) fails to parse; the js.provenance run is clean."""
-        def __call__(self, cmd, cwd):
-            self.calls.append((cmd, cwd))
-            return (1, fatal, "") if "src/p/**/*.js" in cmd else (0, "[]", "")
-    fake = ByGlob({})
+    # The js.output run (outputGlobs) fails to parse; the js.provenance run
+    # (globs) is clean — one binary, two commands, two answers.
+    fake = FakeRunner({"eslint:src/p/**/*.js": (1, fatal, ""), "eslint": (0, "[]", "")})
     p = _paths(tmp_path)
     m = os.path.join(root, ".plumb-line", "enforcement.json")
     code = R.run(root, m, _ROOT, "findings", runner=fake, version="t", **p)
@@ -592,9 +603,10 @@ def test_js_output_empty_eslint_array_is_no_match_not_clean(tmp_path):
     _ratchet(root, {"js.output": ["src/p/b.js::f"]})
     code, s, sarif, _ = _run(root, tmp_path, FakeRunner({"eslint": (0, "[]", "")}))
     cap = s["capabilities"]["js.output"]
-    assert code == 0 and cap["state"] == "ran" and cap["note"] == R.NO_MATCH_NOTE
+    assert cap["state"] == "ran" and cap["note"] == R.NO_MATCH_NOTE
     assert s["ratchet"]["stale"] == 0 and s["ratchet"]["unmeasured"] == ["js.output"]
     assert not [r for r in sarif["runs"][0]["results"] if r["ruleId"] == "PL/ratchet-stale"]
+    assert code == 1, "#395: a ratchet is configured, so an unmeasured surface fails the job"
 
 
 def test_js_output_one_clean_linted_file_is_a_real_ran_with_no_note(tmp_path):
@@ -606,3 +618,45 @@ def test_js_output_one_clean_linted_file_is_a_real_ran_with_no_note(tmp_path):
     cap = s["capabilities"]["js.output"]
     assert code == 0 and (cap["state"], cap["parser"], cap["note"]) == ("ran", "json", None)
     assert cap["results"] == 0
+
+
+# ---------- #395: a configured ratchet cannot pass over a surface nothing measured ----------
+
+NO_MATCH_OUT = {"enforcement-format": "v1", "languages": ["python"],
+                "python": {"provenance": {"globs": ["src/**/*.py"], "outputGlobs": ["nothing/**/*.py"]}},
+                "ratchet": {"file": ".plumb-line/ratchet.json"}}
+
+
+def test_ratcheted_surface_that_was_never_measured_fails_regardless_of_fail_on(tmp_path):
+    # A typo'd or stale outputGlobs used to leave a ratcheted job green: the
+    # only signals were `N unmeasured` in the head line and the summary JSON.
+    # "The ratchet is configured and its surface was never measured" is a
+    # fail-regardless condition, the same class as a missing tool.
+    root = _consumer(tmp_path, NO_MATCH_OUT)
+    _ratchet(root, {"python.output": ["src/p/b.py::pinned"]})
+    fake = FakeRunner({"provenance_lint.py": (0, "[]", "")})
+    code, s, _, text = _run(root, tmp_path, fake, fail_on="none")
+    assert code == 1
+    assert s["findings"] == 0 and s["ratchet"]["unmeasured"] == ["python.output"]
+    # The message names the capability and the globs that measured nothing.
+    assert "python.output" in text and "nothing/**/*.py" in text and R.NO_MATCH_NOTE in text
+
+
+def test_unmeasured_surface_without_a_configured_ratchet_is_still_green(tmp_path):
+    # Unchanged where no ratchet is configured: a no-match capability is
+    # `ran` with zero results and proves nothing, but nothing was pinned on
+    # it, so there is no claim to contradict.
+    root = _consumer(tmp_path, {k: v for k, v in NO_MATCH_OUT.items() if k != "ratchet"})
+    code, s, _, _ = _run(root, tmp_path, FakeRunner({"provenance_lint.py": (0, "[]", "")}))
+    assert code == 0 and s["ratchet"] is None
+    assert s["capabilities"]["python.output"]["note"] == R.NO_MATCH_NOTE
+
+
+def test_js_boundary_no_match_note_says_what_it_lints_not_globs(tmp_path):
+    # js.boundary lints `.`, never a glob list, so the output surface's
+    # no-match note would misdescribe what did not happen.
+    root = _consumer(tmp_path, _JS_ONLY)
+    code, s, _, _ = _run(root, tmp_path, FakeRunner({"eslint:.": (0, "[]", "")}))
+    note = s["capabilities"]["js.boundary"]["note"]
+    assert code == 0 and s["capabilities"]["js.boundary"]["state"] == "ran"
+    assert note == R.NO_LINTED_FILES_NOTE and note != R.NO_MATCH_NOTE and "glob" not in note

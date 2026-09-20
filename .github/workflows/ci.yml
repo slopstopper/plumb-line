@@ -238,6 +238,10 @@ jobs:
           if "ratchet" in s and s["ratchet"] is not None:
               rt = s["ratchet"]
               assert rt["state"] == "ran", rt
+              # `state == "ran"` is satisfied by a capability whose globs matched
+              # nothing, so it alone cannot catch a fixture glob that stopped
+              # matching (#395); the unmeasured list is what names that.
+              assert rt["unmeasured"] == [], rt
               assert (rt["known"], rt["new"]) == ((2, 0) if tree == "clean" else (1, 1)), rt
           assert os.path.isabs(s["sarif"]) and os.path.isfile(s["sarif"]), s["sarif"]
           # One category per root, so a second root's upload never replaces this one's alerts.

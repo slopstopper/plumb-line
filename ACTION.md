@@ -140,7 +140,13 @@ so a `js.provenance`/`js.output` glob that matches no file is likewise
 `ran` with zero results and the same note, where ESLint alone would exit 2:
 ESLint's JSON report carries one entry per *linted* file, messages or not,
 so an empty top-level array means no file was linted — no match, not a
-clean surface.
+clean surface. (`js.boundary` lints `root` itself rather than a glob list,
+so it reports `eslint linted no files under root` instead.)
+
+An empty match is a green `ran` on its own. It is **not** green when the
+manifest names a ratchet and the unmeasured capability is an output
+surface: see [Ratchet mode](#ratchet-mode) — a pinned surface nothing
+measured fails the job regardless of `fail-on` (#395).
 
 ## Unparsed
 
@@ -286,7 +292,17 @@ names the file and its state. The clause appears only when the ratchet
 actually ran: an invalid file prints `ratchet: invalid (checks ran
 unratcheted)` rather than three zeros, and an output capability that could
 not be measured adds `, U unmeasured` — three zeros over an unmeasured
-surface would read as "ratcheted and clean". When the file is invalid the
+surface would read as "ratcheted and clean".
+
+**An unmeasured output surface fails the job regardless of `fail-on`**
+(#395), the same class as a missing tool: the manifest pins sites on that
+surface and nothing checked them, so a typo'd or stale `outputGlobs` can
+never be a green job. The summary names each unmeasured capability, why it
+was not measured, and the `outputGlobs` that found nothing. Without a
+ratchet configured, an unmeasured capability is still an ordinary green
+`ran` with zero results — there is no pinned claim to contradict.
+
+When the file is invalid the
 capability table also carries a synthetic `ratchet` row in state `errored`,
 even though the ratchet is not a capability: that is how a file the runner
 could not read fails the job the way a missing tool does.
@@ -355,10 +371,11 @@ Every outcome is a named state; nothing passes by silence.
 | A needed tool missing | One `PL/tool-missing` result per capability, uploaded like any finding; job fails even under `fail-on: none`. Never counted as a clean check. |
 | A tool exits non-zero and its output is unreadable | Capability is `errored`; the tool's stderr (or stdout when stderr is empty), truncated, is in the summary; job fails even under `fail-on: none`. A check that could not run is not a check that passed. |
 | A tool exits non-zero with parsed findings | Normal: findings are mapped; job fails unless `fail-on: none`. |
-| A capability's globs match no file | `ran`, zero results, never `errored`, with the note `no files matched the globs` — in **both** languages. The Python tools are not invoked at all; ESLint runs with `--no-error-on-unmatched-pattern` and returns an empty file list, which the runner reads as no match (ESLint emits one entry per *linted* file even when that file is clean, so an empty top-level array means nothing was linted). A capability with that note is `ran` but unmeasured: the ratchet neither splits nor prunes its sites, and `ratchet.py update`/`prune` refuse. |
+| A capability's globs match no file | `ran`, zero results, never `errored`, with the note `no files matched the globs` — in **both** languages (`js.boundary` lints `root`, not globs, so its note reads `eslint linted no files under root`). The Python tools are not invoked at all; ESLint runs with `--no-error-on-unmatched-pattern` and returns an empty file list, which the runner reads as no match (ESLint emits one entry per *linted* file even when that file is clean, so an empty top-level array means nothing was linted). A capability with that note is `ran` but unmeasured: the ratchet neither splits nor prunes its sites, and `ratchet.py update`/`prune` refuse. |
+| The manifest names a ratchet and an output capability was never measured | The job fails **even under `fail-on: none`** (#395), whether the surface went unmeasured through a missing tool, an errored tool, or globs that matched no file. The summary lists each unmeasured capability with its reason and its `outputGlobs`. A ratchet is a standing claim about a surface; a surface nothing ran on cannot uphold it. |
 | Valid manifest, zero capabilities | Job succeeds, empty SARIF run, the summary says plainly that zero checks ran — an empty green is legible as empty, never as clean. |
 | Upload step fails (no `security-events: write`, code scanning off) | `continue-on-error: true` on that step ties the job's exit code to the enforcement result alone; a follow-on step emits a `::warning::` naming the permission (`security-events: write`) and the code-scanning setting as the two things to check; the SARIF file is still written and named in the summary. |
-| `fail-on: none` | Findings still upload, the summary states the mode, exit 0 — unless a capability is `tool-missing` or `errored`, which fail regardless. |
+| `fail-on: none` | Findings still upload, the summary states the mode, exit 0 — unless a capability is `tool-missing` or `errored`, or a configured ratchet's output surface was never measured, which fail regardless. |
 | Manifest names a ratchet file that is missing or invalid | One `PL/ratchet-invalid` error naming the problems; the output checks still run, unratcheted (every site an error); job fails even under `fail-on: none`. |
 | A pinned ratchet site is no longer reported | One `PL/ratchet-stale` note per site; never fails. `ratchet.py prune` removes it. |
 | A pinned ratchet capability is dropped from the manifest entirely | One `PL/ratchet-stale` note naming the capability; never fails. `ratchet.py update` clears it (not `prune`, which only shrinks sites for capabilities still enforced). |
