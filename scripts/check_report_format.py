@@ -133,6 +133,48 @@ def _mask_code_spans(text):
     return _CODE_SPAN.sub(lambda m: " " * len(m.group(0)), text)
 
 
+# A `key:` line the format uses at top level (header keys, and the
+# denominator/coverage/scope note/fit/handoff/format-validation lines that sit
+# outside any header block). Kept out of soft-wrap joining below so those
+# lines never fuse into a neighbouring prose paragraph.
+_KEY_LINE = re.compile(r"^[a-z][a-z -]*:(\s|$)")
+
+
+def _join_soft_wraps(text):
+    """Join soft-wrapped lines inside a prose paragraph into one logical line
+    (#397): a writer hard-wrapping at a column limit can split an inline
+    principle citation's em-dash name across two physical lines — this
+    checker scans line-agnostic regexes over the joined text, so the wrap
+    must not read as a different name. Table rows are already one row per
+    physical line (the format's own contract), so they — along with fenced
+    code, blank lines, and `key:` lines — are left on their own line and
+    never joined with a neighbour."""
+    out = []
+    buf = []
+    in_fence = False
+
+    def flush():
+        if buf:
+            out.append(" ".join(buf))
+            buf.clear()
+
+    for line in text.split("\n"):
+        stripped = line.strip()
+        if _FENCE.match(line):
+            flush()
+            out.append(line)
+            in_fence = not in_fence
+            continue
+        if in_fence or not stripped or _KEY_LINE.match(line) or \
+                (stripped.startswith("|") and stripped.endswith("|")):
+            flush()
+            out.append(line)
+            continue
+        buf.append(stripped)
+    flush()
+    return "\n".join(out)
+
+
 def load_principles(text):
     """{"P3": "Confidence + provenance", ...} from the ruleset's own headings."""
     out = {}
@@ -316,7 +358,7 @@ def _check_principles(text, principles, glossary_required, issues):
     format checker is the fastest way to get the checker disabled.
     """
     cited, seen = set(), set()
-    text = _mask_code_spans(text)
+    text = _join_soft_wraps(_mask_code_spans(text))
 
     def add(issue):
         if issue not in seen:      # one citation repeated N times is one problem
@@ -571,7 +613,9 @@ def main(argv):
     # The provenance line (#221). The harness stores this output as the
     # evidence a tag rests on, so the first line says what produced it and
     # under which ruleset — P8 applied to our own tooling.
-    print(f"check_report_format v{CHECKER_VERSION} — models report-format "
+    print(f"check_report_format v{CHECKER_VERSION} — joins soft-wrapped prose "
+          f"before matching inline principle names (tables unaffected); "
+          f"models report-format "
           f"{'/'.join(sorted(KNOWN_REPORT_VERSIONS))}, remediation-format "
           f"{'/'.join(sorted(KNOWN_REMEDIATION_VERSIONS))}, routing-format "
           f"{'/'.join(sorted(KNOWN_ROUTING_VERSIONS))}; ruleset "

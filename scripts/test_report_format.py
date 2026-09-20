@@ -230,6 +230,26 @@ def test_extra_optional_header_key_after_the_required_ones_is_accepted():
     assert _check(text) == []
 
 
+def test_hard_wrapped_inline_name_is_accepted():
+    """#397: a writer hard-wrapping prose at a column limit splits the em-dash
+    name across two physical lines — '(P7 — Contracted' / 'outputs)'. The
+    content is correct and the wrap is legal markdown; the checker must join
+    soft-wrapped prose lines before matching the inline name."""
+    text = VALID_REPORT.replace(
+        "\n| Path |",
+        "\nThis leaned on (P7 — Contracted\noutputs) throughout.\n\n| Path |")
+    assert _check(text) == []
+
+
+def test_hard_wrapped_wrong_name_is_still_flagged():
+    """Joining soft-wrapped lines must not paper over an actually wrong name
+    that happens to be wrapped."""
+    text = VALID_REPORT.replace(
+        "\n| Path |",
+        "\nThis leaned on (P7 — Wrong\nName) throughout.\n\n| Path |")
+    assert any("wrong name" in i for i in _check(text))
+
+
 def test_repeated_bare_citation_reports_the_problem_once():
     text = VALID_REPORT.replace("P3 — Confidence + provenance", "P3")
     bare = [i for i in _check(text) if "not inline-named" in i]
