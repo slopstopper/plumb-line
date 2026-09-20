@@ -195,13 +195,15 @@ Version themes for the near-term releases, and the GitHub issues under each.
   `check_report_format.py` cluster once scheduled here (GH #220–#223: the
   validator's own four findings) was pulled forward and closed under v0.11.0.
 
-- **v0.11.1 — Ratchet and Action hardening** and **v0.11.2 — Tooling and docs
-  tidy** (patches, fix-only) · *created 2026-09-17.* The deferral outbox drained
-  after v0.11.0: seven correctness and hygiene fixes to the ratchet and the
+- ~~**v0.11.1 — Ratchet and Action hardening**~~ · **shipped 2026-09-20**, 8
+  issues closed: seven correctness and hygiene fixes to the ratchet and the
   Action (GH #389–#393, #395, #397; two of them stricter for adopters and
-  called out as such), and five tooling and docs fixes (GH #171, #369, #374,
-  #400, #401, plus the content-template drift, GH #405). Neither waits on the
-  minors.
+  called out as such), harness record in `docs/validation-results.md`. Its
+  dogfood run deferred three more (GH #411–#413) into v0.11.2.
+- **v0.11.2 — Tooling and docs tidy** (patch, fix-only) · *created
+  2026-09-17.* Five tooling and docs fixes (GH #171, #369, #374, #400, #401,
+  plus the content-template drift, GH #405) and the three v0.11.1 dogfood
+  deferrals. Does not wait on the minors.
 
 - **v0.13.0 — Reproducible enforcement** · *split from v0.12.0 on 2026-09-17,
   when that milestone reached thirteen issues.* Every enforcement output
@@ -363,18 +365,20 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
    the golden baseline #117, the GitHub Action + SARIF #118, the provenance
    ratchet #119, and the deferral sweep; harness record in
    `docs/validation-results.md`).
-7. **Next:** the v0.11.1 and v0.11.2 patches (fix-only, drain the deferral
+7. ~~v0.11.1~~ — **shipped 2026-09-20**, 8 issues closed (the ratchet and
+   Action hardening; harness record in `docs/validation-results.md`).
+8. **Next:** the v0.11.2 patch (fix-only, drains the rest of the deferral
    outbox), then v0.12.0 — sequenced after wire v2 so the envelope fields it
    adds are settled — then v0.13.0, split from it on 2026-09-17.
-8. **After that:** v1.0.0 — the coverage guarantee, the API-surface
+9. **After that:** v1.0.0 — the coverage guarantee, the API-surface
    definition (GH #236) that everything else freezes against, canonical
    serialization (GH #124), and the last-call breaking-change pass (GH #239,
    after #236). No due date; gated on state, not on a date.
-8. **Parallel, start early:** `track:portable` — skill-surface, no runtime
+10. **Parallel, start early:** `track:portable` — skill-surface, no runtime
    dependency. (`track:agent-state` is now #35 alone, which waits on the
    ladder decision and on #34, so it no longer starts early.)
-9. **Parallel, after wire v2:** `track:boundaries` (#31 → #32/#33).
-10. **Opportunistic:** `track:ecosystem` — PROV-O mapping (#37) is cheap and
+11. **Parallel, after wire v2:** `track:boundaries` (#31 → #32/#33).
+12. **Opportunistic:** `track:ecosystem` — PROV-O mapping (#37) is cheap and
    credibility-bearing, do it whenever; OpenLineage/dbt wait for a pilot user.
 
 A note on the numbering: the P9 and runtime-gates milestones have been
