@@ -45,6 +45,20 @@ module.exports = {
     const RAW_OPS = new Set(["+", "-", "*", "/", "%", "**", "&", "|", "^", "<<", ">>", ">>>"]);
     const isRaw = (n) => n && n.type === "BinaryExpression" && RAW_OPS.has(n.operator);
 
+    // #390: the site name for a declarator's `id` (or a default export's
+    // optional `id`). A plain Identifier keeps its name. A truly absent id
+    // (an anonymous default export) is "default" — the one legitimate use of
+    // that literal. Anything else (a destructuring pattern, e.g.
+    // `export const { a } = ...`) derives a stable name from the pattern's
+    // own source text so it can never collide with a real anonymous default
+    // export in the same file.
+    const nameOf = (id) => {
+      if (!id) return "default";
+      if (id.type === "Identifier") return id.name;
+      const text = context.sourceCode.getText(id).replace(/\s+/g, " ").trim();
+      return `destructured ${text}`;
+    };
+
     // Classify a function body's returns using single-pass local const/let tracking.
     function checkFunctionBody(fnNode, name) {
       if (!fnNode.body || fnNode.body.type !== "BlockStatement") {
@@ -105,11 +119,11 @@ module.exports = {
     return {
       ExportNamedDeclaration(node) {
         if (node.declaration && node.declaration.type === "FunctionDeclaration") {
-          handleExportedFn(node.declaration, node.declaration.id ? node.declaration.id.name : "default");
+          handleExportedFn(node.declaration, nameOf(node.declaration.id));
         } else if (node.declaration && node.declaration.type === "VariableDeclaration") {
           for (const d of node.declaration.declarations) {
             if (d.init && (d.init.type === "ArrowFunctionExpression" || d.init.type === "FunctionExpression")) {
-              handleExportedFn(d.init, d.id.type === "Identifier" ? d.id.name : "default");
+              handleExportedFn(d.init, nameOf(d.id));
             }
           }
         }
@@ -120,7 +134,7 @@ module.exports = {
                   d.type === "ArrowFunctionExpression")) {
           // #119 site identity: a named default keeps its name; an anonymous
           // one is `default` — one file can carry at most one such site.
-          handleExportedFn(d, d.id ? d.id.name : "default");
+          handleExportedFn(d, nameOf(d.id));
         }
       },
     };

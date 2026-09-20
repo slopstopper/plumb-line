@@ -87,6 +87,17 @@ ruleTester.run("require-provenance-output", rule, {
     // the verdict is expression shape alone.
     { code: `export function f(x, r) { return x * r; }`,
       errors: [{ messageId: "untagged", data: { name: "f" } }] },
+    // #390: a destructuring declarator (non-Identifier id) gets a stable
+    // name derived from the pattern's source text, never the literal
+    // "default" — a real anonymous default export in the same file must
+    // remain a distinct site.
+    { code: IMPORT + `export const { a } = () => x * r;`,
+      errors: [{ messageId: "untagged", data: { name: "destructured { a }" } }] },
+    { code: IMPORT + `export const { a } = () => x * r;\nexport default (x, r) => x % r;`,
+      errors: [
+        { messageId: "untagged", data: { name: "destructured { a }" } },
+        { messageId: "untagged", data: { name: "default" } },
+      ] },
   ],
 });
 
