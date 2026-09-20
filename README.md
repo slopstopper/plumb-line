@@ -24,14 +24,20 @@ plumb-line finds those places, and can stop new ones from appearing. A set of re
 
 ## Try it on your repository
 
-The repository is its own Claude Code marketplace:
+Two ways in, the same files underneath.
+
+**With Claude Code.** The repository is its own marketplace:
 
 ```
 /plugin marketplace add slopstopper/plumb-line
 /plugin install plumb-line@plumb-line
 ```
 
-Then, in a repository you care about, run `plumb-line-audit`. It reads the code and writes a findings report, each finding tied to a file, a principle, and a suggested fix. This is what it wrote when pointed at the broken half of [the incident demo](examples/incident-toolserver/) below, with the answer key hidden from it:
+Then run `plumb-line-adopt`. It reads your repository and tells you which parts of plumb-line fit it and what to run first: the audit, `plumb-line-bootstrap` for lint rules and git hooks, the library at the boundaries where mocks and guesses enter, the Action in CI. Updates arrive through `/plugin`.
+
+**Without Claude.** The skills are markdown instructions over ordinary files, so any capable coding agent can follow them; [portable/README.md](portable/README.md) is the entry point and lists the host substitutions. The lint rules, hooks, library and GitHub Action need no agent at all: the install lines are [below](#the-library), and the Action is in [ACTION.md](ACTION.md).
+
+Whichever way in, the audit is the piece that hands you something to read, so this is what it writes. `plumb-line-audit` reads the code and writes a findings report, each finding tied to a file, a principle, and a suggested fix. This is what it wrote when pointed at the broken half of [the incident demo](examples/incident-toolserver/) below, with the answer key hidden from it:
 
 | Path | Line | Function | Issue | Principle |
 | ---- | ---- | -------- | ----- | --------- |
@@ -40,7 +46,7 @@ Then, in a repository you care about, run `plumb-line-audit`. It reads the code 
 
 Two of its seven findings, with the suggested-fix column dropped for width; [the full report](examples/incident-toolserver/audit-2026-09-20.md) is committed as written. Set against the demo's [answer key](examples/incident-toolserver/broken/VIOLATIONS.md), which the auditor could not see, every planted violation is there.
 
-The audit is LLM-assisted: it reads, it reasons, and it is measured rather than trusted ([how](#what-is-deterministic-and-what-is-not)). `plumb-line-remediate` applies a report's fixes only if you ask. `plumb-line-adopt` looks at a repository and says which parts of plumb-line fit it and what to run first. Updates arrive through `/plugin`. **Not using Claude?** [portable/README.md](portable/README.md) is the entry point without the plugin.
+The audit is LLM-assisted: it reads, it reasons, and it is measured rather than trusted ([how](#what-is-deterministic-and-what-is-not)). `plumb-line-remediate` applies a report's fixes only if you ask. `plumb-line-method` teaches the ideas without touching your code.
 
 ## The library
 
