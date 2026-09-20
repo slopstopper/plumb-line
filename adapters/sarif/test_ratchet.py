@@ -120,7 +120,8 @@ def test_two_findings_in_one_function_are_one_site():
 
 def test_capability_that_did_not_run_is_not_split_and_yields_no_stale():
     r = _untagged("js.output", "src/fx.mjs", "applyFx")
-    for state in (("tool-missing", None, "npm ci"), ("errored", "json", "exit 2"), ("ran", "json", RT.NO_MATCH_NOTE)):
+    for state in (("tool-missing", None, "npm ci"), ("errored", "json", "exit 2"), ("ran", "json", RT.NO_MATCH_NOTE),
+                  ("ran", "json", RT.UNPARSED_PREFIX + "src/fx.mjs")):
         out, s = RT.apply([r], {"js.output": state, "python.output": RAN}, _ok())
         assert s == {"known": 0, "new": 0, "stale": 0}, state
         assert out[0]["level"] == "error" and not out[0]["message"].endswith(RT.NEW_SUFFIX)
@@ -357,6 +358,59 @@ def test_update_over_an_unchanged_tree_writes_nothing_and_says_so(tmp_path):
     assert code == 0 and msg == "nothing changed"
     assert open(path, "rb").read() == before
     assert data["sites"] == {"python.output": ["src/p/b.py::a"]} and len(data["history"]) == 1
+
+
+# ---------- #392: an unparsed file inside the output surface is not measurable ----------
+
+def _syntax_error(filename):
+    return json.dumps([{"filename": filename, "line": 1, "rule": "parse", "message": "syntax error: invalid syntax"}])
+
+
+def test_measure_reports_an_unparsed_surface_file_as_unmeasured(tmp_path):
+    # "Cannot pin what could not be measured" was enforced per TOOL; a file
+    # inside the surface that the tool could not parse is one the output
+    # check never ran on, so the capability measured nothing either.
+    root = _consumer(tmp_path, MAN)
+    manifest = json.load(open(os.path.join(root, ".plumb-line", "enforcement.json"), encoding="utf-8"))
+    measured = RT.measure(root, manifest, _REPO,
+                          runner=FakeRunner({"provenance_lint.py:output": (1, _syntax_error("src/p/b.py"), "")}))
+    (state, sites) = measured["python.output"]
+    assert state == ("ran", "json", RT.UNPARSED_PREFIX + "src/p/b.py")
+    assert sites == [], "a surface that was not measured pins nothing"
+
+
+def test_update_refuses_when_a_surface_file_could_not_be_parsed(tmp_path):
+    root = _consumer(tmp_path, MAN)
+    code, msg, _ = RT.update(root, os.path.join(root, ".plumb-line", "enforcement.json"), _REPO, "x",
+                             runner=FakeRunner({"provenance_lint.py:output": (1, _syntax_error("src/p/b.py"), "")}))
+    assert code == 2 and "python.output" in msg and "src/p/b.py" in msg
+    assert not os.path.exists(os.path.join(root, ".plumb-line", "ratchet.json"))
+
+
+def test_prune_refuses_when_a_surface_file_could_not_be_parsed(tmp_path):
+    # The dangerous direction: pinned sites in the unreadable file look
+    # "no longer reported", so prune would erase them.
+    root = _consumer(tmp_path, MAN)
+    m = os.path.join(root, ".plumb-line", "enforcement.json")
+    RT.update(root, m, _REPO, "initial pin", today="2026-09-15",
+              runner=FakeRunner({"provenance_lint.py:output": (1, _issues(("src/p/b.py", "a")), "")}))
+    path = os.path.join(root, ".plumb-line", "ratchet.json")
+    before = open(path, "rb").read()
+    code, msg, _ = RT.prune(root, m, _REPO,
+                            runner=FakeRunner({"provenance_lint.py:output": (1, _syntax_error("src/p/b.py"), "")}))
+    assert code == 2 and "python.output" in msg and "src/p/b.py" in msg
+    assert open(path, "rb").read() == before
+
+
+def test_update_refuses_when_an_eslint_surface_file_could_not_be_parsed(tmp_path):
+    root = _consumer(tmp_path, JS_MAN)
+    fatal = json.dumps([{"filePath": os.path.join(root, "src", "p", "b.js"),
+                         "messages": [{"ruleId": None, "fatal": True, "severity": 2,
+                                      "message": "Parsing error: Unexpected token", "line": 1, "column": 8}]}])
+    code, msg, _ = RT.update(root, os.path.join(root, ".plumb-line", "enforcement.json"), _REPO, "x",
+                             runner=FakeRunner({"eslint:src/p/**/*.js": (1, fatal, ""), "eslint": (0, "[]", "")}))
+    assert code == 2 and "js.output" in msg and "src/p/b.js" in msg
+    assert not os.path.exists(os.path.join(root, ".plumb-line", "ratchet.json"))
 
 
 def test_history_change_must_not_be_blank():

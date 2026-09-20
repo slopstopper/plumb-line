@@ -225,7 +225,13 @@ def _run_capabilities(root, caps, scripts_dir, runner, which, only=None):
         for r in parsed:
             r["capability"] = key
         results.extend(parsed)
-        states[key] = ("ran", parser, None)
+        # #392: a file inside an OUTPUT surface the tool could not parse is
+        # one the output check never ran on, so the capability is `ran` but
+        # measured nothing — the note says which file, and the ratchet reads
+        # the note. Scoped to the output capabilities: an unmappable item in
+        # a provenance or boundary run says nothing about a pinned surface.
+        note = RT.unparsed_note(parsed, key) if key in RT.OUTPUT_CAPS else None
+        states[key] = ("ran", parser, note)
     return states, results
 
 

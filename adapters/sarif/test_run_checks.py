@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 
+from adapters.sarif import ratchet as RT
 from adapters.sarif import run_checks as R
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -481,7 +482,6 @@ def _untagged_issues(*sites):
 
 
 def _ratchet(root, sites):
-    from adapters.sarif import ratchet as RT
     d = RT.empty()
     d["sites"] = sites
     d["history"] = [{"date": "2026-09-15", "because": "initial pin", "change": "pinned"}]
@@ -650,6 +650,59 @@ def test_unmeasured_surface_without_a_configured_ratchet_is_still_green(tmp_path
     code, s, _, _ = _run(root, tmp_path, FakeRunner({"provenance_lint.py": (0, "[]", "")}))
     assert code == 0 and s["ratchet"] is None
     assert s["capabilities"]["python.output"]["note"] == R.NO_MATCH_NOTE
+
+
+def test_unparsed_surface_file_leaves_the_output_capability_unmeasured(tmp_path):
+    # #392: a surface file provenance_lint.py could not parse (rule `parse`,
+    # a syntax error) is one require-provenance-output never ran on. The
+    # capability used to stay a plain `ran`, so the ratchet measured the
+    # surface as if that file had no sites — `update` would pin the set,
+    # `prune` would drop whatever the unreadable file used to hold.
+    root = _consumer(tmp_path, PY_OUT)
+    _ratchet(root, {"python.output": ["src/p/b.py::pinned"]})
+    syntax = json.dumps([{"filename": "src/p/b.py", "line": 1, "rule": "parse",
+                          "message": "syntax error: invalid syntax"}])
+    fake = FakeRunner({"provenance_lint.py": (0, "[]", ""), "provenance_lint.py:output": (1, syntax, "")})
+    code, s, sarif, text = _run(root, tmp_path, fake, fail_on="none")
+    cap = s["capabilities"]["python.output"]
+    assert cap["state"] == "ran" and cap["note"] == RT.UNPARSED_PREFIX + "src/p/b.py"
+    assert s["ratchet"]["unmeasured"] == ["python.output"]
+    # Unmeasured, so nothing is split and nothing is pruned: the pinned site
+    # is neither a known-note nor a stale-note, and the job fails outright.
+    assert s["ratchet"]["known"] == 0 and s["ratchet"]["stale"] == 0
+    assert [r["ruleId"] for r in sarif["runs"][0]["results"]] == ["PL/unparsed"]
+    assert code == 1 and "src/p/b.py" in text
+
+
+def test_js_unparsed_surface_file_leaves_js_output_unmeasured(tmp_path):
+    # The JS half of the same rule: an ESLint fatal (ruleId null) on a file
+    # inside outputGlobs. Same for a require-provenance-output message with
+    # no [site: …] marker — a site the assembler could not key.
+    root = _consumer(tmp_path, JS_OUT)
+    _ratchet(root, {"js.output": ["src/p/b.js::f"]})
+    fatal = json.dumps([{"filePath": os.path.join(root, "src", "p", "b.js"),
+                         "messages": [{"ruleId": None, "fatal": True, "severity": 2,
+                                      "message": "Parsing error: Unexpected token", "line": 1, "column": 8}]}])
+    fake = FakeRunner({"eslint:src/p/**/*.js": (1, fatal, ""), "eslint": (0, "[]", "")})
+    code, s, _, _ = _run(root, tmp_path, fake, fail_on="none")
+    assert code == 1 and s["capabilities"]["js.output"]["note"] == RT.UNPARSED_PREFIX + "src/p/b.js"
+    assert s["ratchet"]["unmeasured"] == ["js.output"]
+
+
+def test_unparsed_file_outside_an_output_surface_leaves_the_capability_measured(tmp_path):
+    # The rule is scoped to the output capabilities: an item the assembler
+    # could not map in js.provenance's or python.provenance's run says
+    # nothing about whether the OUTPUT surface was measured.
+    root = _consumer(tmp_path, PY_OUT)
+    _ratchet(root, {"python.output": ["src/p/b.py::pinned"]})
+    syntax = json.dumps([{"filename": "src/a.py", "line": 1, "rule": "parse", "message": "syntax error: bad"}])
+    fake = FakeRunner({"provenance_lint.py": (1, syntax, ""),
+                       "provenance_lint.py:output": (1, _untagged_issues(("src/p/b.py", "pinned")), "")})
+    code, s, _, _ = _run(root, tmp_path, fake, fail_on="none")
+    assert s["capabilities"]["python.provenance"]["note"] is None
+    assert s["ratchet"] == {"file": ".plumb-line/ratchet.json", "state": "ran", "known": 1, "new": 0,
+                            "stale": 0, "unmeasured": []}
+    assert code == 0
 
 
 def test_js_boundary_no_match_note_says_what_it_lints_not_globs(tmp_path):

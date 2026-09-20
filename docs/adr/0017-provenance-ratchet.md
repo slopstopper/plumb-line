@@ -58,6 +58,19 @@ alternatives.
 - An absent `sites` key means "never measured"; an empty list means
   "measured and clean" — the null result is expressible (portable
   principles, the spine).
+- "Measured" is decided per **file**, not per tool (#392, 2026-09-20). A
+  file inside the output surface that the tool could not parse — a Python
+  syntax error, an ESLint fatal, a `require-provenance-output` message
+  whose `[site: …]` marker is missing — leaves the whole capability
+  unmeasured, so `update` cannot pin a set computed as though that file
+  held no sites and `prune` cannot drop the ones it used to hold. The
+  runner reports it as `ran` with an `unparsed surface file:` note, and a
+  configured ratchet whose surface went unmeasured for any reason fails the
+  job regardless of `fail-on` (#395), as a missing tool does: a ratchet is
+  a standing claim about a surface, and a surface nothing ran on cannot
+  uphold it. Rejected: an `--allow-unparsed` escape hatch on `update` — the
+  one case it would serve (a file that legitimately cannot be parsed) is
+  exactly the case where the pinned set is a guess.
 - The summary format is bumped to **v2** because `findings` changed meaning:
   it no longer counts note-level results, and `notes` and `ratchet` were
   added. A v1 consumer summing `findings` would under-count only when a
@@ -66,6 +79,7 @@ alternatives.
 - The JS site marker is a text convention inside a message. The assembler
   turns a marker-less `require-provenance-output` message into
   `PL/unparsed`, so template drift is loud, never a silently site-less
-  finding.
+  finding — and, by the per-file rule above, it also leaves that surface
+  unmeasured rather than pinning a set with the site missing.
 - Editor-side ESLint still reports every site as an error. That boundary
   is stated in ACTION.md rather than papered over.

@@ -160,7 +160,11 @@ Two shapes, with different consequences:
   ESLint rule id, a malformed `provenance_lint.py` entry, an import-linter
   line the parser's grammar doesn't recognise — is a real finding. The
   capability's state stays `ran`; that one item just carries `PL/unparsed`
-  instead of a mapped rule.
+  instead of a mapped rule. One exception, in the direction of caution: if
+  the item carries a file and the capability is an **output** surface
+  (`js.output`/`python.output`), that file is one the output check never
+  ran on, so the capability is `ran` but **unmeasured** — see
+  [Ratchet mode](#ratchet-mode) (#392).
 - **A whole payload the parser could not read at all** — empty output,
   non-JSON where JSON was expected, JSON of the wrong shape, or a text
   report with no summary line — makes the parser return exactly one
@@ -302,6 +306,16 @@ was not measured, and the `outputGlobs` that found nothing. Without a
 ratchet configured, an unmeasured capability is still an ordinary green
 `ran` with zero results — there is no pinned claim to contradict.
 
+Unmeasurability is per **file**, not per tool (#392). A file inside the
+output surface that the tool could not parse — a Python syntax error, an
+ESLint fatal, or a `require-provenance-output` message with no `[site: …]`
+marker — is a file the output check never ran on, so the capability is
+`ran` with the note `unparsed surface file: <path>` and counts as
+unmeasured: the ratchet neither splits nor prunes its sites, `update` and
+`prune` refuse, and a configured ratchet fails the job. Otherwise `update`
+would pin a set computed as though the unreadable file held no sites, and
+`prune` would drop the ones it used to hold.
+
 When the file is invalid the
 capability table also carries a synthetic `ratchet` row in state `errored`,
 even though the ratchet is not a capability: that is how a file the runner
@@ -323,8 +337,9 @@ write it:
 - `ratchet.py update --because "<reason>"` — sets the sites to exactly what
   is reported now. Refuses an empty reason (the set may have grown) and
   refuses when any output capability could not be measured (tool missing,
-  errored, no files matched — and an empty ESLint file list counts as no
-  match): you cannot pin what you could not see. It is idempotent: when the
+  errored, no files matched — an empty ESLint file list counts as no match
+  — or a file *inside* the surface the tool could not parse, #392): you
+  cannot pin what you could not see. It is idempotent: when the
   measured sites equal what the file already pins, it writes nothing and
   reports `nothing changed`, so re-running never appends a history entry
   for a change that did not happen.
@@ -372,7 +387,8 @@ Every outcome is a named state; nothing passes by silence.
 | A tool exits non-zero and its output is unreadable | Capability is `errored`; the tool's stderr (or stdout when stderr is empty), truncated, is in the summary; job fails even under `fail-on: none`. A check that could not run is not a check that passed. |
 | A tool exits non-zero with parsed findings | Normal: findings are mapped; job fails unless `fail-on: none`. |
 | A capability's globs match no file | `ran`, zero results, never `errored`, with the note `no files matched the globs` — in **both** languages (`js.boundary` lints `root`, not globs, so its note reads `eslint linted no files under root`). The Python tools are not invoked at all; ESLint runs with `--no-error-on-unmatched-pattern` and returns an empty file list, which the runner reads as no match (ESLint emits one entry per *linted* file even when that file is clean, so an empty top-level array means nothing was linted). A capability with that note is `ran` but unmeasured: the ratchet neither splits nor prunes its sites, and `ratchet.py update`/`prune` refuse. |
-| The manifest names a ratchet and an output capability was never measured | The job fails **even under `fail-on: none`** (#395), whether the surface went unmeasured through a missing tool, an errored tool, or globs that matched no file. The summary lists each unmeasured capability with its reason and its `outputGlobs`. A ratchet is a standing claim about a surface; a surface nothing ran on cannot uphold it. |
+| The manifest names a ratchet and an output capability was never measured | The job fails **even under `fail-on: none`** (#395), whether the surface went unmeasured through a missing tool, an errored tool, globs that matched no file, or a surface file that did not parse. The summary lists each unmeasured capability with its reason and its `outputGlobs`. A ratchet is a standing claim about a surface; a surface nothing ran on cannot uphold it. |
+| A file inside an output surface does not parse | The file's `PL/unparsed` warning is kept (a surface file the tool could not read is not a clean file), and the capability is `ran` with the note `unparsed surface file: <path>`, which makes it **unmeasured** (#392): its sites are neither split nor pruned, `ratchet.py update`/`prune` refuse, and with a ratchet configured the job fails regardless of `fail-on`. Unmeasurability is per file, not per tool. |
 | Valid manifest, zero capabilities | Job succeeds, empty SARIF run, the summary says plainly that zero checks ran — an empty green is legible as empty, never as clean. |
 | Upload step fails (no `security-events: write`, code scanning off) | `continue-on-error: true` on that step ties the job's exit code to the enforcement result alone; a follow-on step emits a `::warning::` naming the permission (`security-events: write`) and the code-scanning setting as the two things to check; the SARIF file is still written and named in the summary. |
 | `fail-on: none` | Findings still upload, the summary states the mode, exit 0 — unless a capability is `tool-missing` or `errored`, or a configured ratchet's output surface was never measured, which fail regardless. |

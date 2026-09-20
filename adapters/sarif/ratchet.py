@@ -41,9 +41,16 @@ OUTPUT_CAPS = ("js.output", "python.output")
 _HISTORY_KEYS = {"date", "because", "change"}
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-# The only state note run_checks.py writes for a `ran` capability whose tool
-# was never invoked. Such a capability proves nothing about its sites.
+# The two state notes run_checks.py writes for a `ran` output capability that
+# measured nothing after all. Either one proves nothing about its sites.
 NO_MATCH_NOTE = "no files matched the globs"
+# #392: prefix + the surface files the tool could not read. Unmeasurability is
+# per FILE, not per tool: one file inside the surface that ESLint or
+# provenance_lint.py could not parse is one the output check never ran on, so
+# the whole capability is unmeasured. Without this, `update` pins a set
+# computed as though that file held no sites and `prune` erases the ones it
+# used to hold — a silent shrink of the debt register.
+UNPARSED_PREFIX = "unparsed surface file: "
 
 KNOWN_PREFIX = "known (ratchet): "
 NEW_SUFFIX = (" New untagged output (ratchet): wrap it with derive()/mark(), or accept it with: "
@@ -147,9 +154,30 @@ def site_of(r):
     return f"{r['file']}::{r['site']}" if r.get("file") and r.get("site") else None
 
 
+def unparsed_note(results, cap):
+    """The note for an output capability whose tool could not parse a file
+    inside the surface, or None. A capability's results come from its own
+    command, which is given exactly that surface (the expanded globs, or
+    ESLint's outputGlobs), so any PL/unparsed carrying a file is a surface
+    file — no glob matching needed here. `whole` results are excluded: those
+    stand in for an ENTIRE unreadable payload, which the orchestrator
+    already calls `errored` (or keeps as one location-less finding)."""
+    files = sorted({r["file"] for r in results
+                    if r.get("capability") == cap and r["ruleId"] == "PL/unparsed"
+                    and r.get("file") and not r.get("whole")})
+    return UNPARSED_PREFIX + ", ".join(files) if files else None
+
+
+def measures_nothing(note):
+    """True for the notes a `ran` output capability carries when its tool
+    never actually saw the surface: no file matched, or a file in it did
+    not parse. Both leave the capability unmeasured."""
+    return note == NO_MATCH_NOTE or (isinstance(note, str) and note.startswith(UNPARSED_PREFIX))
+
+
 def _measured(states, cap):
     st = states.get(cap)
-    return st is not None and st[0] == "ran" and st[2] != NO_MATCH_NOTE
+    return st is not None and st[0] == "ran" and not measures_nothing(st[2])
 
 
 def apply(results, states, ratchet):
@@ -238,7 +266,7 @@ def _load_manifest(root, manifest_path):
 
 def _unmeasurable(measured):
     bad = [f"{cap}: {st[0]}" + (f" ({st[2]})" if st[2] else "") for cap, (st, _) in measured.items()
-           if not (st[0] == "ran" and st[2] != NO_MATCH_NOTE)]
+           if st[0] != "ran" or measures_nothing(st[2])]
     return "cannot pin what could not be measured — " + "; ".join(bad) if bad else None
 
 
