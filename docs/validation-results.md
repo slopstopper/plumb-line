@@ -1140,3 +1140,114 @@ validated with `scripts/check_report_format.py` — clean (exit 0). Coverage:
 - The full JS/Python suites, the parity gate, and the six-cell Action matrix
   (now including `ratchet-adoption`) run green in CI on every merged PR of
   this batch.
+
+## v0.11.1 release-harness record — 2026-09-20 (pre-tag)
+
+Method-surface diff since v0.11.0 is the seven ratchet and Action fixes of
+milestone v0.11.1 (#389, #390, #391, #392, #393, #395, #397: `adapters/sarif`,
+`adapters/js/provenance-lint`, `scripts/check_report_format.py`, a new
+`examples/ratchet-adoption-js` fixture). The audit and remediate skills did
+not change. `docs/release-harness.md` keys the run on the diff touching
+`adapters/`, so both parts ran; Part 1b was skipped because remediate did not
+change. Run at `370908c` (main after PR #410), before the bump commit.
+
+### Rig note, recorded first
+
+Every auditor read the worktree's `skills/plumb-line-audit/SKILL.md` and
+`reference/portable-principles.md` directly, per the protocol, and was told
+to read nothing else in the checkout. Two auditors (js-broken A, py-broken A)
+took that literally and did not run `scripts/check_report_format.py` on their
+own output, writing `format-validation: not run`; the other four ran it, one
+via a copy of the checker outside the checkout. The skill's earned-verdict
+rule tells the auditor to run the checker, so the restriction, not the
+skill, is why those two reports were never self-checked. Their format
+results below are scored as the checker saw them, and the restriction is
+loosened in the next run's dispatch (the checker path is allowed reading).
+All six auditors ran on the same model (Claude Sonnet 5), stated here because
+the record has not named the model before.
+
+### Part 1 — Blind validation (release-blocking): 6/6 findings PASS
+
+Fixtures staged by `evals/audit-*/scaffold.sh` (answer keys deleted,
+violation-naming lines stripped, strip self-verified: `grep -ri violation`
+empty on every copy); six read-only auditors, two independent per `broken/`
+variant, one per `clean/`, identical plain prompt (the `evals/*/prompt.md`
+text) carrying the declared architecture.
+
+| Run | Planted set | Result |
+| --- | --- | --- |
+| js-broken A | P2 rates.js, P5 pricing.js, P3 gateway.js — all confirmed violations | PASS |
+| js-broken B | same three confirmed; the gateway row is filed under P8 — State-first lineage in the findings table (its issue text names the missing provenance and confidence) and under P3 — Confidence + provenance in the omission table | PASS |
+| py-broken A | P2 schema.py, P5 aggregate.py, P8 source.py — all confirmed violations; the upward import also confirmed by running the fixture's own `lint-imports` | PASS |
+| py-broken B | same three confirmed | PASS |
+| js-clean | 0 confirmed violations; P7/P9 and the always-`accepted` stub as advisory | PASS |
+| py-clean | 0 confirmed violations; P7/P9 advisory; stub-confidence overwrite as needs-review | PASS |
+
+Calibration notes, recorded honestly:
+
+- **One false positive** (js-broken B): it read `eslint-boundary.cjs`'s
+  `import/no-restricted-paths` zones with `target` and `from` reversed and
+  reported the config as "inverted", blocking legitimate downward imports and
+  missing the real leak. The zones are correct (`target` is the directory
+  whose files may not import from `from`); auditor A and the js-clean run
+  read the same file correctly. Recorded because a wrong reading of a
+  generated config would send an adopter to "fix" a working guard.
+- js-broken B also reported the dropped `weightsVersion` in the ui output
+  and the unconditional `accepted: true` as violations rather than advisory;
+  both are real gaps in the fixture, and the second is a judgement call the
+  other runs made the other way.
+- The P8 omission row was confirmed as a violation in both Python runs.
+
+### Format scoring (tool, not impression) — 4/6 conform
+
+`python3 scripts/check_report_format.py <report>` on each saved report; the
+checker's provenance line:
+
+`check_report_format v2 — joins soft-wrapped prose before matching inline principle names (tables unaffected); models report-format v1/v2/v3, remediation-format v1, routing-format v1; ruleset reference/portable-principles.md at principles-revision 1`
+
+| Run | Exit | Failure |
+| --- | --- | --- |
+| js-broken A | 1 | glossary rendered inside a fenced code block, so every cited principle reads as "not in the glossary"; bare `P7`/`P9` in the omission note |
+| js-broken B | 0 | — |
+| js-clean | 0 | — |
+| py-broken A | 1 | `P9` cited bare in the omission table and absent from the glossary |
+| py-broken B | 0 | — |
+| py-clean | 0 | — |
+
+Both failures are the two runs that did not self-check (rig note above). The
+fenced-glossary failure is a real skill-output wobble the checker exists to
+catch: the skill says the glossary is a plain block, and the checker cannot
+read one inside a fence. No skill change is made for a patch; noted for the
+next skill revision.
+
+### Part 1b — Remediate validation
+
+Skipped: `skills/plumb-line-remediate/SKILL.md` is unchanged since v0.11.0.
+
+### Part 2 — Dogfood self-audit (non-blocking)
+
+See [`dogfood.md`](dogfood.md), v0.11.1 section — **6 findings: 3
+violations, 3 needs-review**, all in the ratchet and report-format machinery
+that #392 and #395 made load-bearing. One fixed in the harness pass
+(committed audit reports are now re-validated by `scripts/test_report_format.py`
+against the current checker); two already tracked
+([#388](https://github.com/slopstopper/plumb-line/issues/388),
+[#398](https://github.com/slopstopper/plumb-line/issues/398)); three
+deferred as `audit-deferral` issues in v0.11.2
+([#411](https://github.com/slopstopper/plumb-line/issues/411),
+[#412](https://github.com/slopstopper/plumb-line/issues/412),
+[#413](https://github.com/slopstopper/plumb-line/issues/413)). Report
+validated with `scripts/check_report_format.py` — clean (exit 0) on the
+first run. Coverage: 13/26 diff files read, 12 partial, 1 not-read, stated
+as such.
+
+### Deterministic pre-tag checks
+
+- `python3 scripts/check_report_format.py` — four blind reports and the
+  dogfood report exit 0; two blind reports exit 1 as tabled above.
+- `python3 scripts/check_version_prose.py` — `✓ all live wire-version prose
+  matches PROVENANCE_VERSION = 2`.
+- `node scripts/check-versions.mjs` — all release version fields at 0.11.1
+  after the bump; `node scripts/check-bundle-sync.mjs` — in sync.
+- The full JS/Python suites and the eight-cell Action matrix (now including
+  `ratchet-adoption-js`) ran green in CI on PR #410.
