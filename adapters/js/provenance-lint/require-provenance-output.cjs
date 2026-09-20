@@ -51,11 +51,15 @@ module.exports = {
     // that literal. Anything else (a destructuring pattern, e.g.
     // `export const { a } = ...`) derives a stable name from the pattern's
     // own source text so it can never collide with a real anonymous default
-    // export in the same file.
+    // export in the same file. The SARIF assembler extracts the site marker
+    // with a regex anchored on the first "]" it finds (adapters/sarif/
+    // assemble.py: SITE_RE), so a derived name must never contain "]" — an
+    // array pattern's brackets are swapped for parens accordingly.
     const nameOf = (id) => {
       if (!id) return "default";
       if (id.type === "Identifier") return id.name;
-      const text = context.sourceCode.getText(id).replace(/\s+/g, " ").trim();
+      const text = context.sourceCode.getText(id).replace(/\s+/g, " ").trim()
+        .replace(/\[/g, "(").replace(/\]/g, ")");
       return `destructured ${text}`;
     };
 

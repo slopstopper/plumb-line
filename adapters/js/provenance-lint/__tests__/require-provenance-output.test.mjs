@@ -98,6 +98,11 @@ ruleTester.run("require-provenance-output", rule, {
         { messageId: "untagged", data: { name: "destructured { a }" } },
         { messageId: "untagged", data: { name: "default" } },
       ] },
+    // An array-pattern declarator's brackets would otherwise leak into the
+    // rendered "[site: ...]" marker and break the SARIF assembler's regex
+    // (which stops at the first "]"). They're swapped for parens.
+    { code: IMPORT + `export const [a] = () => x * r;`,
+      errors: [{ messageId: "untagged", data: { name: "destructured (a)" } }] },
   ],
 });
 
