@@ -13,13 +13,38 @@
 <a href="https://pypi.org/project/plumb-line-provenance/"><img src="https://img.shields.io/pypi/v/plumb-line-provenance?logo=pypi&logoColor=white" alt="PyPI"></a>
 <a href="https://github.com/slopstopper/plumb-line/actions/workflows/ci.yml"><img src="https://github.com/slopstopper/plumb-line/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0"></a>
+<a href="primitives/conformance/README.md#the-badge"><img src="https://img.shields.io/badge/provenance-plumb--line_v2-3b82f6" alt="provenance: plumb-line v2"></a>
 </p>
 
-Every value in a program came from somewhere: a database, an API call, a test fixture, a default, a guess. Once it is sitting in a variable they all look the same, and the code that uses it cannot tell a measured number from a stubbed one. That is how a stubbed service answers "success" and the tests go green, how a guessed field flows into a report, and how a fallback meant for local development ends up shipping. Nothing fails loudly. The final number just looks as solid as everything around it.
+Every value in a program came from somewhere: a database, an API call, a test fixture, a default, a guess. Once it is sitting in a variable they all look the same. That is how a stubbed service answers "success" and the tests go green, how a guessed field flows into a report, and how a fallback an agent wrote to get a test passing ends up behind the dashboard, weeks after anyone remembers it is a fallback.
 
-plumb-line is a small library for JavaScript and Python that labels each value with where it came from (`real`, `mock`, `inferred`, `fallback`) and how much to trust it (`high` down to `none`), and keeps those labels attached as the value is combined with others. If a result was built from a mock or a guess, the result says so, and no later step can quietly upgrade it. Around the library, a set of review-time tools (Claude Code skills, lint rules and a GitHub Action) check a codebase for places where that honesty got lost.
+plumb-line finds those places, and can stop new ones from appearing. A set of review-time tools (a Claude Code audit skill, lint rules, git hooks and a GitHub Action) checks a repository or a pull request for mocks treated as real, guesses treated as facts, and claims with nothing behind them. A small zero-dependency library for JavaScript and Python labels each value with where it came from and how much to trust it, and keeps the label attached through every derivation: a result built from a mock says so, and no later step can upgrade it.
 
-One rule sits underneath all of it: combining values can keep or lower their trust level, never raise it ([the combination law](primitives/SPEC.md#3-the-combination-law)).
+**You probably want this if** AI agents write or modify your code; if mocks, fixtures, fallbacks or synthetic values sit anywhere between an input and an output; or if your outputs are claims: a figure in a paper, a risk score, a forecast, a "safe to proceed". Common in agent-built systems, research code, data and ML pipelines, and inherited codebases. If your app reads a trusted database and shows what it finds, you probably don't need the run-time layer; the [fit map](reference/fit-map.md) says so plainly.
+
+## Try it on your repository
+
+The repository is its own Claude Code marketplace:
+
+```
+/plugin marketplace add slopstopper/plumb-line
+/plugin install plumb-line@plumb-line
+```
+
+Then, in a repository you care about, run `plumb-line-audit`. It reads the code and writes a findings report, each finding tied to a file, a principle, and a suggested fix. This is what it wrote when pointed at the broken half of [the incident demo](examples/incident-toolserver/) below, with the answer key hidden from it:
+
+| Path | Line | Function | Issue | Principle |
+| ---- | ---- | -------- | ----- | --------- |
+| `broken/toolserver.mjs` | 25-27 | `spawnWorker` | Stub returns a hardcoded `success: true` payload (`workerId: "worker-1"`, `status: "ready"`) with no worker actually spawned, and no label marking the value as mock; it flows straight into the shared `results` array used for the aggregate health report. | P4 — Quarantined fakery |
+| `broken/toolserver.mjs` | 50-52 | (health report) | `system health: operational (5/5 tools succeeded)` is printed when 3 of the 5 "tools" are unbuilt stubs; no `mock` / `not-implemented` maturity label is applied anywhere in the file to `spawnWorker`, `orchestrateTasks`, or `storeMemory`, so the report claims a fully operational, current system. | P6 — Maturity vocabulary |
+
+Two of its seven findings, with the suggested-fix column dropped for width; [the full report](examples/incident-toolserver/audit-2026-09-20.md) is committed as written. Set against the demo's [answer key](examples/incident-toolserver/broken/VIOLATIONS.md), which the auditor could not see, every planted violation is there.
+
+The audit is LLM-assisted: it reads, it reasons, and it is measured rather than trusted ([how](#what-is-deterministic-and-what-is-not)). `plumb-line-remediate` applies a report's fixes only if you ask. `plumb-line-adopt` looks at a repository and says which parts of plumb-line fit it and what to run first. Updates arrive through `/plugin`. **Not using Claude?** [portable/README.md](portable/README.md) is the entry point without the plugin.
+
+## The library
+
+Where the audit finds a mock that reached an output, the library is how you make that impossible from then on. One rule sits underneath it: combining values can keep or lower their trust level, never raise it ([the combination law](primitives/SPEC.md#3-the-combination-law)).
 
 ```js
 const base  = mark(1000, { source: "real", confidence: "high" });
@@ -30,20 +55,7 @@ total.derivedFromMock; // true   inherited from rate, and impossible to clear
 total.confidence;      // 'low'  only as certain as the weakest input
 ```
 
-`mark` puts the labels on a value. `derive` runs your own function on labelled values and carries the labels through, keeping the weakest. The library never does the arithmetic and never changes a value; it only keeps the labels honest.
-
-## Install
-
-**As a Claude Code plugin.** The repository is its own marketplace:
-
-```
-/plugin marketplace add slopstopper/plumb-line
-/plugin install plumb-line@plumb-line
-```
-
-Then run `plumb-line-adopt`. It looks at your repository and tells you which parts of plumb-line fit and what to run first. Updates arrive through `/plugin`.
-
-**The library**, with or without the plugin:
+`mark` puts the labels on a value (`real`, `mock`, `inferred`, `fallback`; confidence `high` down to `none`). `derive` runs your own function on labelled values and carries the labels through, keeping the weakest. The library never does the arithmetic and never changes a value; it only keeps the labels honest.
 
 ```bash
 npm install plumb-line-provenance      # JavaScript
@@ -53,8 +65,6 @@ pip install plumb-line-provenance      # Python
 Zero dependencies. You can also copy `primitives/js/` or `primitives/python/` straight into your project.
 
 **In CI.** Add the [GitHub Action](ACTION.md). On every pull request it runs the checks your `.plumb-line/enforcement.json` manifest names and writes one SARIF log, with no agent involved. Write that manifest by hand — the shape is in [ACTION.md](ACTION.md); having `plumb-line-bootstrap` write it is planned, not yet proven. Uploading the log to GitHub's code-scanning tab is wired (a sha-pinned `upload-sarif` step), but this repo's own CI uploads nothing, so ingestion is unobserved until an adopter reports it.
-
-**Not using Claude?** [portable/README.md](portable/README.md) is the entry point without the plugin.
 
 ## A real incident, reconstructed
 
@@ -95,15 +105,6 @@ It is the first of three documented incidents reconstructed in this repository, 
 
 Different fields, same pattern: information lost its status somewhere in the system, and a downstream claim was treated as stronger than its evidence. None of the reconstructions claims plumb-line would have prevented the incident; each shows where the lost status would have been visible.
 
-## You probably want this if
-
-- **AI agents write or modify your code.** An agent that stubs a dependency to get a test green cannot tell you, weeks later, that the dashboard rests on that stub.
-- **Mocks, fixtures, fallbacks, inferred or synthetic values** sit anywhere between an input and an output.
-- **Your outputs are claims**: a figure in a paper, a risk score, a forecast, a "safe to proceed".
-- **You need to know what evidence supports a result**, as well as what the result is.
-
-Common in research and scientific code, data and ML pipelines, agent-built systems, and inherited codebases. If your app reads a trusted database and shows what it finds, you probably don't need the run-time layer; the [fit map](reference/fit-map.md) says so plainly.
-
 ## How it fits together
 
 ```mermaid
@@ -125,10 +126,6 @@ flowchart TB
 ## What is deterministic, and what is not
 
 The library, the lint rules, the hooks and the Action are deterministic: the same inputs always give the same result. A [conformance suite](primitives/conformance/) holds the JavaScript and Python versions to identical behaviour, and the [validation results](docs/validation-results.md) show every planted violation caught with no false positives.
-
-[![provenance: plumb-line v2](https://img.shields.io/badge/provenance-plumb--line_v2-3b82f6)](https://github.com/slopstopper/plumb-line/blob/main/primitives/SPEC.md)
-
-That badge is earned, not decorative: `node primitives/conformance/report.mjs` passes every case in the suite against the current envelope schema. Any project that enforces provenance with plumb-line, or ships its own conformant implementation, can generate and carry the same badge ([how](primitives/conformance/README.md#the-badge)).
 
 The audit and remediate skills use an LLM, so plumb-line measures them instead of trusting them. Before any release that changes them, independent auditors run them blind against test repositories with violations planted and the answers removed; a missed violation blocks the release unless a maintainer waives it in writing ([the harness](docs/release-harness.md)). For v0.11.0, all six auditors found every planted violation and invented none, and both remediators refused to launder a mock under gate pressure ([the record](docs/validation-results.md#v0110-release-harness-record--2026-09-15-pre-tag)).
 
@@ -161,7 +158,7 @@ Current on `main`: the library with JS/Python parity, published to npm and PyPI 
 ## Reference
 
 - [`primitives/README.md`](primitives/README.md): the model, the law, the envelope fields, the runtime checker, the baseline API, worked examples
-- [`primitives/SPEC.md`](primitives/SPEC.md): envelope schema, version 2 · [`primitives/conformance/`](primitives/conformance/): the case table both languages are held to
+- [`primitives/SPEC.md`](primitives/SPEC.md): envelope schema, version 2 · [`primitives/conformance/`](primitives/conformance/): the case table both languages are held to and [the badge](primitives/conformance/README.md#the-badge) any conformant project can carry
 - [`ACTION.md`](ACTION.md): the GitHub Action, its manifest and SARIF output · [`adapters/`](adapters/): the lint rules and hooks bootstrap installs
 - Ingestion adapters, optional extras: HTTP ([ADR-0012](docs/adr/0012-ecosystem-adapters-optional-deps-and-mapping.md)) and dataframe ([ADR-0013](docs/adr/0013-dataframe-adapters-explicit-combinators.md))
 - [`reference/portable-principles.md`](reference/portable-principles.md): the nine principles · [`reference/fit-map.md`](reference/fit-map.md): does the library fit your codebase
