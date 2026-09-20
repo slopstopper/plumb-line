@@ -12,8 +12,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ### Changed
 - **README opening tightened.** Three paragraphs reach "you probably want
   this if" on the first screen; the Install section is unchanged and the
-  library snippet follows it under its own heading. The incident demo now
-  also shows two findings from a blind audit of its broken half, verbatim
+  library snippet follows it under its own heading. A short "What the audit
+  writes" section after "How it fits together" shows two findings from a
+  blind audit of the toolserver demo's broken half, verbatim
   (the full report is committed at
   `examples/incident-toolserver/audit-2026-09-20.md`). The conformance badge
   moved into the badge row and its explanatory paragraph was cut; the

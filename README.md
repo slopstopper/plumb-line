@@ -90,16 +90,7 @@ attempted launder (derive with source: "real"):
 
 Same code, same "operational". The second version knows that three of its five results came from stubs, and when the code tries to relabel the report as real, the library refuses. That is the whole idea: a mocked result cannot be laundered into a real one.
 
-The review-time half sees the same thing from the outside. Pointed at the broken half with the answer key hidden from it, `plumb-line-audit` wrote a findings report; two of its seven findings:
-
-| Path | Line | Function | Issue | Principle |
-| ---- | ---- | -------- | ----- | --------- |
-| `broken/toolserver.mjs` | 25-27 | `spawnWorker` | Stub returns a hardcoded `success: true` payload (`workerId: "worker-1"`, `status: "ready"`) with no worker actually spawned, and no label marking the value as mock; it flows straight into the shared `results` array used for the aggregate health report. | P4 — Quarantined fakery |
-| `broken/toolserver.mjs` | 50-52 | (health report) | `system health: operational (5/5 tools succeeded)` is printed when 3 of the 5 "tools" are unbuilt stubs; no `mock` / `not-implemented` maturity label is applied anywhere in the file to `spawnWorker`, `orchestrateTasks`, or `storeMemory`, so the report claims a fully operational, current system. | P6 — Maturity vocabulary |
-
-The suggested-fix column is dropped for width; [the full report](examples/incident-toolserver/audit-2026-09-20.md) is committed as written. Set against the demo's [answer key](examples/incident-toolserver/broken/VIOLATIONS.md), which the auditor could not see, every planted violation is there.
-
-The toolserver is the first of three documented incidents reconstructed in this repository, from three different fields:
+It is the first of three documented incidents reconstructed in this repository, from three different fields:
 
 | Field | What happened | What forgot where it came from | |
 | --- | --- | --- | --- |
@@ -126,6 +117,17 @@ flowchart TB
 ```
 
 **Run time** is the library: labels travel with values inside your own code. **Review time** looks at a repository or a pull request for places where a mock was treated as real, a guess as a fact, or a claim has nothing behind it. The lint rules, hooks and the Action are deterministic; `plumb-line-audit` is LLM-assisted and writes a findings report, which `plumb-line-remediate` applies only if you ask. `adopt` and `method` route you in and teach the ideas. Use either layer on its own, or both.
+
+## What the audit writes
+
+A findings report, each finding tied to a file, a principle and a suggested fix. This is `plumb-line-audit` run over the broken half of the toolserver demo above with the answer key withheld from it; two of its seven findings, the suggested-fix column dropped for width:
+
+| Path | Line | Function | Issue | Principle |
+| ---- | ---- | -------- | ----- | --------- |
+| `broken/toolserver.mjs` | 25-27 | `spawnWorker` | Stub returns a hardcoded `success: true` payload (`workerId: "worker-1"`, `status: "ready"`) with no worker actually spawned, and no label marking the value as mock; it flows straight into the shared `results` array used for the aggregate health report. | P4 — Quarantined fakery |
+| `broken/toolserver.mjs` | 50-52 | (health report) | `system health: operational (5/5 tools succeeded)` is printed when 3 of the 5 "tools" are unbuilt stubs; no `mock` / `not-implemented` maturity label is applied anywhere in the file to `spawnWorker`, `orchestrateTasks`, or `storeMemory`, so the report claims a fully operational, current system. | P6 — Maturity vocabulary |
+
+[The full report](examples/incident-toolserver/audit-2026-09-20.md) is committed as written. Set against the demo's [answer key](examples/incident-toolserver/broken/VIOLATIONS.md), every planted violation is there. The audit is measured rather than trusted; the next section says how.
 
 ## What is deterministic, and what is not
 
