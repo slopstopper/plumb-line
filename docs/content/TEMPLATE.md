@@ -44,19 +44,14 @@ draft must trace to one of these or to a recorded number.
    > *Sources: <artifacts and issues the claims trace to>.*
 
    The first line is the one sanctioned dry line per piece.
-4. **Cap.** At most 4 published items per month across all routines
-   (#255/#256/#257 combined) — **counting unanchored outbound only**
-   (submissions, listing PRs, campaigns, standalone pieces). A
-   **release-anchored piece** — one drafted from a shipped release's
-   artifacts under this template — does not count (owner ruling 2026-08-19,
-   recorded on #260): such a piece is bounded by the release process itself
-   (harness, gates, deliberate-cadence rule), which is the throttle; it
-   cannot become spam without the release process failing first. This fits a
-   bursty shipping cadence — a burst of releases legitimately carries its
-   pieces; a quiet month spends nothing. Count the month's unanchored items
-   (dated filenames in `docs/content/` not tied to a release, plus outbound
-   the owner placed elsewhere); if this piece is unanchored and would be the
-   fifth, it waits.
+4. **Venue courtesy.** There is no numeric cap (the former 4/month cap was
+   removed by owner decision 2026-09-07, recorded on #260: it guarded
+   against unsupervised automation this architecture does not have, and it
+   wrongly counted the owner's own content). The owner's approval before
+   anything leaves is the rate limiter, and owner-made content is never
+   counted. What remains: never stack a second submission into the same
+   venue or community while one is pending there, and every outbound
+   fact-pack passes `plumb-line-audit` first.
 
 ## Publishing
 
@@ -72,17 +67,21 @@ rendering the approved piece, not new outbound):
    them), and end the embed with a "Canonical copy:" link to the file in
    this directory so the release copy never becomes a second source of
    truth.
-2. **Site** — add a dated row to the §writing list on
-   `slopstopper/slopstopper.github.io` (static list by design; a row per
-   piece, capped at 4/month, cannot rot against an API).
+2. **Site** — nothing per-piece. `slopstopper/slopstopper.org` generates
+   its writing list from this directory (`scripts/sync-writing.mjs`, daily
+   and on the release ping), so the merge into `docs/content/` is the
+   publish step.
 3. **README** — nothing per-piece; the Status section already links this
    directory.
 
-Publishing anywhere beyond these owned surfaces is the owner's manual act
-and counts against the cap.
+Publishing anywhere beyond these owned surfaces is the owner's manual act,
+subject to venue courtesy (gate 4).
 
-## First worked example
+## Worked examples
 
 [2026-08-15-plumb-line-0.9.0-the-front-door.md](2026-08-15-plumb-line-0.9.0-the-front-door.md)
 — drafted from the v0.9.0 release, taken through all four gates, edited and
-approved by the owner.
+approved by the owner. The routine has since run for
+[0.10.0](2026-08-19-plumb-line-0.10.0-pay-down-the-ledger.md),
+[0.11.0](2026-09-15-plumb-line-0.11.0-honest-over-time.md) and
+[0.11.1](2026-09-20-plumb-line-0.11.1-measured-nothing.md).

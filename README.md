@@ -184,7 +184,7 @@ Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) for how to ope
 
 ## Feedback
 
-Tried it on a real codebase? Open a [feedback issue](https://github.com/slopstopper/plumb-line/issues/new?template=feedback.yml), or use the [private form](https://slopstopper.github.io/plumb-line/feedback.html) for a confidential codebase. Raw output and one concrete "it caught something we'd otherwise have shipped" beat polished prose.
+Tried it on a real codebase? Open a [feedback issue](https://github.com/slopstopper/plumb-line/issues/new?template=feedback.yml), or use the [private form](https://slopstopper.org/plumb-line/feedback/) for a confidential codebase. Raw output and one concrete "it caught something we'd otherwise have shipped" beat polished prose.
 
 The full name is **plumb-line provenance**. Unrelated projects called "plumbline" exist. This is the hyphenated one.
 

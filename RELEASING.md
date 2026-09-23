@@ -72,7 +72,7 @@ Two independent version numbers:
    sync.
 7. **Draft the release write-up.** One short piece per release, drafted from
    what actually shipped, under [`docs/content/TEMPLATE.md`](docs/content/TEMPLATE.md)
-   and its four gates (audit, language standard, disclosure, cap). Source
+   and its four gates (audit, language standard, disclosure, venue courtesy). Source
    material is the CHANGELOG section, the harness record in
    `docs/validation-results.md`, the dogfood section, and the closed
    milestone. Open it as a PR that closes the draft-due issue; the owner
