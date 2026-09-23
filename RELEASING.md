@@ -62,8 +62,14 @@ Two independent version numbers:
 6. **Watch the Release workflow.** Its first step re-runs the guard
    (`check-versions.mjs <tag>` + a CHANGELOG `## [<version>]` check); if the tag
    doesn't match the manifests or the CHANGELOG has no section for it, the run
-   fails *before* publishing. Then it runs the full suite and publishes, and
-   its last step opens a `Content draft due: v<version>` issue.
+   fails *before* publishing. Then it runs the full suite and publishes,
+   opens a `Content draft due: v<version>` issue, and pings
+   [slopstopper.org](https://github.com/slopstopper/slopstopper.org) to
+   resync its version pills and writing list. The ping needs the repository
+   secret `SITE_DISPATCH_TOKEN`: a fine-grained PAT scoped to
+   `slopstopper/slopstopper.org` with **Contents: read and write**. Without
+   it the step logs "skipping ping" and the site catches up on its daily
+   sync.
 7. **Draft the release write-up.** One short piece per release, drafted from
    what actually shipped, under [`docs/content/TEMPLATE.md`](docs/content/TEMPLATE.md)
    and its four gates (audit, language standard, disclosure, cap). Source
@@ -72,8 +78,9 @@ Two independent version numbers:
    milestone. Open it as a PR that closes the draft-due issue; the owner
    edits and approves by merging. After the merge, render the approved piece
    where readers already look, per the template's Publishing section: embed
-   it in the GitHub release body above the generated notes, and add the dated
-   row to the site's writing list. Update the README's "It audits itself" and
+   it in the GitHub release body above the generated notes. The site's
+   writing list is generated from `docs/content/` on the next sync, so the
+   merge is the publish step; no site PR is needed. Update the README's "It audits itself" and
    harness paragraphs to the new release's numbers in the same PR — both
    cite a specific release and go stale otherwise (the v0.11.0 write-up PR
    is where this step was added, after exactly that staleness).
