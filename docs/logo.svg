@@ -1,40 +1,23 @@
-<svg viewBox="-1.4 22 82 116.2" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="plumb-line logo">
+<svg viewBox="0 24 66 112" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="plumb-line logo">
+  <!-- PL ligature: the P's stem runs on into an L-foot. Plumb (the character,
+       hq/brand/plumb-character.md) peeks over the foot from the notch under the
+       bowl; his bob is the only plumb bob the mark needs. Head + bob geometry is
+       assets/plumb-peek.svg from slopstopper.org, same palette. -->
   <defs>
-    <linearGradient id="bob" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#92400e"/><stop offset="42%" stop-color="#fcd34d"/>
-      <stop offset="60%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#92400e"/>
-    </linearGradient>
+    <clipPath id="notch"><rect x="19.8" y="60" width="60" height="59"/></clipPath>
   </defs>
-
-  <!-- P glyph: the stem doubles as the plumb-line's anchor -->
+  <g clip-path="url(#notch)">
+    <g transform="translate(40,104) rotate(-8) scale(0.135) translate(-322,-330)">
+      <g fill="none" stroke="#141414" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="300" y1="180" x2="300" y2="206"/>
+        <circle cx="300" cy="152" r="30" fill="#3fb043"/>
+        <path fill="#2e9e3a" d="M 296 204 C 218 204 166 246 164 316 C 162 388 200 440 292 446 C 396 452 480 414 480 338 C 480 260 402 204 296 204 Z"/>
+        <ellipse cx="244" cy="322" rx="21" ry="30" fill="#141414" stroke="none"/>
+        <ellipse cx="378" cy="318" rx="31" ry="44" fill="#141414" stroke="none"/>
+      </g>
+    </g>
+  </g>
   <path d="M19.80 100L6.60 100L6.60 30L35.40 30Q42 30 47.05 32.65Q52.10 35.30 54.95 40.10Q57.80 44.90 57.80 51.50L57.80 52.90Q57.80 59.40 54.85 64.25Q51.90 69.10 46.85 71.75Q41.80 74.40 35.40 74.40L19.80 74.40L19.80 100M19.80 42L19.80 62.40L34.10 62.40Q38.80 62.40 41.70 59.80Q44.60 57.20 44.60 52.70L44.60 51.70Q44.60 47.20 41.70 44.60Q38.80 42 34.10 42" fill="#1f2328"/>
-  <!-- stem extension + L-foot, its rounded end echoing the bob -->
   <rect x="6.6" y="98.0" width="13.2" height="22.0" fill="#1f2328"/>
   <path d="M6.6 119 L43.4 119 A6.6 6.6 0 0 1 43.4 132.2 L6.6 132.2 Z" fill="#1f2328"/>
-
-  <!-- cord with two "true" checkpoints -->
-  <line x1="57.8" y1="51.5" x2="57.8" y2="110.2" stroke="#aab4c0" stroke-width="2" stroke-linecap="round"/>
-  <circle cx="57.8" cy="51.5" r="2.5" fill="#1f2328"/>
-  <circle cx="57.8" cy="75.0" r="2.3" fill="#2da44e"/>
-  <circle cx="57.8" cy="92.6" r="2.3" fill="#2da44e"/>
-
-  <!-- plumb bob -->
-  <path d="M57.8 109.2 C65.1 110.2 65.1 121.2 62.33 126.2 C60.43 129.7 59.41 132.2 57.8 132.2 C56.19 132.2 55.17 129.7 53.27 126.2 C50.5 121.2 50.5 110.2 57.8 109.2 Z" fill="url(#bob)" stroke="#92400e" stroke-width="0.5"/>
-
-  <!-- the keeper-bot: sliding down the cord, holding it true (composed upright, tilted as one group about its fist) -->
-  <g transform="rotate(-24 57.8 82.5) translate(57.8 82.5) scale(1.13) translate(-57.8 -82.5)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <line x1="65.4" y1="79.2" x2="65.4" y2="77.2" stroke="#92400e" stroke-width="1"/>
-    <circle cx="65.4" cy="76.6" r="1.05" fill="#f59e0b"/>
-    <path d="M57.8 82.5 L62.3 86.3" stroke="#f59e0b" stroke-width="2.3"/>
-    <circle cx="57.8" cy="82.5" r="1.9" fill="#f59e0b" stroke="#92400e" stroke-width="0.5"/>
-    <rect x="61.8" y="79.2" width="7.2" height="6.4" rx="2.5" fill="#f59e0b" stroke="#92400e" stroke-width="0.5"/>
-    <circle cx="64.0" cy="82.4" r="1.1" fill="#1f2328"/>
-    <circle cx="67.4" cy="82.4" r="1.1" fill="#1f2328"/>
-    <rect x="62.3" y="86.0" width="6.4" height="5.6" rx="2.2" fill="#f59e0b" stroke="#92400e" stroke-width="0.5"/>
-    <path d="M68.7 87.2 L71.4 85.9" stroke="#f59e0b" stroke-width="2"/>
-    <circle cx="71.8" cy="85.6" r="1.2" fill="#f59e0b"/>
-    <path d="M63.4 91.6 Q63.7 92.6 63.8 93.2 M67.6 91.6 Q67.9 92.6 68.0 93.2" stroke="#f59e0b" stroke-width="2.1"/>
-    <circle cx="63.8" cy="93.5" r="1.3" fill="#f59e0b"/>
-    <circle cx="68.0" cy="93.5" r="1.3" fill="#f59e0b"/>
-  </g>
 </svg>
