@@ -10,6 +10,13 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Changed
+- **Remediate's conservative floor matches the project's own confidence
+  type.** The #445 fix below changed the floor to the `"none"` rung, which is
+  right for a plumb-line envelope but wrong for a project whose confidence
+  field is a number: it would have put a string into a numeric field. The floor
+  is now the lowest value in the project's own representation (`"none"` in an
+  envelope, `0` in a numeric field), keeping the field's type. Found while
+  preparing the 0.11.3 release harness, before it ran.
 - **The skills no longer teach things the code contradicts**
   ([#445](https://github.com/slopstopper/plumb-line/issues/445)).
   - Bootstrap's vendoring route named four bundled files per language; the

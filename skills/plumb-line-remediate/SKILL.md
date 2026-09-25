@@ -70,9 +70,12 @@ mark it `applied-conservative` in the record, and say it needs their review.
 
 **The conservative default: claim nothing the code cannot support.** Where an
 epistemic value must be supplied and nobody has answered, take the weakest
-honest claim — a fabricated or stubbed value gets the floor (`confidence: "none"`,
-the lowest rung; `source: "mock"`; `derivedFromMock: true`; and
-`confidenceScore: 0` only where the project uses scores); an unverifiable origin is
+honest claim — a fabricated or stubbed value gets the floor: the lowest value in
+the project's own confidence representation (in a plumb-line envelope the
+`"none"` rung, plus `confidenceScore` `0` where scores are used; where the
+project's confidence field is a number, `0`), a mock-labelled source
+(`source: "mock"` in an envelope), and `derivedFromMock: true`. Match the field's
+existing type; never write a rung string into a numeric field. An unverifiable origin is
 labelled as what it is, not what it is hoped to be. Never pick a "reasonable
 middle" (0.5-ish) for a value that is actually fake: an invented moderate
 confidence is an invented fact. Two runs on the same input must produce the same
