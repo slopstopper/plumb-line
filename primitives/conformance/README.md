@@ -12,6 +12,12 @@ once and a divergence fails a suite. Parity is data, not prose.
 pass/fail report, the envelope schema version, and — when conformant — a badge
 snippet. It exits non-zero on any failure, so it works as a CI gate too.
 
+The case interpreter itself is `run-cases.mjs`, shared with
+`scripts/check-bundle-conformance.mjs` (the plugin-bundled copy), so the two
+cannot read `cases.json` differently. It reports any case field it does not
+interpret as a failure; so do both Python runners. A new field in `cases.json`
+therefore fails every runner until each is taught to read it.
+
 ```bash
 node primitives/conformance/report.mjs          # human report + badge
 node primitives/conformance/report.mjs --badge   # badge markdown only
@@ -38,4 +44,7 @@ Generate it (and verify you actually pass before claiming it) with
 A new-language port conforms to **envelope schema version 2** when it produces
 the expected result for every case in `cases.json` — see [SPEC §7](../SPEC.md).
 Mirror the runner pattern: load `cases.json`, translate the camelCase field
-names to your language's binding, run `combine`/`audit`, and assert.
+names to your language's binding, run `combine`/`audit`/`validate`, and assert
+every field a case carries (including `expectLineageIds`). A JS
+implementation can skip the port: pass its module to `runCases()` from
+`run-cases.mjs`.

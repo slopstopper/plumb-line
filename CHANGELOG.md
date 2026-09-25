@@ -33,6 +33,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `broken/` is `clean/` minus one site in the writer's own serialisation.
   CI's examples step now fails if these tests skip (the JS half needs the
   fixture's ESLint).
+- `node primitives/conformance/report.mjs`, the self-certification gate and
+  badge generator, now checks `expectLineageIds`
+  ([#369](https://github.com/slopstopper/plumb-line/issues/369)). It had
+  its own copy of the case runner, which had drifted from the bundle
+  check's copy: the three content-addressed lineage-id cases passed in
+  `report.mjs` whatever ids an implementation produced. The vitest and
+  pytest conformance suites always checked them, so the reference
+  implementations were never affected. Both scripts now import one runner,
+  `primitives/conformance/run-cases.mjs`, which also fails any case field
+  it does not interpret; the two Python runners carry the same guard.
 
 ## [0.11.1] — 2026-09-20
 
