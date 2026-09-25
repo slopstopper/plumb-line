@@ -672,3 +672,38 @@ No combination-law or checker code changed, so no `cases.json` row was owed.
   (a fenced glossary was blanked); it is recorded and fixed under the v0.11.2
   section of `validation-results.md`, not here, because it was found by the
   validation runs rather than this one.
+
+## v0.11.3 dogfood self-audit — 2026-09-25
+
+Scope: the method-surface diff v0.11.2..`7369d77` (24 files). Report format
+v3, validated with `scripts/check_report_format.py v4` — clean on the first
+run. Coverage: 24/24 files read at their changed hunks and enclosing units,
+with the hook, adapter-contract, ratchet and manifest-validator sources read
+as context. This is the first dogfood run with a declared source-truth layer
+and layer map (ADR-0018), so P1 and P2 were scored in full instead of
+partially. No source-truth file changed in the range.
+
+**6 findings: 2 violations, 4 needs-review.**
+
+| Path | Issue | Principle | Resolution |
+| ---- | ----- | --------- | ---------- |
+| `adapters/python/hooks/branch_guard.py` (new CLI) and JS twin | an unset `PLUMBLINE_BRANCH` reads as "not protected": the guard exits 0 silently, treating an inconclusive result as a pass | spine — null-result expressibility | **deferred** → [#449](https://github.com/slopstopper/plumb-line/issues/449) (coupled with the next row; stricter for adopters) |
+| `skills/plumb-line-bootstrap/SKILL.md` (hook contract) | [needs-review] "they work directly as commit hooks": direct wiring supplies neither the stdin nor the branch, so the branch guard never blocks | P6 — Maturity vocabulary | **deferred** → [#449](https://github.com/slopstopper/plumb-line/issues/449) |
+| `adapters/js/hooks/boundary-guard.mjs`, `pre-commit-gate.mjs` | entry-point check by string compare: through a symlink the CLI never ran and exited 0, contradicting `adapter-contract.md` | P6 — Maturity vocabulary | **fixed in place** — realpath check as in `branch-guard`; spawn tests run every hook direct and linked |
+| `primitives/js/conformance-runner.test.mjs` | [needs-review] a primitives test runs `report.mjs`, a consumer-layer use ADR-0018 did not list | P2 — One-way layering | **fixed in place** — dated amendment to ADR-0018 (append-only) |
+| `primitives/conformance/report.mjs` (`--json`) | [needs-review] a documented JSON verdict, extended with `caseTable`, with no version, key list or validator | P7 — Contracted outputs | **deferred** → [#448](https://github.com/slopstopper/plumb-line/issues/448) (v0.13.0) |
+| `primitives/conformance/report.mjs` (verdict) | [needs-review] records the case table but not which build earned the verdict | P8 — State-first lineage | **deferred** → [#448](https://github.com/slopstopper/plumb-line/issues/448) |
+
+### What was clean
+
+The #445 prose corrections checked against the code: the `inferred` rung, the
+`{}` audit result, the lint's normalized-basename wording, the ratchet
+manifest key and `ratchet.py update`, and Step 4d's `planned` maturity. The
+suites reproduced PARITY.md's 287/218. The remediate floor wording, as
+corrected before the harness, reads in the project's own type.
+
+### Calibration notes
+
+- Both violations are in hooks, the one adapter surface no blind fixture
+  exercises end to end. That supports #442's case for a harder tier that
+  wires hooks for real.
