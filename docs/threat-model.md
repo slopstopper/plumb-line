@@ -90,7 +90,8 @@ These hold through the documented public API (`mark`, `derive`,
   `x.value` that may or may not hold a marked value) are out of scope for
   envelope schema version 2 (SPEC §6). Under-claiming is a design choice, not a
   gap to be reported as a false negative — though novel *literal* bypasses within
-  scope are in scope for §2 of [`SECURITY.md`](../SECURITY.md).
+  scope are in scope under *What counts as a vulnerability* in
+  [`SECURITY.md`](../SECURITY.md).
 
 ## 5. Defense in depth
 
@@ -126,6 +127,12 @@ F4 was JS-total already, so its regression test lives in `primitives/python`.
 
 ---
 
-*This model covers the provenance primitive and its enforcement adapters. The
-skills (`plumb-line-method`, `-bootstrap`, `-audit`) are read-only or generative
-and carry no runtime trust boundary of their own.*
+*This model covers the provenance primitive, including its HTTP ingestion
+adapter (`http.mjs` / `http_adapter.py`), and the enforcement adapters. The
+HTTP adapter's input from outside the process is a response's status and
+headers. It treats header bytes as remote-controlled and parses them without
+throwing; its classification is documented in [`api.md`](api.md) and pinned by
+`primitives/conformance/http-cases.json`. The skills in `skills/` carry no
+runtime trust boundary of their own: `plumb-line-method`, `-audit` and `-adopt`
+are read-only, `-bootstrap` generates configuration, and `-remediate` edits code,
+only when the builder asks it to apply an audit report's findings.*

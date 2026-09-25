@@ -85,3 +85,10 @@ implementations and have been corrected (fix-wave prov-fixwave, 2026-06-28):
 | Empty dict `{}` passed to `auditMeta` / `audit_meta`                   | `if (!meta)` is falsy only for `null`/`undefined`; `{}` proceeds and returns `[]`                | `if not meta:` treated `{}` as missing; returned `['missing meta']` | `if meta is None:` only catches `None`; `{}` proceeds and returns `[]`                                         |
 
 Both cases now match. No divergence found between the two languages.
+
+The table is a dated record of that fix: its code quotes and results are as of
+2026-06-28. Both have moved on since. `{}` now audits to the `version-legacy:`
+advisory alone in both languages, because it carries no `provenanceVersion`
+(#93, SPEC §5b), and the entry check is on container type rather than `None`
+(#209). The current results are the `cases.json` rows, notably "empty envelope",
+and not this table.

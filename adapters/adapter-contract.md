@@ -1,8 +1,10 @@
 # plumb-line adapter contract
 
 An adapter makes the principles enforceable in one language. Every adapter
-provides four capabilities. Bootstrap detects the project language, then copies
-and parameterizes these files into the target repo.
+provides the four domain-neutral capabilities (§1–4). §5 and §5b apply only to
+projects using the provenance primitive, and §6 records which of them a repo
+carries. Bootstrap detects the project language, then copies and parameterizes
+these files into the target repo.
 
 ## 1. Boundary check
 
