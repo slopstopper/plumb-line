@@ -200,6 +200,10 @@ def validate_baseline(record):
     if 'meta' in record:
         meta = dict(record['meta']) if isinstance(record['meta'], dict) else record['meta']
         if isinstance(meta, dict):
+            # to_record hoists provenanceVersion out of meta; put it back so the
+            # validator sees the envelope as it was pinned. validate_envelope
+            # checks only the four required fields today, so this adds no version
+            # check — a version mismatch is reported by check() as a finding.
             meta['provenanceVersion'] = record.get('provenanceVersion')
             meta = from_wire(meta)
         for i in validate_envelope(meta):
@@ -223,6 +227,10 @@ def validate_baseline(record):
 
 
 # ---------- file store ----------
+#
+# The public `dir` parameter shadows the builtin on purpose: it mirrors the JS
+# option name `{ dir }`, so the two APIs read the same (see PARITY.md). Renaming
+# it would break callers' keyword arguments.
 
 def _abs_dir(dir):
     return os.path.abspath(dir if dir is not None else DEFAULT_DIR)

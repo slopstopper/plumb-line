@@ -9,7 +9,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+- The worked baseline example now fails on drift
+  ([#374](https://github.com/slopstopper/plumb-line/issues/374)).
+  `examples/baseline/record.mjs` and `record.py` exit non-zero on anything
+  but `match`, and `examples/test_baseline_example.py` runs both against the
+  committed record and against a drifted copy, so the example is a real P9
+  self-check rather than a shape check. The same issue's smaller items:
+  the fit-map Profile 5 snippet suites (both languages) remove the snippet's
+  temp dir instead of leaking one per run; `primitives/PARITY.md` names all
+  three conformance case files, including `http-cases.json`, instead of
+  counting "a fourth case-kind family"; and comments now record why Python's
+  baseline API uses `dir` as a parameter name and what re-attaching
+  `provenanceVersion` before envelope validation does (and does not) check.
+  No behaviour change to either package.
 
 ## [0.11.1] — 2026-09-20
 
