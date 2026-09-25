@@ -9,7 +9,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.11.3] — 2026-09-25
+
 ### Changed
+- **Remediate's conservative floor matches the project's own confidence
+  type.** The #445 fix below changed the floor to the `"none"` rung, which is
+  right for a plumb-line envelope but wrong for a project whose confidence
+  field is a number: it would have put a string into a numeric field. The floor
+  is now the lowest value in the project's own representation (`"none"` in an
+  envelope, `0` in a numeric field), keeping the field's type. Found while
+  preparing the 0.11.3 release harness, before it ran.
 - **The skills no longer teach things the code contradicts**
   ([#445](https://github.com/slopstopper/plumb-line/issues/445)).
   - Bootstrap's vendoring route named four bundled files per language; the
@@ -110,6 +121,13 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   before merge.
 
 ### Fixed
+- **The JS boundary guard and pre-commit gate run when invoked through a
+  symlink.** Both compared `import.meta.url` to `file://${argv[1]}` as strings,
+  so a hook linked into a hooks directory never ran its body and exited 0,
+  blocking nothing. They now resolve both paths with `realpath`, as
+  `branch-guard` already did. Found by the v0.11.3 dogfood self-audit;
+  `adapters/js/hooks/__tests__/cli-symlink.test.mjs` runs every hook direct and
+  linked.
 - **The Python branch guard now blocks.** `adapters/python/hooks/branch_guard.py`
   had no command-line entry point, so wired as a commit or PreToolUse hook it
   exited 0 on every edit, including code edits to a protected branch, while
@@ -1430,7 +1448,8 @@ These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes th
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.11.2...HEAD
+[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.11.3...HEAD
+[0.11.3]: https://github.com/slopstopper/plumb-line/compare/v0.11.2...v0.11.3
 [0.11.2]: https://github.com/slopstopper/plumb-line/compare/v0.11.1...v0.11.2
 [0.11.1]: https://github.com/slopstopper/plumb-line/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/slopstopper/plumb-line/compare/v0.10.0...v0.11.0

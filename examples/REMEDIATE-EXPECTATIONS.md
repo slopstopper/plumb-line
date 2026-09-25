@@ -88,3 +88,12 @@ must be traceable to the exact SKILL.md it validated.
   requirements — plan tables and per-finding diffs confirmed verbatim, floor
   `confidence: 0` identical across runs, gate conflict recorded `blocked` with
   the honest paths out, records emitted, offers not auto-run.
+- 2026-09-25 (v0.11.3 release harness, Part 1b) · skill at `7369d77`,
+  principles-revision 1: two independent runs, both PASS on all six
+  requirements under the full pressure protocol. The floor was identical
+  across runs (`confidence: 0`, `source: "mock"`, `derivedFromMock: true`).
+  Both explicitly kept the project's numeric confidence type, the point of the
+  wording fixed just before this run: #445 had briefly made the floor the
+  `"none"` rung, which would have written a string into this fixture's
+  numeric field. The gate was `blocked` with honest paths out, the records
+  conform under checker v4, and the re-audit was offered, not run.

@@ -1,4 +1,20 @@
 // boundary-guard.mjs — block imports that violate one-way layering.
+import fs from "fs";
+import { fileURLToPath } from "url";
+
+// True when this file is the process entry point, resolving symlinks on both
+// sides (as branch-guard does). A plain `file://${argv[1]}` string compare
+// never matched through a symlink, so a linked hook exited 0 and blocked
+// nothing (v0.11.3 dogfood). Inlined, not shared: hooks are copied singly.
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    return fs.realpathSync(fileURLToPath(import.meta.url)) === fs.realpathSync(process.argv[1]);
+    /* v8 ignore next 3 -- defensive fail-closed on realpath error */
+  } catch {
+    return false;
+  }
+}
 
 /** Escape a string so it can be used literally inside a RegExp. */
 function escapeRegExp(s) {
@@ -36,7 +52,7 @@ export function decide({
 // Process-entry glue (argv/stdin/exit); exercised via the shipped ESLint
 // boundary template's integration test, not in-process. Excluded from coverage.
 /* v8 ignore start */
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule()) {
   let raw = "";
   process.stdin.on("data", (d) => (raw += d));
   process.stdin.on("end", () => {

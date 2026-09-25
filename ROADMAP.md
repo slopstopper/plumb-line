@@ -205,18 +205,26 @@ Version themes for the near-term releases, and the GitHub issues under each.
   #401, plus the content-template drift, GH #405) and the three v0.11.1
   dogfood deferrals (GH #411–#413); two are stricter for adopters and one
   needs a one-time ratchet re-pin, all called out as such. Harness record in `docs/validation-results.md`; its
-  dogfood run deferred three more (GH #432–#434), not yet scheduled.
+  dogfood run deferred three more (GH #432–#434), scheduled into and
+  shipped in v0.11.3.
 
-- **v0.11.3 — Package pages and lineage** (patch: fixes, plus one additive
-  skill-template stamp, GH #432, and an ADR, GH #434) · *created
-  2026-09-25.* The npm and PyPI package pages brought up to date and pointed
-  at slopstopper.org/plumb-line, with tests so they cannot drift again
-  (GH #439); plus four v0.11.2 follow-ups: the conformance verdict records
-  its case table (GH #433), one `cases.json` interpreter in vitest (GH #430),
-  the report's `format-validation:` line stamps the checker version (GH #432,
-  which touches the audit skill, so the harness runs), and an ADR declaring
-  plumb-line's own source-truth layer, accepted by the owner (ADR-0018,
-  GH #434).
+- ~~**v0.11.3 — Package pages and lineage**~~ · **shipped 2026-09-25**:
+  the npm and PyPI package pages brought up to date and pointed at
+  slopstopper.org/plumb-line, with tests so they cannot drift (GH #439); the
+  conformance verdict records its case table (GH #433); one `cases.json`
+  interpreter in vitest (GH #430); the checker-version stamp (GH #432); an ADR
+  declaring plumb-line's own source-truth layer, accepted by the owner
+  (ADR-0018, GH #434); and the user-facing skills and docs that had drifted
+  from the code (GH #445), with the two adapter bugs its review found. The
+  harness record, including the first Part 1b run since v0.6.0, is in
+  `docs/validation-results.md`.
+- **v0.11.4 — Guards and docs tidy** (patch, fix-only) · *created
+  2026-09-25.* The case-table guards for `http-cases.json` and
+  `baseline-cases.json` (GH #441); the contributor-facing doc staleness from
+  the 2026-09-25 sweep (GH #444); the `js-payments-service` fixture declaring
+  CommonJS over ESM sources (GH #447, to be changed between releases, not
+  mid-harness); and the branch guard allowing edits on an unknown branch,
+  with direct commit-hook wiring (GH #449, stricter for adopters).
 
 - **v0.13.0 — Reproducible enforcement** · *split from v0.12.0 on 2026-09-17,
   when that milestone reached thirteen issues.* Every enforcement output
@@ -380,10 +388,10 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
    `docs/validation-results.md`).
 7. ~~v0.11.1~~ — **shipped 2026-09-20**, 8 issues closed (the ratchet and
    Action hardening; harness record in `docs/validation-results.md`).
-8. ~~v0.11.2~~ — **shipped 2026-09-25**, 9 issues closed (the deferral
-   outbox drained; harness record in `docs/validation-results.md`).
-   **Next:** v0.12.0 — sequenced after wire v2 so the envelope fields it
-   adds are settled — then v0.13.0, split from it on 2026-09-17.
+8. ~~v0.11.2~~ and ~~v0.11.3~~ — **shipped 2026-09-25** (harness records
+   in `docs/validation-results.md`). **Next:** the v0.11.4 patch (fix-only),
+   then v0.12.0, sequenced after wire v2 so the envelope fields it adds are
+   settled, then v0.13.0, split from it on 2026-09-17.
 9. **After that:** v1.0.0 — the coverage guarantee, the API-surface
    definition (GH #236) that everything else freezes against, canonical
    serialization (GH #124), and the last-call breaking-change pass (GH #239,

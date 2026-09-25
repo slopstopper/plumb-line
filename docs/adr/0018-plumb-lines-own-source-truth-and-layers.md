@@ -119,3 +119,14 @@ found one runtime use the first draft missed, now listed).
   dogfood run then records the same partial coverage, which is a standing
   admission that two principles cannot be checked on the repository that
   teaches them.
+
+## Amendments
+
+- **2026-09-25 (v0.11.3 release harness, dogfood finding).** A third
+  primitives-test use of a consumer, missing from the stated uses above:
+  `primitives/js/conformance-runner.test.mjs` runs
+  `primitives/conformance/report.mjs` as a subprocess, to pin that the
+  self-certification verdict names its case table (#433). It is test code
+  only, like the two uses already listed; the published modules still import
+  nothing from the consumers layer. Recorded here rather than by editing the
+  list, because this record is append-only.
