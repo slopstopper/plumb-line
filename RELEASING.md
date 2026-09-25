@@ -20,9 +20,17 @@ Two independent version numbers:
   stale copy surfaces at the PR that introduces it rather than at the tag
   ([#160](https://github.com/slopstopper/plumb-line/issues/160)).
 
+**When to release.** Cut a release whenever a correctness, integrity or
+security fix, or a user-facing feature, lands on `main` and affects the
+published packages or plugin. Merging publishes nothing, so fixes left
+unreleased stay unshipped: the F1–F3 integrity fixes of 0.2.0 sat behind a
+stale tag for about 30 commits. Docs and chore changes can ride the next
+release. Pre-1.0 SemVer: a breaking change or a feature bumps the minor; a
+fix-only release is a patch.
+
 ## Steps
 
-1. **Decide the number and verify milestone closure** (SemVer; pre-1.0, a breaking change bumps the minor).
+1. **Decide the number and verify milestone closure** (SemVer, per *When to release* above).
    Check what's unreleased: `git log --oneline "$(git describe --tags --abbrev=0)"..main`.
    
    **Crucial:** Before proceeding, verify the GitHub milestone for this version:
@@ -84,6 +92,15 @@ Two independent version numbers:
    harness paragraphs to the new release's numbers in the same PR — both
    cite a specific release and go stale otherwise (the v0.11.0 write-up PR
    is where this step was added, after exactly that staleness).
+8. **Update your own plugin install.** The plugin version bump makes the
+   release *available*; installing it is manual. Run `claude plugin list` to
+   find the installed name, `plumb-line@<marketplace>`. `<marketplace>` is the
+   `name` in the manifest of the marketplace you installed from: `plumb-line`
+   for this repository (the README's path), `slopstopper` for
+   `slopstopper/marketplace`. Then run
+   `claude plugin update plumb-line@<marketplace>` and restart Claude Code.
+   The owner's install once sat at 0.7.3 with 0.9.0 released
+   ([#295](https://github.com/slopstopper/plumb-line/issues/295)).
 
 ## Releasing without a terminal
 
