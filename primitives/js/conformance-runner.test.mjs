@@ -34,4 +34,13 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
     const [r] = runCases(impl, only([extra]));
     expect(r.error).toMatch(/unknown case field.*expectSomethingNew/);
   });
+
+  it("fails a case kind the runner does not interpret", () => {
+    // Same drift class one level up: a new top-level kind in cases.json was
+    // skipped by every runner, and the gate still said CONFORMANT.
+    const results = runCases(impl, { ...only([]), derive: [{ name: "x" }] });
+    expect(results.filter((r) => r.error).map((r) => r.error)).toEqual([
+      expect.stringMatching(/unknown case kind.*derive/),
+    ]);
+  });
 });

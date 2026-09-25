@@ -171,8 +171,23 @@ confidenceScore=3ee4f8b588e368f1
 inputs=
 ```
 
-hashes to `sha256:fb171b6077bc`. `scripts/test_spec_step_id.py` checks this
-example against both reference implementations.
+hashes to `sha256:fb171b6077bc`.
+
+A second, with no score and two input ids given unsorted
+(`sha256:fb171b6077bc`, `sha256:097181b20233`), so the sort and join apply:
+
+<!-- step-id worked example: {"of": "input", "source": "fallback", "confidence": "medium", "derivedFromMock": true, "inputIds": ["sha256:fb171b6077bc", "sha256:097181b20233"]} -->
+```text
+of=input
+source=fallback
+confidence=medium
+derivedFromMock=true
+confidenceScore=-
+inputs=sha256:097181b20233,sha256:fb171b6077bc
+```
+
+hashes to `sha256:b8a0413840c5`. `scripts/test_spec_step_id.py` checks both
+examples against both reference implementations.
 
 Two guarantees follow from this construction:
 

@@ -59,8 +59,19 @@ const RUN = {
   validate: (impl, c) => runIssueList(impl.validateEnvelope(c.meta), c),
 };
 
+// Top-level keys of cases.json that are metadata, not case kinds.
+const META_KEYS = new Set(["_doc", "version"]);
+
 export function runCases(impl, cases) {
-  return Object.keys(RUN).flatMap((kind) =>
-    cases[kind].map((c) => ({ kind, name: c.name, error: unknownFields(kind, c) ?? RUN[kind](impl, c) })),
-  );
+  // A case kind this runner does not interpret is a failure, never a skip:
+  // otherwise its cases would silently not run and the gate would still pass.
+  const unknownKinds = Object.keys(cases)
+    .filter((k) => !META_KEYS.has(k) && !(k in RUN))
+    .map((kind) => ({ kind, name: "(whole kind)", error: `unknown case kind ${kind}: teach run-cases.mjs to interpret it` }));
+  return [
+    ...Object.keys(RUN).flatMap((kind) =>
+      cases[kind].map((c) => ({ kind, name: c.name, error: unknownFields(kind, c) ?? RUN[kind](impl, c) })),
+    ),
+    ...unknownKinds,
+  ];
 }

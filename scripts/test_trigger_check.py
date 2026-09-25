@@ -234,3 +234,19 @@ def test_cli_validate_mode_reads_a_results_file(tmp_path):
     bad = tmp_path / "bad.json"
     bad.write_text('{"target": "t"}', encoding="utf-8")
     assert tc.main(["--validate", str(bad)]) == 1
+
+
+def test_cli_timeout_must_be_positive():
+    # The writer must not produce a record its own validator refuses.
+    import pytest
+    for bad in ("0", "-5"):
+        with pytest.raises(SystemExit):
+            tc.parse_args(["evals.json", "t", "out.json", "--timeout", bad])
+
+
+def test_v1_refusal_names_what_is_missing_without_promising_reproduction():
+    payload = _payload()
+    del payload["probe"]
+    payload["results-format"] = "v1"
+    msg = next(i for i in tc.validate_results(payload) if "v1" in i)
+    assert "cannot be reproduced" not in msg and "timeout" in msg

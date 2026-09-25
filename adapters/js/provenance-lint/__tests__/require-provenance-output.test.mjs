@@ -143,6 +143,10 @@ describe("a destructured site's name survives reformatting (#413)", () => {
     same(["export const { p: { a }, ...b } = () => x * r;"], "destructured a,b");
     same(["export const [a, ...[b]] = () => x * r;"], "destructured a,b");
   });
+
+  it("a pattern that binds nothing is named explicitly, not with a trailing space", () => {
+    same(["export const {} = () => x * r;", "export const [ , ] = () => x * r;"], "destructured (binds nothing)");
+  });
 });
 
 describe("require-provenance-output takes no options (#212)", () => {

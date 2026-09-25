@@ -122,3 +122,9 @@ def test_bundle_every_case_field_is_interpreted():
             extra = set(c) - known
             assert not extra, (f"{kind} case {c['name']!r}: unknown field(s) {sorted(extra)} "
                                f"— teach this runner to interpret them")
+
+
+def test_bundle_every_case_kind_is_interpreted():
+    # A top-level kind no test above reads would otherwise never run (#369).
+    kinds = set(CASES) - {'_doc', 'version'}
+    assert kinds == set(_KNOWN_FIELDS), f"unknown case kind(s) {sorted(kinds - set(_KNOWN_FIELDS))}"

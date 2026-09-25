@@ -838,7 +838,51 @@ def test_v2_report_is_not_judged_by_the_omission_rule():
 
 def test_skill_omission_header_is_the_one_the_checker_requires():
     # The skill is where an auditor learns the header; the checker is where it
-    # is enforced. They must name the same columns.
+    # is enforced. Compared against the CHECKER's constants, never a copy.
     skill = _skill("plumb-line-audit")
     header = next(ln for ln in skill.split("\n") if ln.startswith("| Output |"))
-    assert header == _OMISSION_HEADER
+    cells = crf._split_row(header)
+    assert cells == [crf.OMISSION_FIRST_COLUMN] + crf.OMISSION_QUESTIONS
+
+
+# --- review round on #411 ----------------------------------------------------
+
+def test_omission_table_before_a_bad_findings_table_does_not_excuse_it():
+    # With the omission table first, the findings-table best guess used to be
+    # nulled, so "No findings." excused a malformed findings table after it.
+    text = VALID_REPORT
+    omission = text[text.index(_OMISSION_HEADER):text.index("coverage:")]
+    findings = text[text.index("| Path |"):text.index(_OMISSION_HEADER)]
+    bad = findings.replace("| Suggested Fix |", "| Fix |")
+    text = text.replace(findings, "").replace(omission, omission + "No findings.\n\n" + bad)
+    assert any("findings table columns" in i for i in _check(text)), _check(text)
+
+
+def test_omission_table_missing_the_baseline_column_fails():
+    text = VALID_REPORT.replace(" Baseline |", " |", 1)
+    assert any("omission-pass table" in i for i in _check(text))
+
+
+def test_omission_columns_out_of_order_fail():
+    text = VALID_REPORT.replace(
+        _OMISSION_HEADER,
+        "| Output | Baseline | Confidence | Lineage | Contract | Null-expressible | Provenance |")
+    assert any("omission-pass table" in i for i in _check(text))
+
+
+def test_omission_question_words_are_whole_words_not_prefixes():
+    text = VALID_REPORT.replace("Null-expressible", "Nullable-ish")
+    assert any("omission-pass table" in i for i in _check(text))
+
+
+def test_omission_row_with_blank_answers_fails():
+    text = VALID_REPORT.replace("| `load_scores` | yes | yes | no | no | yes | no |",
+                                "| `load_scores` | | | | | | |")
+    assert any("omission row 1" in i for i in _check(text))
+
+
+def test_a_second_separator_line_is_not_a_row():
+    text = VALID_REPORT.replace(
+        "| `load_scores` | yes | yes | no | no | yes | no |\n| `bar.report` | yes | yes | yes | NO | yes | no |",
+        "| --- | --- | --- | --- | --- | --- | --- |")
+    assert any("omission-pass table has no rows" in i for i in _check(text))

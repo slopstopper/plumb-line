@@ -132,8 +132,8 @@ as a confirmed violation.
 
 ## Report (audit format) — report-format v3
 
-Every report has four parts in this order: **header**, **glossary**, **findings
-table**, **coverage map**. The shape is fixed — same input, same shape, every run
+Every report has five parts in this order: **header**, **glossary**, **findings
+table**, **omission-pass table**, **coverage map**. The shape is fixed — same input, same shape, every run
 (the audit owes its own output the reproducibility it demands of the code it
 reviews).
 
@@ -161,7 +161,8 @@ version-controlled)`, nothing more); the checker rejects any other string.
 report*, emitted before the findings, so a reader never meets a bare code
 (explain before use). Names come from `reference/portable-principles.md` — do not
 paraphrase. Omit principles this report does not cite; on a clean run the glossary
-may be empty. Example (include only the rows you cite):
+may be empty — unless the omission-pass table's headers or cells name a
+principle, which is a citation like any other and goes in the glossary too. Example (include only the rows you cite):
 
 ```
 P1 — Source-truth layer      P4 — Quarantined fakery   P7 — Contracted outputs

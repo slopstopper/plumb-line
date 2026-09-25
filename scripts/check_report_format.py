@@ -87,12 +87,13 @@ CLASSES = {"Mechanical", "Judgment"}
 CHECKER_VERSION = "3"
 
 # The audit skill's omission-pass table: first column `Output`, then one column
-# per question, each header STARTING with the word below (a header may go on to
-# inline-name its principle, e.g. `Lineage (P8 — State-first lineage)`). One
-# column per question is the point: a collapsed provenance/lineage column is
-# how the most common omission gets missed.
+# per question in this order, each header being the word below, optionally
+# followed by a space and an inline-named principle (e.g.
+# `Lineage (P8 — State-first lineage)`). One column per question is the point:
+# a collapsed provenance/lineage column is how the most common omission gets
+# missed.
 OMISSION_FIRST_COLUMN = "Output"
-OMISSION_QUESTIONS = ["Provenance", "Confidence", "Lineage", "Contract", "Null", "Baseline"]
+OMISSION_QUESTIONS = ["Provenance", "Confidence", "Lineage", "Contract", "Null-expressible", "Baseline"]
 NO_OUTPUT_UNITS = "No output-producing units in scope."
 
 # The ruleset's own revision line: `**Principles revision:** 1`.
@@ -340,11 +341,20 @@ def _table_columns(text, expected):
     """
     lines = text.split("\n")
     best = None
+    in_omission = False
     for i, line in enumerate(lines):
         stripped = line.strip()
         if not (stripped.startswith("|") and stripped.endswith("|")):
+            in_omission = False
             continue
         cells = _split_row(stripped)
+        # The omission-pass table, header and body, is never a candidate
+        # findings table (#411): taking it as the best guess hid a malformed
+        # findings table after it.
+        if cells and cells[0] == OMISSION_FIRST_COLUMN:
+            in_omission = True
+        if in_omission:
+            continue
         if _is_separator(cells):
             continue
         if cells == expected:
@@ -365,7 +375,9 @@ def _table_columns(text, expected):
 def _omission_table(text):
     """(header_cells, body_rows) of the first table whose first header cell is
     OMISSION_FIRST_COLUMN, or (None, []). Cells are parsed, so column-aligned
-    tables match (the _table_columns lesson)."""
+    tables match (the _table_columns lesson). Separator-shaped lines are never
+    body rows. Fenced blocks are NOT skipped, deliberately: reports are
+    accepted fenced in whole or in part (see _FENCE), as the findings table is."""
     lines = text.split("\n")
     for i, line in enumerate(lines):
         s = line.strip()
@@ -381,7 +393,9 @@ def _omission_table(text):
             b = body.strip()
             if not (b.startswith("|") and b.endswith("|")):
                 break
-            rows.append(_split_row(b))
+            row = _split_row(b)
+            if not _is_separator(row):
+                rows.append(row)
         return cells, rows
     return None, []
 
@@ -395,11 +409,12 @@ def _check_omission_table(text, issues):
                 f"table headed '| {OMISSION_FIRST_COLUMN} | ...' with one row per "
                 f"output-producing unit (or '{NO_OUTPUT_UNITS}' on its own line)")
         return
-    for q in OMISSION_QUESTIONS:
-        if sum(1 for c in cols[1:] if c.lower().startswith(q.lower())) != 1:
-            issues.append(
-                f"omission-pass table needs exactly one column headed '{q}...' — "
-                f"one column per question, never collapsed; found {cols}")
+    named = [c.split(" ", 1)[0] for c in cols[1:]]
+    if named != OMISSION_QUESTIONS:
+        issues.append(
+            f"omission-pass table columns must be {[OMISSION_FIRST_COLUMN] + OMISSION_QUESTIONS} "
+            f"in that order (each may be followed by an inline-named principle) — one "
+            f"column per question, never collapsed; found {cols}")
     if not rows:
         issues.append("omission-pass table has no rows — one row per output-producing "
                       f"unit, or '{NO_OUTPUT_UNITS}' in place of the table")
@@ -407,6 +422,9 @@ def _check_omission_table(text, issues):
         if len(row) != len(cols):
             issues.append(f"omission row {n} has {len(row)} cells, expected {len(cols)} — "
                           f"a shifted row answers the wrong question")
+        elif not all(row):
+            issues.append(f"omission row {n} has a blank cell — every output is named "
+                          f"and every question answered")
 
 
 def _check_principles(text, principles, glossary_required, issues):
@@ -504,10 +522,6 @@ def check_report(text, principles, ruleset_revision=None):
 
     if level >= 2:
         cols, rows = _table_columns(text, FINDINGS_COLUMNS)
-        if cols and cols[0] == OMISSION_FIRST_COLUMN:
-            # _table_columns' best guess fell back to the omission-pass table,
-            # which is never a candidate findings table (#411).
-            cols = None
         if cols != FINDINGS_COLUMNS:
             # 'No findings.' stands IN PLACE OF the table. Accepting the phrase
             # anywhere in the document meant a prose sentence containing it

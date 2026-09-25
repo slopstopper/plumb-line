@@ -67,9 +67,9 @@ per-probe `timeout_s` (a timed-out run records as a non-trigger) and the
 `max_turns` cap. `--validate` re-derives every row's pass from its rate, the
 stamped threshold and its expectation, so a stored verdict is consistent with
 its own numbers rather than asserted. It refuses a v1 record, which does not
-say what the timeout or turn cap was. A re-run with the recorded settings
-re-measures under the same conditions; it is not guaranteed to reproduce the
-same rates, because model sampling is not recorded or controlled.
+say what the timeout or turn cap was. The record does not capture `--workers`
+(concurrency can push a probe past its timeout), the `claude` CLI version, or
+model sampling, so a re-run is not guaranteed to reproduce the same rates.
 
 ## Status and honest caveats
 

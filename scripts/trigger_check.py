@@ -43,9 +43,10 @@ records as a non-trigger, and `max_turns`). Validate a stored file with:
 
 which re-derives every row's verdict from its rate, the stamped threshold and
 its expectation, so a stored verdict is consistent with its own numbers rather
-than asserted. What is recorded is what a re-run needs to measure under the
-same conditions; model sampling is not recorded, so a re-run is not
-guaranteed to reproduce the same rates.
+than asserted. The record carries the settings that decide a verdict; it does
+not record `--workers` (concurrency can push a probe past its timeout), the
+`claude` CLI version, or model sampling, so a re-run is not guaranteed to
+reproduce the same rates.
 """
 import argparse
 import json
@@ -166,8 +167,8 @@ def validate_results(payload):
     fmt = payload.get("results-format")
     if fmt == "v1":
         issues.append("results-format 'v1' does not record the probe timeout or "
-                      "turn cap, so its verdicts cannot be reproduced; re-run to "
-                      f"get a {RESULTS_FORMAT} record")
+                      "turn cap, so the conditions its verdicts were measured "
+                      f"under are unknown; re-run to get a {RESULTS_FORMAT} record")
     elif fmt is not None and fmt not in KNOWN_RESULTS_FORMATS:
         issues.append(f"unknown results-format {fmt!r} "
                       f"(this harness models {sorted(KNOWN_RESULTS_FORMATS)})")
@@ -367,6 +368,8 @@ def parse_args(argv=None):
         ap.error("eval_set, target and out are required unless --validate is given")
     if not 0 < args.threshold <= 1:
         ap.error(f"--threshold must be in (0, 1], got {args.threshold}")
+    if args.timeout <= 0:
+        ap.error(f"--timeout must be a positive number of seconds, got {args.timeout}")
     return args
 
 

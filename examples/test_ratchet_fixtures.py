@@ -104,8 +104,10 @@ def test_broken_is_clean_minus_one_site_in_the_writers_format(tmp_path, name, ca
     assert broken["sites"] == {cap: [s for s in clean["sites"][cap] if s != dropped]}
     assert len(broken["history"]) == 1
     assert broken["history"][0]["date"] == clean["history"][0]["date"]
-    assert broken["history"][0]["change"] == f"pinned 1 site ({cap}: 1)"
+    assert broken["history"][0]["change"] == RT.pin_change(broken["sites"])
     assert broken["history"][0]["because"] != clean["history"][0]["because"]
+    assert {k: v for k, v in broken.items() if k not in ("sites", "history")} == \
+        {k: v for k, v in clean.items() if k not in ("sites", "history")}
     # Byte-for-byte in the writer's own serialisation.
     out = tmp_path / "ratchet.json"
     RT.write_ratchet(str(out), broken)

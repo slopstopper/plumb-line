@@ -54,9 +54,12 @@ module.exports = {
     // it survives reformatting — whitespace, trailing commas, key order,
     // defaults, renames — which the pattern's source text did not, so a
     // ratchet does not read a reformat as a new site. Two declarators in one
-    // module cannot bind the same name, so the name stays unique. Bound names
-    // are identifiers, so no "]" can reach the "[site: ...]" marker the SARIF
-    // assembler parses (adapters/sarif/assemble.py: SITE_RE).
+    // module cannot bind the same name, so a pattern that binds anything gets
+    // a unique name. One that binds nothing (`export const {} = ...`) is named
+    // "destructured (binds nothing)"; two of those in one module share it —
+    // contrived code that exports nothing. Bound names are identifiers, so no
+    // "]" can reach the "[site: ...]" marker the SARIF assembler parses
+    // (adapters/sarif/assemble.py: SITE_RE).
     const boundNames = (p) => {
       if (!p) return [];
       switch (p.type) {
@@ -71,7 +74,8 @@ module.exports = {
     const nameOf = (id) => {
       if (!id) return "default";
       if (id.type === "Identifier") return id.name;
-      return `destructured ${boundNames(id).sort().join(",")}`;
+      const names = boundNames(id);
+      return `destructured ${names.length ? names.sort().join(",") : "(binds nothing)"}`;
     };
 
     // Classify a function body's returns using single-pass local const/let tracking.

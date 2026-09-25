@@ -24,7 +24,10 @@ You can also copy the module files directly into a project and import them flat
 > shadowed the standard library's `http` package (and broke `requests`/`httpx`)
 > whenever the directory was on `sys.path`. Flat copies import it as
 > `http_adapter`; the installed package keeps `plumb_line_provenance.http` as an
-> alias of `plumb_line_provenance.http_adapter`, so existing imports still work.
+> alias of `plumb_line_provenance.http_adapter` through 0.x (1.0 decision:
+> [#429](https://github.com/slopstopper/plumb-line/issues/429)), so existing imports
+> still work at run time. The alias is a runtime entry static type checkers cannot
+> see; new code should import `http_adapter`.
 
 ## HTTP ingestion adapters (optional)
 
