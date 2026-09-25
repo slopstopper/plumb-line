@@ -89,7 +89,7 @@ install. The intended first-run flow is therefore explicit and manual:
 3. Run `plumb-line-method` (this skill) to learn the discipline.
 4. Run `plumb-line-bootstrap` to set your project up.
 5. Run `plumb-line-audit` whenever you review a change.
-5. Run `plumb-line-remediate` when an audit's findings should be applied.
+6. Run `plumb-line-remediate` when an audit's findings should be applied.
 
 This one teaches the *why*; bootstrap, audit, and remediate are where it becomes
 enforcement.

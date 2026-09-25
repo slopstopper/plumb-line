@@ -129,7 +129,8 @@ all validate) — a guessed fit presented as a match is exactly what Step 3
 forbids, and the citation's presence is what the checker pins mechanically.
 
 Validate before emitting, the same earned-verdict rule as the audit skill:
-when `scripts/check_report_format.py` is reachable, run it on the report and
+run the checker that ships in this plugin
+(`python3 <plugin root>/scripts/check_report_format.py <report>`) and
 fix violations before printing, then close the report with one of these two
 literal lines, below `handoff:`:
 

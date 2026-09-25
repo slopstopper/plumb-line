@@ -52,7 +52,7 @@ honest-denominator discipline), turned on the audit itself.
 3. Hardcoded prior (P5) — a magic number encoding a judgment call, not injected/versioned config.
 4. Overstated maturity (P6) — code or docs claiming current/done for something partial/mock/planned.
 5. Missing lineage (P8) — an output stored without the inputs needed to reproduce it.
-   - If the project uses the provenance primitive: flag derived values that are never marked or carry no lineage; recommend asserting auditMeta(metaOf(value)) === [] in tests.
+   - If the project uses the provenance primitive: flag derived values that are never marked or carry no lineage; recommend a test asserting auditMeta(metaOf(value)) is empty (`.toEqual([])` or length 0 in JS; `== []` in Python).
 6. Unexplained drift (P9) — a changed golden-baseline value with no recorded reason.
 7. Suppressed null result (spine) — a code path that cannot express "no structure/no effect/inconclusive". Confirmed only where rejection is a declared or practiced concern; where rejection is adopted nowhere, an always-accept/always-success stub is an advisory adoption gap, not a violation (see "Calibrate to adopted principles" below).
 8. Escaped fakery (P4) — mock/approximate/fallback/cached data that left its container: not labelled (e.g. missing a derivedFromMock-style marker), or flowing into an export/output path that should exclude it unless explicitly opted in.
@@ -233,12 +233,13 @@ six-run validation (#293).
 
 **Validate the report against its own contract before emitting it.** P7 applies
 to this skill's own output: a contract with a version and a key list but no
-check is a claim, not a contract. When `scripts/check_report_format.py` is
-available (it ships in the plumb-line repo), run it on the report — writing the
+check is a claim, not a contract. The checker ships inside this plugin: run
+`python3 <plugin root>/scripts/check_report_format.py <report>` (or
+`scripts/check_report_format.py` inside the plumb-line repo) — writing the
 report to a temp file if it has not been saved — and fix any violation before
-printing. If the script is not reachable (the common case in a consumer repo,
-which has the skills but not this repo's `scripts/`), say so in one line rather
-than implying the report was mechanically checked:
+printing. Only when it genuinely cannot run (no shell, no Python, the plugin
+root unknown, a host rule forbidding it) say so in one line rather than
+implying the report was mechanically checked:
 
 ```
 format-validation: scripts/check_report_format.py v<N> — clean

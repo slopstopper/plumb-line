@@ -10,6 +10,26 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Changed
+- **The skills no longer teach things the code contradicts**
+  ([#445](https://github.com/slopstopper/plumb-line/issues/445)).
+  - Bootstrap's vendoring route named four bundled files per language; the
+    bundle has five. A vendored copy lost the baseline API.
+  - Remediate's conservative floor said `confidence: 0`; confidence is a rung
+    (`"none"`), and the number is `confidenceScore`. The library accepts the
+    wrong form today; that is #443.
+  - Bootstrap and audit suggested asserting `auditMeta(...) === []`, which is
+    always false in JS.
+  - Audit, remediate and adopt said the report checker was usually
+    unavailable in a consumer repo. It ships inside the plugin, at
+    `<plugin root>/scripts/check_report_format.py`, so "not run" is now only
+    for hosts that genuinely cannot run it.
+  - Bootstrap's hook contract now says the pre-commit gate reads
+    `PLUMBLINE_TEST_CMD`, where it had claimed every guard reads `{filePath}`
+    on stdin.
+  - Bootstrap now offers the ratchet for a mid-project surface, and its
+    manifest shape includes `ratchet`.
+  - `scripts/test_skill_facts.py` pins these facts against the bundle and
+    the code.
 - **The npm and PyPI pages are brought up to date and point at
   [slopstopper.org/plumb-line](https://slopstopper.org/plumb-line/)**
   ([#439](https://github.com/slopstopper/plumb-line/issues/439)). Each page is
