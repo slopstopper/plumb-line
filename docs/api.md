@@ -1,8 +1,15 @@
 # plumb-line-provenance — API Reference
 
-This page documents every function and constant exported by the
-`plumb-line-provenance` package (JavaScript) and
-`plumb_line_provenance` package (Python).
+This page documents the user-facing API of the `plumb-line-provenance`
+package (JavaScript) and the `plumb_line_provenance` package (Python): every
+name exported from the JS main entry and the Python package's `__all__`, the
+HTTP adapter (JS `/http` subpath, Python `http_adapter`), the golden-baseline
+API, and the Python dataframe/array wrappers. `scripts/test_api_reference.py`
+fails when one of those gains a name this page has no heading for. The JS
+`/baseline` subpath also exports internal helpers (`canonicalJson`,
+`deepEqual`, and others) used by its own tests; they are not documented here
+and are not a stable API (the 1.0 surface is decided in
+[#236](https://github.com/slopstopper/plumb-line/issues/236)).
 Both packages implement the same specification; see
 [`primitives/SPEC.md`](../primitives/SPEC.md) for the language-neutral
 normative definition.
@@ -15,9 +22,7 @@ normative definition.
 
 Ordered vocabulary of source quality, least-trustworthy first:
 
-```
-"unavailable" < "mock" < "fallback" < "semiReal" < "derived" < "real"
-```
+`unavailable` < `mock` < `inferred` < `fallback` < `semiReal` < `derived` < `real`
 
 ### `CONFIDENCE`
 
@@ -43,7 +48,7 @@ Wraps a value with provenance metadata and returns a marked object.
 | Parameter | Type | Description |
 |---|---|---|
 | `value` | any | The value to track |
-| `metaInput` / `**meta_input` | object / kwargs | Initial metadata; same options as [`makeMeta`](#makemetaopts--make_meta) |
+| `metaInput` / `**meta_input` | object / kwargs | Initial metadata; same options as [`makeMeta`](#makemetaopts--make_metakwargs) |
 
 **Returns** a frozen object (JS) / dict (Python) with the value under the
 `value` key and all envelope fields at the top level (JS) or under a `meta`
@@ -111,7 +116,7 @@ Extracts the provenance metadata from a marked value as a plain object / dict.
 
 ```js
 const m = mark(42, { source: "real", confidence: "high" });
-metaOf(m); // { source: "real", confidence: "high", derivedFromMock: false, lineage: [] }
+metaOf(m); // { provenanceVersion: 2, source: "real", confidence: "high", derivedFromMock: false, lineage: [] }
 ```
 
 ---
@@ -144,11 +149,33 @@ a category:
 | `"source over-claim:"` | `weakestSource` is cleaner than the lineage proves |
 | `"taint dropped:"` | A tainted lineage step but `derivedFromMock` is `false` |
 | `"unreproducible:"` | `source` is `"derived"` but `lineage` is empty |
-| `"missing meta"` | Input was `null`/`undefined`/`None` |
+| `"version-legacy:"` | No `provenanceVersion`: the envelope predates the current wire version (advisory; `{}` returns only this) |
+| `"version-future:"` | `provenanceVersion` is newer than this library supports |
+| `"version-malformed:"` | `provenanceVersion` is present but not a finite number |
+| `"non-plain meta:"` | The meta is an array, `Map`, `Date` or class instance rather than a plain object / dict |
+| `"missing meta"` | Input was `null`/`undefined`/`None`, or not an object at all |
+
+The version and non-plain prefixes are defined in SPEC §5 and §5b.
 
 ```js
 auditMeta(metaOf(derive([mark(1, { source: "real", confidence: "high" })], x => x)));
 // []
+```
+
+---
+
+### `validateEnvelope(meta)` / `validate_envelope(meta)`
+
+The *structural* checker, complementary to `auditMeta`: it verifies the four
+required fields (`source`, `confidence`, `derivedFromMock`, `lineage`) are
+present and well-typed (SPEC §5a). `auditMeta` checks logical consistency and
+tolerates absence as "unknown"; `validateEnvelope` does not. Total: returns a
+list of issue strings (`missing required field: …`, `field '…' must be …`,
+`missing meta`, `not an envelope object`) and never throws.
+
+```js
+validateEnvelope({ source: "real" });
+// ["missing required field: confidence", "missing required field: derivedFromMock", "missing required field: lineage"]
 ```
 
 ---
@@ -173,6 +200,9 @@ Constructs a provenance metadata envelope (JS: frozen object, Python: dict).
 | `weakestSource` / `weakest_source` | — | Least-trustworthy source in ancestry |
 | `basis` | — | Arbitrary domain metadata |
 | `adapter` | — | Adapter identifier |
+
+Every envelope `makeMeta` builds is stamped with `provenanceVersion` (the
+current `PROVENANCE_VERSION`); callers do not pass it.
 
 ---
 
@@ -222,14 +252,26 @@ Booleans are excluded in Python.
 
 ---
 
+### `stepId(step, inputIds?)` — JS
+
+The content-addressed id of a lineage step: `"sha256:"` plus the first 12
+hex characters of a SHA-256 over the step's canonical form (SPEC §4, which
+gives the form and two worked examples). Stable across recombination and
+identical in both languages. `combineProvenance` calls it; it is exported for
+ports and tests. (Python has the same function as `step_id` in its
+`provenance` module, not re-exported from the package.)
+
+---
+
 ## HTTP adapter
 
 Auto-tags HTTP responses with a provenance envelope by status + cache state
 (see ADR-0012). In JavaScript this is the `plumb-line-provenance/http`
-subpath; in Python it is the `http` module of the package. The
+subpath; in Python it is the `http_adapter` module of the package
+(`plumb_line_provenance.http` still works as an alias through 0.x, #429). The
 classification core is dependency-free in both languages; the taggers need a
-response object (`fetch`'s native `Response` in JS — Node >= 18 or a browser;
-`requests`/`httpx` extras in Python).
+response object (`fetch`'s native `Response` in JS — Node >= 22, the
+package's floor, or a browser; `requests`/`httpx` extras in Python).
 
 The two languages expose different tagger names because they tag different
 client libraries; which Python defs are public surface is a 1.0 question
@@ -312,6 +354,82 @@ tag the response in one call.
 
 ---
 
+## Golden baseline
+
+Pins a derived value *with its envelope* as a golden record and refuses silent
+drift (Principle 9; ADR-0015). JS: the `plumb-line-provenance/baseline`
+subpath (it touches `node:fs`, so the main entry does not re-export it).
+Python: exported from the package. Records live in `.plumb-line/baselines/`
+unless `dir` is passed. A read-only CLI inspects them:
+`node node_modules/plumb-line-provenance/baseline-cli.mjs` /
+`python -m plumb_line_provenance.baseline` (`list`, `show <name>`,
+`validate`, with `--dir`).
+
+### `update(name, marked, { because, dir, date })` / `update(name, marked, because=, dir=, date=)`
+
+Records `marked`'s value and envelope as the baseline `name`, appending
+`{ date, because, change }` to the record's append-only history. `because` is
+required and must be non-empty: accepting a new state needs a reason.
+
+### `check(name, marked, { dir })` / `check(name, marked, dir=)`
+
+Compares `marked` with the stored baseline and returns a report:
+`status` (`match`, `drift`, `missing`, `invalid` or `invalid-envelope`), the
+attributed `findings`, a one-line `summary`, and any `issues`. Never throws on
+drift.
+
+### `assertBaseline(name, marked, { dir })` / `assert_baseline(name, marked, dir=)`
+
+`check`, but throws (JS `Error`, Python `AssertionError`) with the attributed
+findings unless the status is `match`.
+
+### `list({ dir })` — JS / `list_baselines(dir=)` — Python
+
+The names of the recorded baselines. (Python avoids shadowing the `list`
+builtin.)
+
+### `show(name, { dir })` / `show(name, dir=)`
+
+The stored record for `name`. Throws when there is no such record or it is not a valid baseline record.
+
+### `validateBaseline(record)` / `validate_baseline(record)`
+
+The record-format validator: returns a list of issues, empty when the record
+conforms to `baseline-format: v1`. Never throws.
+
+Compared on `check`: each lineage step's trust fields and `of`, the lineage
+length, the top-level trust fields and `basis`, then the value. Cross-step
+causality, structural diffing inside a nested value and float tolerance are
+`not-implemented`.
+
+---
+
+## Dataframe and array wrappers (Python)
+
+Optional extras (`pip install "plumb-line-provenance[pandas]"` /
+`[numpy]`); ADR-0013. You declare the source when wrapping; operations outside
+the combinators work on `.value` and drop provenance until re-wrapped.
+
+### `PlumbDataFrame(value, source=, confidence=, **meta)` / `PlumbArray(value, source=, confidence=, **meta)`
+
+Wraps a pandas `DataFrame` / numpy array. `.value` is the wrapped object,
+`.meta` the envelope (`.meta_of()` returns it), `.audit()` runs `audit_meta`.
+
+### `plumb_derive(inputs, fn, **meta_override)`
+
+The general combinator in both modules: applies `fn` to the unwrapped inputs
+and returns a wrapper whose envelope follows the combination law.
+
+### `plumb_concat(objs, **kwargs)` / `plumb_merge(left, right, **kwargs)`
+
+`pd.concat` / `DataFrame.merge` with taint propagated (`frames`).
+
+### `plumb_concatenate(objs, **kwargs)` / `plumb_stack(objs, **kwargs)`
+
+`np.concatenate` / `np.stack` with taint propagated (`arrays`).
+
+---
+
 ## Envelope schema
 
 The envelope schema is defined normatively in
@@ -327,6 +445,7 @@ The envelope schema is defined normatively in
 | `weakestSource` | `weakest_source` | no | `STATUS` enum | Least-trustworthy source in ancestry |
 | `basis` | `basis` | no | any | Free-form provenance note |
 | `adapter` | `adapter` | no | any | Enforcement-adapter annotation |
+| `provenanceVersion` | `provenance_version` | stamped | integer | Wire version the envelope was built under (SPEC §5b) |
 
 Optional fields are **absent** (not `null`/`undefined`) when they have no
 value — absence means "unknown" and is distinct from any present value.
@@ -335,7 +454,7 @@ Each lineage **step** records:
 
 | Field | Type | Description |
 |---|---|---|
-| `id` | string `"step-N"` | Unique within the envelope's lineage |
+| `id` | string `"sha256:<12 hex>"` | Content-addressed from the step's fields and input ids (SPEC §4; see `stepId`) |
 | `of` | `"input"` | Step kind (currently always `"input"`) |
 | `source` | `STATUS` enum | Source of this input |
 | `confidence` | `CONFIDENCE` enum | Confidence of this input |

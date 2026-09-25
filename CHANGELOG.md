@@ -30,6 +30,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     manifest shape includes `ratchet`.
   - `scripts/test_skill_facts.py` pins these facts against the bundle and
     the code.
+- **`docs/api.md` documents the API that ships**
+  ([#445](https://github.com/slopstopper/plumb-line/issues/445)). It claimed
+  to cover every export and was missing `validateEnvelope`, `stepId`, the
+  whole baseline API, and the Python dataframe/array wrappers, all now
+  documented. It described lineage ids as `"step-N"` (they are
+  content-addressed, SPEC §4). It left `inferred` out of the STATUS order,
+  `provenanceVersion` out of the envelope, and four prefixes out of
+  `auditMeta`'s table. It named the Python HTTP module `http` and said
+  Node ≥ 18. `scripts/test_api_reference.py` fails when a user-facing export
+  has no heading, and it checks the STATUS order and in-page anchors.
 - **The npm and PyPI pages are brought up to date and point at
   [slopstopper.org/plumb-line](https://slopstopper.org/plumb-line/)**
   ([#439](https://github.com/slopstopper/plumb-line/issues/439)). Each page is
