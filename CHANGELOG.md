@@ -35,6 +35,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   cases under one unchanged `version`, so a stored "CONFORMANT" could not
   say which cases it passed. All three runners (`run-cases.mjs` and both
   Python suites) now fail a table version they do not model.
+- `primitives/js/conformance.test.mjs` no longer interprets `cases.json` on
+  its own: it turns each result of the shared `run-cases.mjs` into a named
+  vitest case, so the suite, `report.mjs` and the bundle check cannot judge
+  a case differently ([#430](https://github.com/slopstopper/plumb-line/issues/430)).
+  Test-only; no package change.
 - `python -m plumb_line_provenance.baseline` no longer prints a runpy
   `RuntimeWarning` on every call. The package imported `baseline` eagerly, so
   the module was already loaded when `-m` ran it as a script. The six baseline
