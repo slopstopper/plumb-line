@@ -65,8 +65,8 @@ against `slopstopper/hq`. Sections:
 - **Observations** — what changed since the previous digest, with links;
   no action implied. Tracked items that did not move (open listing PRs, the
   known paper corpus, name-collision neighbours already noted) go on one
-  `Unchanged:` line, by name only. An item that has sat
-  unchanged for 30 days or more is named once with its age, in that line.
+  `Unchanged:` line, by name, adding its age once it has been unchanged
+  for 30 days or more.
 - **Drafted actions (0–3)** — each carries the full draft (a reply, a PR
   description, a piece outline) ready for approval, already passed through
   the #260 gates (audit, language standard via
@@ -74,7 +74,10 @@ against `slopstopper/hq`. Sections:
   for publication). An action without a ready draft is an observation, not
   an action.
 - **Open dispositions** — prior digests' actions still awaiting a decision,
-  and the state of previously approved ones.
+  and the state of previously approved ones. Search prior digests **open
+  and closed**: zero-action digests are closed when filed.
+- **Outbound activity this month** — a record of the month's outbound
+  items (see *Disposition protocol*: there is no cap).
 
 **A digest reporting nothing is valid** and still gets filed — "no docking
 points found this week" over a stated denominator is a result. Digests are
@@ -83,9 +86,13 @@ in its issue until dispositioned.
 
 **Closing.** A digest with zero drafted actions has nothing to disposition,
 so the routine closes it in the same run it files it. A digest with actions
-stays open until every action is approved or declined; the working session
-that executes or records the last one closes it. An open `digest` issue
-therefore always means a decision is waiting.
+stays open until each action is either declined or executed; the working
+session that executes or records the last one closes it. A digest filed on
+`slopstopper/plumb-line` as the fallback stays open until it is migrated,
+whatever its action count, so the migration is not lost. An open `digest`
+issue therefore means something is pending: an undecided action, an
+approved one not yet executed, a fallback not yet migrated, or a close the
+routine failed to make (the next working session closes it).
 
 ## Disposition protocol
 
