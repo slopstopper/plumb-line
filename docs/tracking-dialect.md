@@ -80,8 +80,8 @@ change, failing-test-first, DCO sign-off, `CHANGELOG.md` under
 
 ### Milestones
 
-Milestone namespace is **releases only** (`v0.9.0 — Honest over time`,
-`v0.10.0 — Refuse and explain`). A milestone means "these ship together, at
+Milestone namespace is **releases only** (`v0.9.0 — The front door`,
+`v0.11.0 — Honest over time`). A milestone means "these ship together, at
 a version", so a stalled release milestone is always a real signal.
 
 ### The deferral outbox (local rule, stronger than principle 3)

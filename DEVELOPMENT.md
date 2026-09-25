@@ -57,25 +57,40 @@ See [RELEASING.md](RELEASING.md) for the full release process.
 
 ## Running tests — there is no root command
 
-No root `package.json`. Each component is tested from its own directory:
+No root `package.json`. Each component is tested from its own directory, and
+the rest from the repo root. [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+is the list of record: if this block and CI disagree, CI is right.
 
 ```bash
 # Provenance primitive (the product)
-cd primitives/js     && npm install && npm test     # vitest, ~69 cases
-cd primitives/python && python3 -m pytest -q         # ~51 cases
+cd primitives/js     && npm ci && npm test
+cd primitives/python && python3 -m pytest -q
 
 # Enforcement adapters
-cd adapters/js       && npm install && npm test      # ~16 cases
-cd adapters/python   && python3 -m pytest -q         # ~21 cases
+cd adapters/js       && npm ci && npm test
+cd adapters/python   && python3 -m pytest -q
 
-# Cross-language parity gate (from repo root)
-node primitives/conformance/report.mjs               # exits non-zero on divergence
-
-# Example fixtures + import-linter boundary (from repo root)
-python3 -m pytest -q examples
+# From the repo root
+node primitives/conformance/report.mjs   # cross-language parity; non-zero on divergence
+python3 -m pytest -q adapters/sarif      # SARIF assembler
+python3 -m pytest -q examples            # fixtures + real import-linter boundary
+python3 -m pytest -q scripts             # repo-infrastructure checkers
 ```
 
-Python CI test deps: `pip install pytest import-linter==2.15` (the SARIF text parser is tested against that import-linter; `requirements-test.in` is the pin of record). Node 22 + 24; Python 3.11, 3.12 and 3.13 in CI. Floors: Node 22 (`engines` in `primitives/js/package.json`), Python 3.11 (EOL policy in [SUPPORT.md](SUPPORT.md)).
+The SARIF end-to-end test and some `examples/` tests skip locally without Node
+or the JS fixtures' own `npm ci` (ci.yml's "JS fixture toolchain" step); in CI a
+skip fails the build. CI also runs these repo checks, each from the root:
+
+```bash
+node scripts/check-versions.mjs              # the three release manifests agree
+node scripts/check-bundle-sync.mjs           # plugin-bundled primitive == primitives/
+node scripts/check-bundle-conformance.mjs    # conformance against the bundled copy
+python3 scripts/check_version_prose.py       # no stale envelope wire version in live docs
+bash scripts/check-constraints-drift.sh      # copied constraint blocks unaltered
+python3 scripts/check_constraints_canonical.py   # docs/constraints.md matches its sources
+```
+
+Python CI test deps: `pip install pytest import-linter==2.15` (the SARIF text parser is tested against that import-linter; `requirements-test.in` is the pin of record). The Node and Python floors and the versions CI tests are in [`docs/constraints.md`](docs/constraints.md); the Python EOL policy is in [SUPPORT.md](SUPPORT.md).
 
 ## Held to its own principles
 
