@@ -2,7 +2,8 @@
 
 This page documents the user-facing API of the `plumb-line-provenance`
 package (JavaScript) and the `plumb_line_provenance` package (Python): every
-name exported from the JS main entry and the Python package's `__all__`, the
+name exported from the JS main entry (except the test-only
+`__resetStepCounter`) and the Python package's `__all__`, the
 HTTP adapter (JS `/http` subpath, Python `http_adapter`), the golden-baseline
 API, and the Python dataframe/array wrappers. `scripts/test_api_reference.py`
 fails when one of those gains a name this page has no heading for. The JS
@@ -149,11 +150,11 @@ a category:
 | `"source over-claim:"` | `weakestSource` is cleaner than the lineage proves |
 | `"taint dropped:"` | A tainted lineage step but `derivedFromMock` is `false` |
 | `"unreproducible:"` | `source` is `"derived"` but `lineage` is empty |
-| `"version-legacy:"` | No `provenanceVersion`: the envelope predates the current wire version (advisory; `{}` returns only this) |
+| `"version-legacy:"` | `provenanceVersion` is absent or lower than the current wire version (advisory; `{}` returns only this) |
 | `"version-future:"` | `provenanceVersion` is newer than this library supports |
-| `"version-malformed:"` | `provenanceVersion` is present but not a finite number |
-| `"non-plain meta:"` | The meta is an array, `Map`, `Date` or class instance rather than a plain object / dict |
-| `"missing meta"` | Input was `null`/`undefined`/`None`, or not an object at all |
+| `"version-malformed:"` | `provenanceVersion` is present but not a finite number, or has a fractional part |
+| `"non-plain meta:"` | The container is the wrong type but could carry an envelope: a `dict` subclass in Python (`OrderedDict`, `defaultdict`), a null-prototype object in JS. Rebuild with `dict(meta)` / `{...meta}` |
+| `"missing meta"` | `null`/`undefined`/`None`, a primitive, an array/list, or any other non-plain object (`Map`, `Date`, class instances) |
 
 The version and non-plain prefixes are defined in SPEC §5 and §5b.
 
@@ -407,7 +408,9 @@ causality, structural diffing inside a nested value and float tolerance are
 ## Dataframe and array wrappers (Python)
 
 Optional extras (`pip install "plumb-line-provenance[pandas]"` /
-`[numpy]`); ADR-0013. You declare the source when wrapping; operations outside
+`[numpy]`); ADR-0013. Declare the source when wrapping: the defaults are
+`source='derived', confidence='none'`, and a `derived` wrapper with no lineage
+audits as `unreproducible`, so pass a real `source=` for a leaf. Operations outside
 the combinators work on `.value` and drop provenance until re-wrapped.
 
 ### `PlumbDataFrame(value, source=, confidence=, **meta)` / `PlumbArray(value, source=, confidence=, **meta)`

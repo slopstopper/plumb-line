@@ -28,8 +28,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     on stdin.
   - Bootstrap now offers the ratchet for a mid-project surface, and its
     manifest shape includes `ratchet`.
-  - `scripts/test_skill_facts.py` pins these facts against the bundle and
-    the code.
+  - `scripts/test_skill_facts.py` pins four of these against the bundle and
+    the code: the vendoring list, no numeric `confidence`, no JS `=== []`, and
+    the checker's plugin path. The hook contract, ratchet steps and numbering
+    were checked by hand and by review.
 - **`docs/api.md` documents the API that ships**
   ([#445](https://github.com/slopstopper/plumb-line/issues/445)). It claimed
   to cover every export and was missing `validateEnvelope`, `stepId`, the
@@ -52,7 +54,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   - SECURITY.md's supported-versions table said envelope v1; the wire version
     is 2. The version-prose gate now also recognises the `envelope vN` form it
     had missed.
-  - The feedback form offered 4 of the 12 shipped parts; it now lists all 12.
+  - The feedback form offered 4 of the 13 shipped parts; it now lists all 13.
   - `examples/js-payments-service/README.md` told readers to run `node --check`
     on files that fail it (the fixture has been CommonJS since #118). It now
     shows the boundary lint that CI runs, and which planted violation it
@@ -108,6 +110,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   before merge.
 
 ### Fixed
+- **The Python branch guard now blocks.** `adapters/python/hooks/branch_guard.py`
+  had no command-line entry point, so wired as a commit or PreToolUse hook it
+  exited 0 on every edit, including code edits to a protected branch, while
+  its JS twin blocked. It now reads the same stdin and `PLUMBLINE_BRANCH` /
+  `PLUMBLINE_CFG` contract (camelCase keys, snake_case accepted) and exits 2
+  to block. Found by the PR #446 review.
+- **`check_enforcement_manifest.py` accepts a valid manifest when run from the
+  consumer root.** With its default `--root .`, every relative path failed
+  "must be a relative path inside the repository", so the command the
+  bootstrap skill documents rejected every manifest. The Action passes an
+  absolute root and was unaffected. Found while testing the bootstrap
+  ratchet steps.
 - The conformance verdict records the case table it was earned on
   ([#433](https://github.com/slopstopper/plumb-line/issues/433)).
   `node primitives/conformance/report.mjs` prints, and emits under

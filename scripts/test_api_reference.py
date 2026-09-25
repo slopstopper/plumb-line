@@ -24,15 +24,21 @@ _PY = os.path.join(_ROOT, "primitives", "python")
 with open(os.path.join(_ROOT, "docs", "api.md"), encoding="utf-8") as fh:
     API = fh.read()
 
-# Every backticked identifier in a heading line: what the page documents.
-HEADING_NAMES = {n for line in API.split("\n") if line.startswith("#")
+# The LEADING identifier of each backticked span in a heading line: the name
+# being documented. (Every identifier in the span also matched parameter
+# names, so a new export named like a parameter, e.g. `status`, passed.)
+HEADING_NAMES = {m.group(1) for line in API.split("\n") if line.startswith("#")
                  for span in re.findall(r"`([^`]+)`", line)
-                 for n in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", span)}
+                 for m in [re.match(r"\s*([A-Za-z_][A-Za-z0-9_]*)", span)] if m}
 
-# The user-facing baseline calls. baseline.mjs also exports internal helpers
-# (canonicalJson, deepEqual, ...) for its tests; api.md says so and does not
-# document them as API (the API surface is decided at v1.0.0, #236).
-JS_BASELINE_API = {"check", "assertBaseline", "update", "list", "show", "validateBaseline"}
+# baseline.mjs exports internal helpers for its own tests; api.md names them as
+# such and does not document them as API (the surface is decided at v1.0.0,
+# #236). Every OTHER export of baseline.mjs must have a heading, so a new
+# export has to be classified here or documented.
+JS_BASELINE_INTERNAL = {"BASELINE_FORMAT", "DEFAULT_DIR", "KNOWN_BASELINE_FORMATS", "NAME_RE",
+                        "STEP_FIELDS", "TOP_FIELDS", "canonicalJson", "canonicalize", "compactJson",
+                        "compare", "deepEqual", "isDir", "isJsonValue", "reportText", "summarize",
+                        "toRecord"}
 TEST_ONLY = {"__resetStepCounter"}
 
 
@@ -61,7 +67,8 @@ def _py_public(modname):
 
 
 def _required():
-    names = (_js_exports("index.mjs") - TEST_ONLY) | _js_exports("http.mjs") | JS_BASELINE_API
+    names = ((_js_exports("index.mjs") - TEST_ONLY) | _js_exports("http.mjs")
+             | (_js_exports("baseline.mjs") - JS_BASELINE_INTERNAL))
     pkg = _py_package()
     names |= set(pkg.__all__)
     for mod in ("http_adapter", "frames", "arrays"):

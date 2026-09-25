@@ -41,19 +41,21 @@ def test_bootstrap_vendoring_list_is_the_whole_bundle(lang):
 
 @pytest.mark.parametrize("skill", sorted(SKILLS))
 def test_no_js_array_identity_assertion(skill):
-    # `[] === []` is always false: a test written from this never passes.
-    assert "=== []" not in SKILLS[skill], skill
+    # `===` compares array identity: a test written from this never passes.
+    assert not re.search(r"===\s*\[\s*\]|\.toBe\(\s*\[\s*\]\s*\)", SKILLS[skill]), skill
 
 
 @pytest.mark.parametrize("skill", sorted(SKILLS))
 def test_confidence_is_never_written_as_a_number(skill):
     # confidence is a rung (none|low|medium|high); the number is confidenceScore.
-    assert not re.search(r"\bconfidence:\s*[0-9]", SKILLS[skill]), skill
+    # JS `confidence: 0`, Python `confidence=0`, dict/JSON `'confidence': 0`.
+    assert not re.search(r"\bconfidence['\"]?\s*[:=]\s*[0-9]", SKILLS[skill]), skill
 
 
 @pytest.mark.parametrize("skill", sorted(SKILLS))
 def test_skills_do_not_call_the_shipped_checker_unavailable(skill):
-    assert "common case in a consumer repo" not in SKILLS[skill], skill
+    for phrase in ("common case in a consumer repo", "usually unavailable", "is not reachable (the"):
+        assert phrase not in SKILLS[skill], (skill, phrase)
     if "check_report_format.py" in SKILLS[skill]:
         assert "<plugin root>/scripts/check_report_format.py" in SKILLS[skill], (
             f"{skill} names the checker but not where it ships in the plugin")

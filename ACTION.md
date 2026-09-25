@@ -60,7 +60,7 @@ skips `pip install import-linter`, and a Python-only repo skips
 brings plumb-line's own scripts from its pinned ref; your workflow provides
 the language tools it runs (ADR-0016 decision 5).
 
-The tag above is the current release; `node scripts/bump-version.mjs` rewrites
+The tag above is the release this branch ships; `node scripts/bump-version.mjs` rewrites
 it at each release and `scripts/check-versions.mjs` fails CI if it drifts from
 the manifests. Pin a release tag, or a commit sha for an immutable pin.
 

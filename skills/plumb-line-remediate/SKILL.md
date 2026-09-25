@@ -23,7 +23,7 @@ input, so check the contract. The checker ships inside this plugin
 inside the plumb-line repo):
 
 ```
-python3 scripts/check_report_format.py <the report>
+python3 <plugin root>/scripts/check_report_format.py <the report>
 ```
 
 A violation is **not** a reason to refuse the run — it is a reason to say what is
@@ -185,7 +185,7 @@ way in is half a contract. Run the checker that ships in this plugin
 fix any violation before printing:
 
 ```
-python3 scripts/check_report_format.py <the record>
+python3 <plugin root>/scripts/check_report_format.py <the record>
 ```
 
 Only when it genuinely cannot run (no shell, no Python, the plugin root

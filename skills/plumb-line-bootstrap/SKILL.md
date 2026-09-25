@@ -128,16 +128,27 @@ Empty entries are rejected. (Earlier versions matched files exactly only; a bare
 
 ### Hook I/O contract (for wiring)
 
-The branch and boundary guards are stdin/exit-code CLIs: each reads
-`{ "filePath": "..." }` on stdin, the branch from `PLUMBLINE_BRANCH`, and
-config from `PLUMBLINE_CFG` (JSON), and exits non-zero to block (per
-`adapter-contract.md`). The pre-commit gate is different: it reads no stdin,
-runs the command in `PLUMBLINE_TEST_CMD` (set it to the project's test
-command), and exits non-zero, blocking the commit, when that command fails or
-the variable is unset. It works directly as a git
-hook. To wire it as a Claude Code PreToolUse hook, map the host's tool payload's
-file path into the `{filePath}` stdin the guard expects — if the host payload
-shape differs, add a one-line shim rather than assuming it matches.
+Each hook is a stdin/exit-code CLI; exit 0 allows, non-zero (with a message on
+stderr) blocks. Input is per hook (`adapter-contract.md`, "Hook I/O
+convention"):
+
+- **branch guard:** `{ "filePath": "..." }` on stdin; the branch from
+  `PLUMBLINE_BRANCH`; `protectedBranches` / `docsAllowlist` from
+  `PLUMBLINE_CFG` (JSON).
+- **boundary guard:** `{ "filePath": "...", "importPath": "..." }` on stdin;
+  `layers` / `direction` from `PLUMBLINE_CFG`. It needs the import being
+  added: given a file path alone it has nothing to judge and allows.
+- **pre-commit gate:** no stdin; runs the command in `PLUMBLINE_TEST_CMD` and
+  blocks when it fails or the variable is unset. The command is split into
+  words and run without a shell, so give it a single command (e.g.
+  `npm test`), not a shell pipeline or `&&` chain; wrap several in a script.
+
+They work directly as commit hooks. To wire the branch guard as a Claude Code
+PreToolUse hook, map the host's tool payload's file path into the
+`{filePath}` stdin it expects; the boundary guard also needs the import path,
+so wire it where the edit's new import is known, or rely on the ESLint /
+import-linter boundary config instead. If the host payload shape differs, add
+a one-line shim rather than assuming it matches.
 
 ## Step 4b — Offer the runtime primitive (opt-in; never silent)
 
@@ -247,9 +258,9 @@ blanket disable, after which it catches nothing.
 **A mid-project surface with many existing untagged outputs** is what the
 ratchet is for (`current` since 0.11.0; ADR-0017, ACTION.md "Ratchet mode"):
 instead of narrowing the surface until it is empty, offer to pin the existing
-sites once with `python3 <plugin root>/adapters/sarif/ratchet.py update
---because "<why>"`, so the Action fails only on *new* untagged outputs. Record
-the builder's choice either way.
+sites so the Action fails only on *new* untagged outputs. Here, only record the
+builder's choice. The pin itself runs in Step 4d, because the ratchet reads the
+enforcement manifest that step writes.
 
 - **Declined → remove the `__OUTPUT_GLOBS__` block from the installed config
   entirely**: delete the second object in the exported array — from its
@@ -328,11 +339,14 @@ would surface as a `PL/unparsed` warning.
 
 Omit a language section the project does not have; omit `provenance` if 4b
 was declined; omit `outputGlobs` if 4c was declined; omit `baselines` unless
-a baseline exists; omit `ratchet` unless the builder pinned existing sites
-in 4c. Then, from the consumer root, run
+a baseline exists; omit `ratchet` unless the builder chose the ratchet in
+4c. Then, from the consumer root, run
 `python3 <plugin root>/scripts/check_enforcement_manifest.py .plumb-line/enforcement.json`
 (the validator lives in the plugin, the manifest in the project) and show
-its output. The manifest is what the GitHub Action reads (`ACTION.md`); a
+its output. If the builder chose the ratchet, pin the existing sites now,
+from the consumer root:
+`python3 <plugin root>/adapters/sarif/ratchet.py update --because "<why>"`.
+It writes `.plumb-line/ratchet.json`; commit it with the manifest. The manifest is what the GitHub Action reads (`ACTION.md`); a
 repo without it gets a failure naming this step, not a guessed
 configuration.
 

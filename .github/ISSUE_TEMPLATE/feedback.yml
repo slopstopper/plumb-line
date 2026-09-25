@@ -22,6 +22,7 @@ body:
         - label: boundary adapter (ESLint / import-linter) or commit hooks
         - label: GitHub Action (SARIF)
         - label: Ratchet (legacy adoption)
+        - label: plumb-line-method skill
         - label: plumb-line-adopt skill
         - label: plumb-line-bootstrap skill
         - label: plumb-line-audit skill

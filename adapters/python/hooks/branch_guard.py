@@ -1,6 +1,8 @@
 """branch_guard — block the first code edit on a protected branch."""
+import json
 import os
 import re
+import sys
 
 # A bare "*.ext" extension glob (no path separators).
 _EXTENSION_GLOB = re.compile(r"^\*\.[A-Za-z0-9.]+$")
@@ -40,3 +42,24 @@ def decide(file_path, branch, protected_branches=("main",), docs_allowlist=()):
         return {"allow": True, "reason": "docs edit allowed on protected branch"}
     return {"allow": False,
             "reason": f"blocked: code edit to {file_path} on protected branch {branch}. Branch first."}
+
+
+# CLI, the hook I/O contract (adapter-contract.md): `{ "filePath": ... }` on
+# stdin, the branch from PLUMBLINE_BRANCH, config from PLUMBLINE_CFG; exit 2 to
+# block. Until 0.11.3 this module had no entry point, so wired as a hook it
+# exited 0 and never blocked, while its JS twin did. PLUMBLINE_CFG is the
+# shared JSON the JS twin reads (camelCase); snake_case keys are accepted too.
+if __name__ == "__main__":
+    raw = sys.stdin.read()
+    input_data = json.loads(raw) if raw.strip() else {}
+    cfg = json.loads(os.environ.get("PLUMBLINE_CFG", "{}"))
+    r = decide(
+        file_path=input_data.get("filePath", ""),
+        branch=os.environ.get("PLUMBLINE_BRANCH"),
+        protected_branches=tuple(cfg.get("protectedBranches", cfg.get("protected_branches", ["main"]))),
+        docs_allowlist=tuple(cfg.get("docsAllowlist", cfg.get("docs_allowlist", []))),
+    )
+    if not r["allow"]:
+        sys.stderr.write(r["reason"] + "\n")
+        sys.exit(2)
+    sys.exit(0)
