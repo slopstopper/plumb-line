@@ -101,11 +101,13 @@ Version themes for the near-term releases, and the GitHub issues under each.
   v0.7.0**: it is gated on wire v2, which does not land until then, so bundling
   here would vendor v1 and re-vendor at the break.
 
-- **v0.7.0 — Lower the on-ramp** (runtime + wire v2) · *shipped 2026-07-11.* Static lint for untagged
-  outputs (#1 / GH #91), ecosystem adapters (#2 / GH #92), `PROVENANCE_VERSION`
-  per-envelope embedding (#5 / GH #93), durable/stable lineage step IDs — the
-  wire-format break, `PROVENANCE_VERSION` → 2 (GH #52), lint injection path
-  (#10 / GH #29), dual-import hardening (GH #24). The wire-v2 break lives here,
+- **v0.7.0 — Lower the on-ramp** (runtime + wire v2) · *tagged 2026-07-11;
+  #1 and GH #24 shipped in v0.7.1, #2 in v0.7.2–v0.7.3.* Static lint for
+  untagged outputs (#1 / GH #91), ecosystem adapters (#2 / GH #92),
+  `PROVENANCE_VERSION` per-envelope embedding (#5 / GH #93), durable/stable
+  lineage step IDs — the wire-format break, `PROVENANCE_VERSION` → 2 (GH #52),
+  dual-import hardening (GH #24). The lint injection path (#10 / GH #29) was
+  pulled forward and shipped in v0.6.0. The wire-v2 break lives here,
   and so must the source-ladder decision: an `inferred` (LLM/agent-produced)
   slot or a profile mechanism, decided **before** v2 tags (#23 / GH #116) —
   it is the last cheap chance to touch the ladder.
@@ -411,7 +413,8 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
 10. **Parallel, start early:** `track:portable` — skill-surface, no runtime
    dependency. (`track:agent-state` is now #35 alone, which waits on the
    ladder decision and on #34, so it no longer starts early.)
-11. **Parallel, after wire v2:** `track:boundaries` (#31 → #32/#33).
+11. **Parallel, after wire v2:** `track:boundaries` (#32/#33, both on #31,
+   which is scheduled into v0.12.0).
 12. **Opportunistic:** `track:ecosystem` — OpenLineage/dbt wait for a pilot
    user. The PROV-O mapping (#37), cheap and credibility-bearing, is scheduled
    into v0.12.0.
@@ -432,7 +435,7 @@ Pay down the ledger (recorded on the milestone; this file caught up in GH #378).
 
 ### 1. Static lint for untagged output-producing functions
 
-**Priority: high** · Milestone: v0.7.0 · GitHub: #91 · **Shipped in v0.7.0**
+**Priority: high** · Milestone: v0.7.0 · GitHub: #91 · **Shipped in v0.7.1**
 
 The provenance primitive is fully opt-in: a developer can write
 `const result = a.value + b.value` and bypass taint propagation entirely. The
@@ -1030,7 +1033,7 @@ Deferred work is tracked as GitHub issues labelled `audit-deferral`
 (`gh issue list --label audit-deferral`), not in this file. The dogfood
 deferrals this section once listed have all shipped: GH #23, #25 and #26;
 GH #24 (the dual-import shim) and GH #96 (non-plain-object parity), both in
-v0.7.0; and the `audit_meta` totality bug GH #80, in v0.4.1. See
+v0.7.1 (milestone v0.7.0); and the `audit_meta` totality bug GH #80, in v0.4.1. See
 [CHANGELOG.md](CHANGELOG.md).
 
 ---
