@@ -59,25 +59,26 @@ pass," not "provably absent."
 
 ## Beyond the fixtures
 
-plumb-line is in use on at least one codebase it did not write. What is
-recorded of outside use is the feedback it produced, and where each piece
-landed:
+At least one outside user has run plumb-line on their own code (the owner's
+account, 2026-09-25). What is recorded is the feedback outside users gave,
+and where each piece landed:
 
-- **2026-07-01** — the audit report was hard to act on: bare `P#` codes, a
-  report whose shape varied between runs, a report file written only
-  sometimes, and the install path buried in the README. This became the
-  v0.4.1 *Legible audit* release (#83–#86).
-- **2026-08-14** — doubt about adopting the primitives on a project already
-  under way, and about using them wrong. Quoted and answered in the fit map,
+- **2026-07-01** — a tester who ran the audit found its report hard to act
+  on: bare `P#` codes, a report whose shape varied between runs, and a report
+  file written only sometimes; the README also buried the install path. This
+  became the v0.4.1 *Legible audit* release (#83–#86).
+- **2026-08-14** — before adopting the primitives, doubt about starting on a
+  project already under way, and about using them wrong. Quoted and answered
+  in the fit map,
   [*Mid-project is the normal case*](../reference/fit-map.md#mid-project-is-the-normal-case).
 
 What is **not** recorded is the findings themselves. An earlier version of
 this section said the auditor "surfaced real issues that had passed human
 review"; no finding, date or version was kept to show it, so by this
 project's own lineage rule (P8) it is not evidence, and it is not repeated
-here until a recorded example backs it. New examples are being gathered.
-Each is added here with its date, the plumb-line version, and what the audit
-found and missed, redacted as its owner asks.
+here until a recorded example backs it. Examples that arrive are added here
+with their date, the plumb-line version, and what the audit found and
+missed, redacted as their owner asks.
 
 ## See also
 
