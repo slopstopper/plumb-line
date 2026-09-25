@@ -45,3 +45,30 @@ def test_installed_http_path_is_an_alias_of_http_adapter():
         'print("ok")\n')
     assert out.returncode == 0, out.stderr
     assert out.stdout.strip() == 'ok'
+
+
+def test_baseline_cli_runs_as_a_module_without_a_runpy_warning(tmp_path):
+    # The documented `python -m plumb_line_provenance.baseline ...` printed a
+    # runpy RuntimeWarning ("found in sys.modules ... unpredictable
+    # behaviour") because the package imported baseline eagerly (#439).
+    os.symlink(_PY_DIR, tmp_path / 'plumb_line_provenance')
+    env = dict(os.environ, PYTHONPATH=str(tmp_path))
+    out = subprocess.run([sys.executable, '-m', 'plumb_line_provenance.baseline', 'list',
+                          '--dir', str(tmp_path / 'none')],
+                         cwd=tmp_path, env=env, capture_output=True, text=True)
+    assert 'RuntimeWarning' not in out.stderr, out.stderr
+    assert out.returncode == 0, out.stderr
+
+
+def test_baseline_names_still_import_from_the_package():
+    out = _run(
+        'import importlib.util, os, sys\n'
+        'spec = importlib.util.spec_from_file_location("plumb_line_provenance", "__init__.py",'
+        ' submodule_search_locations=[os.getcwd()])\n'
+        'pkg = importlib.util.module_from_spec(spec); sys.modules["plumb_line_provenance"] = pkg\n'
+        'spec.loader.exec_module(pkg)\n'
+        'from plumb_line_provenance import check, assert_baseline, update, list_baselines, show, validate_baseline\n'
+        'from plumb_line_provenance import *\n'
+        'assert callable(update) and callable(validate_baseline)\n'
+        'print("ok")\n')
+    assert out.returncode == 0 and out.stdout.strip() == 'ok', out.stderr

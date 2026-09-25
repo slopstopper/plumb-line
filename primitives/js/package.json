@@ -37,7 +37,7 @@
   "bugs": {
     "url": "https://github.com/slopstopper/plumb-line/issues"
   },
-  "homepage": "https://github.com/slopstopper/plumb-line/tree/main/primitives",
+  "homepage": "https://slopstopper.org/plumb-line/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/slopstopper/plumb-line.git",

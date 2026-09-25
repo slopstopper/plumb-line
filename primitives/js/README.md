@@ -20,10 +20,14 @@ auditMeta(metaOf(total)); // []  — internally consistent
 You can also copy the `.mjs` files directly into a project and import them
 relatively; both styles work.
 
+This package is the run-time half of [plumb-line](https://slopstopper.org/plumb-line/),
+which also ships review-time audit skills and a GitHub Action that enforce the
+same discipline on a codebase.
+
 ## HTTP ingestion adapter (`plumb-line-provenance/http`)
 
 Auto-tag `fetch` responses at ingestion. Native `fetch` — no dependency
-(requires Node ≥ 18 or a browser).
+(requires Node ≥ 22, the package's floor, or a browser).
 
 ```js
 import { tagResponse, taggedFetch } from "plumb-line-provenance/http";
@@ -57,7 +61,7 @@ assertBaseline("fx-rate", priced, { dir }); // throws, attributed, on drift
 
 Accepting a new state needs a non-empty `because`, stored in the record's
 append-only history. Inspect the files with
-`node baseline-cli.mjs <list|show <name>|validate> [--dir D]` (read-only: only
+`node node_modules/plumb-line-provenance/baseline-cli.mjs <list|show <name>|validate> [--dir D]` (read-only: only
 running code carries the envelope, so it cannot check or update).
 
 Compared: each lineage step's trust fields and `of`, the lineage length, the

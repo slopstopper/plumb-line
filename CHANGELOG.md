@@ -9,7 +9,29 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Changed
+- **The npm and PyPI pages are brought up to date and point at
+  [slopstopper.org/plumb-line](https://slopstopper.org/plumb-line/)**
+  ([#439](https://github.com/slopstopper/plumb-line/issues/439)). Each page is
+  rebuilt on publish from the package's own README and manifest, and both had
+  drifted. The PyPI page gains a Golden baseline section: the package has
+  exported the baseline API since 0.11.0 and its page never said so. Its
+  ADR-0013 link, which the registry could not resolve, is now absolute, and
+  the `http_adapter` rename notice moves below the HTTP section. The npm
+  page's Node floor matches `engines` (≥ 22, where it said ≥ 18), and its
+  baseline CLI instruction is a path that runs from an install. Both pages
+  now say which project they belong to, and `homepage` (npm) and
+  `project_urls.Homepage` (PyPI) point at the project page.
+  `scripts/test_package_pages.py` checks for repo-relative links, the Node
+  floor, a page section for every public module and subpath, and the
+  homepages.
+
 ### Fixed
+- `python -m plumb_line_provenance.baseline` no longer prints a runpy
+  `RuntimeWarning` on every call. The package imported `baseline` eagerly, so
+  the module was already loaded when `-m` ran it as a script. The six baseline
+  names now resolve on first use; `from plumb_line_provenance import update`
+  and `import *` work as before ([#439](https://github.com/slopstopper/plumb-line/issues/439)).
 - The release workflow's test gate is now PR CI itself: `release.yml`
   calls `ci.yml` as a reusable workflow (guard → ci → publish), so a tag
   publishes only after every CI job passes at the tagged commit, including
