@@ -69,7 +69,8 @@ python3 adapters/sarif/ratchet.py update --root examples/ratchet-adoption-js/cle
 
 `clean/`'s file is exactly what that command wrote. Running it again over an
 unchanged tree reports `nothing changed` and rewrites nothing, so the fixture
-stays byte-stable.
+stays byte-stable. Both claims, and the shape of `broken/`'s hand edit below,
+are checked by `examples/test_ratchet_fixtures.py`.
 
 `broken/`'s file is **not** a run over `broken/`: it is `clean/`'s file with
 `total` removed by hand and the reason reworded, simulating a site added

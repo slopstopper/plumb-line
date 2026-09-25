@@ -15,7 +15,9 @@ Regenerate a tree's ratchet file from the repo root with:
 
 `clean/`'s file is exactly what that command wrote (date pinned by hand so the
 fixture is stable); running it again over an unchanged tree reports `nothing
-changed` and rewrites nothing, so the fixture stays byte-stable.
+changed` and rewrites nothing, so the fixture stays byte-stable. Both claims,
+and the shape of `broken/`'s hand edit below, are checked by
+`examples/test_ratchet_fixtures.py`.
 
 `broken/`'s file is **not** a run over `broken/`: it is `clean/`'s file with
 `total` removed by hand and the reason reworded, simulating a site added

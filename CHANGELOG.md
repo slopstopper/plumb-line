@@ -23,6 +23,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   baseline API uses `dir` as a parameter name and what re-attaching
   `provenanceVersion` before envelope validation does (and does not) check.
   No behaviour change to either package.
+- The ratchet-adoption fixtures' byte claims are now checked
+  ([#412](https://github.com/slopstopper/plumb-line/issues/412)). Both
+  READMEs said `clean/.plumb-line/ratchet.json` is exactly what
+  `ratchet.py update` writes and stays byte-stable on re-run, and nothing
+  enforced it. `examples/test_ratchet_fixtures.py` regenerates each clean
+  file with the README's own `--because` and the pinned date and compares
+  bytes, re-runs `update` to check it rewrites nothing, and checks that
+  `broken/` is `clean/` minus one site in the writer's own serialisation.
+  CI's examples step now fails if these tests skip (the JS half needs the
+  fixture's ESLint).
 
 ## [0.11.1] — 2026-09-20
 

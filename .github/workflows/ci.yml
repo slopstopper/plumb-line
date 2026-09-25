@@ -180,9 +180,11 @@ jobs:
           set -o pipefail
           python -m pytest -q -rs examples | tee /tmp/examples-pytest.txt
           # pytest's -rs line names the file, never the test, so the pattern
-          # matches the demo modules by name — all three, present and future.
-          if grep -qE 'SKIPPED.*test_[a-z]+_demo\.py' /tmp/examples-pytest.txt; then
-            echo "::error::an incident-demo test skipped in CI — the demo toolchain (node) is missing"; exit 1
+          # matches the demo modules by name — all three, present and future —
+          # and the ratchet fixture byte checks (#412), whose JS half needs
+          # the fixture toolchain installed above.
+          if grep -qE 'SKIPPED.*(test_[a-z]+_demo|test_ratchet_fixtures)\.py' /tmp/examples-pytest.txt; then
+            echo "::error::a must-run examples test skipped in CI — node or the JS fixture toolchain is missing"; exit 1
           fi
       - name: conformance against the plugin-bundled Python copy
         run: python -m pytest -q scripts/test_bundle_conformance.py
