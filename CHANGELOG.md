@@ -10,13 +10,17 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Fixed
-- The release workflow's test gate installs the JS fixture toolchain and
-  fails if a must-run examples test skips, the same guard PR CI applies.
-  0.11.2 was published with the two JS ratchet byte-identity tests (#412)
-  skipped in the release job, since it never installed the fixtures' ESLint;
-  PR CI had run them on both release PRs. `examples/test_fixture_integrity.py`
-  now pins both workflows to one skip-guard pattern and checks each installs
-  every JS fixture tree before the examples step.
+- The release workflow's test gate is now PR CI itself: `release.yml`
+  calls `ci.yml` as a reusable workflow (guard → ci → publish), so a tag
+  publishes only after every CI job passes at the tagged commit, including
+  the Action fixture matrix. The gate had been a hand-kept copy of CI's
+  steps that had drifted narrower: 0.11.2 was published with the two JS
+  ratchet byte-identity tests (#412) skipped, since the release job never
+  installed the fixtures' ESLint, and without the SARIF adapter suite, its
+  end-to-end test, or the `scripts/` checkers. PR CI had run all of them on
+  both release PRs. `examples/test_fixture_integrity.py` now pins the
+  structure: `ci.yml` is callable, the publish job needs it, and no test
+  step is copied back into the publish job.
 
 ## [0.11.2] — 2026-09-25
 
