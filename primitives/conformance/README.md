@@ -9,8 +9,11 @@ once and a divergence fails a suite. Parity is data, not prose.
 ## Running the report
 
 `report.mjs` runs the cases against the JS reference implementation and prints a
-pass/fail report, the envelope schema version, and — when conformant — a badge
-snippet. It exits non-zero on any failure, so it works as a CI gate too.
+pass/fail report, the envelope schema version, the case table the verdict was
+earned on (its version, the sha256 of `cases.json`'s bytes, and the case count
+per kind; `caseTable` in `--json`), and — when conformant — a badge snippet. A
+`cases.json` at a version the runner does not model fails instead of being read
+as the one it knows. It exits non-zero on any failure, so it works as a CI gate too.
 
 The case interpreter itself is `run-cases.mjs`, shared with
 `scripts/check-bundle-conformance.mjs` (the plugin-bundled copy), so the two

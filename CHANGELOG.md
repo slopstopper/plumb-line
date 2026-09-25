@@ -27,6 +27,14 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   homepages.
 
 ### Fixed
+- The conformance verdict records the case table it was earned on
+  ([#433](https://github.com/slopstopper/plumb-line/issues/433)).
+  `node primitives/conformance/report.mjs` prints, and emits under
+  `caseTable` in `--json`, the table's version, the sha256 of `cases.json`'s
+  exact bytes, and the case count per kind. `cases.json` had grown to 41
+  cases under one unchanged `version`, so a stored "CONFORMANT" could not
+  say which cases it passed. All three runners (`run-cases.mjs` and both
+  Python suites) now fail a table version they do not model.
 - `python -m plumb_line_provenance.baseline` no longer prints a runpy
   `RuntimeWarning` on every call. The package imported `baseline` eagerly, so
   the module was already loaded when `-m` ran it as a script. The six baseline
