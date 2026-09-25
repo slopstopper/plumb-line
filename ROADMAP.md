@@ -208,14 +208,15 @@ Version themes for the near-term releases, and the GitHub issues under each.
   dogfood run deferred three more (GH #432–#434), not yet scheduled.
 
 - **v0.11.3 — Package pages and lineage** (patch: fixes, plus one additive
-  skill-template stamp, GH #432, and a Proposed ADR, GH #434) · *created
+  skill-template stamp, GH #432, and an ADR, GH #434) · *created
   2026-09-25.* The npm and PyPI package pages brought up to date and pointed
   at slopstopper.org/plumb-line, with tests so they cannot drift again
   (GH #439); plus four v0.11.2 follow-ups: the conformance verdict records
   its case table (GH #433), one `cases.json` interpreter in vitest (GH #430),
   the report's `format-validation:` line stamps the checker version (GH #432,
   which touches the audit skill, so the harness runs), and an ADR declaring
-  plumb-line's own source-truth layer, drafted for owner review (GH #434).
+  plumb-line's own source-truth layer, accepted by the owner (ADR-0018,
+  GH #434).
 
 - **v0.13.0 — Reproducible enforcement** · *split from v0.12.0 on 2026-09-17,
   when that milestone reached thirteen issues.* Every enforcement output

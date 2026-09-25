@@ -45,4 +45,4 @@ not a rewrite of an accepted one.
 | [0015](0015-baseline-library-first.md)                   | Baseline: library-first capture, explained updates, wire-form files, inspection-only CLI | Accepted |
 | [0016](0016-action-manifest-and-sarif.md)                | The GitHub Action reads an explicit enforcement manifest and emits one SARIF log | Accepted |
 | [0017](0017-provenance-ratchet.md)                       | The provenance ratchet is site-keyed, a mode of the output check, and written only by its CLI | Accepted |
-| [0018](0018-plumb-lines-own-source-truth-and-layers.md)  | plumb-line's own source-truth layer and layer direction | Proposed |
+| [0018](0018-plumb-lines-own-source-truth-and-layers.md)  | plumb-line's own source-truth layer and layer direction | Accepted |

@@ -1,6 +1,6 @@
 # ADR-0018: plumb-line's own source-truth layer and layer direction
 
-**Status:** Proposed · 2026-09-25 (drafted for owner review, GH #434)
+**Status:** Accepted · 2026-09-25 (drafted for owner review, GH #434; amended after the PR #440 review; accepted by the owner before merge)
 
 ## Context
 
@@ -20,7 +20,7 @@ direction below, and each stated exception, is how the code already depends
 (checked against the code on that date; the independent review of PR #440
 found one runtime use the first draft missed, now listed).
 
-## Decision (proposed)
+## Decision
 
 1. **Source truth is the definition of the law.** Two sets of
    files are the ground truth the rest of the repository is measured

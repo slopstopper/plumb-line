@@ -40,7 +40,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   under an unchanged `report-format: v3`: a stored verdict now carries the
   rule set it was earned under, and the report contract stays v3.
 
-- **ADR-0018 (Proposed) declares plumb-line's own source-truth layer and
+- **ADR-0018 declares plumb-line's own source-truth layer and
   layer direction** ([#434](https://github.com/slopstopper/plumb-line/issues/434)).
   Source truth is the definition: SPEC.md and the conformance tables for
   the envelope, and `reference/portable-principles.md` for the method, never
@@ -51,7 +51,8 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   what is enforced (`current`) and what is not yet (`planned`: an
   import-direction test, and case-table guards for `http-cases.json` and
   `baseline-cases.json`, GH #441). It lets dogfood audits score P1 and P2
-  on this repository in full. It awaits owner acceptance.
+  on this repository in full. Drafted for the owner's review and accepted
+  before merge.
 
 ### Fixed
 - The conformance verdict records the case table it was earned on
