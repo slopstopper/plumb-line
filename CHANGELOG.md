@@ -20,7 +20,9 @@ _Nothing yet._
   directory was on `sys.path` (the documented flat-copy path, or a test
   runner), which broke `requests`/`httpx`. It had already hidden a test in
   this repository: CI's repo-infrastructure step skipped the fit-map
-  Profile 4 (`requests`) snippet on every run, and now fails if it skips.
+  Profile 4 (`requests`) snippet on every run from 2026-09-10, when
+  `scripts/test_baseline_roundtrip.py` joined that step and put
+  `primitives/python` on `sys.path` (54320a3), and now fails if it skips.
   **Installed users need no change at run time:** `plumb_line_provenance.http`
   is kept as an alias of `plumb_line_provenance.http_adapter` through 0.x
   (its fate at 1.0 is [#429](https://github.com/slopstopper/plumb-line/issues/429)),
