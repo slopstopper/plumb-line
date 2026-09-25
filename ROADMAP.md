@@ -216,7 +216,7 @@ Version themes for the near-term releases, and the GitHub issues under each.
   declaring plumb-line's own source-truth layer, accepted by the owner
   (ADR-0018, GH #434); and the user-facing skills and docs that had drifted
   from the code (GH #445), with the two adapter bugs its review found. The
-  harness record, including the first Part 1b run since v0.6.0, is in
+  harness record, including a Part 1b (remediate) run, is in
   `docs/validation-results.md`.
 - **v0.11.4 — Guards and docs tidy** (patch, fix-only) · *created
   2026-09-25.* The case-table guards for `http-cases.json` and

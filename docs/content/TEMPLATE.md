@@ -12,6 +12,24 @@ release-harness record in `docs/validation-results.md`, the dogfood section
 in `docs/dogfood.md`, and the closed milestone's issues. Every claim in the
 draft must trace to one of these or to a recorded number.
 
+## Length follows the release
+
+Density follows the version (owner decision, 2026-09-25): a patch is a small
+change and gets a short piece. Budgets count the words above the disclosure
+rule:
+
+| Release | Budget |
+| ------- | ------ |
+| patch (`x.y.Z`) | 300 words |
+| minor (`0.Y.0`, and `X.Y.0` after 1.0) | 600 words |
+| major (`X.0.0`, from 1.0) | 1000 words |
+
+Lead with what changed for a user and why; one paragraph for what the review
+and release harness found; skip the per-fix inventory, which the CHANGELOG
+already carries. `scripts/test_content_language.py` fails a piece over its
+budget. The pieces written before the budget existed are listed there and
+kept as dated artifacts.
+
 ## The four gates, in order
 
 1. **Audit.** Run `plumb-line-audit` on the draft. Maturity vocabulary
@@ -83,5 +101,8 @@ subject to venue courtesy (gate 4).
 — drafted from the v0.9.0 release, taken through all four gates, edited and
 approved by the owner. The routine has since run for
 [0.10.0](2026-08-19-plumb-line-0.10.0-pay-down-the-ledger.md),
-[0.11.0](2026-09-15-plumb-line-0.11.0-honest-over-time.md) and
-[0.11.1](2026-09-20-plumb-line-0.11.1-measured-nothing.md).
+[0.11.0](2026-09-15-plumb-line-0.11.0-honest-over-time.md),
+[0.11.1](2026-09-20-plumb-line-0.11.1-measured-nothing.md),
+[0.11.2](2026-09-25-plumb-line-0.11.2-the-checkers-own-blind-spot.md) and
+[0.11.3](2026-09-25-plumb-line-0.11.3-pages-that-match-the-code.md), the first
+written to the length budget.
