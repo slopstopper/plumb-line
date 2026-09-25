@@ -48,8 +48,8 @@ def test_python_implementation_produces_the_stated_id():
               's = json.loads(sys.argv[1]); '
               'print(p.step_id({"of": s["of"], "source": s["source"], "confidence": s["confidence"], '
               '"derived_from_mock": s["derivedFromMock"], "confidence_score": s["confidenceScore"]}))')
-    # A subprocess, so primitives/python never lands on this process's sys.path
-    # (its http.py shadows the stdlib http package, #171).
+    # A subprocess, so primitives/python never lands on this process's
+    # sys.path, where its flat module names could shadow a sibling suite's.
     out = subprocess.run(['python3', '-c', script, json.dumps(step)], cwd=_ROOT,
                          capture_output=True, text=True, check=True)
     assert out.stdout.strip() == sid

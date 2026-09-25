@@ -39,6 +39,11 @@ P3 — Confidence + provenance  P7 — Contracted outputs
 | `src/foo.py` | 42 | `load_scores` | mock given a real source | tag via derive | P3 — Confidence + provenance |
 | `src/bar.py` | — | — | output has no contract | add a version constant | P7 — Contracted outputs |
 
+| Output | Provenance | Confidence | Lineage | Contract | Null-expressible | Baseline |
+| ------ | ---------- | ---------- | ------- | -------- | ---------------- | -------- |
+| `load_scores` | yes | yes | no | no | yes | no |
+| `bar.report` | yes | yes | yes | NO | yes | no |
+
 coverage: 12/47 files read, 3 partial, 32 not-read (32%)
 scope note: findings are drawn from the read set only; a not-read file with no
 finding is not a clean file. This audit does not claim completeness.
@@ -88,7 +93,12 @@ def test_valid_remediation_record_passes():
 
 
 def test_clean_run_with_no_findings_passes():
+    # A clean run still walks every output: the omission table is what backs
+    # a "No findings." verdict (#411).
     text = VALID_REPORT.split("| Path |")[0] + "No findings.\n\n" + \
+        "| Output | Provenance | Confidence | Lineage | Contract | Null-expressible | Baseline |\n" + \
+        "| --- | --- | --- | --- | --- | --- | --- |\n" + \
+        "| `load` | yes | yes | yes | yes | yes | yes |\n\n" + \
         "coverage: 4/4 files read, 0 partial, 0 not-read (100%)\n" + \
         "scope note: diff-scoped run; denominator is the touched files.\n"
     assert _check(text) == []
@@ -361,6 +371,10 @@ commit:              abab68d
 | Path        | Line | Function | Issue | Suggested Fix | Principle              |
 | ----------- | ---- | -------- | ----- | ------------- | ---------------------- |
 | `src/a.py`  | 42   | `f`      | issue | fix           | P5 — Injectable priors |
+
+| Output | Provenance | Confidence | Lineage | Contract | Null-expressible | Baseline |
+| ------ | ---------- | ---------- | ------- | -------- | ---------------- | -------- |
+| `f`    | yes        | yes        | yes     | yes      | yes              | no       |
 
 coverage: 1/1 files read, 0 partial, 0 not-read (100%)
 scope note: no completeness claimed.
@@ -762,3 +776,69 @@ def test_committed_reports_are_listed():
 def test_committed_report_conforms(path):
     text = open(path, encoding="utf-8").read()
     assert _check(text) == []
+
+
+# --- #411: the omission-pass table is a checked part of a v3 audit report ---
+# The audit skill makes the table REQUIRED (one row per output-producing unit,
+# one column per question), and until checker v3 nothing checked it: a report
+# could say `format-validation: clean` with no table at all.
+
+_OMISSION_HEADER = "| Output | Provenance | Confidence | Lineage | Contract | Null-expressible | Baseline |"
+
+
+def _without_omission_table(text):
+    return "\n".join(ln for ln in text.split("\n")
+                     if not ln.startswith(("| Output", "| ------ ", "| `load_scores` | yes", "| `bar.report`")))
+
+
+def test_checker_version_is_bumped_for_the_omission_rule():
+    assert crf.CHECKER_VERSION == "3"
+
+
+def test_v3_report_without_an_omission_table_fails():
+    issues = _check(_without_omission_table(VALID_REPORT))
+    assert any("omission-pass table" in i for i in issues), issues
+
+
+def test_no_output_units_line_stands_in_for_the_table():
+    text = _without_omission_table(VALID_REPORT).replace(
+        "coverage: 12/47", "No output-producing units in scope.\n\ncoverage: 12/47")
+    assert _check(text) == []
+
+
+def test_collapsed_provenance_and_lineage_column_fails():
+    # The most common miss the skill names: provenance-present read as
+    # lineage-present. A collapsed column is exactly that.
+    text = VALID_REPORT.replace(_OMISSION_HEADER,
+                                "| Output | Provenance / lineage | Confidence | Contract | Null-expressible | Baseline |")
+    issues = _check(text)
+    assert any("omission-pass table" in i and "Lineage" in i for i in issues), issues
+
+
+def test_omission_headers_may_carry_inline_named_principles():
+    text = VALID_REPORT.replace(
+        _OMISSION_HEADER,
+        "| Output | Provenance (P3 — Confidence + provenance) | Confidence | "
+        "Lineage (P8 — State-first lineage) | Contract (P7 — Contracted outputs) | Null-expressible | Baseline |"
+    ).replace("P3 — Confidence + provenance  P7 — Contracted outputs",
+              "P3 — Confidence + provenance  P7 — Contracted outputs  P8 — State-first lineage")
+    assert _check(text) == []
+
+
+def test_shifted_omission_row_fails():
+    text = VALID_REPORT.replace("| `bar.report` | yes | yes | yes | NO | yes | no |",
+                                "| `bar.report` | yes | yes | NO | yes | no |")
+    assert any("omission row" in i for i in _check(text))
+
+
+def test_v2_report_is_not_judged_by_the_omission_rule():
+    text = _without_omission_table(VALID_REPORT).replace("report-format: v3", "report-format: v2")
+    assert not any("omission" in i for i in _check(text))
+
+
+def test_skill_omission_header_is_the_one_the_checker_requires():
+    # The skill is where an auditor learns the header; the checker is where it
+    # is enforced. They must name the same columns.
+    skill = _skill("plumb-line-audit")
+    header = next(ln for ln in skill.split("\n") if ln.startswith("| Output |"))
+    assert header == _OMISSION_HEADER

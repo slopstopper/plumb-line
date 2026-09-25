@@ -82,7 +82,18 @@ CLASSES = {"Mechanical", "Judgment"}
 #   v1  #139 — first validator (implicit; never printed)
 #   v2  #245 — revision compared to the ruleset (#220), Class enforced (#222),
 #       output carries this provenance line (#221)
-CHECKER_VERSION = "2"
+#   v3  #411 — a v3 audit report must carry the omission-pass table (or the
+#       "no output-producing units" line in its place), one column per question
+CHECKER_VERSION = "3"
+
+# The audit skill's omission-pass table: first column `Output`, then one column
+# per question, each header STARTING with the word below (a header may go on to
+# inline-name its principle, e.g. `Lineage (P8 — State-first lineage)`). One
+# column per question is the point: a collapsed provenance/lineage column is
+# how the most common omission gets missed.
+OMISSION_FIRST_COLUMN = "Output"
+OMISSION_QUESTIONS = ["Provenance", "Confidence", "Lineage", "Contract", "Null", "Baseline"]
+NO_OUTPUT_UNITS = "No output-producing units in scope."
 
 # The ruleset's own revision line: `**Principles revision:** 1`.
 _RULESET_REVISION = re.compile(r"^\*\*Principles revision:\*\*\s*([0-9]+)\s*$", re.M)
@@ -351,6 +362,53 @@ def _table_columns(text, expected):
     return best, []
 
 
+def _omission_table(text):
+    """(header_cells, body_rows) of the first table whose first header cell is
+    OMISSION_FIRST_COLUMN, or (None, []). Cells are parsed, so column-aligned
+    tables match (the _table_columns lesson)."""
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        s = line.strip()
+        if not (s.startswith("|") and s.endswith("|")):
+            continue
+        cells = _split_row(s)
+        if not cells or cells[0] != OMISSION_FIRST_COLUMN or _is_separator(cells):
+            continue
+        rows, j = [], i + 1
+        if j < len(lines) and _is_separator(_split_row(lines[j])):
+            j += 1
+        for body in lines[j:]:
+            b = body.strip()
+            if not (b.startswith("|") and b.endswith("|")):
+                break
+            rows.append(_split_row(b))
+        return cells, rows
+    return None, []
+
+
+def _check_omission_table(text, issues):
+    cols, rows = _omission_table(text)
+    if cols is None:
+        if not re.search(r"^%s\s*$" % re.escape(NO_OUTPUT_UNITS), text, re.M):
+            issues.append(
+                f"missing the omission-pass table — REQUIRED on a v3 audit report: a "
+                f"table headed '| {OMISSION_FIRST_COLUMN} | ...' with one row per "
+                f"output-producing unit (or '{NO_OUTPUT_UNITS}' on its own line)")
+        return
+    for q in OMISSION_QUESTIONS:
+        if sum(1 for c in cols[1:] if c.lower().startswith(q.lower())) != 1:
+            issues.append(
+                f"omission-pass table needs exactly one column headed '{q}...' — "
+                f"one column per question, never collapsed; found {cols}")
+    if not rows:
+        issues.append("omission-pass table has no rows — one row per output-producing "
+                      f"unit, or '{NO_OUTPUT_UNITS}' in place of the table")
+    for n, row in enumerate(rows, start=1):
+        if len(row) != len(cols):
+            issues.append(f"omission row {n} has {len(row)} cells, expected {len(cols)} — "
+                          f"a shifted row answers the wrong question")
+
+
 def _check_principles(text, principles, glossary_required, issues):
     """Every P# citation must be inline-named with the ruleset's own wording.
 
@@ -446,6 +504,10 @@ def check_report(text, principles, ruleset_revision=None):
 
     if level >= 2:
         cols, rows = _table_columns(text, FINDINGS_COLUMNS)
+        if cols and cols[0] == OMISSION_FIRST_COLUMN:
+            # _table_columns' best guess fell back to the omission-pass table,
+            # which is never a candidate findings table (#411).
+            cols = None
         if cols != FINDINGS_COLUMNS:
             # 'No findings.' stands IN PLACE OF the table. Accepting the phrase
             # anywhere in the document meant a prose sentence containing it
@@ -474,6 +536,7 @@ def check_report(text, principles, ruleset_revision=None):
                           "(REQUIRED on every run, including clean ones)")
         if not re.search(r"^scope note:[ \t]*\S", text, re.M):
             issues.append("missing the 'scope note:' no-completeness caveat")
+        _check_omission_table(text, issues)
     return issues
 
 
