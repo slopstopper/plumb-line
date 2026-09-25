@@ -22,7 +22,7 @@ dependencies).
 | Pinned-Dependencies | 9 | `npm install -g npm@11.18.0` in `release.yml`; a `-g` install can't be hash-pinned, and removing it breaks trusted publishing | npm supports a pinnable install |
 | Contributors | 6 | Two contributing orgs detected; full marks need ≥3 | A third org contributes |
 | Branch-Protection | 5 | Ruleset requires 0 approvals, classic requires 1, `enforce_admins` is false — merges land unapproved | PR review becomes part of the workflow (see below) |
-| Maintained | 0 | Repo created 2026-06-28, inside the 90-day window | Re-evaluate after 2026-09-26 — it then scores on activity, not age |
+| Maintained | 0 | Repo created 2026-06-28T17:15:54Z; the 2026-09-25 scan ran inside the 90-day window, which ends 2026-09-26 17:15 UTC | The first scan after that (any push to `main`, or the Monday 01:30 UTC run of `scorecard.yml`) scores it on activity, not age — re-check then |
 | Code-Review | 0 | 0 of 8 changesets approved | Same as Branch-Protection |
 | Fuzzing | 0 | No OSS-Fuzz integration; out of proportion for this library. JS property tests exist but don't count | Someone takes on OSS-Fuzz |
 | Signed-Releases | −1 | 21 releases exist but carry no assets, so the check finds none to score ("no releases found"). Registry trusted publishing already attests provenance | Assets are attached — this is a decline, not an inability |

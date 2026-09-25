@@ -40,7 +40,8 @@ hang:
 
 **Every open issue carries exactly one of the two.** A release milestone means
 *scheduled*; a track label means *deliberately unscheduled*. There is no third
-state — an issue with neither is a tracking bug, not a backlog item. This is the
+state — an issue with neither is a tracking bug, not a backlog item (a pinned
+guidance issue is exempt; see `docs/tracking-dialect.md`). This is the
 maturity vocabulary (`current` / `planned`) applied to the backlog itself:
 unscheduled is a recorded decision, not neglect.
 

@@ -59,7 +59,10 @@ change, failing-test-first, DCO sign-off, `CHANGELOG.md` under
   **The rule:** every open issue carries *exactly one* of a release
   milestone (= scheduled) or a `track:*` label (= deliberately
   unscheduled). An issue with neither is a tracking bug, not a backlog
-  item. Full rationale in
+  item. **One exemption:** an issue pinned to the repo's issue list as
+  reader guidance, not work (today
+  [#311](https://github.com/slopstopper/plumb-line/issues/311), "Read this
+  first"), carries neither and is not flagged. Full rationale in
   [`ROADMAP.md` § How this backlog is organised](../ROADMAP.md).
 
   These were previously modelled as *milestones*, which made them

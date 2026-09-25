@@ -60,7 +60,8 @@ Two local rules go beyond the convention's baseline, both from
 
 - **Every open issue carries exactly one** of a release milestone
   (= scheduled) or a `track:*` label (= deliberately unscheduled). Neither
-  is a tracking bug, not a backlog item.
+  is a tracking bug, not a backlog item. A pinned guidance issue is exempt
+  ([`docs/tracking-dialect.md`](docs/tracking-dialect.md)).
 - **Deferrals have an outbox.** At each release-scoping moment, every open
   `audit-deferral` older than 30 days is either scheduled into the next
   release or closed with a written waiver. No third option.
