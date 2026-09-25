@@ -117,6 +117,13 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   before merge.
 
 ### Fixed
+- **The JS boundary guard and pre-commit gate run when invoked through a
+  symlink.** Both compared `import.meta.url` to `file://${argv[1]}` as strings,
+  so a hook linked into a hooks directory never ran its body and exited 0,
+  blocking nothing. They now resolve both paths with `realpath`, as
+  `branch-guard` already did. Found by the v0.11.3 dogfood self-audit;
+  `adapters/js/hooks/__tests__/cli-symlink.test.mjs` runs every hook direct and
+  linked.
 - **The Python branch guard now blocks.** `adapters/python/hooks/branch_guard.py`
   had no command-line entry point, so wired as a commit or PreToolUse hook it
   exited 0 on every edit, including code edits to a protected branch, while
