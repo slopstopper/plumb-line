@@ -44,10 +44,13 @@ recorded here once so digests stop restating them (owner decision
 - **No `gh` CLI.** Use the GitHub MCP tools (`mcp__github__*`) for every
   GitHub read and for filing and closing the digest; use WebFetch for pages
   the tools do not cover.
-- **Egress-blocked domains:** `arxiv.org`, `export.arxiv.org`,
-  `hn.algolia.com`, `news.ycombinator.com` (as of 2026-09-25, unless the
-  owner allows them on the environment). While they are blocked, paper and
-  Hacker News coverage comes from web-search snippets alone.
+- **Network allowlist:** from 2026-09-25 the watcher and the monthly
+  digest run in their own environment, which allows `arxiv.org`,
+  `export.arxiv.org`, `hn.algolia.com` and `news.ycombinator.com` on top of
+  the default trusted list. W33–W39 ran without them, so paper and Hacker
+  News coverage before W40 was web-search snippets alone. The first run in
+  the new environment confirms the domains resolve; if one is still
+  blocked, that is a change the digest reports.
 
 A digest's Denominator mentions these limits only when one has changed: a
 domain that now resolves, or a new block. It does not count consecutive
