@@ -177,3 +177,13 @@ def test_version_assignment_must_be_on_one_line():
     with pytest.raises(ValueError):
         cvp.read_current_version("PROVENANCE_VERSION =\n2\n")
     assert cvp.read_current_version("PROVENANCE_VERSION\t=\t2\n") == 2
+
+
+def test_envelope_v_form_is_flagged():
+    # SECURITY.md's supported-versions table said "(envelope v1)" at wire v2,
+    # a form none of the three patterns recognised (#445).
+    findings = cvp.scan_text("SECURITY.md", "| `primitives/js` (envelope v1) | latest |", 2)
+    assert [f.found for f in findings] == [1]
+    assert cvp.scan_text("SECURITY.md", "| `primitives/js` (envelope v2) | latest |", 2) == []
+    # A release version is not a wire version.
+    assert cvp.scan_text("README.md", "the envelope v0.11.2 shipped", 2) == []

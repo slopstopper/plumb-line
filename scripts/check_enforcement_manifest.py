@@ -73,6 +73,10 @@ def _inside(root, rel):
     """Verify rel is a relative path inside root. Return joined path or None."""
     if os.path.isabs(rel):
         return None
+    # Absolute first: with a relative root ("." is main's default),
+    # normpath(".") is "." and a joined path never starts with "./", so every
+    # relative path was rejected as outside the repository (#445 review).
+    root = os.path.abspath(root)
     joined = os.path.normpath(os.path.join(root, rel))
     root_norm = os.path.normpath(root)
     if joined == root_norm or joined.startswith(root_norm + os.sep):

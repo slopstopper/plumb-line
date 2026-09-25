@@ -32,6 +32,9 @@ const targets = [
   // check_constraints_canonical.py fails CI when it disagrees with the
   // manifests (#248: the 0.10.0 bump left it at 0.9.0), so the bump writes it.
   { file: "docs/constraints.md", re: /^(- Release version is \*\*)[^*]*(\*\*)/m, label: "constr." },
+  // The Action usage example consumers copy; check-versions holds it to the
+  // manifests (#445: it sat at @v0.11.0 through two later releases).
+  { file: "ACTION.md", re: /(uses: slopstopper\/plumb-line@v)[0-9][^\s]*()/, label: "Action" },
 ];
 
 let ok = true;

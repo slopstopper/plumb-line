@@ -124,3 +124,42 @@ def test_gate_blocks_on_untagged_output(tmp_path):
     r = pre_commit_gate.decide(runners=[("require-provenance-output", lint_runner)])
     assert r["allow"] is False
     assert "require-provenance-output" in r["reason"]
+
+
+# --- branch_guard as a CLI (#445 review): it had no __main__, so wired as a
+# hook it exited 0 and never blocked; the JS twin exits 2.
+
+_BRANCH_GUARD = os.path.join(os.path.dirname(__file__), "branch_guard.py")
+
+
+def _run_branch_guard(payload, branch, cfg=None):
+    import json
+    import subprocess
+    env = dict(os.environ, PLUMBLINE_BRANCH=branch)
+    env.pop("PLUMBLINE_CFG", None)
+    if cfg is not None:
+        env["PLUMBLINE_CFG"] = json.dumps(cfg)
+    return subprocess.run([sys.executable, _BRANCH_GUARD], input=json.dumps(payload),
+                          capture_output=True, text=True, env=env)
+
+
+def test_branch_guard_cli_blocks_code_on_protected_branch():
+    r = _run_branch_guard({"filePath": "src/app.py"}, "main")
+    assert r.returncode == 2 and "blocked" in r.stderr
+
+
+def test_branch_guard_cli_allows_docs_via_camelcase_cfg():
+    # The shared PLUMBLINE_CFG JSON uses the JS twin's camelCase keys.
+    r = _run_branch_guard({"filePath": "docs/x.md"}, "main",
+                          {"protectedBranches": ["main"], "docsAllowlist": ["docs/"]})
+    assert r.returncode == 0, r.stderr
+
+
+def test_branch_guard_cli_accepts_snake_case_cfg():
+    r = _run_branch_guard({"filePath": "README.md"}, "main",
+                          {"protected_branches": ["main"], "docs_allowlist": ["README.md"]})
+    assert r.returncode == 0, r.stderr
+
+
+def test_branch_guard_cli_allows_a_feature_branch():
+    assert _run_branch_guard({"filePath": "src/app.py"}, "feature/x").returncode == 0

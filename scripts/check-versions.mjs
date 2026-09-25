@@ -8,6 +8,8 @@
 //   - primitives/js/package.json        (npm package)
 //   - .claude-plugin/plugin.json        (Claude Code plugin)
 //   - primitives/python/pyproject.toml  (PyPI package)
+// plus the fields bump-version also writes and this also checks: the npm
+// lockfile's two package-self versions and ACTION.md's usage-example tag.
 //
 // Exits 0 and prints the agreed version; exits 1 (with a clear message) on any
 // disagreement, or — when an expected version is given — if the manifests do
@@ -40,6 +42,9 @@ const manifests = {
   pypi: read("primitives/python/pyproject.toml", /^version\s*=\s*"([^"]+)"/m),
   "lock (root)": lock.version ?? "(absent)",
   "lock (pkg)": lock.packages?.[""]?.version ?? "(absent)",
+  // The usage example consumers copy. It sat at @v0.11.0 through two later
+  // releases, next to a paragraph saying the tag did not exist yet (#445).
+  "ACTION.md": read("ACTION.md", /uses: slopstopper\/plumb-line@v([0-9][^\s]*)/),
 };
 
 const distinct = [...new Set(Object.values(manifests))];

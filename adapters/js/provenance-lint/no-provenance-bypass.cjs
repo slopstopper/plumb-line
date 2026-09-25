@@ -31,7 +31,7 @@ module.exports = {
         properties: {
           sources: { type: "array", items: { type: "string" } },
           // ADDITIVE extras (built-in coverage cannot be configured away):
-          // extra import sources counted as the primitive (exact specifier match),
+          // extra import sources counted as the primitive (normalized basename match, #138),
           // for projects re-exporting it through a wrapper module…
           modules: { type: "array", items: { type: "string" } },
           // …and wrapper-local names mapped onto the built-in roles, for

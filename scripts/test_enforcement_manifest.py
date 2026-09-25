@@ -216,3 +216,18 @@ def test_ratchet_with_malformed_language_section_does_not_raise(tmp_path):
     issues = cem.validate_manifest(m, root)
     # Should contain the "js must be an object" error
     assert any("js must be an object" in i for i in issues), issues
+
+
+def test_default_root_accepts_a_valid_manifest_run_from_the_consumer_root(tmp_path, monkeypatch):
+    # The bootstrap skill documents `python3 <plugin root>/scripts/
+    # check_enforcement_manifest.py .plumb-line/enforcement.json` from the
+    # consumer root. With the default --root "." every relative path failed
+    # "must be a relative path inside the repository": normpath(".") is ".",
+    # and a joined path never starts with "./" (#445 review).
+    (tmp_path / ".plumb-line").mkdir()
+    (tmp_path / "eslint-boundary.config.cjs").write_text("module.exports = [];\n")
+    (tmp_path / ".plumb-line" / "enforcement.json").write_text(
+        '{"enforcement-format": "v1", "languages": ["js"], '
+        '"js": {"boundary": {"config": "eslint-boundary.config.cjs"}}}\n')
+    monkeypatch.chdir(tmp_path)
+    assert cem.main([".plumb-line/enforcement.json"]) == 0

@@ -7,7 +7,7 @@ moved it 1->2 in the manifests and SPEC.md but left seven prose copies stale,
 caught only by a human dogfood pass (issue #160). This makes that check
 mechanical.
 
-The gate recognises three CANONICAL FORMS. A doc that states the wire version
+The gate recognises four CANONICAL FORMS. A doc that states the wire version
 uses one of them; the checker does not try to parse every possible phrasing,
 because a regex broad enough to catch all of them produces false positives on
 ordinary prose. If a doc needs a new way to say it, add the form here.
@@ -55,6 +55,10 @@ _PATTERNS = (
     # its advice was to tag the line historical, mislabelling live prose.
     re.compile(r"PROVENANCE_VERSION`?[^0-9\n]{0,4}?"
                r"(?:=|is|are|stays|stayed|was|→|->)\s*`?([0-9]+)`?(?![.0-9])"),
+    # "envelope v2": SECURITY.md's supported-versions table said "envelope v1"
+    # for a release on wire v2, in a form none of the above matched (#445).
+    # (?![.0-9]) for the same release-version reason as the plumb-line form.
+    re.compile(r"envelope v([0-9]+)(?![.0-9])"),
 )
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

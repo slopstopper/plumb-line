@@ -32,7 +32,7 @@ shared `cases.json`, not by matching suite counts.
 `cases.json` is one of three case files in `primitives/conformance/`, each a
 separate family with its own kinds. The HTTP adapter's family,
 `primitives/conformance/http-cases.json`, has two kinds — `classify` (the
-response-to-source/confidence mapping) and `parseAge` (`Age`/`Date` header
+response-to-source/confidence mapping) and `parseAge` (`Age` header
 parsing) — and is loaded by `primitives/js/http.test.mjs` and
 `primitives/python/tests/test_http.py`.
 

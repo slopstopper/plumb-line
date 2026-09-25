@@ -18,10 +18,12 @@ findings pasted in the findings-table shape (Path / Line / Function / Issue /
 Suggested Fix / Principle).
 
 **Validate the report before consuming it.** This skill acts on a contracted
-input, so check the contract when `scripts/check_report_format.py` is reachable:
+input, so check the contract. The checker ships inside this plugin
+(`<plugin root>/scripts/check_report_format.py`; `scripts/check_report_format.py`
+inside the plumb-line repo):
 
 ```
-python3 scripts/check_report_format.py <the report>
+python3 <plugin root>/scripts/check_report_format.py <the report>
 ```
 
 A violation is **not** a reason to refuse the run — it is a reason to say what is
@@ -68,8 +70,9 @@ mark it `applied-conservative` in the record, and say it needs their review.
 
 **The conservative default: claim nothing the code cannot support.** Where an
 epistemic value must be supplied and nobody has answered, take the weakest
-honest claim — a fabricated or stubbed value gets the floor (`confidence: 0` /
-lowest rung, `source: mock`, `derivedFromMock: true`); an unverifiable origin is
+honest claim — a fabricated or stubbed value gets the floor (`confidence: "none"`,
+the lowest rung; `source: "mock"`; `derivedFromMock: true`; and
+`confidenceScore: 0` only where the project uses scores); an unverifiable origin is
 labelled as what it is, not what it is hoped to be. Never pick a "reasonable
 middle" (0.5-ish) for a value that is actually fake: an invented moderate
 confidence is an invented fact. Two runs on the same input must produce the same
@@ -177,17 +180,17 @@ difficulties.
 **Validate the record against its own contract before emitting it.** The same
 check this skill runs on its input applies to its output: `remediation-format`
 has a version, a key list, and a validator, and a contract enforced only on the
-way in is half a contract. When `scripts/check_report_format.py` is reachable,
-run it on the record — writing it to a temp file if it has not been saved — and
+way in is half a contract. Run the checker that ships in this plugin
+(`python3 <plugin root>/scripts/check_report_format.py`) on the record — writing it to a temp file if it has not been saved — and
 fix any violation before printing:
 
 ```
-python3 scripts/check_report_format.py <the record>
+python3 <plugin root>/scripts/check_report_format.py <the record>
 ```
 
-If the checker is not reachable (the common case in a consumer repo, which has
-the skills but not this repo's `scripts/`), say so in one line rather than
-implying the record was mechanically checked:
+Only when it genuinely cannot run (no shell, no Python, the plugin root
+unknown, a host rule forbidding it), say so in one line rather than implying
+the record was mechanically checked:
 
 Emit **one** of these lines, never both:
 

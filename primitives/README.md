@@ -25,7 +25,7 @@ Provenance metadata has two independent axes:
 
 | Axis      | Field        | Values (least → most trustworthy)                                     |
 | --------- | ------------ | --------------------------------------------------------------------- |
-| Status    | `source`     | `unavailable` < `mock` < `fallback` < `semiReal` < `derived` < `real` |
+| Status    | `source`     | `unavailable` < `mock` < `inferred` < `fallback` < `semiReal` < `derived` < `real` |
 | Certainty | `confidence` | `none` < `low` < `medium` < `high`                                    |
 
 Two additional fields complete the envelope:
@@ -200,8 +200,9 @@ assert issues == [], f"provenance inconsistency: {issues}"
 
 `auditMeta` checks the *logic* among the fields that are present, and treats an
 absent field as "unknown" (SPEC §2). That is deliberate, but it means a
-structurally empty envelope `{}` passes the audit — there are no claims to
-contradict. `validateEnvelope(meta)` (JS) / `validate_envelope(meta)` (Python) is
+structurally empty envelope `{}` audits clean of every logical-consistency
+check; its only issue is the `version-legacy:` advisory, since it carries no
+`provenanceVersion` (SPEC §5a). `validateEnvelope(meta)` (JS) / `validate_envelope(meta)` (Python) is
 the structural complement: it checks that the four **required** fields (`source`,
 `confidence`, `derivedFromMock`, `lineage`) are present and well-typed, returning
 the same list-of-issue-strings shape (empty = structurally valid). Like the
@@ -298,4 +299,4 @@ tolerance (comparison is exact equality on parsed values — no epsilon).
 | Per-output `PROVENANCE_VERSION` embedding in envelopes  | current |
 | Golden baseline + lineage-attributed drift (`baseline`, both languages + CLI) | current |
 | Baseline: cross-step causality, structural value diff, float tolerance | not-implemented |
-| Bootstrap / ruleset wiring for host projects            | planned |
+| Bootstrap / ruleset wiring for host projects (`plumb-line-bootstrap` skill) | current (writing the Action's enforcement manifest from the interview, Step 4d, is planned) |
