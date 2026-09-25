@@ -176,6 +176,18 @@ It catches six categories of problem:
   `false`.
 - **Unreproducible** — `source` is `"derived"` but `lineage` is empty.
 
+Two other kinds of result are not consistency findings:
+
+- **Wrong container** — `non-plain meta:` for the two near-miss containers a
+  JSON parser produces: a `dict` subclass such as `OrderedDict` in Python, a
+  null-prototype object in JS. Rebuild it as a plain one. Anything else that is
+  not a plain object/dict (`null`/`undefined`/`None`, a scalar, an array/list,
+  a `Map`, a class instance) gets `missing meta` (SPEC §5).
+- **Version advisories** — at most one of `version-legacy:`, `version-future:`
+  or `version-malformed:`, when `provenanceVersion` (`provenance_version` in
+  Python) is absent or older, newer, or not an integer. They are advisory only and never change another finding
+  (SPEC §5b).
+
 **Adding a consistency assertion (JS):**
 
 ```js
@@ -202,7 +214,7 @@ assert issues == [], f"provenance inconsistency: {issues}"
 absent field as "unknown" (SPEC §2). That is deliberate, but it means a
 structurally empty envelope `{}` audits clean of every logical-consistency
 check; its only issue is the `version-legacy:` advisory, since it carries no
-`provenanceVersion` (SPEC §5a). `validateEnvelope(meta)` (JS) / `validate_envelope(meta)` (Python) is
+`provenanceVersion` (SPEC §5b). `validateEnvelope(meta)` (JS) / `validate_envelope(meta)` (Python) is
 the structural complement: it checks that the four **required** fields (`source`,
 `confidence`, `derivedFromMock`, `lineage`) are present and well-typed, returning
 the same list-of-issue-strings shape (empty = structurally valid). Like the

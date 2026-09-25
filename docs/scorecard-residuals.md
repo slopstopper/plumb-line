@@ -11,7 +11,7 @@ rather than trusting the prose.
 curl -s https://api.scorecard.dev/projects/github.com/slopstopper/plumb-line
 ```
 
-**Last checked:** 2026-08-11 · **Overall 7.0/10** · no residual is an exploitable
+**Last checked:** 2026-09-25 · **Overall 7.3/10** · no residual is an exploitable
 vulnerability in shipped code (both published packages declare zero runtime
 dependencies).
 
@@ -19,21 +19,21 @@ dependencies).
 
 | Check | Score | Why not fixed | Changes when |
 | --- | --- | --- | --- |
-| Vulnerabilities | 8 | Two `brace-expansion` DoS advisories — **patched** to 5.0.9 in this change | Next scan re-reads the lockfiles |
 | Pinned-Dependencies | 9 | `npm install -g npm@11.18.0` in `release.yml`; a `-g` install can't be hash-pinned, and removing it breaks trusted publishing | npm supports a pinnable install |
 | Contributors | 6 | Two contributing orgs detected; full marks need ≥3 | A third org contributes |
 | Branch-Protection | 5 | Ruleset requires 0 approvals, classic requires 1, `enforce_admins` is false — merges land unapproved | PR review becomes part of the workflow (see below) |
-| Maintained | 0 | Repo created 2026-06-28, inside the 90-day window | Re-evaluate after 2026-09-26 — it then scores on activity, not age |
-| Code-Review | 0 | 0 of 9 changesets approved | Same as Branch-Protection |
+| Maintained | 0 | Repo created 2026-06-28T17:15:54Z; the 2026-09-25 scan ran inside the 90-day window, which ends 2026-09-26 17:15 UTC | The first scan after that (any push to `main`, or the Monday 01:30 UTC run of `scorecard.yml`) scores it on activity, not age — re-check then |
+| Code-Review | 0 | 0 of 8 changesets approved | Same as Branch-Protection |
 | Fuzzing | 0 | No OSS-Fuzz integration; out of proportion for this library. JS property tests exist but don't count | Someone takes on OSS-Fuzz |
-| Signed-Releases | −1 | 13 releases exist but carry no assets, so the check is uncounted. Registry trusted publishing already attests provenance | Assets are attached — this is a decline, not an inability |
+| Signed-Releases | −1 | 21 releases exist but carry no assets, so the check finds none to score ("no releases found"). Registry trusted publishing already attests provenance | Assets are attached — this is a decline, not an inability |
 
 **Resolved and observed** (scan of 2026-08-18): **CII-Best-Practices 0 → 7,
 "badge detected: Silver"** — the 2026-08-11 URL fix took effect on the next
 scan, exactly as the row above predicted, and entry 13453 has since completed
 the silver questionnaire ([#217](https://github.com/slopstopper/plumb-line/issues/217)
-closes on this observation). **Vulnerabilities → 9** in the same scan. Neither
-is asserted from memory; re-run the curl above to check.
+closes on this observation). **Vulnerabilities → 9** in the same scan, and
+**10** by the scan of 2026-09-25, so its row is gone. None of this is asserted
+from memory; re-run the curl above to check.
 
 ## Branch-Protection and Code-Review
 

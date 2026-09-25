@@ -66,6 +66,13 @@ Each entry records the commit of the skill/fixture state the runs were scored
 against, and the principles revision in force — the record that unblocks a tag
 must be traceable to the exact SKILL.md it validated.
 
+This list is **not complete**: it keeps the runs that shaped the skill and a
+few release runs. The complete record is
+[`docs/validation-results.md`](../docs/validation-results.md), where each
+release-harness record from 0.6.0 on records the Part 1b run or says why it was
+skipped (a release that did not change the remediate skill skips it). New runs
+are appended there, not here.
+
 - 2026-07-05 (pre-skill baselines, RED) · fixture at `282173e`, no skill,
   principles-revision 1: two baseline agents (no skill) both fixed the three
   findings honestly and refused to launder under gate pressure — but both

@@ -8,7 +8,7 @@ that conforms to this document interoperates with any other, regardless of
 language. The reference implementations (`primitives/js/`, `primitives/python/`)
 conform; the executable definition of conformance is
 [`conformance/cases.json`](conformance/cases.json), exercised in both languages
-(`js/conformance.test.mjs`, `python/test_conformance.py`).
+(`js/conformance.test.mjs`, `python/tests/test_conformance.py`).
 
 The key words MUST, MUST NOT, SHOULD, MAY are used as in RFC 2119.
 
@@ -29,12 +29,14 @@ has four required fields and several optional ones.
 | `weakestSource`   | no  | enum (§2)       | Least-trustworthy `source` in the ancestry; computed only (§4).     |
 | `basis`           | no  | any             | Free-form note on the derivation; by convention, an operation label naming the transform (§4). |
 | `adapter`         | no  | any             | Free-form enforcement-adapter annotation.                           |
+| `provenanceVersion` | no | integer        | The `PROVENANCE_VERSION` the producer stamped; read by the audit (§5b). |
 
 Field names are given here in `camelCase` (the canonical/JSON form). A
-`snake_case` binding (`derived_from_mock`, `confidence_score`, `weakest_source`)
-is permitted and is what the Python implementation uses; the two are the same
-envelope under a naming convention, and `conformance/cases.json` is authored in
-`camelCase` with bindings translating as needed.
+`snake_case` binding (`derived_from_mock`, `confidence_score`, `weakest_source`,
+`provenance_version`) is permitted and is what the Python implementation uses;
+the two are the same envelope under a naming convention, and
+`conformance/cases.json` is authored in `camelCase` with bindings translating as
+needed.
 
 Optional fields MUST be **absent** when they have no value — an implementation
 MUST NOT emit `confidenceScore: null` or `weakestSource: undefined`. Absence is
@@ -274,7 +276,7 @@ distinguishes two states (#209):
 
 Neither state can be pinned in `cases.json` — JSON has no dict-subclass or
 null-prototype literal — so both are pinned by per-language unit tests. Note
-that `validateEnvelope` / `validate_envelope` (§5c) is deliberately looser and
+that `validateEnvelope` / `validate_envelope` (§5a) is deliberately looser and
 does accept subtypes; the two checkers answer different questions. Only a
 plain object/dict is examined for claim consistency; a structurally empty one
 (`{}`) has no claims to contradict and audits clean of every logical-consistency

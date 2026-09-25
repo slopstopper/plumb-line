@@ -62,7 +62,11 @@ Python. There is no enforced auto-formatter, so keep diffs minimal.
 ## Running the tests
 
 Enforcement is covered by real tests, not by assertions of correctness. Tests
-also gate **statement coverage at ≥80%** (it fails the build below that):
+also gate **statement coverage at ≥80%** (it fails the build below that).
+There is no root test command: each component is tested from its own directory.
+[DEVELOPMENT.md](DEVELOPMENT.md#running-tests--there-is-no-root-command) has the
+full list, including the cross-language conformance report, `examples`, the
+`scripts/` tests and the repo checks CI runs. The four component suites:
 
 ```bash
 # Provenance primitive
@@ -88,7 +92,7 @@ expected to catch on the worked fixtures.
 
 ## Adding a language adapter
 
-v0.1 ships JavaScript/TypeScript and Python; Go and Rust are planned. Parity
+JavaScript/TypeScript and Python adapters are `current`; Go and Rust are `planned`. Parity
 across languages matters more than breadth, so a new adapter should match the
 existing [adapter contract](adapters/adapter-contract.md) rather than invent its
 own shape.

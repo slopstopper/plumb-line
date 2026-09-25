@@ -16,10 +16,10 @@ One case per fixture variant, mirroring the blind protocol:
 | `audit-py-broken` | `examples/python-data-pipeline/broken` | all 3 planted violations confirmed (P2 schema.py, P5 aggregate.py, P8 source.py) |
 | `audit-py-clean` | `examples/python-data-pipeline/clean` | zero confirmed violations; P7/P9 advisory only |
 
-Each case: `runs: 3` (the harness requires >=2 independent auditors per broken
-fixture), an identical plain prompt carrying the declared architecture from
-protocol step 3, and a `scaffold.sh` that stages the fixture per protocol step
-2 (answer keys deleted, every line naming a violation stripped
+Each case: `runs: 3`, set in its `prompt.md` front matter (the harness requires
+>=2 independent auditors per broken fixture), an identical plain prompt carrying
+the declared architecture from protocol step 3, and a `scaffold.sh` that stages
+the fixture per protocol step 2 (answer keys deleted, every line naming a violation stripped
 case-insensitively, strip verified before dispatch). The scaffold scripts are
 plain bash and were tested directly on 2026-08-18; the planted violation lines
 survive the strip.

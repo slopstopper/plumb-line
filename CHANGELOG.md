@@ -9,7 +9,26 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+- **CI tests Python 3.14, and the PyPI classifiers list it**
+  ([#444](https://github.com/slopstopper/plumb-line/issues/444)).
+  `SUPPORT.md` already promised that CI tests the newest released CPython; the
+  matrix stopped at 3.13. The classifiers keep matching the matrix (#227).
+- **Contributor and component docs match the code again**
+  ([#444](https://github.com/slopstopper/plumb-line/issues/444)), the items the
+  2026-09-25 sweep deferred.
+  - `DEVELOPMENT.md` no longer states test counts that were four to six times
+    stale; it lists what CI runs, names `ci.yml` as the list of record, and
+    points versions at `docs/constraints.md`.
+  - `ROADMAP.md` marks shipped work as shipped, places #124, #90, #127 and #130
+    where GitHub has them, and drops issue counts that had mixed in PRs.
+  - SPEC, PARITY, the primitives README, the adapter contract, `docs/api.md`,
+    the evals README and the threat model each had a wrong cross-reference,
+    count or scope claim; the Scorecard and coverage numbers are re-measured.
+  - `CONTRIBUTING.md` points at the full test list and uses the maturity
+    vocabulary; `docs/tracking-dialect.md` names real milestones;
+    `examples/REMEDIATE-EXPECTATIONS.md`'s History says it is incomplete and
+    points at `docs/validation-results.md`, the complete record.
 
 ## [0.11.3] — 2026-09-25
 

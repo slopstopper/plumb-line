@@ -59,7 +59,10 @@ change, failing-test-first, DCO sign-off, `CHANGELOG.md` under
   **The rule:** every open issue carries *exactly one* of a release
   milestone (= scheduled) or a `track:*` label (= deliberately
   unscheduled). An issue with neither is a tracking bug, not a backlog
-  item. Full rationale in
+  item. **One exemption:** an issue pinned to the repo's issue list as
+  reader guidance, not work (today
+  [#311](https://github.com/slopstopper/plumb-line/issues/311), "Read this
+  first"), carries neither and is not flagged. Full rationale in
   [`ROADMAP.md` § How this backlog is organised](../ROADMAP.md).
 
   These were previously modelled as *milestones*, which made them
@@ -80,8 +83,8 @@ change, failing-test-first, DCO sign-off, `CHANGELOG.md` under
 
 ### Milestones
 
-Milestone namespace is **releases only** (`v0.9.0 — Honest over time`,
-`v0.10.0 — Refuse and explain`). A milestone means "these ship together, at
+Milestone namespace is **releases only** (`v0.9.0 — The front door`,
+`v0.11.0 — Honest over time`). A milestone means "these ship together, at
 a version", so a stalled release milestone is always a real signal.
 
 ### The deferral outbox (local rule, stronger than principle 3)

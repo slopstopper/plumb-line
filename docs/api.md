@@ -337,8 +337,11 @@ Cache state is signaled differently per language: JS takes an explicit
 `fromCache` argument, while the Python taggers have no cache parameter and
 instead read a `from_cache` attribute off the response when one is present
 (`bool(getattr(response, "from_cache", False))` — the convention
-`requests-cache` uses). An unrelated truthy `from_cache` attribute on a
-response-like object will therefore read as a cache hit.
+`requests-cache` uses). The taggers accept only a real `requests.Response` /
+`httpx.Response` and raise `TypeError` for anything else, so the attribute is
+read only on those. Stock clients never set it, so for them cache detection
+comes from the status and headers alone. A `Response` subclass that sets a
+truthy `from_cache` for another reason will read as a cache hit.
 
 ```js
 import { tagResponse } from "plumb-line-provenance/http";
