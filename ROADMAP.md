@@ -64,7 +64,7 @@ Version themes for the near-term releases, and the GitHub issues under each.
   `PROVENANCE_VERSION` stayed 1.
   <!-- wire-version-historical -->
 
-- **v0.4.1 — Legible audit** (patch). First-tester UX pass on `plumb-line-audit`:
+- **v0.4.1 — Legible audit** (patch) · *shipped 2026-07-02.* First-tester UX pass on `plumb-line-audit`:
   principle glossary + inline names (#15 / GH #83), canonical report format —
   always a table, Path/Line/Function split, Suggested Fix column (#16 / GH #84),
   report-file determinism (#17 / GH #85), README marketplace-install-first
@@ -82,14 +82,15 @@ Version themes for the near-term releases, and the GitHub issues under each.
   backfilled: 0.5.0 went out narrower than this milestone first scoped, so the
   milestone is split honestly instead of the tracker pretending it was complete.
 
-- **v0.5.1 — Audit you can act on (completes 0.5.0's theme).** The two themes cut
+- **v0.5.1 — Audit you can act on (completes 0.5.0's theme)** · *shipped
+  2026-07-03.* The two themes cut
   from 0.5.0: lightweight remediation handoff — audit offers to hand findings to
   `writing-plans` / plan mode and suggests bootstrap on a provenance gap (#20 /
   GH #88); onboarding polish — bootstrap suggested from method, three-skill
   cross-links, and a documented first-run flow (#21 / GH #89). Skill-surface →
   runs the release harness.
 
-- **v0.6.0 — Apply the discipline.** Close the two-halves gap on the skill
+- **v0.6.0 — Apply the discipline** · *shipped 2026-07-05.* Close the two-halves gap on the skill
   surface: the adopt-the-primitive offer slice — method names the primitive
   (GH #106) and bootstrap teaches it (GH #107), **deferred here from v0.5.0** —
   from item #6; and a new `plumb-line-remediate` skill applies audit findings
@@ -100,7 +101,7 @@ Version themes for the near-term releases, and the GitHub issues under each.
   v0.7.0**: it is gated on wire v2, which does not land until then, so bundling
   here would vendor v1 and re-vendor at the break.
 
-- **v0.7.0 — Lower the on-ramp** (runtime + wire v2). Static lint for untagged
+- **v0.7.0 — Lower the on-ramp** (runtime + wire v2) · *shipped 2026-07-11.* Static lint for untagged
   outputs (#1 / GH #91), ecosystem adapters (#2 / GH #92), `PROVENANCE_VERSION`
   per-envelope embedding (#5 / GH #93), durable/stable lineage step IDs — the
   wire-format break, `PROVENANCE_VERSION` → 2 (GH #52), lint injection path
@@ -109,7 +110,8 @@ Version themes for the near-term releases, and the GitHub issues under each.
   slot or a profile mechanism, decided **before** v2 tags (#23 / GH #116) —
   it is the last cheap chance to touch the ladder.
 
-- **v0.8.0 — Firm ground** (pay the debt, prove the gates). Ships the
+- **v0.8.0 — Firm ground** (pay the debt, prove the gates) · *shipped
+  2026-08-11.* Ships the
   already-merged Python 3.11 floor + `SUPPORT.md` EOL policy — a supported-
   runtime change to published packages, so **minor** under pre-1.0 SemVer, which
   is what forced this release ahead of the P9 work. Around it, the deferral
@@ -122,7 +124,8 @@ Version themes for the near-term releases, and the GitHub issues under each.
   (GH #172) — plus the accepted Scorecard residuals record (GH #77).
   Deliberately small; the point is that deferrals now have an outbox.
 
-- **v0.8.1 — Say only what is checked** (patch, fix-only). Every issue here is
+- **v0.8.1 — Say only what is checked** (patch, fix-only) · *shipped
+  2026-08-14.* Every issue here is
   the same defect shape: a claim this repo makes with nothing enforcing it —
   `pyproject` naming Python 3.12 outside the matrix (GH #227), a public export
   with no doc section or unit test (`parseAge`, GH #224), a parity guarantee
@@ -139,7 +142,8 @@ Version themes for the near-term releases, and the GitHub issues under each.
   Scoped small on purpose so it drains the outbox quickly instead of riding
   a feature minor's work.
 
-- **v0.9.0 — The front door** (distribution) · *created 2026-08-14, taking the
+- **v0.9.0 — The front door** (distribution) · *shipped 2026-08-15; created
+  2026-08-14, taking the
   number from the P9 milestone below (see the numbering note).* The plugin
   learns to answer "what would I use this on, here?": the `plumb-line-adopt`
   concierge skill + canonical `reference/fit-map.md` (GH #176, delivering the
@@ -161,7 +165,8 @@ Version themes for the near-term releases, and the GitHub issues under each.
   run stays planned, #313). The [changelog](CHANGELOG.md) has the per-item
   detail.
 
-- **v0.11.0 — Honest over time** (P9 tooling + CI-native) · *renumbered from
+- **v0.11.0 — Honest over time** (P9 tooling + CI-native) · *shipped
+  2026-09-15; renumbered from
   v0.8.0, then from v0.9.0, then from v0.10.0 (see the numbering note).* Principle 9 finally gets an implementation: `plumb-line baseline`
   CLI — golden baseline with lineage-attributed drift (#24 / GH #117); a GitHub
   Action running the deterministic adapters with SARIF output (#25 / GH #118);
@@ -195,13 +200,13 @@ Version themes for the near-term releases, and the GitHub issues under each.
   `check_report_format.py` cluster once scheduled here (GH #220–#223: the
   validator's own four findings) was pulled forward and closed under v0.11.0.
 
-- ~~**v0.11.1 — Ratchet and Action hardening**~~ · **shipped 2026-09-20**, 8
-  issues closed: seven correctness and hygiene fixes to the ratchet and the
+- ~~**v0.11.1 — Ratchet and Action hardening**~~ · **shipped 2026-09-20**:
+  seven correctness and hygiene fixes to the ratchet and the
   Action (GH #389–#393, #395, #397; two of them stricter for adopters and
   called out as such), harness record in `docs/validation-results.md`. Its
   dogfood run deferred three more (GH #411–#413) into v0.11.2.
-- ~~**v0.11.2 — Tooling and docs tidy**~~ · **shipped 2026-09-25**, 9
-  issues closed: five tooling and docs fixes (GH #171, #369, #374, #400,
+- ~~**v0.11.2 — Tooling and docs tidy**~~ · **shipped 2026-09-25**:
+  five tooling and docs fixes (GH #171, #369, #374, #400,
   #401, plus the content-template drift, GH #405) and the three v0.11.1
   dogfood deferrals (GH #411–#413); two are stricter for adopters and one
   needs a one-time ratchet re-pin, all called out as such. Harness record in `docs/validation-results.md`; its
@@ -279,8 +284,10 @@ Version themes for the near-term releases, and the GitHub issues under each.
      promise would be unfalsifiable: no one could point at a change and say
      whether it broke the contract. You cannot freeze an API nobody wrote down.
   3. **Wire format frozen** — `PROVENANCE_VERSION` 2 readable by every 1.x.
-  4. **Canonical serialization is normative in SPEC** (#31 / GH #124, **moved
-     here from `track:boundaries`**) — both because it is normative wire text
+  4. **Canonical serialization is normative in SPEC** (#31 / GH #124, moved
+     here from `track:boundaries`, then **scheduled into v0.12.0** after the
+     post-0.11.0 roadmap review; the gate is that it has landed) — both
+     because it is normative wire text
      and 1.0 freezes the spec, and because today the guarantee only holds
      inside one process: taint evaporates at every HTTP response, DB write,
      file and queue. Shipping "depend on this" while the central promise stops
@@ -323,8 +330,9 @@ Version themes for the near-term releases, and the GitHub issues under each.
 
   The canonical JSON serialization convention (#31 / GH #124) **moved to
   v1.0.0** — it is normative spec text rather than an application of the
-  convention, and 1.0 freezes the spec. #32 and #33 build on it and stay
-  here; they can land anywhere in 1.x.
+  convention, and 1.0 freezes the spec — and was then pulled forward into
+  **v0.12.0**, because two shipped contracts already commit to a form. #32
+  and #33 build on it and stay here; they can land anywhere in 1.x.
 
 - **Agent epistemic state** (label `track:agent-state`; the identity track —
   can start early, it is skill-surface with no runtime dependency beyond the
@@ -338,13 +346,14 @@ Version themes for the near-term releases, and the GitHub issues under each.
 
 - **Ecosystem docking** (label `track:ecosystem`, demand-driven — design notes
   first, code when a real user asks). OpenLineage exporter (#36 / GH #129), W3C
-  PROV-O vocabulary mapping (#37 / GH #130), dbt model-level tags through the
+  PROV-O vocabulary mapping (#37 / GH #130, scheduled into v0.12.0 as a docs
+  rider), dbt model-level tags through the
   DAG (#38 / GH #131).
 
 - **Skills surface** (label `track:skills`). The review-time half of the product,
   which no track previously covered: an adoption guide skill for less-technical
-  users taking on the ecosystem adapters (GH #176 — **scheduled into v0.9.0 —
-  The front door**, rescoped to cover both surfaces).
+  users taking on the ecosystem adapters (GH #176, rescoped to cover both
+  surfaces — **shipped in v0.9.0 — The front door**).
 
   The guaranteed total-sweep audit (#22 / GH #90) and its adversarial-
   verification companion (GH #211) **moved to v1.0.0** — they are the coverage
@@ -359,15 +368,17 @@ Version themes for the near-term releases, and the GitHub issues under each.
 ### Priority order
 
 The audit-trust arc (v0.5.1 → v0.6.0) and the one-shot schema window (v0.7.0 +
-the ladder decision) are **shipped**, as is v0.8.0. The sequencing rule from
+the ladder decision) are **shipped**, as is v0.8.0. Issue counts are not
+restated here: each release's GitHub milestone is the count of record. The
+sequencing rule from
 here: **drain the deferral backlog before adding surface**, then the two
 deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
 
-1. ~~**Now:** v0.8.0~~ — **shipped 2026-08-11**, 18 issues closed.
+1. ~~**Now:** v0.8.0~~ — **shipped 2026-08-11**.
 2. ~~**Now:** v0.8.1~~ — **shipped 2026-08-14**, four fix-only
    claim-enforcement gaps drained (the fifth, GH #233, rides v0.9.0 — see the
    milestone note).
-3. ~~**Now:** v0.9.0~~ — **shipped 2026-08-15**, 5 issues closed (The front
+3. ~~**Now:** v0.9.0~~ — **shipped 2026-08-15** (The front
    door: adopt skill + fit-map, README pass, snippet guard, Node floor).
    Sequenced ahead because the adopt skill was finished, user-facing, and must
    not sit behind a stale tag.
@@ -379,14 +390,14 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
    the engine is part of it — the milestones only track versioned scope, so
    this ordering lives here and on the parent issue. Status: #255 and #256
    shipped in v0.10.0; #257 and #128 open.
-5. ~~v0.10.0~~ — **shipped 2026-08-19**, 12 issues closed (Pay down the
+5. ~~v0.10.0~~ — **shipped 2026-08-19** (Pay down the
    ledger: the integrity fixes and the small-issue sweep, taking the number the
    P9 milestone had held — see the numbering note).
-6. ~~v0.11.0~~ — **shipped 2026-09-15**, 37 issues closed (Honest over time:
+6. ~~v0.11.0~~ — **shipped 2026-09-15** (Honest over time:
    the golden baseline #117, the GitHub Action + SARIF #118, the provenance
    ratchet #119, and the deferral sweep; harness record in
    `docs/validation-results.md`).
-7. ~~v0.11.1~~ — **shipped 2026-09-20**, 8 issues closed (the ratchet and
+7. ~~v0.11.1~~ — **shipped 2026-09-20** (the ratchet and
    Action hardening; harness record in `docs/validation-results.md`).
 8. ~~v0.11.2~~ and ~~v0.11.3~~ — **shipped 2026-09-25** (harness records
    in `docs/validation-results.md`). **Next:** the v0.11.4 patch (fix-only),
@@ -394,14 +405,16 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
    settled, then v0.13.0, split from it on 2026-09-17.
 9. **After that:** v1.0.0 — the coverage guarantee, the API-surface
    definition (GH #236) that everything else freezes against, canonical
-   serialization (GH #124), and the last-call breaking-change pass (GH #239,
+   serialization in SPEC (GH #124, scheduled to land in v0.12.0), and the
+   last-call breaking-change pass (GH #239,
    after #236). No due date; gated on state, not on a date.
 10. **Parallel, start early:** `track:portable` — skill-surface, no runtime
    dependency. (`track:agent-state` is now #35 alone, which waits on the
    ladder decision and on #34, so it no longer starts early.)
 11. **Parallel, after wire v2:** `track:boundaries` (#31 → #32/#33).
-12. **Opportunistic:** `track:ecosystem` — PROV-O mapping (#37) is cheap and
-   credibility-bearing, do it whenever; OpenLineage/dbt wait for a pilot user.
+12. **Opportunistic:** `track:ecosystem` — OpenLineage/dbt wait for a pilot
+   user. The PROV-O mapping (#37), cheap and credibility-bearing, is scheduled
+   into v0.12.0.
 
 A note on the numbering: the P9 and runtime-gates milestones have been
 renumbered three times, each time for the same reason — a finished, user-facing
@@ -419,7 +432,7 @@ Pay down the ledger (recorded on the milestone; this file caught up in GH #378).
 
 ### 1. Static lint for untagged output-producing functions
 
-**Priority: high** · Milestone: v0.7.0 · GitHub: #91
+**Priority: high** · Milestone: v0.7.0 · GitHub: #91 · **Shipped in v0.7.0**
 
 The provenance primitive is fully opt-in: a developer can write
 `const result = a.value + b.value` and bypass taint propagation entirely. The
@@ -501,7 +514,7 @@ with conformance coverage.
 
 ### 5. `PROVENANCE_VERSION` per-envelope embedding and validation
 
-**Priority: medium** · Milestone: v0.7.0 · GitHub: #93
+**Priority: medium** · Milestone: v0.7.0 · GitHub: #93 · **Shipped in v0.7.0**
 
 This is a wire-format change, so it rides the v0.7.0 wire-v2 bump alongside GH
 #52 (durable step IDs) rather than shipping on its own.
@@ -521,7 +534,8 @@ warning; unknown past versions are flagged.
 
 ### 6. Adopt the primitive from the skills (bootstrap + method)
 
-**Priority: medium** · Tracked as three issues across a skill-scoped split. The
+**Priority: medium** · **Shipped: offer slice in v0.6.0, bundle slice in v0.7.0** ·
+Tracked as three issues across a skill-scoped split. The
 *offer* slice (**v0.6.0** — originally scoped to v0.5.0, deferred when 0.5.0
 shipped narrower; no schema dependency) is two issues by responsibility —
 **method** introduces the primitive + suggests getting it
@@ -571,7 +585,7 @@ to keep that decision scoped to the primitive itself.
 
 **Priority: low** · Milestone: Backlog
 
-JS and Python ship at v0.1; Go and Rust are the next planned ports. Each new
+JS and Python are `current` (both since v0.1); Go and Rust are the next planned ports. Each new
 language adapter must:
 
 - Implement the combination law from `primitives/SPEC.md`
@@ -609,7 +623,7 @@ versioning now let a saved audit report be re-verified and parsed reliably.
 
 ### 10. Configurable primitive module/function names in provenance lint
 
-**Priority: low** · Milestone: v0.6.0 · GitHub: #29 · rider on the "apply the
+**Priority: low** · Milestone: v0.6.0 · GitHub: #29 · **Shipped in v0.6.0** · rider on the "apply the
 discipline" release — makes bootstrap's wiring cover re-exported primitives
 
 `PRIMITIVE_MODULES` and `TRACKED` function lists in both the JS ESLint rule
@@ -625,7 +639,7 @@ reusable for third-party primitives that follow the same envelope contract.
 
 ### 11. `plumb-line-remediate` skill — apply audit findings
 
-**Priority: high** · Milestone: v0.6.0 · GitHub: #57 · depends on #9 (GH #28)
+**Priority: high** · Milestone: v0.6.0 · GitHub: #57 · **Shipped in v0.6.0** · depends on #9 (GH #28)
 
 The skills teach (method), set up (bootstrap), and find (audit) — but nothing
 applies a fix. `plumb-line-audit` is deliberately read-only, so after it reports
@@ -694,7 +708,7 @@ builder uses — `.cursor/rules`, `.github/copilot-instructions.md`, `CLAUDE.md`
 
 ### 15. Audit: principle legibility — glossary + inline names
 
-**Priority: high** · Milestone: v0.4.1 · GitHub: #83
+**Priority: high** · Milestone: v0.4.1 · GitHub: #83 · **Shipped in v0.4.1**
 
 From first-tester feedback: `P1/P2/...` codes are opaque to infrequent users, and
 principles get explained mid-report rather than up front, leaving the reader
@@ -705,7 +719,7 @@ dangling. Open every audit with a one-line-per-principle glossary and render eac
 
 ### 16. Audit report format — canonical structure
 
-**Priority: high** · Milestone: v0.4.1 · GitHub: #84
+**Priority: high** · Milestone: v0.4.1 · GitHub: #84 · **Shipped in v0.4.1**
 
 The report shape varies run to run — sometimes a structured table, sometimes
 blocks of prose — a non-deterministic artifact that cannot be reliably diffed or
@@ -718,7 +732,7 @@ Fix** column after **Issue**.
 
 ### 17. Audit report-file determinism
 
-**Priority: medium** · Milestone: v0.4.1 · GitHub: #85
+**Priority: medium** · Milestone: v0.4.1 · GitHub: #85 · **Shipped in v0.4.1**
 
 The skill sometimes writes `plumb-line-audit.md` and sometimes does not. Pick one
 contract (always write, or always offer) and make it deterministic — the
@@ -728,7 +742,7 @@ coin-flip is itself a small honesty violation.
 
 ### 18. README — marketplace install first
 
-**Priority: medium** · Milestone: v0.4.1 · GitHub: #86
+**Priority: medium** · Milestone: v0.4.1 · GitHub: #86 · **Shipped in v0.4.1**
 
 Promote the marketplace install path to the top of the install section as the
 least-friction on-ramp (first-tester note); keep manual/dev install below.
@@ -751,7 +765,7 @@ the guaranteed sweep is #22.
 
 ### 20. Audit — lightweight remediation handoff
 
-**Priority: medium** · Milestone: v0.5.1 · GitHub: #88
+**Priority: medium** · Milestone: v0.5.1 · GitHub: #88 · **Shipped in v0.5.1**
 
 At the end of a run, offer to hand findings to superpowers `writing-plans` / plan
 mode for a fix-plan markdown, and — when provenance gaps appear — suggest
@@ -763,7 +777,7 @@ auditor stays read-only; this is an offer, not an apply. Bridges to the full
 
 ### 21. Onboarding — suggest bootstrap from method
 
-**Priority: medium** · Milestone: v0.5.1 · GitHub: #89
+**Priority: medium** · Milestone: v0.5.1 · GitHub: #89 · **Shipped in v0.5.1**
 
 Suggest `plumb-line-bootstrap` from inside `plumb-line-method` and cross-link
 method ↔ audit ↔ bootstrap so first-time users find the next step. Includes a
@@ -775,7 +789,7 @@ intended first-run flow instead of promising auto-run.
 
 ### 22. Audit — guaranteed total sweep (subagent fan-out)
 
-**Priority: low** · Track: `track:skills` (unscheduled) · GitHub: #90
+**Priority: low** · Milestone: v1.0.0 (moved from `track:skills`; a 1.0 gate) · GitHub: #90
 
 Fan out subagents to chunk the whole tree so large repos are genuinely fully read,
 not sampled. **Must ship a token-consumption warning** — this is expensive.
@@ -785,7 +799,7 @@ Deliberately deferred beyond v0.5.0; #19's plan + map is the honest-floor versio
 
 ### 23. Source ladder — decide an `inferred` (LLM/agent-produced) slot
 
-**Priority: high** · Milestone: v0.7.0 (hard rider on wire v2) · GitHub: #116
+**Priority: high** · Milestone: v0.7.0 (hard rider on wire v2) · GitHub: #116 · **Shipped in v0.7.0**
 
 The source ladder has no seat for a value an LLM or agent estimated; teams will
 shoehorn it into `semiReal` or `fallback` inconsistently. Decide **before wire
@@ -902,7 +916,7 @@ adoption friction. Ships as optional extras; zero-dependency core untouched.
 
 ### 31. Envelope transport — canonical JSON serialization convention
 
-**Priority: high** · Track: `track:boundaries` · GitHub: #124
+**Priority: high** · Milestone: v0.12.0 (from `track:boundaries`, via v1.0.0) · GitHub: #124
 
 Envelopes are in-memory objects; taint evaporates at every HTTP response, DB
 write, file, or queue — today the guarantee only holds inside one process, and
@@ -940,7 +954,7 @@ fetch/requests/httpx adapters (#2), a worked two-service example. This is the
 
 ### 34. Agent-run epistemic-state spec
 
-**Priority: high** · Track: `track:agent-state` · GitHub: #127
+**Priority: high** · Milestone: v1.0.0 (moved from `track:agent-state`; a 1.0 gate) · GitHub: #127
 
 The audit skill's coverage-honesty machinery (traversal plan,
 read/partial/not-read map, honest denominator — #19) is the seed of a general
@@ -977,7 +991,7 @@ Design note first; build when a real user asks.
 
 ### 37. W3C PROV-O vocabulary mapping
 
-**Priority: medium (cheap)** · Track: `track:ecosystem` · GitHub: #130
+**Priority: medium (cheap)** · Milestone: v0.12.0 (docs rider; from `track:ecosystem`) · GitHub: #130
 
 A documented mapping from the envelope schema to PROV-O terms
 (Entity/Activity/Agent, `wasDerivedFrom`, …). A reference document, not code —
@@ -1012,18 +1026,12 @@ lint for gradual adoption, types for the committed core.
 
 ## Deferred — Known Issues
 
-The v0.2.0 / v0.3.0 dogfood deferrals GH #23, #25, and #26 have shipped — see
-[CHANGELOG.md](CHANGELOG.md). Two remain open, folded into the runtime
-milestone:
-
-| GH # | Summary | File | Milestone |
-|------|---------|------|-----------|
-| GH #24 | Dual-import shim can be displaced by a top-level `provenance.py` in a consumer project | `primitives/python/{marked,audit}.py` | v0.7.0 |
-| GH #96 | `auditMeta`/`audit_meta` non-plain-object (Map/Date/class-instance) parity + SPEC §5 totality wording | `primitives/js/audit.mjs`, `primitives/SPEC.md` | v0.7.0 |
-
-The related `audit_meta` totality bug on falsy-but-not-`None` input (GH #80)
-shipped in v0.4.1; #96 above tracks the non-plain-object parity edge that review
-surfaced next.
+Deferred work is tracked as GitHub issues labelled `audit-deferral`
+(`gh issue list --label audit-deferral`), not in this file. The dogfood
+deferrals this section once listed have all shipped: GH #23, #25 and #26;
+GH #24 (the dual-import shim) and GH #96 (non-plain-object parity), both in
+v0.7.0; and the `audit_meta` totality bug GH #80, in v0.4.1. See
+[CHANGELOG.md](CHANGELOG.md).
 
 ---
 
