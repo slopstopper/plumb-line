@@ -200,10 +200,12 @@ Version themes for the near-term releases, and the GitHub issues under each.
   Action (GH #389–#393, #395, #397; two of them stricter for adopters and
   called out as such), harness record in `docs/validation-results.md`. Its
   dogfood run deferred three more (GH #411–#413) into v0.11.2.
-- **v0.11.2 — Tooling and docs tidy** (patch, fix-only) · *created
-  2026-09-17.* Five tooling and docs fixes (GH #171, #369, #374, #400, #401,
-  plus the content-template drift, GH #405) and the three v0.11.1 dogfood
-  deferrals. Does not wait on the minors.
+- ~~**v0.11.2 — Tooling and docs tidy**~~ · **shipped 2026-09-25**, 9
+  issues closed: five tooling and docs fixes (GH #171, #369, #374, #400,
+  #401, plus the content-template drift, GH #405) and the three v0.11.1
+  dogfood deferrals (GH #411–#413); two are stricter for adopters and one
+  needs a one-time ratchet re-pin, all called out as such. Harness record in `docs/validation-results.md`; its
+  dogfood run deferred three more (GH #432–#434), not yet scheduled.
 
 - **v0.13.0 — Reproducible enforcement** · *split from v0.12.0 on 2026-09-17,
   when that milestone reached thirteen issues.* Every enforcement output
@@ -367,8 +369,9 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
    `docs/validation-results.md`).
 7. ~~v0.11.1~~ — **shipped 2026-09-20**, 8 issues closed (the ratchet and
    Action hardening; harness record in `docs/validation-results.md`).
-8. **Next:** the v0.11.2 patch (fix-only, drains the rest of the deferral
-   outbox), then v0.12.0 — sequenced after wire v2 so the envelope fields it
+8. ~~v0.11.2~~ — **shipped 2026-09-25**, 9 issues closed (the deferral
+   outbox drained; harness record in `docs/validation-results.md`).
+   **Next:** v0.12.0 — sequenced after wire v2 so the envelope fields it
    adds are settled — then v0.13.0, split from it on 2026-09-17.
 9. **After that:** v1.0.0 — the coverage guarantee, the API-surface
    definition (GH #236) that everything else freezes against, canonical
