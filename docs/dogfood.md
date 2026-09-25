@@ -632,3 +632,43 @@ output-producing units in the diff found provenance and confidence present
 on all of them and lineage missing only where #388 already says so. The
 exemplar-report finding is the kind the skill catches well: a stated claim
 (`clean`) whose enforcement had quietly lapsed when its checker changed.
+
+## v0.11.2 dogfood self-audit — 2026-09-25
+
+Scope: the method-surface diff v0.11.1..`26fa6c2` (24 touched files under
+`skills/`, `primitives/`, `adapters/`; the eight v0.11.2 fixes and the PR #428
+review round). Report format v3, validated with
+`scripts/check_report_format.py` — clean (exit 0) on the first run.
+Coverage, honest and not complete: 7/24 read in full, 15 partial (diff hunks
+plus the surrounding unit), 2 not-read (lockfiles). The auditor read the
+skill from the worktree and ran the conformance gate and the JS, Python and
+lint-rule suites as evidence (41/41; 276; 213; 68). P1 and P2 coverage is
+partial: the repo declares no source-truth layer (finding 5).
+
+**5 findings: 1 violation, 4 needs-review.**
+
+| Path | Issue | Principle | Resolution |
+| ---- | ----- | --------- | ---------- |
+| `skills/plumb-line-audit/SKILL.md` | the diff made the report five parts, but three other statements of the shape still described four (the clean-run sentence, the print instruction, the 1–4 numbering), and the failure list missed two rules the checker enforces (no rows, blank cell) | P7 — Contracted outputs | **fixed in place** — the omission-pass table is numbered part 4, the coverage map part 5, and every statement of the shape and the checker's failure conditions now agree |
+| `skills/plumb-line-audit/SKILL.md` | [needs-review] a new REQUIRED part under an unchanged `report-format: v3` makes v3 name two shapes, and the saved `format-validation:` line does not record which checker version passed it | P7 — Contracted outputs | **deferred** → [#432](https://github.com/slopstopper/plumb-line/issues/432) (needs a decision: v4, or a checker-versioned verdict line) |
+| `primitives/conformance/report.mjs` | [needs-review] the CONFORMANT verdict, badge and `--json` do not record which case table earned them; `cases.json`'s `version` is skipped unvalidated | P8 — State-first lineage | **deferred** → [#433](https://github.com/slopstopper/plumb-line/issues/433) |
+| `primitives/python/baseline.py` | [needs-review] the new `dir` comment says "(see PARITY.md)", which said nothing about `dir` | P6 — Maturity vocabulary | **fixed in place** — `primitives/PARITY.md` now records the `dir` choice beside the `list`/`list_baselines` asymmetry |
+| `AGENTS.md` | [needs-review, advisory] no source-truth layer or layer map is declared for the repo itself, so P1/P2 can only be checked partially | P6 — Maturity vocabulary | **deferred** → [#434](https://github.com/slopstopper/plumb-line/issues/434) |
+
+### What was clean
+
+The `http.py` → `http_adapter.py` rename and its alias (tested in isolated
+subprocesses; the static-analysis limit is disclosed), the destructured-site
+naming and its disclosed one-time re-pin, the shared conformance runner and
+its Python twins, and SPEC §4's step-id text against both implementations.
+No combination-law or checker code changed, so no `cases.json` row was owed.
+
+### Calibration notes
+
+- The violation is the kind this pass exists for: a contract restated in four
+  places, changed in one. The #411 review round fixed the checker and two of
+  the skill's statements; the dogfood run found the other three.
+- Separately from this audit, the release's blind runs surfaced a checker bug
+  (a fenced glossary was blanked); it is recorded and fixed under the v0.11.2
+  section of `validation-results.md`, not here, because it was found by the
+  validation runs rather than this one.

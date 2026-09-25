@@ -192,7 +192,11 @@ finding, columns in this exact order:
 - **Suggested Fix** — a direction, not a patch.
 - **Principle** — the inline-named principle (`P# — <name>`).
 
-**4. Coverage map** — the audit's honest denominator, so a reader can tell what
+**4. Omission-pass table** — REQUIRED on every run: the enumeration table
+defined in the Method section, one row per output-producing unit. Its rules are
+below the coverage map.
+
+**5. Coverage map** — the audit's honest denominator, so a reader can tell what
 was actually examined. List every in-scope file (or directory, for a large tree)
 marked `read` / `partial` / `not-read`, then state the count and an explicit
 no-completeness caveat:
@@ -210,7 +214,8 @@ found everything when it only sampled.
 
 End with a one-line summary count (e.g. `4 findings: 2 violations, 2 needs-review`).
 A clean repo still emits the header, an empty/omitted glossary, an explicit
-`No findings.` line in place of table rows, and the coverage map — a clean result
+`No findings.` line in place of table rows, the omission-pass table, and the
+coverage map — a clean result
 is a valid result, but only over the files the coverage map lists as `read`.
 
 The omission-pass enumeration table (defined in the Method section) is a separate,
@@ -218,8 +223,8 @@ REQUIRED report artifact with its own columns, emitted after the findings table
 and before the coverage map on every run, including clean ones. If the scope
 holds no output-producing unit at all, write `No output-producing units in
 scope.` on its own line in its place. The checker (v3 onward) fails a v3 report
-with neither, a table missing any question's column, or a row with the wrong
-number of cells. Its principle references are inline-named too, exactly like the
+with neither; a table whose columns are not those question words in that order;
+a table with no rows; or a row with the wrong number of cells or a blank cell. Its principle references are inline-named too, exactly like the
 findings table above. A worked
 cell, to pin the form: write `NO — declared bearer (P8 — State-first lineage)`,
 never `(P8 finding)` — a bare code inside any table cell is exactly the drift
@@ -257,7 +262,8 @@ Never suppress a finding to make the report validate — the contract describes 
 report's *shape*, and a shape violation is fixed by fixing the shape.
 
 **Report file — always offer, never auto-write.** Print the full report
-(header + glossary + table + summary) to the conversation every run. Then, and
+(header + glossary + findings table + omission-pass table + coverage map +
+summary) to the conversation every run. Then, and
 only then, ask whether to save it to `plumb-line-audit.md`; write the file solely
 on an explicit yes. Never write it without asking — repeated runs on the same
 input MUST produce the same file-write behavior.

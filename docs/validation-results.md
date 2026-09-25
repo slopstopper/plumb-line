@@ -1251,3 +1251,99 @@ as such.
   after the bump; `node scripts/check-bundle-sync.mjs` — in sync.
 - The full JS/Python suites and the eight-cell Action matrix (now including
   `ratchet-adoption-js`) ran green in CI on PR #410.
+
+## v0.11.2 release-harness record — 2026-09-25 (pre-tag)
+
+Method-surface diff since v0.11.1 is milestone v0.11.2's eight fixes plus the
+fixes from PR #428's independent review (#171, #369, #374, #400, #401, #411,
+#412, #413): `skills/plumb-line-audit/SKILL.md` (the omission-pass table made
+a checked, five-part contract), `primitives/` (the Python HTTP adapter renamed
+to `http_adapter.py` with an alias, the shared conformance runner, SPEC §4 and
+comments), and `adapters/` (the destructured site name, `ratchet.pin_change`).
+Part 1b was skipped: `skills/plumb-line-remediate/SKILL.md` did not change.
+Run at `26fa6c2` (main after PR #428), before the bump commit.
+
+### Rig note
+
+Fixtures staged by a one-off script into scratch copies outside the repo:
+answer keys (`VIOLATIONS.md`, `README.md`) removed, every line matching
+`violation` case-insensitively stripped (six comment lines, all in the JS
+`broken/` sources), strip self-verified (no match anywhere in the copies).
+Seven auditors ran on Claude Opus 5.5: six blind (two per `broken/`, one per
+`clean/`), one dogfood. Each blind auditor read the worktree's
+`skills/plumb-line-audit/SKILL.md` and `reference/portable-principles.md`
+directly, never the installed plugin, and was allowed to run
+`scripts/check_report_format.py` on its own report (the v0.11.1 run's
+restriction that left two reports unchecked was not repeated). Identical
+plain prompt carrying the declared architecture from
+`examples/AUDIT-EXPECTATIONS.md` step 3.
+
+### Part 1 — Blind validation (release-blocking): 6/6 findings PASS
+
+| Run | Planted set | Result |
+| --- | --- | --- |
+| js-broken 1 | P2 rates.js, P5 pricing.js `FEE`, P3 gateway.js — all confirmed violations | PASS |
+| js-broken 2 | same three confirmed | PASS |
+| py-broken 1 | P2 schema.py, P5 aggregate.py `SIGNAL_THRESHOLD`, P8 source.py missing `lineage` — all confirmed | PASS |
+| py-broken 2 | same three confirmed | PASS |
+| js-clean | 0 confirmed violations; P7/P9 and the always-`accepted` stub as advisory | PASS |
+| py-clean | 0 confirmed violations; P7/P9 advisory; binary engine confidence and the stub-confidence overwrite as needs-review | PASS |
+
+Calibration notes:
+
+- Both `broken/` JS runs confirmed more violations than the planted three
+  (9 and 7): the unmarked `MOCK_CHARGED_AMOUNT` (P4), the dropped
+  `weightsVersion` at the ui output, the version stamp on a fee that did not
+  come from config. These are real gaps in the fixture, not false positives;
+  v0.11.1's js-broken B made the same calls.
+- One Python run (py-broken 2) confirmed the service's overwrite of engine
+  confidence with `stub_confidence` as a P3 violation; py-broken 1 did the
+  same, and py-clean filed the identical code as needs-review. The clean
+  fixture carries that pattern too (`AUDIT-EXPECTATIONS.md` allows it as
+  needs-review), so the calibration difference is the adoption call, not a
+  misread.
+- No false positive of the v0.11.1 kind (a misread boundary config).
+- The P8 omission row was confirmed as a violation in both Python runs.
+
+### Format scoring (tool, not impression) — 6/6 conform, after a checker bug
+
+`python3 scripts/check_report_format.py <report>` on each saved report; the
+checker's provenance line:
+
+`check_report_format v3 — joins soft-wrapped prose before matching inline principle names (tables unaffected); models report-format v1/v2/v3, remediation-format v1, routing-format v1; ruleset reference/portable-principles.md at principles-revision 1`
+
+Every saved report exits 0. But **all six blind auditors** first wrote the
+glossary inside a ``` fence, copying the skill's own example, and the checker
+failed each with "cited but not in the glossary" until they unfenced it.
+Root cause, reproduced here: code-span masking ate two of the fence's three
+backticks, the soft-wrap join then fused the glossary into one line between
+the leftovers, and a second mask blanked it. This is the "fenced-glossary
+wobble" v0.11.1 recorded and left for a later skill revision; it was the
+checker, not the skill. Fixed before the tag (`b53e3f8`, with regression
+tests); all six reports and the committed exemplar still conform under the
+fixed checker.
+
+### Part 1b — Remediate validation
+
+Skipped: `skills/plumb-line-remediate/SKILL.md` is unchanged since v0.11.1.
+
+### Part 2 — Dogfood self-audit (non-blocking)
+
+See [`dogfood.md`](dogfood.md), v0.11.2 section — **5 findings: 1 violation,
+4 needs-review**. Two fixed in place (the skill's remaining four-part
+wording; a PARITY.md cross-reference that pointed at nothing); three deferred
+as `audit-deferral` issues
+([#432](https://github.com/slopstopper/plumb-line/issues/432),
+[#433](https://github.com/slopstopper/plumb-line/issues/433),
+[#434](https://github.com/slopstopper/plumb-line/issues/434)). Report
+validated with the checker — clean (exit 0) on the first run.
+
+### Deterministic pre-tag checks
+
+- `python3 scripts/check_report_format.py` — six blind reports, the dogfood
+  report and the committed exemplar all exit 0.
+- `python3 scripts/check_version_prose.py` — `✓ all live wire-version prose
+  matches PROVENANCE_VERSION = 2`.
+- `node scripts/check-versions.mjs` and `node scripts/check-bundle-sync.mjs` —
+  run at the bump; see the release PR.
+- The full JS/Python suites and the Action matrix ran green in CI on PR #428.

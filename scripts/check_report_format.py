@@ -83,7 +83,9 @@ CLASSES = {"Mechanical", "Judgment"}
 #   v2  #245 — revision compared to the ruleset (#220), Class enforced (#222),
 #       output carries this provenance line (#221)
 #   v3  #411 — a v3 audit report must carry the omission-pass table (or the
-#       "no output-producing units" line in its place), one column per question
+#       "no output-producing units" line in its place), one column per question;
+#       a glossary inside a ``` fence (as the skill shows it) is read, where
+#       code-span masking used to blank it
 CHECKER_VERSION = "3"
 
 # The audit skill's omission-pass table: first column `Output`, then one column
@@ -141,8 +143,14 @@ _HEADER_START = re.compile(r"^(?:report|remediation|routing)-format:", re.M)
 
 def _mask_code_spans(text):
     """Replace inline `code` spans with same-length blanks, preserving offsets
-    and line structure so reported positions and prefix matches stay accurate."""
-    return _CODE_SPAN.sub(lambda m: " " * len(m.group(0)), text)
+    and line structure so reported positions and prefix matches stay accurate.
+
+    Fence lines are left alone: masked, "```" became a lone backtick, the line
+    stopped reading as a fence, the soft-wrap join fused the fenced glossary
+    into one line between two leftover backticks, and the next mask blanked
+    it — so the glossary the skill itself shows fenced could never pass."""
+    return "\n".join(line if _FENCE.match(line) else _CODE_SPAN.sub(lambda m: " " * len(m.group(0)), line)
+                     for line in text.split("\n"))
 
 
 # The `key:` prefix the format uses at top level (header keys, and the
@@ -167,21 +175,25 @@ def _join_soft_wraps(text):
     never joined with a neighbour."""
     out = []
     buf = []
-    in_fence = False
 
     def flush():
         if buf:
             out.append(" ".join(buf))
             buf.clear()
 
+    # Prose inside a fence IS joined: in a report, a fenced block is report
+    # text (the skills fence their header, glossary and coverage examples),
+    # and a citation wrapped inside a fenced scope note is still one citation.
+    # Until the #411 review round this happened by accident — code-span
+    # masking broke every ``` fence before this ran — and every stored report
+    # was validated that way. A fence line itself is a paragraph break.
     for line in text.split("\n"):
         stripped = line.strip()
         if _FENCE.match(line):
             flush()
             out.append(line)
-            in_fence = not in_fence
             continue
-        if in_fence or not stripped or _KEY_LINE.match(line) or \
+        if not stripped or _KEY_LINE.match(line) or \
                 (stripped.startswith("|") and stripped.endswith("|")):
             flush()
             out.append(line)

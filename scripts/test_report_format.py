@@ -886,3 +886,35 @@ def test_a_second_separator_line_is_not_a_row():
         "| `load_scores` | yes | yes | no | no | yes | no |\n| `bar.report` | yes | yes | yes | NO | yes | no |",
         "| --- | --- | --- | --- | --- | --- | --- |")
     assert any("omission-pass table has no rows" in i for i in _check(text))
+
+
+def test_fenced_glossary_as_the_skill_shows_it_is_read():
+    # The skill renders its glossary example inside a ``` fence. Code-span
+    # masking used to eat two of the fence's three backticks, the soft-wrap
+    # join then fused the glossary into one line between the leftover two,
+    # and a second mask blanked it — every glossary-only code then read as
+    # "cited but not in the glossary". 6/6 blind auditors hit it (v0.11.2).
+    text = VALID_REPORT.replace(
+        "P3 — Confidence + provenance  P7 — Contracted outputs\n",
+        "```\nP3 — Confidence + provenance  P7 — Contracted outputs\n```\n")
+    # Cite P7 only in the glossary + table cell so the glossary must be read.
+    assert _check(text) == []
+    multi = VALID_REPORT.replace(
+        "P3 — Confidence + provenance  P7 — Contracted outputs\n",
+        "```\nP3 — Confidence + provenance\nP7 — Contracted outputs\nP8 — State-first lineage\n```\n"
+    ).replace("| no | no | yes | no |", "| no — P8 — State-first lineage | no | yes | no |", 1)
+    assert _check(multi) == []
+
+
+def test_citation_wrapped_inside_a_fenced_block_is_one_citation():
+    # The skill fences its coverage example; a citation wrapped mid-name on a
+    # continuation line inside that fence must read as one citation, as it
+    # does unfenced (#397). (A `key:` line itself is never joined, fenced or not.)
+    text = VALID_REPORT.replace(
+        "coverage: 12/47 files read",
+        "```\ncoverage: 12/47 files read").replace(
+        "finding is not a clean file. This audit does not claim completeness.\n",
+        "finding is not a clean file. P7 — Contracted\noutputs coverage is partial.\n"
+        "This audit does not claim completeness.\n```\n")
+    assert "```\ncoverage:" in text and "P7 — Contracted\noutputs" in text
+    assert _check(text) == []
