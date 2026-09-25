@@ -15,8 +15,6 @@ test of the audit skill. Run with: `pytest -q examples/test_fixture_integrity.py
 import re
 from pathlib import Path
 
-import pytest
-
 EXAMPLES = Path(__file__).resolve().parent
 JS = EXAMPLES / "js-payments-service"
 PY = EXAMPLES / "python-data-pipeline"
