@@ -40,6 +40,29 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `auditMeta`'s table. It named the Python HTTP module `http` and said
   Node ≥ 18. `scripts/test_api_reference.py` fails when a user-facing export
   has no heading, and it checks the STATUS order and in-page anchors.
+- **Other user-facing docs brought up to date**
+  ([#445](https://github.com/slopstopper/plumb-line/issues/445)).
+  - The README said the ratchet was "current on main, unreleased"; it shipped
+    in 0.11.0 and is now in Status, which again links the release write-ups.
+  - ACTION.md's usage example pinned `@v0.11.0` beside a paragraph saying that
+    tag did not exist yet. `bump-version.mjs` now rewrites the example at each
+    release, and `check-versions.mjs` fails CI when it drifts. The rules list
+    now names `PL/ratchet-invalid` and `PL/ratchet-stale`. Its maturity note
+    no longer calls the planned bootstrap manifest step current.
+  - SECURITY.md's supported-versions table said envelope v1; the wire version
+    is 2. The version-prose gate now also recognises the `envelope vN` form it
+    had missed.
+  - The feedback form offered 4 of the 12 shipped parts; it now lists all 12.
+  - `examples/js-payments-service/README.md` told readers to run `node --check`
+    on files that fail it (the fixture has been CommonJS since #118). It now
+    shows the boundary lint that CI runs, and which planted violation it
+    catches.
+  - `primitives/README.md`: `inferred` is back in the STATUS order, bootstrap
+    wiring is `current` (the skill ships it), and `{}` is described as
+    returning the `version-legacy:` advisory.
+  - The provenance-lint README and code comment now say `modules` matches by
+    normalized basename (#138), as the rule does. `http.mjs` states the
+    package's Node floor (22). PARITY.md no longer claims `Date` header parsing.
 - **The npm and PyPI pages are brought up to date and point at
   [slopstopper.org/plumb-line](https://slopstopper.org/plumb-line/)**
   ([#439](https://github.com/slopstopper/plumb-line/issues/439)). Each page is

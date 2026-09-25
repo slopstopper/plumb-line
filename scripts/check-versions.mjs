@@ -40,6 +40,9 @@ const manifests = {
   pypi: read("primitives/python/pyproject.toml", /^version\s*=\s*"([^"]+)"/m),
   "lock (root)": lock.version ?? "(absent)",
   "lock (pkg)": lock.packages?.[""]?.version ?? "(absent)",
+  // The usage example consumers copy. It sat at @v0.11.0 through two later
+  // releases, next to a paragraph saying the tag did not exist yet (#445).
+  "ACTION.md": read("ACTION.md", /uses: slopstopper\/plumb-line@v([0-9][^\s]*)/),
 };
 
 const distinct = [...new Set(Object.values(manifests))];

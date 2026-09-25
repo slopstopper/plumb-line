@@ -78,8 +78,8 @@ back-port branch while the project is pre-1.0. Pin to a version and read
 
 | Component                       | Supported            |
 | ------------------------------- | -------------------- |
-| `primitives/js` (envelope v1)   | latest published     |
-| `primitives/python` (envelope v1) | latest published   |
+| `primitives/js` (envelope v2)   | latest published     |
+| `primitives/python` (envelope v2) | latest published   |
 | adapters, skills                | latest `main`        |
 
 ## Disclosure

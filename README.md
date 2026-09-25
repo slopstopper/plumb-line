@@ -151,11 +151,11 @@ The target is narrow: make it hard for software to turn uncertain information in
 
 ## Status
 
-Current on `main`: the library with JS/Python parity, published to npm and PyPI as `plumb-line-provenance`; the golden-baseline library and CLI; the five skills; enforcement adapters for JavaScript and Python; and the GitHub Action with SARIF output. The envelope and the combination law are pinned by a versioned [specification](primitives/SPEC.md) (schema version 2) and the conformance suite. Everything beyond that is **planned**; the [roadmap](ROADMAP.md) is the index and the [changelog](CHANGELOG.md) has the per-release detail.
+Current on `main`: the library with JS/Python parity, published to npm and PyPI as `plumb-line-provenance`; the golden-baseline library and CLI; the five skills; enforcement adapters for JavaScript and Python; and the GitHub Action with SARIF output, including the adoption ratchet for legacy codebases (no *new* untagged outputs; [ACTION.md](ACTION.md#ratchet-mode)). The envelope and the combination law are pinned by a versioned [specification](primitives/SPEC.md) (schema version 2) and the conformance suite. Everything beyond that is **planned**; the [roadmap](ROADMAP.md) is the index, the [changelog](CHANGELOG.md) has the per-release detail, and each release has a short write-up in [docs/content](docs/content/).
 
 ## Where this is going
 
-- **Deepen the promise:** run-time primitives that refuse and explain. (The adoption ratchet for legacy codebases — no *new* untagged outputs — is current on `main`, unreleased; see [ACTION.md](ACTION.md#ratchet-mode).)
+- **Deepen the promise:** run-time primitives that refuse and explain.
 - **Provenance across boundaries:** envelopes that survive serialization, files and HTTP.
 - **Agent epistemic state:** the audit skill's coverage map and honest denominator, generalized into a spec any agent can adopt.
 

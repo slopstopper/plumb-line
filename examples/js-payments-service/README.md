@@ -11,7 +11,8 @@ layering discipline applied to a payments-style service. It contains two variant
   audit should find exactly the three findings listed in `broken/VIOLATIONS.md`.
 
 This is not a real payment system. There is no real payment logic, no network
-calls, and no external dependencies. It is a minimal shape-demonstrator.
+calls, and no runtime dependencies (ESLint and its import plugin are dev
+dependencies, for the boundary check). It is a minimal shape-demonstrator.
 
 ---
 
@@ -72,17 +73,18 @@ See `broken/VIOLATIONS.md` for the answer key. In brief:
 
 ---
 
-## Running the syntax check
+## Running the boundary check
+
+Each tree carries its own ESLint boundary config (`eslint-boundary.config.cjs`,
+the shape `plumb-line-bootstrap` installs) and pins ESLint in its
+`package.json`. Run it from this directory; each line enters one tree:
 
 ```sh
-node --check clean/src/data/rates.js
-node --check clean/src/engine/pricing.js
-node --check clean/src/services/gateway.js
-node --check clean/src/ui/checkout.js
-node --check broken/src/data/rates.js
-node --check broken/src/engine/pricing.js
-node --check broken/src/services/gateway.js
-node --check broken/src/ui/checkout.js
+(cd clean  && npm ci && npx eslint -c eslint-boundary.config.cjs src)   # exit 0
+(cd broken && npm ci && npx eslint -c eslint-boundary.config.cjs src)   # exit 1
 ```
 
-All files should parse without errors. Violations are structural/semantic, not syntax errors.
+`broken/` fails on exactly the planted P2 violation, the upward import in
+`src/data/rates.js`. The P5 and P3 violations are not lint-detectable; the
+audit skill finds them. CI runs the same config through the GitHub Action
+(`.plumb-line/enforcement.json` in each tree).

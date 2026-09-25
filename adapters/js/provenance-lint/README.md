@@ -46,7 +46,7 @@ rules: {
   "plumb-line/no-provenance-bypass": ["error", {
     // Replace the clean-source vocabulary (defaults: real, semiReal, fallback).
     sources: ["real", "semiReal", "fallback"],
-    // Extra import sources counted as the primitive (exact specifier match) —
+    // Extra import sources counted as the primitive (normalized basename match, see below) —
     // for projects that re-export it through a wrapper module.
     modules: ["@myorg/data"],
     // Wrapper-local names mapped onto the built-in roles, for wrappers that

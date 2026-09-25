@@ -34,7 +34,8 @@ below).
 
 Every result, from every capability, lands in one SARIF log under one rules
 catalogue: `PL/boundary`, `PL/PB1`–`PL/PB4`, `PL/untagged-output`,
-`PL/baseline-invalid`, `PL/tool-missing`, `PL/unparsed`.
+`PL/baseline-invalid`, `PL/ratchet-invalid`, `PL/ratchet-stale`,
+`PL/tool-missing`, `PL/unparsed`.
 
 ## Usage
 
@@ -47,7 +48,7 @@ steps:
   - uses: actions/setup-node@<sha>  # v6   (JS consumers)
   - run: npm ci                            # ESLint + the bootstrap-installed rules
   - run: pip install import-linter==2.15   # Python consumers with a boundary contract (the tested version; see Tools)
-  - uses: slopstopper/plumb-line@v0.11.0
+  - uses: slopstopper/plumb-line@v0.11.2
     with:
       fail-on: findings   # or none, for incremental adoption
 ```
@@ -59,9 +60,9 @@ skips `pip install import-linter`, and a Python-only repo skips
 brings plumb-line's own scripts from its pinned ref; your workflow provides
 the language tools it runs (ADR-0016 decision 5).
 
-The `@v0.11.0` tag above is the version this Action is meant to ship under;
-it does not exist until that release is cut. Until then, pin to a commit
-sha on this repository instead.
+The tag above is the current release; `node scripts/bump-version.mjs` rewrites
+it at each release and `scripts/check-versions.mjs` fails CI if it drifts from
+the manifests. Pin a release tag, or a commit sha for an immutable pin.
 
 ## Inputs
 
@@ -215,8 +216,8 @@ repo's pin catches up. The upstream ask for a machine-readable report is
 
 `.plumb-line/enforcement.json` (`enforcement-format: v1`) is the one place a
 repository states which capabilities it carries. Nothing in it is a
-default: `plumb-line-bootstrap` writes it from the interview (Step 4d), or a
-maintainer writes it by hand. The validator is
+default: a maintainer writes it by hand (`plumb-line-bootstrap` writing it
+from the interview, Step 4d, is `planned`; see Maturity below). The validator is
 `scripts/check_enforcement_manifest.py`; the Action refuses to run — naming
 every issue — against a manifest that doesn't pass it.
 
@@ -399,8 +400,9 @@ Every outcome is a named state; nothing passes by silence.
 ## Maturity
 
 - **The Action itself: `current`** — eight CI matrix cells (four fixtures ×
-  `clean`/`broken`) run `uses: ./` against the planted fixtures, configured on
-  this branch, with results recorded in CI's run on the pull request.
+  `clean`/`broken`) run `uses: ./` against the planted fixtures on every pull
+  request and every push to `main`, and again inside the release gate before
+  anything is published.
   `js-payments-service` and `python-data-pipeline` enable only `boundary`,
   so that CI and end-to-end proof covers `js.boundary` and
   `python.boundary`; `examples/ratchet-adoption` enables
