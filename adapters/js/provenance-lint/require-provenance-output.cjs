@@ -48,19 +48,30 @@ module.exports = {
     // #390: the site name for a declarator's `id` (or a default export's
     // optional `id`). A plain Identifier keeps its name. A truly absent id
     // (an anonymous default export) is "default" — the one legitimate use of
-    // that literal. Anything else (a destructuring pattern, e.g.
-    // `export const { a } = ...`) derives a stable name from the pattern's
-    // own source text so it can never collide with a real anonymous default
-    // export in the same file. The SARIF assembler extracts the site marker
-    // with a regex anchored on the first "]" it finds (adapters/sarif/
-    // assemble.py: SITE_RE), so a derived name must never contain "]" — an
-    // array pattern's brackets are swapped for parens accordingly.
+    // that literal. A destructuring pattern (e.g. `export const { a } = ...`)
+    // is named "destructured " + the names it binds, sorted and comma-joined
+    // (#413). That never collides with a real anonymous default export, and
+    // it survives reformatting — whitespace, trailing commas, key order,
+    // defaults, renames — which the pattern's source text did not, so a
+    // ratchet does not read a reformat as a new site. Two declarators in one
+    // module cannot bind the same name, so the name stays unique. Bound names
+    // are identifiers, so no "]" can reach the "[site: ...]" marker the SARIF
+    // assembler parses (adapters/sarif/assemble.py: SITE_RE).
+    const boundNames = (p) => {
+      if (!p) return [];
+      switch (p.type) {
+        case "Identifier": return [p.name];
+        case "ObjectPattern": return p.properties.flatMap((q) => boundNames(q.type === "RestElement" ? q.argument : q.value));
+        case "ArrayPattern": return p.elements.flatMap(boundNames);
+        case "RestElement": return boundNames(p.argument);
+        case "AssignmentPattern": return boundNames(p.left);
+        default: return [];
+      }
+    };
     const nameOf = (id) => {
       if (!id) return "default";
       if (id.type === "Identifier") return id.name;
-      const text = (context.sourceCode || context.getSourceCode()).getText(id).replace(/\s+/g, " ").trim()
-        .replace(/\[/g, "(").replace(/\]/g, ")");
-      return `destructured ${text}`;
+      return `destructured ${boundNames(id).sort().join(",")}`;
     };
 
     // Classify a function body's returns using single-pass local const/let tracking.

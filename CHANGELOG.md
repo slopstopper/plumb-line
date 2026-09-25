@@ -22,6 +22,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the new name. **Flat-copy users** import `http_adapter` instead of loading
   `http.py` under a private name. The plugin bundle, which omits the
   adapter, is unaffected.
+- **A destructured export's site name no longer changes when the pattern is
+  reformatted** ([#413](https://github.com/slopstopper/plumb-line/issues/413)).
+  `require-provenance-output` named it from the pattern's source text
+  (`destructured { a }`), so a trailing comma, reordered keys or a default
+  value renamed the site. The ratchet then read the reformat as a new site
+  plus a stale one, although ADR-0017 accepts only a rename or a move. The
+  name is now the names the pattern binds, sorted and comma-joined
+  (`destructured a,b`). **One-time effect for adopters:** a ratchet that
+  pinned a destructured export under the old form reports it as new plus
+  stale after upgrading. Run
+  `ratchet.py update --because "0.11.2 renamed destructured site names (#413)"`
+  once to re-pin. Plain named and default exports are unaffected.
 
 ### Fixed
 - The worked baseline example now fails on drift

@@ -1,4 +1,4 @@
-import { RuleTester } from "eslint";
+import { Linter, RuleTester } from "eslint";
 import { afterAll, describe, it } from "vitest";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
@@ -88,22 +88,61 @@ ruleTester.run("require-provenance-output", rule, {
     { code: `export function f(x, r) { return x * r; }`,
       errors: [{ messageId: "untagged", data: { name: "f" } }] },
     // #390: a destructuring declarator (non-Identifier id) gets a stable
-    // name derived from the pattern's source text, never the literal
-    // "default" — a real anonymous default export in the same file must
-    // remain a distinct site.
+    // name, never the literal "default" — a real anonymous default export in
+    // the same file must remain a distinct site. #413: the name is built from
+    // the names the pattern binds, sorted, so a reformat is not a new site.
     { code: IMPORT + `export const { a } = () => x * r;`,
-      errors: [{ messageId: "untagged", data: { name: "destructured { a }" } }] },
+      errors: [{ messageId: "untagged", data: { name: "destructured a" } }] },
     { code: IMPORT + `export const { a } = () => x * r;\nexport default (x, r) => x % r;`,
       errors: [
-        { messageId: "untagged", data: { name: "destructured { a }" } },
+        { messageId: "untagged", data: { name: "destructured a" } },
         { messageId: "untagged", data: { name: "default" } },
       ] },
-    // An array-pattern declarator's brackets would otherwise leak into the
-    // rendered "[site: ...]" marker and break the SARIF assembler's regex
-    // (which stops at the first "]"). They're swapped for parens.
+    // An array pattern names the same way; no bracket can reach the
+    // "[site: ...]" marker the SARIF assembler parses up to the first "]".
     { code: IMPORT + `export const [a] = () => x * r;`,
-      errors: [{ messageId: "untagged", data: { name: "destructured (a)" } }] },
+      errors: [{ messageId: "untagged", data: { name: "destructured a" } }] },
   ],
+});
+
+describe("a destructured site's name survives reformatting (#413)", () => {
+  // Every formatting of one pattern must yield one site name; a ratchet that
+  // pinned it must not see a reformat as a new site plus a stale one.
+  const siteNames = (code) => {
+    const linter = new Linter({ configType: "flat" });
+    return linter
+      .verify(IMPORT + code, {
+        languageOptions: { ecmaVersion: 2022, sourceType: "module" },
+        plugins: { p: { rules: { r: rule } } },
+        rules: { "p/r": "error" },
+      })
+      .map((m) => m.message.match(/\[site: ([^\]]*)\]/)[1]);
+  };
+  const same = (variants, expected) => {
+    for (const v of variants) {
+      const names = siteNames(v);
+      if (names.length !== 1 || names[0] !== expected) {
+        throw new Error(`${JSON.stringify(v)} -> ${JSON.stringify(names)}, expected ["${expected}"]`);
+      }
+    }
+  };
+
+  it("object pattern: whitespace, trailing comma, key order, defaults, renames", () => {
+    same([
+      "export const { a, b } = () => x * r;",
+      "export const {a,b} = () => x * r;",
+      "export const {\n  a,\n  b,\n} = () => x * r;",
+      "export const { b, a } = () => x * r;",
+      "export const { a = 1, b } = () => x * r;",
+      "export const { k: a, b } = () => x * r;",
+    ], "destructured a,b");
+  });
+
+  it("array, nested and rest patterns bind the names they bind", () => {
+    same(["export const [a, , b] = () => x * r;", "export const [ a,,b ] = () => x * r;"], "destructured a,b");
+    same(["export const { p: { a }, ...b } = () => x * r;"], "destructured a,b");
+    same(["export const [a, ...[b]] = () => x * r;"], "destructured a,b");
+  });
 });
 
 describe("require-provenance-output takes no options (#212)", () => {
