@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # release.yml calls this whole workflow as its test gate, so a release can
+  # never pass a narrower gate than a PR (examples/test_fixture_integrity.py).
+  workflow_call:
 
 permissions: {}
 

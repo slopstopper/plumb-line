@@ -1,11 +1,15 @@
 name: Release
 
-# Fires when you push a version tag (e.g. v0.3.0). Guards that the tag matches
-# the manifests and the CHANGELOG, runs the FULL test suite as a gate, then
-# publishes the npm + PyPI packages and creates the GitHub release.
+# Fires when you push a version tag (e.g. v0.3.0). Three jobs, in order:
+#   guard   — the tag matches the manifests and the CHANGELOG has its section;
+#   ci      — the WHOLE of ci.yml, called as a reusable workflow, so the
+#             release gate is exactly the PR gate (it once was a hand-kept
+#             copy, and 0.11.2 shipped past a narrower one);
+#   release — publishes the npm + PyPI packages and creates the GitHub
+#             release, only if both of the above passed.
 #
 # The packages publish at whatever version is in the manifests at the tagged
-# commit — so tag the commit AFTER the version-bump PR is merged. The guard below
+# commit — so tag the commit AFTER the version-bump PR is merged. The guard
 # makes a premature or mismatched tag fail instead of publishing the wrong thing.
 #
 # Auth is OIDC trusted publishing — no stored tokens. One-time, register a
@@ -19,7 +23,36 @@ on:
 permissions: {}
 
 jobs:
+  # --- guard: runs first so a mis-tag fails fast, before any test or publish.
+  guard:
+    name: Guard — tag matches manifests and CHANGELOG
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: "22"
+      - name: Guard — tag matches manifests and CHANGELOG
+        run: |
+          node scripts/check-versions.mjs "$GITHUB_REF_NAME"
+          VER="${GITHUB_REF_NAME#v}"
+          if ! grep -q "^## \[$VER\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [$VER]' section — promote [Unreleased] before tagging."
+            exit 1
+          fi
+          echo "✓ CHANGELOG has a [$VER] section"
+
+  # --- gate: the whole PR CI, every job, at the tagged commit.
+  ci:
+    needs: guard
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   release:
+    needs: [guard, ci]
     runs-on: ubuntu-latest
     permissions:
       contents: write   # create the GitHub release
@@ -32,45 +65,17 @@ jobs:
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
-
-      # --- guard: the tag must match all three manifests AND have CHANGELOG notes.
-      #     Runs first so a mis-tag fails fast, before any test or publish. ---
-      - name: Guard — tag matches manifests and CHANGELOG
-        run: |
-          node scripts/check-versions.mjs "$GITHUB_REF_NAME"
-          VER="${GITHUB_REF_NAME#v}"
-          if ! grep -q "^## \[$VER\]" CHANGELOG.md; then
-            echo "::error::CHANGELOG.md has no '## [$VER]' section — promote [Unreleased] before tagging."
-            exit 1
-          fi
-          echo "✓ CHANGELOG has a [$VER] section"
-
-      # --- gate: the FULL suite must pass before anything is published
-      #     (mirrors ci.yml — a release must not pass a narrower gate than a PR) ---
-      - name: primitives/js — provenance primitive
+      - name: primitives/js — install (npm publish runs prepublishOnly, i.e. vitest)
         working-directory: primitives/js
-        run: npm ci && npm test
-      - name: adapters/js — enforcement adapters
-        working-directory: adapters/js
-        run: npm ci && npm test
-      - name: conformance report (envelope schema)
-        run: node primitives/conformance/report.mjs
+        run: npm ci
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
-      - name: install test deps
+      - name: install build deps
         # --require-hashes: every dep (incl. transitive) must match a hash in
         # the lock, so a compromised index cannot swap in a tampered wheel.
         run: pip install --require-hashes -r requirements-test.txt
-      - name: primitives/python — provenance primitive
-        working-directory: primitives/python
-        run: python -m pytest -q
-      - name: adapters/python — enforcement adapters
-        working-directory: adapters/python
-        run: python -m pytest -q
-      - name: examples — fixtures + real import-linter boundary
-        run: python -m pytest -q examples
 
       # --- publish npm via OIDC trusted publishing (requires npm >= 11.5.1;
       #     publishes provenance attestations by default) ---

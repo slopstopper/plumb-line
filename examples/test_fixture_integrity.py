@@ -155,13 +155,22 @@ def test_js_ratchet_fixture_config_registers_the_adapter_plugin_by_relative_path
 CI_WORKFLOW = EXAMPLES.parent / ".github" / "workflows" / "ci.yml"
 
 
+RELEASE_WORKFLOW = EXAMPLES.parent / ".github" / "workflows" / "release.yml"
+
+
+def workflow_step(workflow, name_fragment):
+    """The first step of `workflow` whose name contains the fragment, and its
+    offset in the file (so a test can check what runs before it)."""
+    text = read(workflow)
+    start = text.index("- name: " + name_fragment)
+    rest = text[start:]
+    end = rest.find("\n      - ", 1)
+    return (rest if end < 0 else rest[:end]), start
+
+
 def ci_step(name_fragment):
     """The `run:` body of the first ci.yml step whose name contains the fragment."""
-    ci = read(CI_WORKFLOW)
-    start = ci.index("- name: " + name_fragment)
-    rest = ci[start:]
-    end = rest.find("\n      - ", 1)
-    return rest if end < 0 else rest[:end]
+    return workflow_step(CI_WORKFLOW, name_fragment)[0]
 
 
 def test_every_incident_demo_test_is_named_the_way_the_ci_guard_greps_for_it():
@@ -180,3 +189,52 @@ def test_ci_fails_if_an_incident_demo_test_skips():
     assert "_demo.py" in step and "SKIPPED" in step, \
         "the examples step must grep its own output for a skipped incident-demo test"
     assert "::error::" in step, "a skipped demo must fail the job, not warn"
+
+
+# --- the release gate is PR CI itself, never a hand-kept copy of it ---------
+
+_SKIP_GUARD = re.compile(r"grep -qE '(SKIPPED[^']*)'")
+
+
+def test_examples_step_fails_on_skipped_must_run_tests():
+    step = ci_step("examples — fixtures")
+    assert "-rs" in step and "set -o pipefail" in step
+    guard = _SKIP_GUARD.search(step)
+    assert guard and "test_ratchet_fixtures" in guard.group(1) and "_demo" in guard.group(1)
+    assert "::error::" in step
+
+
+def test_every_js_fixture_tree_is_installed_before_the_examples_step():
+    trees = sorted({p.parent.parent.name for p in EXAMPLES.glob("*/*/package-lock.json")})
+    assert trees, "expected JS fixtures with lockfiles under examples/"
+    install, at = workflow_step(CI_WORKFLOW, "JS fixture toolchain")
+    _, examples_at = workflow_step(CI_WORKFLOW, "examples — fixtures")
+    assert at < examples_at, "the toolchain must be installed before the examples step"
+    for tree in trees:
+        assert tree in install, f"fixture {tree} is not installed"
+
+
+def _job(workflow_text, name):
+    """The body of a top-level job (two-space indent) in a workflow file."""
+    m = re.search(r"^  %s:\n(.*?)(?=^  [a-z][a-z-]*:\n|\Z)" % re.escape(name), workflow_text, re.M | re.S)
+    assert m, f"no job {name!r}"
+    return m.group(1)
+
+
+def test_release_publishes_only_after_the_whole_of_ci_passes():
+    # A release must not pass a narrower gate than a PR. The hand-kept copy
+    # of CI's steps in release.yml drifted (0.11.2 published with the JS
+    # ratchet byte checks skipped, and without the SARIF end-to-end suite or
+    # the scripts/ checkers), so the release now CALLS ci.yml and publishes
+    # only when every one of its jobs passes.
+    ci = read(CI_WORKFLOW)
+    release = read(RELEASE_WORKFLOW)
+    on_block = ci[ci.index("\non:"):ci.index("\npermissions:")]
+    assert "workflow_call:" in on_block, "ci.yml must be callable by the release workflow"
+    gate = _job(release, "ci")
+    assert "uses: ./.github/workflows/ci.yml" in gate
+    assert re.search(r"needs:\s*\[?\s*guard", gate), "run CI after the tag guard"
+    publish = _job(release, "release")
+    assert re.search(r"needs:\s*\[?[^\n]*\bci\b", publish), "publish only after ci passes"
+    for step in ("npm test", "pytest -q examples", "pytest -q\n"):
+        assert step not in publish, f"test step {step!r} copied into the publish job; CI owns tests"
