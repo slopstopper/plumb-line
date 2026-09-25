@@ -59,9 +59,25 @@ pass," not "provably absent."
 
 ## Beyond the fixtures
 
-The auditor has also been run on an unrelated production codebase, where it
-surfaced real issues that had passed human review — external corroboration that
-the method generalizes beyond plumb-line's own fixtures.
+plumb-line is in use on at least one codebase it did not write. What is
+recorded of outside use is the feedback it produced, and where each piece
+landed:
+
+- **2026-07-01** — the audit report was hard to act on: bare `P#` codes, a
+  report whose shape varied between runs, a report file written only
+  sometimes, and the install path buried in the README. This became the
+  v0.4.1 *Legible audit* release (#83–#86).
+- **2026-08-14** — doubt about adopting the primitives on a project already
+  under way, and about using them wrong. Quoted and answered in the fit map,
+  [*Mid-project is the normal case*](../reference/fit-map.md#mid-project-is-the-normal-case).
+
+What is **not** recorded is the findings themselves. An earlier version of
+this section said the auditor "surfaced real issues that had passed human
+review"; no finding, date or version was kept to show it, so by this
+project's own lineage rule (P8) it is not evidence, and it is not repeated
+here until a recorded example backs it. New examples are being gathered.
+Each is added here with its date, the plumb-line version, and what the audit
+found and missed, redacted as its owner asks.
 
 ## See also
 
