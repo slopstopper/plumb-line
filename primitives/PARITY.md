@@ -48,7 +48,10 @@ equality; the stronger byte-for-byte claim is made per case by
 `expectBytes`, which that one case sets to `false` with its reason recorded
 beside it. A second, public-surface naming asymmetry: the
 list function is `list` in JS but `list_baselines` in Python, which avoids
-shadowing the `list` builtin. A third, also by design: JS exposes baseline on
+shadowing the `list` builtin. The opposite call was made for the `dir`
+parameter: Python keeps the name `dir`, shadowing the builtin inside those
+functions, so it matches the JS `{ dir }` option and callers' keyword
+arguments read the same in both languages. A third, also by design: JS exposes baseline on
 the `plumb-line-provenance/baseline` subpath only, so the main entry stays
 free of `node:fs` (the `./http` precedent), while Python exports it from the
 package — a documented asymmetry of packaging, not of behaviour.
