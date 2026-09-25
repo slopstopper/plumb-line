@@ -9,7 +9,87 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Changed
+- **The npm and PyPI pages are brought up to date and point at
+  [slopstopper.org/plumb-line](https://slopstopper.org/plumb-line/)**
+  ([#439](https://github.com/slopstopper/plumb-line/issues/439)). Each page is
+  rebuilt on publish from the package's own README and manifest, and both had
+  drifted. The PyPI page gains a Golden baseline section: the package has
+  exported the baseline API since 0.11.0 and its page never said so. Its
+  ADR-0013 link, which the registry could not resolve, is now absolute, and
+  the `http_adapter` rename notice moves below the HTTP section. The npm
+  page's Node floor matches `engines` (≥ 22, where it said ≥ 18), and its
+  baseline CLI instruction is a path that runs from an install. Both pages
+  now say which project they belong to, and `homepage` (npm) and
+  `project_urls.Homepage` (PyPI) point at the project page.
+  `scripts/test_package_pages.py` checks for repo-relative links, the Node
+  floor, a page section for every public module and subpath, and the
+  homepages.
+
+- **A stored `format-validation: … — clean` line now names the checker
+  version that earned it** ([#432](https://github.com/slopstopper/plumb-line/issues/432)).
+  The audit, remediate and adopt skills teach
+  `format-validation: scripts/check_report_format.py v<N> — clean`, with `<N>`
+  copied from the checker's first output line. `check_report_format` v4
+  judges every `format-validation:` line. It rejects an unfilled `v<N>`, a
+  stamp newer than itself, and any line in another form (a different dash,
+  trailing text, a list bullet). It prints a note, without failing, for an
+  older stamp or an unstamped clean line ("checker version unrecorded"). So
+  reports saved before this release still pass, and the missing provenance
+  shows. This is the owner's chosen fix for 0.11.2 adding a required section
+  under an unchanged `report-format: v3`: a stored verdict now carries the
+  rule set it was earned under, and the report contract stays v3.
+
+- **ADR-0018 declares plumb-line's own source-truth layer and
+  layer direction** ([#434](https://github.com/slopstopper/plumb-line/issues/434)).
+  Source truth is the definition: SPEC.md and the conformance tables for
+  the envelope, and `reference/portable-principles.md` for the method, never
+  either implementation. The layers run one way: source truth, then
+  primitives, then adapters, then scripts/skills/examples. It records the
+  code's existing dependencies, including the one run-time use across a
+  process boundary (the Action's runner calls the baseline CLI). It marks
+  what is enforced (`current`) and what is not yet (`planned`: an
+  import-direction test, and case-table guards for `http-cases.json` and
+  `baseline-cases.json`, GH #441). It lets dogfood audits score P1 and P2
+  on this repository in full. Drafted for the owner's review and accepted
+  before merge.
+
 ### Fixed
+- The conformance verdict records the case table it was earned on
+  ([#433](https://github.com/slopstopper/plumb-line/issues/433)).
+  `node primitives/conformance/report.mjs` prints, and emits under
+  `caseTable` in `--json`, the table's version, the sha256 of `cases.json`'s
+  exact bytes, and the case count per kind. A rejected table version is
+  reported on its own line and not counted as a case. `cases.json` had grown to 41
+  cases under one unchanged `version`, so a stored "CONFORMANT" could not
+  say which cases it passed. All three runners (`run-cases.mjs` and both
+  Python suites) now fail a table version they do not model.
+- `primitives/js/conformance.test.mjs` no longer interprets `cases.json` on
+  its own: it turns each result of the shared `run-cases.mjs` into a named
+  vitest case, so the suite, `report.mjs` and the bundle check cannot judge
+  a case differently ([#430](https://github.com/slopstopper/plumb-line/issues/430)).
+  Since that makes the runner's judgement load-bearing,
+  `conformance-runner.test.mjs` now pins each judging branch (`expect`,
+  `absent`, a missing needle, an unexpected issue) with a case that must
+  fail. The runner compares by deep equality, as the Python runners always
+  have, where it had compared JSON text. Test and tooling only; no package
+  change.
+- `python -m plumb_line_provenance.baseline` no longer prints a runpy
+  `RuntimeWarning` on every call. The package imported `baseline` eagerly, so
+  the module was already loaded when `-m` ran it as a script. The six baseline
+  names now resolve on first use; `from plumb_line_provenance import update`,
+  `import *` and `dir()` work as before. One visible difference: the
+  `plumb_line_provenance.baseline` submodule is no longer bound as an
+  attribute of the package until something imports it; import it
+  explicitly if you reached it that way
+  ([#439](https://github.com/slopstopper/plumb-line/issues/439)).
+- The npm page and `docs/api.md` showed
+  `derive([tagged], (r) => r.json())` for extracting a fetched body. `derive`
+  is synchronous and `r.json()` returns a Promise, so that marked a Promise.
+  They now read the body first, then derive:
+  `const json = await unwrap(tagged).json(); derive([tagged], () => json)`.
+  The same guidance in `http.mjs`'s comment is corrected too
+  ([#439](https://github.com/slopstopper/plumb-line/issues/439)).
 - The release workflow's test gate is now PR CI itself: `release.yml`
   calls `ci.yml` as a reusable workflow (guard → ci → publish), so a tag
   publishes only after every CI job passes at the tagged commit, including

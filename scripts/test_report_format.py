@@ -792,7 +792,7 @@ def _without_omission_table(text):
 
 
 def test_checker_version_is_bumped_for_the_omission_rule():
-    assert crf.CHECKER_VERSION == "3"
+    assert int(crf.CHECKER_VERSION) >= 3  # v3 introduced the omission rule
 
 
 def test_v3_report_without_an_omission_table_fails():
@@ -918,3 +918,84 @@ def test_citation_wrapped_inside_a_fenced_block_is_one_citation():
         "This audit does not claim completeness.\n```\n")
     assert "```\ncoverage:" in text and "P7 — Contracted\noutputs" in text
     assert _check(text) == []
+
+
+# --- #432: a stored "clean" says which checker version earned it --------------
+
+def _with_validation(line):
+    return VALID_REPORT + "\n" + line + "\n"
+
+
+def test_checker_version_is_bumped_for_the_stamp_rule():
+    assert crf.CHECKER_VERSION == "4"
+
+
+def test_a_current_stamp_is_accepted_without_a_note():
+    text = _with_validation(f"format-validation: scripts/check_report_format.py v{crf.CHECKER_VERSION} — clean")
+    assert _check(text) == []
+    assert crf.validation_notes(text) == []
+
+
+def test_a_stamp_from_a_future_checker_is_rejected():
+    text = _with_validation("format-validation: scripts/check_report_format.py v99 — clean")
+    assert any("v99" in i and "format-validation" in i for i in _check(text)), _check(text)
+
+
+def test_an_older_stamp_passes_with_a_note_naming_both_versions():
+    text = _with_validation("format-validation: scripts/check_report_format.py v2 — clean")
+    assert _check(text) == []
+    notes = crf.validation_notes(text)
+    assert len(notes) == 1 and "v2" in notes[0] and f"v{crf.CHECKER_VERSION}" in notes[0]
+
+
+def test_an_unstamped_clean_passes_with_an_unrecorded_note():
+    text = _with_validation("format-validation: scripts/check_report_format.py — clean")
+    assert _check(text) == []
+    assert any("unrecorded" in n for n in crf.validation_notes(text))
+
+
+def test_not_run_line_needs_no_stamp():
+    text = _with_validation("format-validation: not run (checker unavailable in this repo)")
+    assert _check(text) == [] and crf.validation_notes(text) == []
+
+
+def test_main_prints_the_note(tmp_path, capsys):
+    p = tmp_path / "r.md"
+    p.write_text(_with_validation("format-validation: scripts/check_report_format.py — clean"), encoding="utf-8")
+    assert crf.main([str(p)]) == 0
+    assert "unrecorded" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("skill", ["plumb-line-audit", "plumb-line-remediate", "plumb-line-adopt"])
+def test_skill_templates_stamp_the_checker_version(skill):
+    # Each skill teaches the clean line; it must carry a version placeholder
+    # the checker parses, so a copied template earns no "unrecorded" note.
+    text = _skill(skill)
+    clean = [ln for ln in text.split("\n") if ln.startswith("format-validation:") and "clean" in ln]
+    assert clean, skill
+    for ln in clean:
+        assert "check_report_format.py v<N> — clean" in ln, (skill, ln)
+
+
+# --- #432 review round: every format-validation line is judged -------------
+
+@pytest.mark.parametrize("line", [
+    "format-validation: scripts/check_report_format.py v<N> — clean",    # template copied unfilled
+    "format-validation: scripts/check_report_format.py v99 - clean",     # hyphen for the dash
+    "format-validation: scripts/check_report_format.py v99 — clean (after fixes)",
+    "format-validation: scripts/check_report_format.py V99 — clean",
+    "format-validation: scripts/check_report_format.py v4.0 — clean",
+    "format-validation: python3 scripts/check_report_format.py v99 — clean",
+    "- format-validation: scripts/check_report_format.py v99 — clean",
+    "format-validation: clean",
+])
+def test_a_format_validation_line_in_any_other_form_is_rejected(line):
+    # The stamp rule applied only to byte-exact lines, so a copied template or
+    # a slightly-off stamp was judged less strictly than an unstamped line.
+    issues = _check(_with_validation(line))
+    assert any("format-validation" in i for i in issues), (line, issues)
+
+
+def test_the_unfilled_template_names_the_placeholder():
+    issues = _check(_with_validation("format-validation: scripts/check_report_format.py v<N> — clean"))
+    assert any("v<N>" in i and "fill" in i for i in issues), issues

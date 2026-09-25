@@ -284,8 +284,11 @@ The classification behaviour is pinned cross-language by
 
 Tags a client-native response object (`fetch` `Response`; `requests.Response`;
 `httpx.Response`) with a provenance envelope via `classifyResponse` /
-`classify_response`. The marked value is the response itself — extract with
-`derive([tagged], (r) => r.json())`.
+`classify_response`. The marked value is the response itself. In Python
+extract with `derive([tagged], lambda r: r.json())`. In JS the body is read
+asynchronously and `derive` is synchronous, so read first, then derive:
+`const json = await unwrap(tagged).json(); derive([tagged], () => json)`
+(`derive([tagged], (r) => r.json())` would mark a Promise).
 
 Cache state is signaled differently per language: JS takes an explicit
 `fromCache` argument, while the Python taggers have no cache parameter and

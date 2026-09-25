@@ -7,6 +7,10 @@
 //
 // impl: { combineProvenance, auditMeta, validateEnvelope, __resetStepCounter }
 // Returns one { kind, name, error } per case; error is null on a pass.
+import { createHash } from "node:crypto";
+// Deep equality, as the Python runners' `==` has always been: JSON text
+// comparison depended on key order and read NaN as null.
+import { isDeepStrictEqual } from "node:util";
 
 // Every field a case may carry. Anything else is reported as an error, never
 // skipped, so a field added to cases.json must be taught to this runner.
@@ -25,7 +29,7 @@ function runCombine(impl, c) {
   impl.__resetStepCounter();
   const out = impl.combineProvenance(...c.inputs);
   for (const [k, v] of Object.entries(c.expect)) {
-    if (JSON.stringify(out[k]) !== JSON.stringify(v))
+    if (!isDeepStrictEqual(out[k], v))
       return `expected ${k}=${JSON.stringify(v)}, got ${JSON.stringify(out[k])}`;
   }
   for (const k of c.absent || []) {
@@ -33,7 +37,7 @@ function runCombine(impl, c) {
   }
   if (c.expectLineageIds) {
     const ids = out.lineage.map((s) => s.id);
-    if (JSON.stringify(ids) !== JSON.stringify(c.expectLineageIds))
+    if (!isDeepStrictEqual(ids, c.expectLineageIds))
       return `expected lineage ids ${JSON.stringify(c.expectLineageIds)}, got ${JSON.stringify(ids)}`;
   }
   return null;
@@ -62,13 +66,33 @@ const RUN = {
 // Top-level keys of cases.json that are metadata, not case kinds.
 const META_KEYS = new Set(["_doc", "version"]);
 
+// Case-table versions this runner models. A table at another version fails
+// rather than being read as if it were this one (#433).
+const KNOWN_TABLE_VERSIONS = new Set([1]);
+
+/** What a verdict was earned on: the table's version, the sha256 of its exact
+ *  bytes, and the case count per kind. `bytes` is the file as read (#433). */
+export function describeCaseTable(cases, bytes) {
+  return {
+    version: cases.version,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    counts: Object.fromEntries(Object.keys(RUN).map((kind) => [kind, (cases[kind] || []).length])),
+  };
+}
+
 export function runCases(impl, cases) {
+  const badVersion = KNOWN_TABLE_VERSIONS.has(cases.version) ? [] : [{
+    kind: "(table)",
+    name: "version",
+    error: `unknown case-table version ${cases.version}: this runner models ${[...KNOWN_TABLE_VERSIONS].join(", ")}`,
+  }];
   // A case kind this runner does not interpret is a failure, never a skip:
   // otherwise its cases would silently not run and the gate would still pass.
   const unknownKinds = Object.keys(cases)
     .filter((k) => !META_KEYS.has(k) && !(k in RUN))
     .map((kind) => ({ kind, name: "(whole kind)", error: `unknown case kind ${kind}: teach run-cases.mjs to interpret it` }));
   return [
+    ...badVersion,
     ...Object.keys(RUN).flatMap((kind) =>
       cases[kind].map((c) => ({ kind, name: c.name, error: unknownFields(kind, c) ?? RUN[kind](impl, c) })),
     ),

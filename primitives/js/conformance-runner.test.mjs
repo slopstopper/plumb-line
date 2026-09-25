@@ -5,14 +5,16 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import * as impl from "./index.mjs";
-import { runCases } from "../conformance/run-cases.mjs";
+import { runCases, describeCaseTable } from "../conformance/run-cases.mjs";
 
-const cases = JSON.parse(
-  readFileSync(fileURLToPath(new URL("../conformance/cases.json", import.meta.url)), "utf8"),
-);
+const CASES_PATH = fileURLToPath(new URL("../conformance/cases.json", import.meta.url));
+const REPORT = fileURLToPath(new URL("../conformance/report.mjs", import.meta.url));
+const cases = JSON.parse(readFileSync(CASES_PATH, "utf8"));
 const lineageCase = cases.combine.find((c) => c.expectLineageIds);
-const only = (combine) => ({ combine, audit: [], validate: [] });
+const only = (combine) => ({ version: cases.version, combine, audit: [], validate: [] });
 
 describe("conformance runner (shared by report.mjs and the bundle check)", () => {
   it("passes every case in cases.json against the reference implementation", () => {
@@ -33,6 +35,86 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
     const extra = { ...cases.combine[0], expectSomethingNew: true };
     const [r] = runCases(impl, only([extra]));
     expect(r.error).toMatch(/unknown case field.*expectSomethingNew/);
+  });
+
+  // One negative per judging branch (#430 review): conformance.test.mjs is a
+  // thin view over runCases, so a runner that stopped judging would pass
+  // vitest, report.mjs and the bundle check at once unless each branch is
+  // pinned here to fail on a wrong expectation.
+  const plain = cases.combine.find((c) => !c.expectLineageIds && Object.keys(c.expect).length);
+  const auditIssue = cases.audit.find((c) => c.expectContains.length);
+  const auditClean = cases.audit.find((c) => c.expectContains.length === 0);
+
+  it("fails a combine case whose expect value is wrong", () => {
+    const [k] = Object.keys(plain.expect);
+    const [r] = runCases(impl, only([{ ...plain, expect: { [k]: "not-a-real-value" } }]));
+    expect(r.error).toMatch(new RegExp(`expected ${k}=`));
+  });
+
+  it("fails a combine case when a key listed in absent is present", () => {
+    const [k] = Object.keys(plain.expect);
+    const [r] = runCases(impl, only([{ ...plain, absent: [k] }]));
+    expect(r.error).toMatch(new RegExp(`expected ${k} to be absent`));
+  });
+
+  it("fails an audit case whose needle no issue contains", () => {
+    const [r] = runCases(impl, { version: cases.version, combine: [], validate: [],
+      audit: [{ ...auditIssue, expectContains: ["no-such-issue-text"] }] });
+    expect(r.error).toMatch(/expected an issue containing "no-such-issue-text"/);
+  });
+
+  it("fails an audit case expecting no issues when there are some", () => {
+    const [r] = runCases(impl, { version: cases.version, combine: [], validate: [],
+      audit: [{ ...auditIssue, expectContains: [] }] });
+    expect(r.error).toMatch(/expected no issues/);
+    const [ok] = runCases(impl, { version: cases.version, combine: [], validate: [],
+      audit: [auditClean] });
+    expect(ok.error).toBeNull();
+  });
+
+  it("compares expect values by deep equality, so key order does not matter", () => {
+    // JSON.stringify comparison depends on key order: a correct expectation
+    // written with its keys in another order failed. Build the true lineage,
+    // reverse each step's keys, and expect it to pass.
+    impl.__resetStepCounter();
+    const truth = impl.combineProvenance(...plain.inputs).lineage;
+    const reordered = truth.map((s) => Object.fromEntries(Object.entries(s).reverse()));
+    const [r] = runCases(impl, only([{ ...plain, expect: { ...plain.expect, lineage: reordered } }]));
+    expect(r.error).toBeNull();
+  });
+
+  it("the case-table hash is of the file's exact bytes", () => {
+    const bytes = readFileSync(CASES_PATH);
+    const independent = createHash("sha256").update(bytes).digest("hex");
+    expect(describeCaseTable(cases, bytes).sha256).toBe(independent);
+    expect(describeCaseTable(cases, Buffer.from(JSON.stringify(cases))).sha256).not.toBe(independent);
+  });
+
+  it("fails a case-table version the runner does not model (#433)", () => {
+    const results = runCases(impl, { ...only([]), version: 2 });
+    expect(results.filter((r) => r.error).map((r) => r.error)).toEqual([
+      expect.stringMatching(/unknown case-table version 2/),
+    ]);
+  });
+
+  it("describes the case table a verdict was earned on (#433)", () => {
+    const table = describeCaseTable(cases, readFileSync(CASES_PATH));
+    expect(table.version).toBe(cases.version);
+    expect(table.counts).toEqual({
+      combine: cases.combine.length, audit: cases.audit.length, validate: cases.validate.length,
+    });
+    expect(table.sha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("report.mjs --json records the case table next to the verdict (#433)", () => {
+    const out = JSON.parse(execFileSync("node", [REPORT, "--json"], { encoding: "utf8" }));
+    expect(out.caseTable).toEqual(describeCaseTable(cases, readFileSync(CASES_PATH)));
+    expect(out.ok).toBe(true);
+  });
+
+  it("the human report names the case table too (#433)", () => {
+    const out = execFileSync("node", [REPORT], { encoding: "utf8" });
+    expect(out).toMatch(/case table v1, sha256:[0-9a-f]{12}/);
   });
 
   it("fails a case kind the runner does not interpret", () => {

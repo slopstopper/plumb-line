@@ -13,17 +13,27 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import * as reference from "../js/index.mjs";
-import { runCases } from "./run-cases.mjs";
+import { runCases, describeCaseTable } from "./run-cases.mjs";
 
 const { PROVENANCE_VERSION } = reference;
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
-const cases = JSON.parse(readFileSync(here("./cases.json"), "utf8"));
+const casesBytes = readFileSync(here("./cases.json"));
+const cases = JSON.parse(casesBytes.toString("utf8"));
+// Which table the verdict below was earned on, so a stored verdict can be
+// re-run against the same cases (#433).
+const caseTable = describeCaseTable(cases, casesBytes);
+const tableLine =
+  `case table v${caseTable.version}, sha256:${caseTable.sha256.slice(0, 12)} (` +
+  Object.entries(caseTable.counts).map(([k, n]) => `${k} ${n}`).join(", ") + ")";
 
 // The case interpreter lives in run-cases.mjs, shared with the bundle check (#369).
 const results = runCases(reference, cases);
 
 const failed = results.filter((r) => r.error);
-const passed = results.length - failed.length;
+// A rejected table is not a case: count cases only, so an unknown table
+// version reads as its own failure instead of "41/42 cases passed".
+const caseResults = results.filter((r) => r.kind !== "(table)");
+const passed = caseResults.filter((r) => !r.error).length;
 const ok = failed.length === 0;
 
 const badge =
@@ -41,7 +51,7 @@ if (mode === "--badge") {
 if (mode === "--json") {
   console.log(
     JSON.stringify(
-      { envelopeVersion: PROVENANCE_VERSION, total: results.length, passed, failed: failed.length, ok, failures: failed },
+      { envelopeVersion: PROVENANCE_VERSION, caseTable, total: caseResults.length, passed, failed: failed.length, ok, failures: failed },
       null,
       2,
     ),
@@ -50,7 +60,8 @@ if (mode === "--json") {
 }
 
 console.log(`plumb-line conformance — envelope schema version ${PROVENANCE_VERSION}`);
-console.log(`${passed}/${results.length} cases passed` + (ok ? "" : ` — ${failed.length} FAILED`));
+console.log(tableLine);
+console.log(`${passed}/${caseResults.length} cases passed` + (ok ? "" : ` — ${failed.length} FAILED`));
 for (const f of failed) console.log(`  ✗ [${f.kind}] ${f.name}: ${f.error}`);
 console.log("");
 console.log(ok ? "CONFORMANT. Badge snippet:" : "NOT CONFORMANT — badge withheld.");

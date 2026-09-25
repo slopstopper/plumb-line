@@ -128,3 +128,8 @@ def test_bundle_every_case_kind_is_interpreted():
     # A top-level kind no test above reads would otherwise never run (#369).
     kinds = set(CASES) - {'_doc', 'version'}
     assert kinds == set(_KNOWN_FIELDS), f"unknown case kind(s) {sorted(kinds - set(_KNOWN_FIELDS))}"
+
+
+def test_bundle_case_table_version_is_one_this_runner_models():
+    # Mirrors primitives/python/tests/test_conformance.py and run-cases.mjs (#433).
+    assert CASES.get("version") in {1}, f"unknown case-table version {CASES.get('version')!r}"

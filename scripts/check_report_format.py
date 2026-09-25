@@ -86,7 +86,15 @@ CLASSES = {"Mechanical", "Judgment"}
 #       "no output-producing units" line in its place), one column per question;
 #       a glossary inside a ``` fence (as the skill shows it) is read, where
 #       code-span masking used to blank it
-CHECKER_VERSION = "3"
+#   v4  #432 — a `format-validation: ... — clean` line names the checker
+#       version that earned it (`check_report_format.py vN — clean`); a stamp
+#       newer than this checker is rejected, an older or missing one is noted
+CHECKER_VERSION = "4"
+
+# `format-validation: scripts/check_report_format.py [vN] — clean`. The stamp
+# says which rule set a stored "clean" was earned under (#432).
+_VALIDATION_CLEAN = re.compile(
+    r"^format-validation:\s*scripts/check_report_format\.py(?:\s+v(?P<ver>[0-9]+))?\s+—\s+clean\s*$", re.M)
 
 # The audit skill's omission-pass table: first column `Output`, then one column
 # per question in this order, each header being the word below, optionally
@@ -648,6 +656,57 @@ def check_routing(text, principles, ruleset_revision=None):
     return issues
 
 
+def _validation_stamps(text):
+    """The checker version each `— clean` line claims, or None when unstamped."""
+    return [m.group("ver") for m in _VALIDATION_CLEAN.finditer(text)]
+
+
+def validation_notes(text):
+    """Non-failing notes on the report's own `format-validation:` claim (#432):
+    what a stored "clean" was earned under, when that differs from this run."""
+    notes = []
+    for ver in _validation_stamps(text):
+        if ver is None:
+            notes.append("format-validation claims clean with the checker version "
+                         "unrecorded; judged here by v" + CHECKER_VERSION)
+        elif int(ver) < int(CHECKER_VERSION):
+            notes.append(f"format-validation was earned under checker v{ver}; "
+                         f"judged here by v{CHECKER_VERSION}")
+    return notes
+
+
+# Any line that means to be a format-validation line: the key, optionally
+# after a list bullet. Every one is judged; a stamp rule that applied only to
+# byte-exact lines let a copied template or an off-by-a-dash stamp through
+# less checked than an unstamped line (#432 review).
+_VALIDATION_ANY = re.compile(r"^\s*(?P<bullet>[-*+]\s+)?format-validation:[ \t]*(?P<body>.*?)\s*$", re.M)
+_VALIDATION_NOT_RUN = re.compile(r"^not run \(.+\)$")
+
+
+def _check_validation_stamps(text):
+    issues = []
+    expected = ("expected 'format-validation: scripts/check_report_format.py v<N> — clean' "
+                "with <N> filled in from the checker's first output line, or "
+                "'format-validation: not run (<reason>)'")
+    for m in _VALIDATION_ANY.finditer(text):
+        line, body = m.group(0).strip(), m.group("body")
+        if m.group("bullet"):
+            issues.append(f"format-validation line must start the line, not sit in a list: {line!r}")
+        elif _VALIDATION_CLEAN.match(line) or _VALIDATION_NOT_RUN.match(body):
+            continue
+        elif "v<N>" in body:
+            issues.append(f"format-validation still carries the template's v<N>: fill in the "
+                          f"checker version from its first output line ({line!r})")
+        else:
+            issues.append(f"format-validation line is not in a recognised form: {line!r}; {expected}")
+    for ver in _validation_stamps(text):
+        if ver is not None and int(ver) > int(CHECKER_VERSION):
+            issues.append(f"format-validation claims checker v{ver}, but this checker is "
+                          f"v{CHECKER_VERSION}: a verdict cannot come from a checker that does "
+                          f"not exist yet")
+    return issues
+
+
 def check(text, principles, ruleset_revision=None):
     """`ruleset_revision` None means the caller does not know the ruleset's
     revision, and the comparison is skipped; `main` always supplies it."""
@@ -670,7 +729,7 @@ def check(text, principles, ruleset_revision=None):
                 f"cannot tell which one it is validating")
         checker = {"report": check_report, "remediation": check_remediation,
                    "routing": check_routing}[kind]
-        return issues + checker(text, principles, ruleset_revision)
+        return issues + checker(text, principles, ruleset_revision) + _check_validation_stamps(text)
     return ["unrecognised report contract: the first header key must be "
             "'report-format:', 'remediation-format:' or 'routing-format:' — "
             "check for a title line, prose, or an unclosed code fence above "
@@ -721,7 +780,8 @@ def main(argv):
         # other failure rather than a stack trace.
         try:
             with open(path, encoding="utf-8") as fh:
-                issues = check(fh.read(), principles, revision)
+                text = fh.read()
+            issues = check(text, principles, revision)
         except OSError as exc:
             failed += 1
             print(f"✗ {path}\n    cannot read: {exc.strerror}")
@@ -733,6 +793,8 @@ def main(argv):
                 print(f"    {issue}")
         else:
             print(f"✓ {path}")
+        for note in validation_notes(text):
+            print(f"    note: {note}")
 
     if failed:
         print(f"\nFAIL: {failed} of {len(argv)} report(s) violate their own contract.")

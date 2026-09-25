@@ -13,9 +13,11 @@ try:  # installed as a package
     )
     from .marked import mark, unwrap, meta_of, derive
     from .audit import audit_meta, validate_envelope
-    from .baseline import (
-        check, assert_baseline, update, list_baselines, show, validate_baseline,
-    )
+    # baseline's names resolve lazily (__getattr__ below): imported here, the
+    # module was already in sys.modules when `python -m
+    # plumb_line_provenance.baseline` ran it as a script, and runpy printed a
+    # RuntimeWarning on every CLI call (#439).
+    _LAZY_BASELINE = True
 except ImportError:  # flat usage (modules on sys.path)
     from provenance import (
         PROVENANCE_VERSION, STATUS, CONFIDENCE,
@@ -28,6 +30,23 @@ except ImportError:  # flat usage (modules on sys.path)
     from baseline import (
         check, assert_baseline, update, list_baselines, show, validate_baseline,
     )
+    _LAZY_BASELINE = False
+
+_BASELINE_NAMES = frozenset({
+    'check', 'assert_baseline', 'update', 'list_baselines', 'show', 'validate_baseline',
+})
+
+
+def __getattr__(name):
+    if _LAZY_BASELINE and name in _BASELINE_NAMES:
+        from . import baseline as _baseline
+        return getattr(_baseline, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    # help(), autocomplete and autodoc read dir(): list the lazy names too.
+    return sorted(set(globals()) | (_BASELINE_NAMES if _LAZY_BASELINE else set()))
 
 # The HTTP adapter shipped as `http.py`, which shadowed the stdlib `http`
 # package whenever this directory was on sys.path (#171). It is now

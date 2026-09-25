@@ -20,18 +20,23 @@ auditMeta(metaOf(total)); // []  — internally consistent
 You can also copy the `.mjs` files directly into a project and import them
 relatively; both styles work.
 
+This package is the run-time half of [plumb-line](https://slopstopper.org/plumb-line/),
+which also ships review-time audit skills and a GitHub Action that enforce the
+same discipline on a codebase.
+
 ## HTTP ingestion adapter (`plumb-line-provenance/http`)
 
 Auto-tag `fetch` responses at ingestion. Native `fetch` — no dependency
-(requires Node ≥ 18 or a browser).
+(requires Node ≥ 22, the package's floor, or a browser).
 
 ```js
 import { tagResponse, taggedFetch } from "plumb-line-provenance/http";
-import { derive } from "plumb-line-provenance";
+import { derive, unwrap } from "plumb-line-provenance";
 
 const resp = await fetch(url);
 const data = tagResponse(resp);               // marked by status/cache
-const body = derive([data], (r) => r.json()); // extract; taint propagates
+const json = await unwrap(data).json();       // read the body (async)
+const body = derive([data], () => json);      // re-mark it; taint propagates
 
 const data2 = await taggedFetch(url);         // fetch + tag in one call
 ```
@@ -51,13 +56,15 @@ and writes files, so the main entry stays free of `node:fs`.
 ```js
 import { assertBaseline, update } from "plumb-line-provenance/baseline";
 
-update("fx-rate", priced, { because: "initial pricing baseline", dir });
-assertBaseline("fx-rate", priced, { dir }); // throws, attributed, on drift
+update("fx-rate", priced, { because: "initial pricing baseline" });
+assertBaseline("fx-rate", priced); // throws, attributed, on drift
 ```
+
+Records live in `.plumb-line/baselines/` unless you pass `{ dir }`.
 
 Accepting a new state needs a non-empty `because`, stored in the record's
 append-only history. Inspect the files with
-`node baseline-cli.mjs <list|show <name>|validate> [--dir D]` (read-only: only
+`node node_modules/plumb-line-provenance/baseline-cli.mjs <list|show <name>|validate> [--dir D]` (read-only: only
 running code carries the envelope, so it cannot check or update).
 
 Compared: each lineage step's trust fields and `of`, the lineage length, the
