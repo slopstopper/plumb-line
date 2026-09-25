@@ -120,14 +120,14 @@ flowchart TB
 
 ## What the audit writes
 
-A findings report, each finding tied to a file, a principle and a suggested fix. This is `plumb-line-audit` run over the broken half of the toolserver demo above with the answer key withheld from it; two of its seven findings, the suggested-fix column dropped for width:
+A findings report, each finding tied to a file, a principle and a suggested fix, plus an omission-pass table that walks every output for what is missing. This is `plumb-line-audit` run over the broken half of the toolserver demo above with the answer key withheld from it; two of its nine findings, the suggested-fix column dropped for width:
 
 | Path | Line | Function | Issue | Principle |
 | ---- | ---- | -------- | ----- | --------- |
-| `broken/toolserver.mjs` | 25-27 | `spawnWorker` | Stub returns a hardcoded `success: true` payload (`workerId: "worker-1"`, `status: "ready"`) with no worker actually spawned, and no label marking the value as mock; it flows straight into the shared `results` array used for the aggregate health report. | P4 — Quarantined fakery |
-| `broken/toolserver.mjs` | 50-52 | (health report) | `system health: operational (5/5 tools succeeded)` is printed when 3 of the 5 "tools" are unbuilt stubs; no `mock` / `not-implemented` maturity label is applied anywhere in the file to `spawnWorker`, `orchestrateTasks`, or `storeMemory`, so the report claims a fully operational, current system. | P6 — Maturity vocabulary |
+| `examples/incident-toolserver/broken/toolserver.mjs` | 25-35 | `spawnWorker`, `orchestrateTasks`, `storeMemory` | violation: three stubs return fabricated payloads (`workerId: "worker-1"`, `taskId: "task-1"`, `status: "persisted"`) with no mock marker in the data; the "stub" label exists only in a source comment (lines 21-23), invisible to the report logic that consumes them | P4 — Quarantined fakery |
+| `examples/incident-toolserver/broken/toolserver.mjs` | 26, 30, 34 | `spawnWorker`, `orchestrateTasks`, `storeMemory` | violation: stubs claim completed states (`ready`, `scheduled`, `persisted`) for work that never happened; the output asserts current maturity for mock code | P6 — Maturity vocabulary |
 
-[The full report](examples/incident-toolserver/audit-2026-09-20.md) is committed as written. Set against the demo's [answer key](examples/incident-toolserver/broken/VIOLATIONS.md), every planted violation is there. The audit is measured rather than trusted; the next section says how.
+[The full report](examples/incident-toolserver/audit-2026-09-25.md) is committed as written. Set against the demo's [answer key](examples/incident-toolserver/broken/VIOLATIONS.md), every planted violation is there, though not one finding per key row: a single finding, filed under P3 — Confidence + provenance, covers both the key's P4 — Quarantined fakery row for mock results entering the health summary and its P3 row for results carrying no provenance, and the omission table's Confidence column (NO on every output) carries the rest of that P3 row. The audit is measured rather than trusted; the next section says how.
 
 ## What is deterministic, and what is not
 

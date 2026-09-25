@@ -1,4 +1,4 @@
-"""http — HTTP ingestion adapter for `requests`/`httpx`. Auto-tags a response with
+"""http_adapter — HTTP ingestion adapter for `requests`/`httpx`. Auto-tags a response with
 a provenance envelope by status + cache state (see ADR-0012).
 
 The classification core (`classify_response`) is dependency-free. The taggers and

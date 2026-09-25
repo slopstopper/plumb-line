@@ -14,7 +14,7 @@
 // this file lives INSIDE the published package: self-reference resolution
 // requires it, a recorded deviation rather than an accident.
 import { describe, it, expect, afterAll } from "vitest";
-import { readFileSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { readFileSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { metaOf } from "plumb-line-provenance";
@@ -77,8 +77,13 @@ const SNIPPETS = {
   "first recorded baseline": {
     // Self-contained: the snippet imports and builds its own temp dir.
     prelude: () => "",
-    exports: "export const __ns = { drifted };",
-    check: (ns) => expect(ns.drifted).toBe(true),
+    exports: "export const __ns = { drifted, dir };",
+    check: (ns) => {
+      // The snippet's own mkdtemp dir: remove it here, where a reader's
+      // snippet would not need to (#374).
+      rmSync(ns.dir, { recursive: true, force: true });
+      expect(ns.drifted).toBe(true);
+    },
   },
 };
 
@@ -124,6 +129,16 @@ describe("fit-map js snippets", () => {
     const block = JS_BLOCKS.find((b) => b.includes("FALLBACK_TEXT"));
     const ns = await runSnippet(block, spec.prelude(true), spec.exports);
     spec.checkReal(ns);
+  });
+
+  it("profile-5 leaves no temp dir behind (#374)", async () => {
+    // The snippet makes its own mkdtemp dir, as a reader would; the harness
+    // must remove it, or every suite run leaks one into the system tmp.
+    const spec = SNIPPETS["first recorded baseline"];
+    const block = JS_BLOCKS.find((b) => b.includes("first recorded baseline"));
+    const ns = await runSnippet(block, spec.prelude(), spec.exports);
+    spec.check(ns);
+    expect(existsSync(ns.dir), `leaked ${ns.dir}`).toBe(false);
   });
 
   it("harness catches a broken snippet (self-test through the same pipeline)", async () => {

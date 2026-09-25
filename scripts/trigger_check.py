@@ -33,15 +33,20 @@ Omitting --confirm-model skips the confirm tier: screen results stand, labeled
 as such. The eval-set JSON is a list of {"query": str, "should_trigger": bool}.
 
 The results JSON is a durable measurement record and carries its contract
-(#317): a `results-format` version key, the pass `threshold` the verdicts were
-derived under (`--threshold`, default 0.5 — a judgment call, so it is injected
-and stamped rather than buried), and the per-tier `runs` counts. Validate a
-stored file with:
+(#317, #400): a `results-format` version key, the pass `threshold` the verdicts
+were derived under (`--threshold`, default 0.5 — a judgment call, so it is
+injected and stamped rather than buried), the per-tier `runs` counts, and the
+`probe` settings that change verdicts (`timeout_s`, since a timed-out run
+records as a non-trigger, and `max_turns`). Validate a stored file with:
 
     python3 scripts/trigger_check.py --validate results.json
 
 which re-derives every row's verdict from its rate, the stamped threshold and
-its expectation, so a stored pass is reproducible rather than asserted.
+its expectation, so a stored verdict is consistent with its own numbers rather
+than asserted. The record carries the settings that decide a verdict; it does
+not record `--workers` (concurrency can push a probe past its timeout), the
+`claude` CLI version, or model sampling, so a re-run is not guaranteed to
+reproduce the same rates.
 """
 import argparse
 import json
@@ -61,10 +66,16 @@ THRESHOLD = 0.5
 # The results file's contract (P7: version constant + key list + validator).
 #   v1  #317 — first versioned shape: results-format, target, probed_installs,
 #       tiers, runs, threshold, summary, results.
-RESULTS_FORMAT = "v1"
-KNOWN_RESULTS_FORMATS = {"v1"}
+#   v2  #400 — adds `probe`: {timeout_s, max_turns}, the two probe settings
+#       that change verdicts. v1 is refused: it cannot say what they were.
+RESULTS_FORMAT = "v2"
+KNOWN_RESULTS_FORMATS = {"v2"}
 RESULTS_KEYS = ["results-format", "target", "probed_installs", "tiers", "runs",
-                "threshold", "summary", "results"]
+                "threshold", "probe", "summary", "results"]
+
+# Turn cap for each probe session. A Skill call must happen within it, so it
+# bounds what can count as a trigger; stamped into every results file.
+MAX_TURNS = 2
 
 
 # ---------- pure logic (covered by scripts/test_trigger_check.py) ----------
@@ -125,7 +136,7 @@ def merge(screen, confirm, screen_model, confirm_model):
     return merged
 
 
-def build_payload(target, installs, tiers, runs, threshold, merged):
+def build_payload(target, installs, tiers, runs, threshold, timeout, merged):
     """The results record, in RESULTS_KEYS order, contract key first."""
     passed = sum(1 for r in merged if r["pass"])
     return {"results-format": RESULTS_FORMAT,
@@ -134,6 +145,7 @@ def build_payload(target, installs, tiers, runs, threshold, merged):
             "tiers": tiers,
             "runs": runs,
             "threshold": threshold,
+            "probe": {"timeout_s": timeout, "max_turns": MAX_TURNS},
             "summary": {"passed": passed, "total": len(merged)},
             "results": merged}
 
@@ -153,9 +165,20 @@ def validate_results(payload):
         if key not in payload:
             issues.append(f"missing required key: {key}")
     fmt = payload.get("results-format")
-    if fmt is not None and fmt not in KNOWN_RESULTS_FORMATS:
+    if fmt == "v1":
+        issues.append("results-format 'v1' does not record the probe timeout or "
+                      "turn cap, so the conditions its verdicts were measured "
+                      f"under are unknown; re-run to get a {RESULTS_FORMAT} record")
+    elif fmt is not None and fmt not in KNOWN_RESULTS_FORMATS:
         issues.append(f"unknown results-format {fmt!r} "
                       f"(this harness models {sorted(KNOWN_RESULTS_FORMATS)})")
+    probe = payload.get("probe")
+    if probe is not None and not (
+            isinstance(probe, dict) and set(probe) == {"timeout_s", "max_turns"}
+            and all(isinstance(probe[k], int) and not isinstance(probe[k], bool)
+                    and probe[k] > 0 for k in probe)):
+        issues.append("probe must be {timeout_s, max_turns}, both positive "
+                      f"integers, got {probe!r}")
     threshold = payload.get("threshold")
     # bool is an int subclass: a hand-edited `"threshold": true` must not
     # validate as 1.
@@ -253,10 +276,14 @@ def repo_version():
 
 # ---------- probing ----------
 
+def probe_cmd(query, model):
+    return ["claude", "-p", query, "--output-format", "stream-json",
+            "--verbose", "--include-partial-messages", "--model", model,
+            "--max-turns", str(MAX_TURNS)]
+
+
 def probe(query, target, model, workdir, timeout):
-    cmd = ["claude", "-p", query, "--output-format", "stream-json",
-           "--verbose", "--include-partial-messages", "--model", model,
-           "--max-turns", "2"]
+    cmd = probe_cmd(query, model)
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                          cwd=workdir, env=env)
@@ -341,6 +368,8 @@ def parse_args(argv=None):
         ap.error("eval_set, target and out are required unless --validate is given")
     if not 0 < args.threshold <= 1:
         ap.error(f"--threshold must be in (0, 1], got {args.threshold}")
+    if args.timeout <= 0:
+        ap.error(f"--timeout must be a positive number of seconds, got {args.timeout}")
     return args
 
 
@@ -404,7 +433,7 @@ def main(argv=None):
                             # does not imply a tier that did not run.
                             {"screen": args.screen_runs,
                              "confirm": args.confirm_runs if (args.confirm_model and hot) else 0},
-                            args.threshold, merged)
+                            args.threshold, args.timeout, merged)
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=1)
     passed = payload["summary"]["passed"]

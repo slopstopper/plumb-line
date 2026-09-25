@@ -5,7 +5,7 @@ The provenance/lineage primitive ships in JavaScript (`primitives/js/`) and Pyth
 must behave identically in both. This file records the shared case table verified
 against both implementations.
 
-Suites: JS `npm ci && npx vitest run` → 254/254; Python `python3 -m pytest` → 200/200.
+Suites: JS `npm ci && npx vitest run` → 276/276; Python `python3 -m pytest` → 213/213 (reproduced 2026-09-25).
 (Run JS after `npm ci` — the count includes the fast-check property suite, which
 silently fails to import if the dev-dependency is absent. Reproduce the number;
 never hand-type it.)
@@ -23,13 +23,20 @@ consistency), and `validate` (structural field-presence — the `validateEnvelop
 required fields by their canonical camelCase names in both languages, so the
 conformance needles match verbatim.
 
-The suite totals differ (254 JS vs 200 Python) partly because JS carries a
+The suite totals differ (276 JS vs 213 Python) partly because JS carries a
 fast-check **property-test** suite (`property.test.mjs`) with no Python
 `hypothesis` mirror yet. Property tests are JS-only and sit *outside* the
 conformance contract — parity of the law and checkers is still enforced by the
 shared `cases.json`, not by matching suite counts.
 
-The baseline library (Principle 9) adds a fourth case-kind family,
+`cases.json` is one of three case files in `primitives/conformance/`, each a
+separate family with its own kinds. The HTTP adapter's family,
+`primitives/conformance/http-cases.json`, has two kinds — `classify` (the
+response-to-source/confidence mapping) and `parseAge` (`Age`/`Date` header
+parsing) — and is loaded by `primitives/js/http.test.mjs` and
+`primitives/python/tests/test_http.py`.
+
+The baseline library (Principle 9) adds the third file,
 `primitives/conformance/baseline-cases.json`, with its own kinds: `attribute`
 (findings text pinned verbatim), `canonical` (canonical JSON bytes — compared
 as parsed values wherever a float appears), and `validate`. It is loaded by

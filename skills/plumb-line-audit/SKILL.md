@@ -82,6 +82,13 @@ and skipping the table is how the omission gets missed. For each output ask —
 - can it express a null / "no effect" / rejection outcome? (spine)
 - is there a golden baseline pinning it? (P9)
 
+The table's header row, in this order (a header may go on to inline-name its
+principle, e.g. `Lineage (P8 — State-first lineage)`, but must start with these
+words):
+
+| Output | Provenance | Confidence | Lineage | Contract | Null-expressible | Baseline |
+| ------ | ---------- | ---------- | ------- | -------- | ---------------- | -------- |
+
 Provenance and lineage are SEPARATE columns and a present provenance string does
 NOT satisfy lineage: a free-text `provenance` ("stub source: …") or a
 `weights_version` answers *where from / which config*, but lineage answers *can I
@@ -125,8 +132,8 @@ as a confirmed violation.
 
 ## Report (audit format) — report-format v3
 
-Every report has four parts in this order: **header**, **glossary**, **findings
-table**, **coverage map**. The shape is fixed — same input, same shape, every run
+Every report has five parts in this order: **header**, **glossary**, **findings
+table**, **omission-pass table**, **coverage map**. The shape is fixed — same input, same shape, every run
 (the audit owes its own output the reproducibility it demands of the code it
 reviews).
 
@@ -154,7 +161,8 @@ version-controlled)`, nothing more); the checker rejects any other string.
 report*, emitted before the findings, so a reader never meets a bare code
 (explain before use). Names come from `reference/portable-principles.md` — do not
 paraphrase. Omit principles this report does not cite; on a clean run the glossary
-may be empty. Example (include only the rows you cite):
+may be empty — unless the omission-pass table's headers or cells name a
+principle, which is a citation like any other and goes in the glossary too. Example (include only the rows you cite):
 
 ```
 P1 — Source-truth layer      P4 — Quarantined fakery   P7 — Contracted outputs
@@ -205,9 +213,14 @@ A clean repo still emits the header, an empty/omitted glossary, an explicit
 `No findings.` line in place of table rows, and the coverage map — a clean result
 is a valid result, but only over the files the coverage map lists as `read`.
 
-The omission-pass enumeration table (defined in the Method section) is a separate
-report artifact with its own columns; when the auditor emits it, its principle
-references are inline-named too, exactly like the findings table above. A worked
+The omission-pass enumeration table (defined in the Method section) is a separate,
+REQUIRED report artifact with its own columns, emitted after the findings table
+and before the coverage map on every run, including clean ones. If the scope
+holds no output-producing unit at all, write `No output-producing units in
+scope.` on its own line in its place. The checker (v3 onward) fails a v3 report
+with neither, a table missing any question's column, or a row with the wrong
+number of cells. Its principle references are inline-named too, exactly like the
+findings table above. A worked
 cell, to pin the form: write `NO — declared bearer (P8 — State-first lineage)`,
 never `(P8 finding)` — a bare code inside any table cell is exactly the drift
 the checker flags, and it was the one live format FAIL in an otherwise-clean

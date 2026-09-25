@@ -7,8 +7,8 @@ modules (not primitives/python/) and resolves cases.json by an explicit
 repo-root-relative path rather than directory traversal, since the bundle
 lives at a different depth than primitives/python/tests/.
 
-Invoked directly by scripts/check-bundle-conformance.mjs, and can also be run
-on its own:
+The JS bundle's twin is scripts/check-bundle-conformance.mjs; CI runs each in
+its own job. Run this one with:
 
     python3 -m pytest -q scripts/test_bundle_conformance.py
 
@@ -105,3 +105,26 @@ def test_bundle_validate_cases():
         else:
             for needle in c['expectContains']:
                 assert any(needle in i for i in issues), f"{c['name']}: '{needle}' not in {issues}"
+
+
+# Every case field the three tests above interpret; mirrors
+# primitives/python/tests/test_conformance.py and run-cases.mjs (#369).
+_KNOWN_FIELDS = {
+    'combine': {'name', 'inputs', 'expect', 'absent', 'expectLineageIds'},
+    'audit': {'name', 'meta', 'expectContains'},
+    'validate': {'name', 'meta', 'expectContains'},
+}
+
+
+def test_bundle_every_case_field_is_interpreted():
+    for kind, known in _KNOWN_FIELDS.items():
+        for c in CASES[kind]:
+            extra = set(c) - known
+            assert not extra, (f"{kind} case {c['name']!r}: unknown field(s) {sorted(extra)} "
+                               f"— teach this runner to interpret them")
+
+
+def test_bundle_every_case_kind_is_interpreted():
+    # A top-level kind no test above reads would otherwise never run (#369).
+    kinds = set(CASES) - {'_doc', 'version'}
+    assert kinds == set(_KNOWN_FIELDS), f"unknown case kind(s) {sorted(kinds - set(_KNOWN_FIELDS))}"

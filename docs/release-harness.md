@@ -108,7 +108,9 @@ These are machine checks, not judgement calls — they either pass or block:
       exact findings-table columns, the record's `Class` and `Action`
       vocabularies (#222), inline-named principles matching
       `reference/portable-principles.md`, every cited principle present in the
-      glossary, and the coverage map + scope note. Works on the audit's
+      glossary, the omission-pass table (checker v3, #411: `Output` then one
+      column per question in order, no blank or shifted rows, or the
+      `No output-producing units in scope.` line), and the coverage map + scope note. Works on the audit's
       `report-format`, remediate's `remediation-format` and adopt's
       `routing-format`. Its first output line names the checker version, the
       contract versions it models and the ruleset revision it compared against

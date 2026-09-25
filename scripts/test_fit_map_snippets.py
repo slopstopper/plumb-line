@@ -22,6 +22,7 @@ loudly.
 import importlib.util
 import os
 import re
+import shutil
 import sys
 
 import pytest
@@ -118,6 +119,9 @@ def _check_profile4(ns):
 
 
 def _check_profile5(ns):
+    # The snippet's own mkdtemp dir: remove it here, where a reader's snippet
+    # would not need to (#374).
+    shutil.rmtree(ns['dir'])
     assert ns['drifted'] is True
 
 
@@ -188,8 +192,7 @@ def test_every_python_block_has_a_prelude():
             + block)
 
 
-@pytest.mark.parametrize('marker', sorted(PRELUDES))
-def test_snippet_executes_and_behaves(marker):
+def _execute(marker):
     block = next((b for b in BLOCKS if marker in b), None)
     assert block is not None, (
         f'marker {marker!r} matches no snippet — fit-map and preludes have '
@@ -197,6 +200,19 @@ def test_snippet_executes_and_behaves(marker):
     make_ns, check = PRELUDES[marker]
     ns = _run_snippet(block, make_ns(), f'fit-map.md[{marker}]')
     check(ns)
+    return ns
+
+
+@pytest.mark.parametrize('marker', sorted(PRELUDES))
+def test_snippet_executes_and_behaves(marker):
+    _execute(marker)
+
+
+def test_profile5_leaves_no_temp_dir():
+    # The snippet makes its own mkdtemp dir, as a reader would; the harness
+    # must remove it, or every suite run leaks one into the system tmp (#374).
+    ns = _execute('first recorded baseline')
+    assert not os.path.exists(ns['dir']), f'leaked {ns["dir"]}'
 
 
 def test_profile1_real_branch():

@@ -210,7 +210,7 @@ const { value, ...meta } = await taggedFetch(url);   // envelope, not a bare bod
 ```
 
 ```python
-from plumb_line_provenance.http import tag_requests   # or tag_httpx
+from plumb_line_provenance.http_adapter import tag_requests   # or tag_httpx
 env = tag_requests(requests.get(url))
 ```
 
