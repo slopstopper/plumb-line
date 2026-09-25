@@ -53,6 +53,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   now say the record makes verdicts consistent with their own numbers and
   names what a re-run needs, without claiming the rates themselves
   reproduce.
+- SPEC §4 now describes the step-id canonical form both implementations
+  actually hash ([#401](https://github.com/slopstopper/plumb-line/issues/401)).
+  It said `confidenceScore` was a JSON number; both implementations encode
+  the IEEE-754 double as big-endian hex, because JSON number formatting
+  differs across languages. The spec also now states the join, encoding,
+  absent-field and sort rules, and carries a worked example that
+  `scripts/test_spec_step_id.py` checks against both implementations. A port
+  written from the old text would have produced different ids. No change to
+  either implementation or to any step id.
 
 ## [0.11.1] — 2026-09-20
 
