@@ -146,3 +146,68 @@ def test_strict_exit_codes(tmp_path):
     assert ccl.main(["ccl", str(bad), "--strict"]) == 1
     assert ccl.main(["ccl", str(bad)]) == 0          # flagger, not a gate
     assert ccl.main(["ccl", str(good), "--strict"]) == 0
+
+
+# --- length follows the release (owner decision 2026-09-25) -----------------
+# The patch write-ups had grown longer than the minors (0.11.1 and 0.11.2 at
+# ~810-830 words against 0.11.0's 582). Density follows the version: a patch
+# gets a short piece. Budgets count the body above the disclosure rule.
+
+import glob  # noqa: E402
+import re  # noqa: E402
+
+_CONTENT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "docs", "content")
+_PIECE = re.compile(r"^\d{4}-\d{2}-\d{2}-plumb-line-(\d+)\.(\d+)\.(\d+)-.+\.md$")
+WORD_BUDGET = {"patch": 300, "minor": 600, "major": 1000}
+# Written before the budget existed; kept as dated artifacts, not rewritten.
+GRANDFATHERED = {
+    "2026-08-15-plumb-line-0.9.0-the-front-door.md",
+    "2026-08-19-plumb-line-0.10.0-pay-down-the-ledger.md",
+    "2026-09-15-plumb-line-0.11.0-honest-over-time.md",
+    "2026-09-20-plumb-line-0.11.1-measured-nothing.md",
+    "2026-09-25-plumb-line-0.11.2-the-checkers-own-blind-spot.md",
+}
+
+
+def release_kind(major, minor, patch):
+    """Pre-1.0, a minor is the feature/breaking release (the project's SemVer
+    rule); from 1.0 a major is. A patch is always a patch."""
+    if patch:
+        return "patch"
+    if major >= 1 and minor == 0:
+        return "major"
+    return "minor"
+
+
+def body_words(text):
+    return len(text.split("\n---\n")[0].split())
+
+
+def test_release_kind_follows_semver():
+    assert release_kind(0, 11, 3) == "patch"
+    assert release_kind(0, 12, 0) == "minor"
+    assert release_kind(1, 0, 0) == "major"
+    assert release_kind(1, 2, 0) == "minor"
+
+
+def test_the_budget_would_have_caught_the_long_patches():
+    path = os.path.join(_CONTENT_DIR, "2026-09-25-plumb-line-0.11.2-the-checkers-own-blind-spot.md")
+    with open(path, encoding="utf-8") as fh:
+        assert body_words(fh.read()) > WORD_BUDGET["patch"]
+
+
+def test_every_new_piece_fits_its_release_budget():
+    pieces = [p for p in glob.glob(os.path.join(_CONTENT_DIR, "*.md"))
+              if _PIECE.match(os.path.basename(p))]
+    assert pieces, "no release pieces found"
+    for path in pieces:
+        name = os.path.basename(path)
+        if name in GRANDFATHERED:
+            continue
+        kind = release_kind(*(int(g) for g in _PIECE.match(name).groups()))
+        with open(path, encoding="utf-8") as fh:
+            words = body_words(fh.read())
+        assert words <= WORD_BUDGET[kind], (
+            f"{name} is a {kind} piece at {words} words; the budget is "
+            f"{WORD_BUDGET[kind]} (docs/content/TEMPLATE.md, 'Length follows the release')")
