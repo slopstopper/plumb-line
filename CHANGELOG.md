@@ -9,6 +9,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.11.3] — 2026-09-25
+
 ### Changed
 - **Remediate's conservative floor matches the project's own confidence
   type.** The #445 fix below changed the floor to the `"none"` rung, which is
@@ -1444,7 +1448,8 @@ These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes th
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.11.2...HEAD
+[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.11.3...HEAD
+[0.11.3]: https://github.com/slopstopper/plumb-line/compare/v0.11.2...v0.11.3
 [0.11.2]: https://github.com/slopstopper/plumb-line/compare/v0.11.1...v0.11.2
 [0.11.1]: https://github.com/slopstopper/plumb-line/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/slopstopper/plumb-line/compare/v0.10.0...v0.11.0
