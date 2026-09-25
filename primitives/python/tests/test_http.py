@@ -1,24 +1,18 @@
 """test_http — the classification core + the shared http-cases.json parity
-fixture (its JS twin is primitives/js/http.test.mjs, same file). The stdlib `http`
-package is kept intact against our sibling http.py by tests/conftest.py."""
-import importlib.util
+fixture (its JS twin is primitives/js/http.test.mjs, same file). The adapter is
+http_adapter.py, so importing it flat no longer shadows the stdlib `http` (#171)."""
 import json
 import os
 import sys
 
 _PY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # primitives/python
-sys.path.insert(0, _PY_DIR)  # so `marked` + our http.py's flat imports resolve
+sys.path.insert(0, _PY_DIR)  # so `marked` + the adapter's flat imports resolve
 
 import pytest  # noqa: E402
 import requests  # noqa: E402
 import httpx  # noqa: E402
 from marked import meta_of, unwrap  # noqa: E402
-
-# Load our http.py under a PRIVATE name — never bind sys.modules['http'] (stdlib
-# http is preserved by tests/conftest.py). Do NOT use `import http`.
-_spec = importlib.util.spec_from_file_location("_plumb_http_adapter", os.path.join(_PY_DIR, "http.py"))
-plumb_http = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(plumb_http)
+import http_adapter as plumb_http  # noqa: E402
 
 _CASES = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),

@@ -17,4 +17,7 @@ if __name__ == '__main__':
     because = sys.argv[1] if len(sys.argv) > 1 else None
     if because:
         bl.update('fx-rate', priced, because=because, dir=os.path.join(HERE, 'baselines'))
-    print(bl.report_text(bl.check('fx-rate', priced, dir=os.path.join(HERE, 'baselines'))))
+    report = bl.check('fx-rate', priced, dir=os.path.join(HERE, 'baselines'))
+    print(bl.report_text(report))
+    # A worked example that cannot fail proves nothing: anything but a match exits non-zero.
+    sys.exit(0 if report['status'] == 'match' else 1)

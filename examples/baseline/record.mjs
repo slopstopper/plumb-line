@@ -17,4 +17,7 @@ const because = process.argv[2];
 if (because) {
   update("fx-rate", priced, { because, dir });
 }
-console.log(reportText(check("fx-rate", priced, { dir })));
+const report = check("fx-rate", priced, { dir });
+console.log(reportText(report));
+// A worked example that cannot fail proves nothing: anything but a match exits non-zero.
+process.exitCode = report.status === "match" ? 0 : 1;

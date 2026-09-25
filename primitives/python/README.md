@@ -20,12 +20,14 @@ audit_meta(meta_of(total))          # []    — internally consistent
 You can also copy the module files directly into a project and import them flat
 (`from marked import mark`); both styles work.
 
-> **Flat-copy caveat for `http.py`:** the HTTP adapter file is named `http.py`. As
-> an installed package it is `plumb_line_provenance.http` and is harmless, but if you
-> copy it flat onto a directory that lands on `sys.path`, a top-level `import http`
-> would shadow the standard library's `http` package and break `requests`/`httpx`
-> (which import `http.client` internally). When copying it flat, import it under a
-> package/private name rather than as bare `http`, or prefer the installed package.
+> **The HTTP adapter is `http_adapter.py`.** Until 0.11.2 it was `http.py`, which
+> shadowed the standard library's `http` package (and broke `requests`/`httpx`)
+> whenever the directory was on `sys.path`. Flat copies import it as
+> `http_adapter`; the installed package keeps `plumb_line_provenance.http` as an
+> alias of `plumb_line_provenance.http_adapter` through 0.x (1.0 decision:
+> [#429](https://github.com/slopstopper/plumb-line/issues/429)), so existing imports
+> still work at run time. The alias is a runtime entry static type checkers cannot
+> see; new code should import `http_adapter`.
 
 ## HTTP ingestion adapters (optional)
 
@@ -35,7 +37,7 @@ Auto-tag HTTP responses at ingestion. Install the extra for your client:
     pip install "plumb-line-provenance[httpx]"
 
 ```python
-from plumb_line_provenance.http import tag_requests, tagged_get
+from plumb_line_provenance.http_adapter import tag_requests, tagged_get
 from plumb_line_provenance import derive
 import requests
 

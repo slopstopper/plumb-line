@@ -166,7 +166,11 @@ export function validateBaseline(record) {
     // Only a plain object can carry provenanceVersion; anything else (null,
     // an array, a string, a number) reaches validateEnvelope unchanged, so it
     // reports "not an envelope object" / "missing meta" exactly as Python
-    // does instead of being spread into a bag of index keys.
+    // does instead of being spread into a bag of index keys. toRecord hoists
+    // provenanceVersion out of meta; putting it back hands the validator the
+    // envelope as it was pinned. validateEnvelope checks only the four
+    // required fields today, so this adds no version check — a version
+    // mismatch is reported by check() as a finding.
     const m = record.meta;
     const target = m && typeof m === "object" && !Array.isArray(m)
       ? { ...m, provenanceVersion: record.provenanceVersion }

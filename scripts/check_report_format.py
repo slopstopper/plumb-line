@@ -82,7 +82,19 @@ CLASSES = {"Mechanical", "Judgment"}
 #   v1  #139 — first validator (implicit; never printed)
 #   v2  #245 — revision compared to the ruleset (#220), Class enforced (#222),
 #       output carries this provenance line (#221)
-CHECKER_VERSION = "2"
+#   v3  #411 — a v3 audit report must carry the omission-pass table (or the
+#       "no output-producing units" line in its place), one column per question
+CHECKER_VERSION = "3"
+
+# The audit skill's omission-pass table: first column `Output`, then one column
+# per question in this order, each header being the word below, optionally
+# followed by a space and an inline-named principle (e.g.
+# `Lineage (P8 — State-first lineage)`). One column per question is the point:
+# a collapsed provenance/lineage column is how the most common omission gets
+# missed.
+OMISSION_FIRST_COLUMN = "Output"
+OMISSION_QUESTIONS = ["Provenance", "Confidence", "Lineage", "Contract", "Null-expressible", "Baseline"]
+NO_OUTPUT_UNITS = "No output-producing units in scope."
 
 # The ruleset's own revision line: `**Principles revision:** 1`.
 _RULESET_REVISION = re.compile(r"^\*\*Principles revision:\*\*\s*([0-9]+)\s*$", re.M)
@@ -91,7 +103,7 @@ _RULESET_REVISION = re.compile(r"^\*\*Principles revision:\*\*\s*([0-9]+)\s*$", 
 # \d matches any Unicode decimal digit and isdigit() is broader still (it is
 # True for "²"), so both would accept a date of "٢٠٢٦-٠٨-١١" or a revision of
 # "²" that int() cannot parse. Same class of bug as the Age-header fix in
-# primitives/python/http.py — it recurs anywhere a "digit" is assumed ASCII.
+# primitives/python/http_adapter.py — it recurs anywhere a "digit" is assumed ASCII.
 _DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 _COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 _ASCII_INT = re.compile(r"^[0-9]+$")
@@ -329,11 +341,20 @@ def _table_columns(text, expected):
     """
     lines = text.split("\n")
     best = None
+    in_omission = False
     for i, line in enumerate(lines):
         stripped = line.strip()
         if not (stripped.startswith("|") and stripped.endswith("|")):
+            in_omission = False
             continue
         cells = _split_row(stripped)
+        # The omission-pass table, header and body, is never a candidate
+        # findings table (#411): taking it as the best guess hid a malformed
+        # findings table after it.
+        if cells and cells[0] == OMISSION_FIRST_COLUMN:
+            in_omission = True
+        if in_omission:
+            continue
         if _is_separator(cells):
             continue
         if cells == expected:
@@ -349,6 +370,61 @@ def _table_columns(text, expected):
         if best is None and len(cells) >= 3:
             best = cells
     return best, []
+
+
+def _omission_table(text):
+    """(header_cells, body_rows) of the first table whose first header cell is
+    OMISSION_FIRST_COLUMN, or (None, []). Cells are parsed, so column-aligned
+    tables match (the _table_columns lesson). Separator-shaped lines are never
+    body rows. Fenced blocks are NOT skipped, deliberately: reports are
+    accepted fenced in whole or in part (see _FENCE), as the findings table is."""
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        s = line.strip()
+        if not (s.startswith("|") and s.endswith("|")):
+            continue
+        cells = _split_row(s)
+        if not cells or cells[0] != OMISSION_FIRST_COLUMN or _is_separator(cells):
+            continue
+        rows, j = [], i + 1
+        if j < len(lines) and _is_separator(_split_row(lines[j])):
+            j += 1
+        for body in lines[j:]:
+            b = body.strip()
+            if not (b.startswith("|") and b.endswith("|")):
+                break
+            row = _split_row(b)
+            if not _is_separator(row):
+                rows.append(row)
+        return cells, rows
+    return None, []
+
+
+def _check_omission_table(text, issues):
+    cols, rows = _omission_table(text)
+    if cols is None:
+        if not re.search(r"^%s\s*$" % re.escape(NO_OUTPUT_UNITS), text, re.M):
+            issues.append(
+                f"missing the omission-pass table — REQUIRED on a v3 audit report: a "
+                f"table headed '| {OMISSION_FIRST_COLUMN} | ...' with one row per "
+                f"output-producing unit (or '{NO_OUTPUT_UNITS}' on its own line)")
+        return
+    named = [c.split(" ", 1)[0] for c in cols[1:]]
+    if named != OMISSION_QUESTIONS:
+        issues.append(
+            f"omission-pass table columns must be {[OMISSION_FIRST_COLUMN] + OMISSION_QUESTIONS} "
+            f"in that order (each may be followed by an inline-named principle) — one "
+            f"column per question, never collapsed; found {cols}")
+    if not rows:
+        issues.append("omission-pass table has no rows — one row per output-producing "
+                      f"unit, or '{NO_OUTPUT_UNITS}' in place of the table")
+    for n, row in enumerate(rows, start=1):
+        if len(row) != len(cols):
+            issues.append(f"omission row {n} has {len(row)} cells, expected {len(cols)} — "
+                          f"a shifted row answers the wrong question")
+        elif not all(row):
+            issues.append(f"omission row {n} has a blank cell — every output is named "
+                          f"and every question answered")
 
 
 def _check_principles(text, principles, glossary_required, issues):
@@ -474,6 +550,7 @@ def check_report(text, principles, ruleset_revision=None):
                           "(REQUIRED on every run, including clean ones)")
         if not re.search(r"^scope note:[ \t]*\S", text, re.M):
             issues.append("missing the 'scope note:' no-completeness caveat")
+        _check_omission_table(text, issues)
     return issues
 
 

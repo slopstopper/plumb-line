@@ -91,3 +91,27 @@ def test_validate_cases():
         else:
             for needle in c['expectContains']:
                 assert any(needle in i for i in issues), f"{c['name']}: '{needle}' not in {issues}"
+
+
+# Every case field the three tests above interpret. A field added to cases.json
+# that this runner does not read would otherwise pass silently; the JS twin is
+# KNOWN_FIELDS in primitives/conformance/run-cases.mjs (#369).
+_KNOWN_FIELDS = {
+    'combine': {'name', 'inputs', 'expect', 'absent', 'expectLineageIds'},
+    'audit': {'name', 'meta', 'expectContains'},
+    'validate': {'name', 'meta', 'expectContains'},
+}
+
+
+def test_every_case_field_is_interpreted():
+    for kind, known in _KNOWN_FIELDS.items():
+        for c in CASES[kind]:
+            extra = set(c) - known
+            assert not extra, (f"{kind} case {c['name']!r}: unknown field(s) {sorted(extra)} "
+                               f"— teach this runner to interpret them")
+
+
+def test_every_case_kind_is_interpreted():
+    # A top-level kind no test above reads would otherwise never run (#369).
+    kinds = set(CASES) - {'_doc', 'version'}
+    assert kinds == set(_KNOWN_FIELDS), f"unknown case kind(s) {sorted(kinds - set(_KNOWN_FIELDS))}"

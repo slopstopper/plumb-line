@@ -8,53 +8,19 @@
 //   node primitives/conformance/report.mjs --badge    # badge markdown only
 //   node primitives/conformance/report.mjs --json      # machine-readable result
 //
-// Against the JS reference implementation by default. An alternative JS
-// implementation can self-certify by importing this and passing its own module.
+// Against the JS reference implementation. An alternative JS implementation
+// self-certifies by passing its own module to runCases() in run-cases.mjs.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import {
-  combineProvenance,
-  auditMeta,
-  validateEnvelope,
-  __resetStepCounter,
-  PROVENANCE_VERSION,
-} from "../js/index.mjs";
+import * as reference from "../js/index.mjs";
+import { runCases } from "./run-cases.mjs";
 
+const { PROVENANCE_VERSION } = reference;
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 const cases = JSON.parse(readFileSync(here("./cases.json"), "utf8"));
 
-function runCombine(c) {
-  __resetStepCounter();
-  const out = combineProvenance(...c.inputs);
-  for (const [k, v] of Object.entries(c.expect)) {
-    if (JSON.stringify(out[k]) !== JSON.stringify(v))
-      return `expected ${k}=${JSON.stringify(v)}, got ${JSON.stringify(out[k])}`;
-  }
-  for (const k of c.absent || []) {
-    if (k in out) return `expected ${k} to be absent`;
-  }
-  return null;
-}
-
-// Shared by audit and validate: both return an issue-string list and assert on
-// substring presence (or emptiness).
-function runIssueList(issues, c) {
-  if (c.expectContains.length === 0) {
-    if (issues.length !== 0) return `expected no issues, got ${JSON.stringify(issues)}`;
-  } else {
-    for (const needle of c.expectContains) {
-      if (!issues.some((i) => i.includes(needle)))
-        return `expected an issue containing "${needle}", got ${JSON.stringify(issues)}`;
-    }
-  }
-  return null;
-}
-
-const results = [
-  ...cases.combine.map((c) => ({ kind: "combine", name: c.name, error: runCombine(c) })),
-  ...cases.audit.map((c) => ({ kind: "audit", name: c.name, error: runIssueList(auditMeta(c.meta), c) })),
-  ...cases.validate.map((c) => ({ kind: "validate", name: c.name, error: runIssueList(validateEnvelope(c.meta), c) })),
-];
+// The case interpreter lives in run-cases.mjs, shared with the bundle check (#369).
+const results = runCases(reference, cases);
 
 const failed = results.filter((r) => r.error);
 const passed = results.length - failed.length;

@@ -145,9 +145,49 @@ of=<of>
 source=<source>
 confidence=<confidence>
 derivedFromMock=<"true"|"false">
-confidenceScore=<JSON number, or "-" if absent>
+confidenceScore=<IEEE-754 binary64, big-endian, as 16 lowercase hex chars; or "-" if absent or not a valid score>
 inputs=<sorted, comma-joined ids of the step's input steps>
 ```
+
+The six lines are joined with `\n` (no trailing newline) and hashed as UTF-8.
+An absent `of`, `source` or `confidence` serializes as the empty string. Input
+ids are sorted by code point; ids are ASCII, so any bytewise sort agrees.
+
+The score is encoded as its raw double bit pattern, **not** as a JSON number:
+JSON serializers disagree across languages for the same double (`0.00001` is
+`1e-05` in Python's `json.dumps` and `0.00001` in JavaScript's
+`JSON.stringify`), which would give the same step different ids. The bit
+pattern is identical in every IEEE-754 language by construction.
+
+Worked example — an input step with a score where the two JSON forms differ:
+
+<!-- step-id worked example: {"of": "input", "source": "real", "confidence": "high", "derivedFromMock": false, "confidenceScore": 0.00001} -->
+```text
+of=input
+source=real
+confidence=high
+derivedFromMock=false
+confidenceScore=3ee4f8b588e368f1
+inputs=
+```
+
+hashes to `sha256:fb171b6077bc`.
+
+A second, with no score and two input ids given unsorted
+(`sha256:fb171b6077bc`, `sha256:097181b20233`), so the sort and join apply:
+
+<!-- step-id worked example: {"of": "input", "source": "fallback", "confidence": "medium", "derivedFromMock": true, "inputIds": ["sha256:fb171b6077bc", "sha256:097181b20233"]} -->
+```text
+of=input
+source=fallback
+confidence=medium
+derivedFromMock=true
+confidenceScore=-
+inputs=sha256:097181b20233,sha256:fb171b6077bc
+```
+
+hashes to `sha256:b8a0413840c5`. `scripts/test_spec_step_id.py` checks both
+examples against both reference implementations.
 
 Two guarantees follow from this construction:
 

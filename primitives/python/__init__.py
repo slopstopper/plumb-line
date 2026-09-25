@@ -29,6 +29,20 @@ except ImportError:  # flat usage (modules on sys.path)
         check, assert_baseline, update, list_baselines, show, validate_baseline,
     )
 
+# The HTTP adapter shipped as `http.py`, which shadowed the stdlib `http`
+# package whenever this directory was on sys.path (#171). It is now
+# `http_adapter.py`; `plumb_line_provenance.http` stays importable as an alias
+# so existing imports keep working. Importing it pulls in no optional
+# dependency (requests/httpx are imported at call time). Guarded on its own:
+# flat usage has no parent package, and the plugin bundle omits the adapter.
+try:
+    from . import http_adapter as http
+except ImportError:
+    pass
+else:
+    import sys as _sys
+    _sys.modules[__name__ + '.http'] = http
+
 __all__ = [
     'PROVENANCE_VERSION', 'STATUS', 'CONFIDENCE',
     'make_meta', 'weakest_confidence', 'weakest_source',

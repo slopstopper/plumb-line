@@ -298,6 +298,12 @@ def _count(n):
     return f"{n} site{'' if n == 1 else 's'}"
 
 
+def pin_change(sites):
+    """The history `change` line a first `update` writes for `sites`."""
+    total = sum(len(v) for v in sites.values())
+    return f"pinned {_count(total)} (" + ", ".join(f"{c}: {len(sites[c])}" for c in sorted(sites)) + ")"
+
+
 def update(root, manifest_path, scripts_dir, because, runner=None, today=None):
     if not isinstance(because, str) or not because.strip():
         return 2, BECAUSE_REQUIRED, None
@@ -324,9 +330,8 @@ def update(root, manifest_path, scripts_dir, because, runner=None, today=None):
     data["sites"] = new_sites
     data["history"] = list(existing["history"]) if existing else []
     if existing is None:
-        total = sum(len(v) for v in new_sites.values())
-        change = f"pinned {_count(total)} (" + ", ".join(f"{c}: {len(new_sites[c])}" for c in sorted(new_sites)) + ")"
-        msg = f"pinned {_count(total)} in {os.path.relpath(path, root)}"
+        change = pin_change(new_sites)
+        msg = f"pinned {_count(sum(len(v) for v in new_sites.values()))} in {os.path.relpath(path, root)}"
     else:
         parts, plus, minus = [], 0, 0
         for cap in sorted(set(existing["sites"]) | set(new_sites)):

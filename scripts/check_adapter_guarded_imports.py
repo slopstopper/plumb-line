@@ -9,10 +9,10 @@ import sys
 
 _PY_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "primitives", "python")
 
-# Sanity: the extras really are absent. This MUST run while sys.path is still
-# clean — inserting _PY_DIR first would put a flat `http.py` ahead of the stdlib
-# `http` package, breaking requests' internal `import http.client` and making a
-# genuinely-installed requests look absent.
+# Sanity: the extras really are absent. Checked while sys.path is still clean,
+# so nothing in _PY_DIR can influence the answer (the adapter was once `http.py`
+# and shadowed the stdlib `http` package, making a real requests look absent;
+# #171 renamed it).
 for lib in ("requests", "httpx", "pandas", "numpy"):
     try:
         __import__(lib)
@@ -25,9 +25,7 @@ sys.path.insert(0, _PY_DIR)  # so the adapters' flat `from marked import ...` re
 
 
 def _load(name):
-    """Load primitives/python/<name>.py under a private module name. For `http`
-    this also avoids binding sys.modules['http'] (which would shadow the stdlib
-    `http` package); frames/arrays don't clash but load the same way for uniformity."""
+    """Load primitives/python/<name>.py under a private module name."""
     spec = importlib.util.spec_from_file_location(f"_plumb_{name}", os.path.join(_PY_DIR, f"{name}.py"))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -35,7 +33,7 @@ def _load(name):
 
 
 # --- http adapter: dep-free core works; taggers raise install-hinting ImportError
-plumb_http = _load("http")
+plumb_http = _load("http_adapter")
 assert plumb_http.classify_response(200, {}, False) == ("real", "high"), "classify_response broke without extras"
 assert plumb_http.classify_response(500, {}, False) == ("unavailable", "none")
 for fn, hint in ((plumb_http.tag_requests, "requests"), (plumb_http.tag_httpx, "httpx")):
