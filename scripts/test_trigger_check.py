@@ -122,7 +122,8 @@ def _merged():
 
 def _payload(**over):
     base = dict(target="t", installs=[], tiers={"screen": "haiku", "confirm": None},
-                runs={"screen": 1, "confirm": 2}, threshold=0.5, merged=_merged())
+                runs={"screen": 1, "confirm": 2}, threshold=0.5, timeout=150,
+                merged=_merged())
     base.update(over)
     return tc.build_payload(**base)
 
@@ -142,6 +143,41 @@ def test_payload_carries_its_contract_and_its_conditions():
     assert payload["runs"] == {"screen": 1, "confirm": 2}
     assert payload["summary"] == {"passed": 1, "total": 2}
     assert payload["results"] == _merged()
+
+
+def test_payload_records_the_probe_settings_that_change_verdicts():
+    # #400: a timed-out run records as a non-trigger, and the turn cap bounds
+    # whether a Skill call can happen at all — both must be on the record.
+    payload = _payload(timeout=90)
+    assert payload["results-format"] == "v2"
+    assert payload["probe"] == {"timeout_s": 90, "max_turns": tc.MAX_TURNS}
+
+
+def test_probe_command_uses_the_recorded_turn_cap():
+    cmd = tc.probe_cmd("q", "some-model")
+    assert cmd[cmd.index("--max-turns") + 1] == str(tc.MAX_TURNS)
+
+
+def test_validate_refuses_a_record_without_probe_settings():
+    payload = _payload()
+    del payload["probe"]
+    assert any("probe" in i for i in tc.validate_results(payload))
+
+
+def test_validate_refuses_a_v1_record_as_unreproducible():
+    payload = _payload()
+    del payload["probe"]
+    payload["results-format"] = "v1"
+    issues = tc.validate_results(payload)
+    assert any("v1" in i and "timeout" in i for i in issues), issues
+
+
+def test_validate_flags_malformed_probe_settings():
+    for bad in ({"timeout_s": 0, "max_turns": 2}, {"timeout_s": 150, "max_turns": True},
+                {"timeout_s": "150", "max_turns": 2}, {"timeout_s": 150}, [150, 2]):
+        payload = _payload()
+        payload["probe"] = bad
+        assert any("probe" in i for i in tc.validate_results(payload)), bad
 
 
 def test_validate_accepts_the_harness_own_payload():

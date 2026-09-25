@@ -43,6 +43,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   implementations were never affected. Both scripts now import one runner,
   `primitives/conformance/run-cases.mjs`, which also fails any case field
   it does not interpret; the two Python runners carry the same guard.
+- `scripts/trigger_check.py` records the probe settings that change
+  verdicts ([#400](https://github.com/slopstopper/plumb-line/issues/400)).
+  Results are now `results-format: v2`, adding
+  `probe: {timeout_s, max_turns}`; the turn cap is a named constant that the
+  probe command reads, so the recorded value is the one used. **Stricter:**
+  `--validate` refuses a v1 record, because it cannot say what the timeout
+  or turn cap was. No v1 records are committed in this repository. The docs
+  now say the record makes verdicts consistent with their own numbers and
+  names what a re-run needs, without claiming the rates themselves
+  reproduce.
 
 ## [0.11.1] — 2026-09-20
 

@@ -60,10 +60,16 @@ python3 scripts/trigger_check.py evals/trigger/audit-queries.json \
 python3 scripts/trigger_check.py --validate results.json
 ```
 
-The results file is a contracted record (`results-format: v1`, #317): it
-carries the threshold and per-tier run counts its verdicts derive from, and
-`--validate` re-derives every row's pass from its rate, the stamped threshold
-and its expectation, so a stored pass is reproducible rather than asserted.
+The results file is a contracted record (`results-format: v2`; v1 #317, v2
+#400). It records the probed installs, the models per tier, the per-tier run
+counts, the threshold, and the probe settings that change verdicts: the
+per-probe `timeout_s` (a timed-out run records as a non-trigger) and the
+`max_turns` cap. `--validate` re-derives every row's pass from its rate, the
+stamped threshold and its expectation, so a stored verdict is consistent with
+its own numbers rather than asserted. It refuses a v1 record, which does not
+say what the timeout or turn cap was. A re-run with the recorded settings
+re-measures under the same conditions; it is not guaranteed to reproduce the
+same rates, because model sampling is not recorded or controlled.
 
 ## Status and honest caveats
 
