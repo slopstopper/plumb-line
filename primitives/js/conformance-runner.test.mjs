@@ -6,6 +6,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import * as impl from "./index.mjs";
 import { runCases, describeCaseTable } from "../conformance/run-cases.mjs";
 
@@ -34,6 +35,59 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
     const extra = { ...cases.combine[0], expectSomethingNew: true };
     const [r] = runCases(impl, only([extra]));
     expect(r.error).toMatch(/unknown case field.*expectSomethingNew/);
+  });
+
+  // One negative per judging branch (#430 review): conformance.test.mjs is a
+  // thin view over runCases, so a runner that stopped judging would pass
+  // vitest, report.mjs and the bundle check at once unless each branch is
+  // pinned here to fail on a wrong expectation.
+  const plain = cases.combine.find((c) => !c.expectLineageIds && Object.keys(c.expect).length);
+  const auditIssue = cases.audit.find((c) => c.expectContains.length);
+  const auditClean = cases.audit.find((c) => c.expectContains.length === 0);
+
+  it("fails a combine case whose expect value is wrong", () => {
+    const [k] = Object.keys(plain.expect);
+    const [r] = runCases(impl, only([{ ...plain, expect: { [k]: "not-a-real-value" } }]));
+    expect(r.error).toMatch(new RegExp(`expected ${k}=`));
+  });
+
+  it("fails a combine case when a key listed in absent is present", () => {
+    const [k] = Object.keys(plain.expect);
+    const [r] = runCases(impl, only([{ ...plain, absent: [k] }]));
+    expect(r.error).toMatch(new RegExp(`expected ${k} to be absent`));
+  });
+
+  it("fails an audit case whose needle no issue contains", () => {
+    const [r] = runCases(impl, { version: cases.version, combine: [], validate: [],
+      audit: [{ ...auditIssue, expectContains: ["no-such-issue-text"] }] });
+    expect(r.error).toMatch(/expected an issue containing "no-such-issue-text"/);
+  });
+
+  it("fails an audit case expecting no issues when there are some", () => {
+    const [r] = runCases(impl, { version: cases.version, combine: [], validate: [],
+      audit: [{ ...auditIssue, expectContains: [] }] });
+    expect(r.error).toMatch(/expected no issues/);
+    const [ok] = runCases(impl, { version: cases.version, combine: [], validate: [],
+      audit: [auditClean] });
+    expect(ok.error).toBeNull();
+  });
+
+  it("compares expect values by deep equality, so key order does not matter", () => {
+    // JSON.stringify comparison depends on key order: a correct expectation
+    // written with its keys in another order failed. Build the true lineage,
+    // reverse each step's keys, and expect it to pass.
+    impl.__resetStepCounter();
+    const truth = impl.combineProvenance(...plain.inputs).lineage;
+    const reordered = truth.map((s) => Object.fromEntries(Object.entries(s).reverse()));
+    const [r] = runCases(impl, only([{ ...plain, expect: { ...plain.expect, lineage: reordered } }]));
+    expect(r.error).toBeNull();
+  });
+
+  it("the case-table hash is of the file's exact bytes", () => {
+    const bytes = readFileSync(CASES_PATH);
+    const independent = createHash("sha256").update(bytes).digest("hex");
+    expect(describeCaseTable(cases, bytes).sha256).toBe(independent);
+    expect(describeCaseTable(cases, Buffer.from(JSON.stringify(cases))).sha256).not.toBe(independent);
   });
 
   it("fails a case-table version the runner does not model (#433)", () => {

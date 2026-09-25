@@ -30,7 +30,10 @@ const tableLine =
 const results = runCases(reference, cases);
 
 const failed = results.filter((r) => r.error);
-const passed = results.length - failed.length;
+// A rejected table is not a case: count cases only, so an unknown table
+// version reads as its own failure instead of "41/42 cases passed".
+const caseResults = results.filter((r) => r.kind !== "(table)");
+const passed = caseResults.filter((r) => !r.error).length;
 const ok = failed.length === 0;
 
 const badge =
@@ -48,7 +51,7 @@ if (mode === "--badge") {
 if (mode === "--json") {
   console.log(
     JSON.stringify(
-      { envelopeVersion: PROVENANCE_VERSION, caseTable, total: results.length, passed, failed: failed.length, ok, failures: failed },
+      { envelopeVersion: PROVENANCE_VERSION, caseTable, total: caseResults.length, passed, failed: failed.length, ok, failures: failed },
       null,
       2,
     ),
@@ -58,7 +61,7 @@ if (mode === "--json") {
 
 console.log(`plumb-line conformance — envelope schema version ${PROVENANCE_VERSION}`);
 console.log(tableLine);
-console.log(`${passed}/${results.length} cases passed` + (ok ? "" : ` — ${failed.length} FAILED`));
+console.log(`${passed}/${caseResults.length} cases passed` + (ok ? "" : ` — ${failed.length} FAILED`));
 for (const f of failed) console.log(`  ✗ [${f.kind}] ${f.name}: ${f.error}`);
 console.log("");
 console.log(ok ? "CONFORMANT. Badge snippet:" : "NOT CONFORMANT — badge withheld.");

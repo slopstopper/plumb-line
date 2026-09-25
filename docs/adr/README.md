@@ -19,6 +19,11 @@ A decision, once recorded, is not edited away. If a later decision overturns an
 earlier one, the earlier ADR stays and is marked `Superseded by ADR-NNNN`; the
 record is append-only.
 
+An ADR may land as `Proposed` when it is drafted for the owner's review. It
+becomes `Accepted` (or `Rejected`, and stays in the record) by editing its
+Status line and this index row. That edit settles a pending decision and is
+not a rewrite of an accepted one.
+
 ## Index
 
 | ADR                                                     | Title                                                     | Status   |

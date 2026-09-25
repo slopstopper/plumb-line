@@ -43,6 +43,11 @@ def __getattr__(name):
         return getattr(_baseline, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
+
+def __dir__():
+    # help(), autocomplete and autodoc read dir(): list the lazy names too.
+    return sorted(set(globals()) | (_BASELINE_NAMES if _LAZY_BASELINE else set()))
+
 # The HTTP adapter shipped as `http.py`, which shadowed the stdlib `http`
 # package whenever this directory was on sys.path (#171). It is now
 # `http_adapter.py`; `plumb_line_provenance.http` stays importable as an alias

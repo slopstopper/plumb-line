@@ -975,3 +975,27 @@ def test_skill_templates_stamp_the_checker_version(skill):
     assert clean, skill
     for ln in clean:
         assert "check_report_format.py v<N> — clean" in ln, (skill, ln)
+
+
+# --- #432 review round: every format-validation line is judged -------------
+
+@pytest.mark.parametrize("line", [
+    "format-validation: scripts/check_report_format.py v<N> — clean",    # template copied unfilled
+    "format-validation: scripts/check_report_format.py v99 - clean",     # hyphen for the dash
+    "format-validation: scripts/check_report_format.py v99 — clean (after fixes)",
+    "format-validation: scripts/check_report_format.py V99 — clean",
+    "format-validation: scripts/check_report_format.py v4.0 — clean",
+    "format-validation: python3 scripts/check_report_format.py v99 — clean",
+    "- format-validation: scripts/check_report_format.py v99 — clean",
+    "format-validation: clean",
+])
+def test_a_format_validation_line_in_any_other_form_is_rejected(line):
+    # The stamp rule applied only to byte-exact lines, so a copied template or
+    # a slightly-off stamp was judged less strictly than an unstamped line.
+    issues = _check(_with_validation(line))
+    assert any("format-validation" in i for i in issues), (line, issues)
+
+
+def test_the_unfilled_template_names_the_placeholder():
+    issues = _check(_with_validation("format-validation: scripts/check_report_format.py v<N> — clean"))
+    assert any("v<N>" in i and "fill" in i for i in issues), issues

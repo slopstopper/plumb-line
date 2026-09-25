@@ -675,11 +675,36 @@ def validation_notes(text):
     return notes
 
 
+# Any line that means to be a format-validation line: the key, optionally
+# after a list bullet. Every one is judged; a stamp rule that applied only to
+# byte-exact lines let a copied template or an off-by-a-dash stamp through
+# less checked than an unstamped line (#432 review).
+_VALIDATION_ANY = re.compile(r"^\s*(?P<bullet>[-*+]\s+)?format-validation:[ \t]*(?P<body>.*?)\s*$", re.M)
+_VALIDATION_NOT_RUN = re.compile(r"^not run \(.+\)$")
+
+
 def _check_validation_stamps(text):
-    return [f"format-validation claims checker v{ver}, but this checker is "
-            f"v{CHECKER_VERSION}: a verdict cannot come from a checker that does "
-            f"not exist yet" for ver in _validation_stamps(text)
-            if ver is not None and int(ver) > int(CHECKER_VERSION)]
+    issues = []
+    expected = ("expected 'format-validation: scripts/check_report_format.py v<N> — clean' "
+                "with <N> filled in from the checker's first output line, or "
+                "'format-validation: not run (<reason>)'")
+    for m in _VALIDATION_ANY.finditer(text):
+        line, body = m.group(0).strip(), m.group("body")
+        if m.group("bullet"):
+            issues.append(f"format-validation line must start the line, not sit in a list: {line!r}")
+        elif _VALIDATION_CLEAN.match(line) or _VALIDATION_NOT_RUN.match(body):
+            continue
+        elif "v<N>" in body:
+            issues.append(f"format-validation still carries the template's v<N>: fill in the "
+                          f"checker version from its first output line ({line!r})")
+        else:
+            issues.append(f"format-validation line is not in a recognised form: {line!r}; {expected}")
+    for ver in _validation_stamps(text):
+        if ver is not None and int(ver) > int(CHECKER_VERSION):
+            issues.append(f"format-validation claims checker v{ver}, but this checker is "
+                          f"v{CHECKER_VERSION}: a verdict cannot come from a checker that does "
+                          f"not exist yet")
+    return issues
 
 
 def check(text, principles, ruleset_revision=None):

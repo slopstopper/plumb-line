@@ -207,7 +207,8 @@ Version themes for the near-term releases, and the GitHub issues under each.
   needs a one-time ratchet re-pin, all called out as such. Harness record in `docs/validation-results.md`; its
   dogfood run deferred three more (GH #432–#434), not yet scheduled.
 
-- **v0.11.3 — Package pages and lineage** (patch, fix-only) · *created
+- **v0.11.3 — Package pages and lineage** (patch: fixes, plus one additive
+  skill-template stamp, GH #432, and a Proposed ADR, GH #434) · *created
   2026-09-25.* The npm and PyPI package pages brought up to date and pointed
   at slopstopper.org/plumb-line, with tests so they cannot drift again
   (GH #439); plus four v0.11.2 follow-ups: the conformance verdict records

@@ -72,3 +72,27 @@ def test_baseline_names_still_import_from_the_package():
         'assert callable(update) and callable(validate_baseline)\n'
         'print("ok")\n')
     assert out.returncode == 0 and out.stdout.strip() == 'ok', out.stderr
+
+
+_LOAD_PKG = ('import importlib.util, os, sys\n'
+             'spec = importlib.util.spec_from_file_location("plumb_line_provenance", "__init__.py",'
+             ' submodule_search_locations=[os.getcwd()])\n'
+             'pkg = importlib.util.module_from_spec(spec); sys.modules["plumb_line_provenance"] = pkg\n'
+             'spec.loader.exec_module(pkg)\n')
+
+
+def test_star_import_binds_the_lazy_baseline_names():
+    # In its own process, with nothing imported explicitly first, so the
+    # names can only come from `import *` resolving them through __getattr__.
+    out = _run(_LOAD_PKG + 'ns = {}\nexec("from plumb_line_provenance import *", ns)\n'
+               'print(sorted(n for n in ("check", "assert_baseline", "update", "list_baselines",'
+               ' "show", "validate_baseline") if callable(ns.get(n))))\n')
+    assert out.returncode == 0, out.stderr
+    assert out.stdout.strip() == str(sorted(["check", "assert_baseline", "update", "list_baselines",
+                                             "show", "validate_baseline"]))
+
+
+def test_dir_lists_the_lazy_baseline_names():
+    # help(), autocomplete and autodoc read dir(); lazy names must show there.
+    out = _run(_LOAD_PKG + 'print(all(n in dir(pkg) for n in ("check", "update", "validate_baseline")))\n')
+    assert out.returncode == 0 and out.stdout.strip() == 'True', out.stdout + out.stderr

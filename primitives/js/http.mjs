@@ -73,7 +73,10 @@ export function classifyResponse(status, headers, fromCache = false) {
 }
 
 // Tag a native Response with a provenance envelope by status/cache. The marked
-// value is the Response; extract via `derive([tagged], (r) => r.json())`.
+// value is the Response. Reading its body is async and derive is not, so read
+// first, then derive: `const json = await unwrap(tagged).json();
+// derive([tagged], () => json)`. (`derive([tagged], (r) => r.json())` marks a
+// Promise, not the body.)
 // Requires a runtime with global `Response`/`fetch` (Node >= 18 / browsers).
 export function tagResponse(response, fromCache = false) {
   const { source, confidence } = classifyResponse(response.status, response.headers, fromCache);

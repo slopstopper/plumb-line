@@ -50,7 +50,11 @@ JS_SUBPATH_SECTIONS = {"./http": "HTTP ingestion", "./baseline": "Golden baselin
 
 
 def _links(text):
-    return re.findall(r"\]\(([^)\s]+)\)", text)
+    """Every link target, in each form a registry renders: inline `[x](u)`,
+    reference-style `[x]: u`, and HTML `href=`/`src=`."""
+    return (re.findall(r"\]\(([^)\s]+)\)", text)
+            + re.findall(r"^\s*\[[^\]]+\]:\s*(\S+)", text, re.M)
+            + re.findall(r"(?:href|src)=[\"']([^\"']+)[\"']", text))
 
 
 @pytest.mark.parametrize("page", sorted(READMES))
@@ -78,7 +82,8 @@ def test_pypi_homepage():
 
 def test_node_floor_stated_on_the_page_matches_engines():
     floor = re.match(r">=\s*(\d+)", PACKAGE["engines"]["node"]).group(1)
-    stated = re.findall(r"Node\s*(?:≥|>=)\s*(\d+)", JS_README)
+    stated = re.findall(r"Node(?:\.js)?\s*(?:≥|>=)?\s*(\d+)\+?", JS_README)
+    assert stated, "the npm page must state the Node floor"
     assert all(n == floor for n in stated), f"README states Node {stated}, engines says >= {floor}"
 
 
@@ -112,5 +117,15 @@ def test_npm_cli_command_runs_from_an_install():
     # bare `node baseline-cli.mjs` only works inside this repository.
     cli = "baseline-cli.mjs"
     assert cli in PACKAGE["files"]
-    for cmd in re.findall(r"`(node [^`]*%s[^`]*)`" % re.escape(cli), JS_README):
+    # Inline code spans and fenced lines alike.
+    cmds = (re.findall(r"`(node [^`\n]*%s[^`\n]*)`" % re.escape(cli), JS_README)
+            + re.findall(r"^\s*(node \S*%s.*)$" % re.escape(cli), JS_README, re.M))
+    assert cmds, "the npm page should show how to run the baseline CLI"
+    for cmd in cmds:
         assert "node_modules/plumb-line-provenance/" + cli in cmd or "bin" in PACKAGE, cmd
+
+
+def test_npm_page_never_derives_from_an_async_body_read():
+    # derive() is synchronous: derive([tagged], (r) => r.json()) marks a
+    # Promise. The page showed exactly that until 0.11.3.
+    assert not re.search(r"derive\([^)]*\)\s*=>\s*\w+\.json\(\)", JS_README)

@@ -31,11 +31,12 @@ Auto-tag `fetch` responses at ingestion. Native `fetch` — no dependency
 
 ```js
 import { tagResponse, taggedFetch } from "plumb-line-provenance/http";
-import { derive } from "plumb-line-provenance";
+import { derive, unwrap } from "plumb-line-provenance";
 
 const resp = await fetch(url);
 const data = tagResponse(resp);               // marked by status/cache
-const body = derive([data], (r) => r.json()); // extract; taint propagates
+const json = await unwrap(data).json();       // read the body (async)
+const body = derive([data], () => json);      // re-mark it; taint propagates
 
 const data2 = await taggedFetch(url);         // fetch + tag in one call
 ```
@@ -55,9 +56,11 @@ and writes files, so the main entry stays free of `node:fs`.
 ```js
 import { assertBaseline, update } from "plumb-line-provenance/baseline";
 
-update("fx-rate", priced, { because: "initial pricing baseline", dir });
-assertBaseline("fx-rate", priced, { dir }); // throws, attributed, on drift
+update("fx-rate", priced, { because: "initial pricing baseline" });
+assertBaseline("fx-rate", priced); // throws, attributed, on drift
 ```
+
+Records live in `.plumb-line/baselines/` unless you pass `{ dir }`.
 
 Accepting a new state needs a non-empty `because`, stored in the record's
 append-only history. Inspect the files with

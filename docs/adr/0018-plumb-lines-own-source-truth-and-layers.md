@@ -16,7 +16,9 @@ layer leak against (the v0.11.2 dogfood finding deferred as GH #434).
 
 This ADR declares both, as they stand in the code on 2026-09-25, so an
 audit has a rule to hold the code to. It invents no new structure: every
-direction below is how the code already depends.
+direction below, and each stated exception, is how the code already depends
+(checked against the code on that date; the independent review of PR #440
+found one runtime use the first draft missed, now listed).
 
 ## Decision (proposed)
 
@@ -48,12 +50,26 @@ direction below is how the code already depends.
    | ----- | ------------- | ------------------ |
    | source truth (`primitives/SPEC.md`, `primitives/conformance/*.json`, `reference/portable-principles.md`) | nothing | anything below |
    | primitives (`primitives/js`, `primitives/python`) | source truth | adapters, scripts, skills, examples |
-   | adapters (`adapters/`) | source truth; primitives only in tests and docs | scripts, skills, examples |
-   | consumers (`scripts/`, `skills/`, `examples/`, `.claude-plugin/bundled/`) | any layer above | each other only where stated below |
+   | adapters (`adapters/`) | source truth; primitives in tests and docs, and at run time only through the one stated process boundary below | scripts, skills, examples |
+   | consumers (`scripts/`, `skills/`, `examples/`, `evals/`, `portable/`, `action.yml`, `.claude-plugin/bundled/`, `primitives/conformance/*.mjs`, and docs such as `reference/fit-map.md`) | any layer above | each other only where stated below |
+
+   Stated cross-layer uses:
+   - **adapter → primitive, at run time, across a process boundary.**
+     `adapters/sarif/run_checks.py` runs
+     `node primitives/js/baseline-cli.mjs validate --json` for the Action's
+     `baselines` capability (ADR-0016). It invokes the primitive's published
+     CLI as a subprocess and reads its JSON; it imports nothing. Any other
+     run-time use of the primitives by an adapter needs an amendment here.
+   - **primitives' tests → consumers.** The primitives' own tests import
+     `primitives/conformance/run-cases.mjs` (the shared interpreter of the
+     source-truth tables) and read `reference/fit-map.md` (to run its
+     snippets). Test code only; the published modules import neither.
 
    Consumers may depend on one another only in these stated ways:
    - the harness examples are scored by `scripts/`;
-   - the skills name `scripts/check_report_format.py` as an optional check;
+   - the skills name scripts as optional checks:
+     `scripts/check_report_format.py` (audit, remediate, adopt) and
+     `scripts/check_enforcement_manifest.py` (bootstrap);
    - `.claude-plugin/bundled/` is a byte-copy of `primitives/`, never
      edited in place.
 
@@ -61,19 +77,23 @@ direction below is how the code already depends.
 
 - `current`: the bundle is a byte-copy of `primitives/`
   (`scripts/check-bundle-sync.mjs`, every PR).
-- `current`: both implementations satisfy the conformance tables, and all
-  runners fail on a case field, case kind or table version they do not
-  interpret (`primitives/conformance/run-cases.mjs` and the Python suites;
-  #369, #433).
+- `current`: both implementations satisfy all three conformance tables.
+- `current`, for `cases.json` only: every runner fails on a case field, case
+  kind or table version it does not interpret
+  (`primitives/conformance/run-cases.mjs` and the two Python suites; #369,
+  #433).
+- `planned`: the same three guards for `http-cases.json` and
+  `baseline-cases.json`, whose four runners have none today (GH #441).
 - `current`: the checker reads principle names and revision from
   `reference/portable-principles.md`.
 - `planned`: a test that fails when a lower layer imports a higher one. As of
-  this ADR the rule holds by inspection (2026-09-25). No file under
-  `primitives/` imports from `adapters/` or `scripts/`. No adapter runtime
-  module imports the primitives: the lint rules recognise the primitive's
-  module names as strings, which is how they detect `mark`/`derive` calls,
-  and the SARIF assembler links to `primitives/SPEC.md`. Neither is a code
-  dependency. Nothing enforces the rule yet. It becomes `current` when such a test
+  this ADR the rule holds by inspection (2026-09-25). No published module
+  under `primitives/` imports from `adapters/` or `scripts/`. No adapter
+  runtime module imports the primitives: the lint rules recognise the
+  primitive's module names as strings, which is how they detect
+  `mark`/`derive` calls; the SARIF assembler links to `primitives/SPEC.md`;
+  and `run_checks.py` runs the baseline CLI across the stated process
+  boundary. Nothing enforces the rule yet. It becomes `current` when such a test
   lands, which this ADR proposes as the follow-up to acceptance.
 
 ## Consequences
@@ -83,7 +103,8 @@ direction below is how the code already depends.
 - A change that makes an implementation the reference, for example by
   generating conformance expectations from one language's output and not
   checking them against the other, is a P1 violation by this ADR.
-- An adapter that starts importing the primitive at run time is a new
+- An adapter that starts importing the primitive at run time, or calls it
+  at run time other than through the stated baseline CLI, is a new
   dependency this ADR does not allow. It needs an amendment here before
   the import lands.
 - ADR-0005's direction inside the primitive (wrapper over combinator) is

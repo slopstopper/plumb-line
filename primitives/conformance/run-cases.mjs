@@ -8,6 +8,9 @@
 // impl: { combineProvenance, auditMeta, validateEnvelope, __resetStepCounter }
 // Returns one { kind, name, error } per case; error is null on a pass.
 import { createHash } from "node:crypto";
+// Deep equality, as the Python runners' `==` has always been: JSON text
+// comparison depended on key order and read NaN as null.
+import { isDeepStrictEqual } from "node:util";
 
 // Every field a case may carry. Anything else is reported as an error, never
 // skipped, so a field added to cases.json must be taught to this runner.
@@ -26,7 +29,7 @@ function runCombine(impl, c) {
   impl.__resetStepCounter();
   const out = impl.combineProvenance(...c.inputs);
   for (const [k, v] of Object.entries(c.expect)) {
-    if (JSON.stringify(out[k]) !== JSON.stringify(v))
+    if (!isDeepStrictEqual(out[k], v))
       return `expected ${k}=${JSON.stringify(v)}, got ${JSON.stringify(out[k])}`;
   }
   for (const k of c.absent || []) {
@@ -34,7 +37,7 @@ function runCombine(impl, c) {
   }
   if (c.expectLineageIds) {
     const ids = out.lineage.map((s) => s.id);
-    if (JSON.stringify(ids) !== JSON.stringify(c.expectLineageIds))
+    if (!isDeepStrictEqual(ids, c.expectLineageIds))
       return `expected lineage ids ${JSON.stringify(c.expectLineageIds)}, got ${JSON.stringify(ids)}`;
   }
   return null;
