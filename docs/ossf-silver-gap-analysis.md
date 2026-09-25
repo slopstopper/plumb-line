@@ -213,7 +213,7 @@ leave unchecked (allowed for SHOULD/SUGGESTED).
 - **interfaces_current** — Met. Tracks current Node/Python; envelope schema versioned via `PROVENANCE_VERSION`.
 - **automated_integration_testing** — Met. CI runs the cross-language conformance report and the `examples` import-linter boundary integration test.
 - **regression_tests_added50** — Met. `CONTRIBUTING.md` requires a test that fails without the change; CI enforces it.
-- **test_statement_coverage80** — Met. `npm test` (vitest) and `pytest` gate statement coverage ≥80% (fail-under); actuals were 92–97% across the four suites on 2026-09-25, and each run prints its own.
+- **test_statement_coverage80** — Met. `npm test` (vitest) and `pytest` gate statement coverage ≥80% (fail-under); actuals were 92–98% on 2026-09-25 across the five suites held to that floor (`primitives/js`, `primitives/python`, `adapters/js`, `adapters/python`, `adapters/sarif`), and each run prints its own.
 - **test_policy_mandated** — Met. Testing required for new functionality (`CONTRIBUTING.md`).
 - **tests_documented_added** — Met. Requirement documented in `CONTRIBUTING.md`.
 - **warnings_strict** — Met. ESLint + Ruff run as errors (no warning-only mode) in CI.
