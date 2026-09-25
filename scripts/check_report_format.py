@@ -91,7 +91,7 @@ _RULESET_REVISION = re.compile(r"^\*\*Principles revision:\*\*\s*([0-9]+)\s*$", 
 # \d matches any Unicode decimal digit and isdigit() is broader still (it is
 # True for "²"), so both would accept a date of "٢٠٢٦-٠٨-١١" or a revision of
 # "²" that int() cannot parse. Same class of bug as the Age-header fix in
-# primitives/python/http.py — it recurs anywhere a "digit" is assumed ASCII.
+# primitives/python/http_adapter.py — it recurs anywhere a "digit" is assumed ASCII.
 _DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 _COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 _ASCII_INT = re.compile(r"^[0-9]+$")

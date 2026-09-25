@@ -22,7 +22,7 @@ _SCRIPT = os.path.join(_HERE, "check-bundle-sync.mjs")
 JS_CORE = ["provenance.mjs", "audit.mjs", "marked.mjs", "index.mjs", "baseline.mjs"]
 PY_CORE = ["provenance.py", "audit.py", "marked.py", "__init__.py", "baseline.py"]
 JS_PUBLISHED = JS_CORE + ["http.mjs", "baseline-cli.mjs"]
-PY_PUBLISHED = PY_CORE + ["http.py", "arrays.py", "frames.py"]
+PY_PUBLISHED = PY_CORE + ["http_adapter.py", "arrays.py", "frames.py"]
 
 
 def _write(root, rel, body):

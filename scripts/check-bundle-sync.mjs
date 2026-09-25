@@ -54,7 +54,7 @@ const BUNDLE = {
     bundledDir: ".claude-plugin/bundled/primitives/python",
     bundled: ["provenance.py", "audit.py", "marked.py", "__init__.py", "baseline.py"],
     excluded: {
-      "http.py": "optional-dependency adapter (requests/httpx extras); the bundle is the dependency-free core",
+      "http_adapter.py": "optional-dependency adapter (requests/httpx extras); the bundle is the dependency-free core",
       "arrays.py": "optional-dependency adapter (numpy extra); the bundle is the dependency-free core",
       "frames.py": "optional-dependency adapter (pandas extra); the bundle is the dependency-free core",
     },

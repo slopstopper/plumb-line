@@ -9,6 +9,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Changed
+- **The Python HTTP adapter module is now `http_adapter.py`**
+  ([#171](https://github.com/slopstopper/plumb-line/issues/171)). As
+  `http.py` it shadowed the standard library's `http` package whenever its
+  directory was on `sys.path` (the documented flat-copy path, or a test
+  runner), which broke `requests`/`httpx`. It had already hidden a test in
+  this repository: CI's repo-infrastructure step skipped the fit-map
+  Profile 4 (`requests`) snippet on every run, and now fails if it skips.
+  **Installed users need no change:** `plumb_line_provenance.http` is kept
+  as an alias of `plumb_line_provenance.http_adapter`, and the docs now show
+  the new name. **Flat-copy users** import `http_adapter` instead of loading
+  `http.py` under a private name. The plugin bundle, which omits the
+  adapter, is unaffected.
+
 ### Fixed
 - The worked baseline example now fails on drift
   ([#374](https://github.com/slopstopper/plumb-line/issues/374)).
