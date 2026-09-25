@@ -9,7 +9,14 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+- The release workflow's test gate installs the JS fixture toolchain and
+  fails if a must-run examples test skips, the same guard PR CI applies.
+  0.11.2 was published with the two JS ratchet byte-identity tests (#412)
+  skipped in the release job, since it never installed the fixtures' ESLint;
+  PR CI had run them on both release PRs. `examples/test_fixture_integrity.py`
+  now pins both workflows to one skip-guard pattern and checks each installs
+  every JS fixture tree before the examples step.
 
 ## [0.11.2] — 2026-09-25
 

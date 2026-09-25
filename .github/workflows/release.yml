@@ -69,8 +69,26 @@ jobs:
       - name: adapters/python — enforcement adapters
         working-directory: adapters/python
         run: python -m pytest -q
-      - name: examples — fixtures + real import-linter boundary
-        run: python -m pytest -q examples
+      - name: JS fixture toolchain (the examples' JS halves run real ESLint)
+        # Same install as ci.yml. Without it the release gate ran the examples
+        # with the JS ratchet byte checks (#412) skipped: 0.11.2 published
+        # with "34 passed, 2 skipped" where PR CI requires them to run.
+        run: |
+          for fixture in js-payments-service ratchet-adoption-js; do
+            for tree in broken clean; do
+              (cd "examples/$fixture/$tree" && npm ci --no-audit --no-fund)
+            done
+          done
+      - name: examples — fixtures + real import-linter boundary (must RUN here, never skip)
+        # The same skip guard as ci.yml's examples step (ADR-0016: a skipped
+        # proof is a lost proof); examples/test_fixture_integrity.py pins the
+        # two guards to the same pattern.
+        run: |
+          set -o pipefail
+          python -m pytest -q -rs examples | tee /tmp/examples-pytest.txt
+          if grep -qE 'SKIPPED.*(test_[a-z]+_demo|test_ratchet_fixtures)\.py' /tmp/examples-pytest.txt; then
+            echo "::error::a must-run examples test skipped in the release gate — node or the JS fixture toolchain is missing"; exit 1
+          fi
 
       # --- publish npm via OIDC trusted publishing (requires npm >= 11.5.1;
       #     publishes provenance attestations by default) ---

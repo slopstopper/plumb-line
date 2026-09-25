@@ -15,6 +15,8 @@ test of the audit skill. Run with: `pytest -q examples/test_fixture_integrity.py
 import re
 from pathlib import Path
 
+import pytest
+
 EXAMPLES = Path(__file__).resolve().parent
 JS = EXAMPLES / "js-payments-service"
 PY = EXAMPLES / "python-data-pipeline"
@@ -155,13 +157,22 @@ def test_js_ratchet_fixture_config_registers_the_adapter_plugin_by_relative_path
 CI_WORKFLOW = EXAMPLES.parent / ".github" / "workflows" / "ci.yml"
 
 
+RELEASE_WORKFLOW = EXAMPLES.parent / ".github" / "workflows" / "release.yml"
+
+
+def workflow_step(workflow, name_fragment):
+    """The first step of `workflow` whose name contains the fragment, and its
+    offset in the file (so a test can check what runs before it)."""
+    text = read(workflow)
+    start = text.index("- name: " + name_fragment)
+    rest = text[start:]
+    end = rest.find("\n      - ", 1)
+    return (rest if end < 0 else rest[:end]), start
+
+
 def ci_step(name_fragment):
     """The `run:` body of the first ci.yml step whose name contains the fragment."""
-    ci = read(CI_WORKFLOW)
-    start = ci.index("- name: " + name_fragment)
-    rest = ci[start:]
-    end = rest.find("\n      - ", 1)
-    return rest if end < 0 else rest[:end]
+    return workflow_step(CI_WORKFLOW, name_fragment)[0]
 
 
 def test_every_incident_demo_test_is_named_the_way_the_ci_guard_greps_for_it():
@@ -180,3 +191,32 @@ def test_ci_fails_if_an_incident_demo_test_skips():
     assert "_demo.py" in step and "SKIPPED" in step, \
         "the examples step must grep its own output for a skipped incident-demo test"
     assert "::error::" in step, "a skipped demo must fail the job, not warn"
+
+
+# --- the release job must not pass a narrower examples gate than a PR -------
+
+_SKIP_GUARD = re.compile(r"grep -qE '(SKIPPED[^']*)'")
+
+
+@pytest.mark.parametrize("workflow", [CI_WORKFLOW, RELEASE_WORKFLOW], ids=["ci", "release"])
+def test_examples_step_fails_on_the_same_skips_in_ci_and_release(workflow):
+    # The release job re-runs the suite before publishing. Without the guard
+    # it published 0.11.2 with the JS ratchet byte checks skipped (#412's
+    # tests need the fixture toolchain), which PR CI would have failed.
+    step, _ = workflow_step(workflow, "examples — fixtures")
+    ci_guard = _SKIP_GUARD.search(ci_step("examples — fixtures")).group(1)
+    assert "-rs" in step and "set -o pipefail" in step, workflow.name
+    found = _SKIP_GUARD.search(step)
+    assert found and found.group(1) == ci_guard, f"{workflow.name} must grep {ci_guard!r}"
+    assert "::error::" in step, workflow.name
+
+
+@pytest.mark.parametrize("workflow", [CI_WORKFLOW, RELEASE_WORKFLOW], ids=["ci", "release"])
+def test_every_js_fixture_tree_is_installed_before_the_examples_step(workflow):
+    trees = sorted({p.parent.parent.name for p in EXAMPLES.glob("*/*/package-lock.json")})
+    assert trees, "expected JS fixtures with lockfiles under examples/"
+    install, at = workflow_step(workflow, "JS fixture toolchain")
+    _, examples_at = workflow_step(workflow, "examples — fixtures")
+    assert at < examples_at, f"{workflow.name}: the toolchain must be installed before the examples step"
+    for tree in trees:
+        assert tree in install, f"{workflow.name}: fixture {tree} is not installed"
