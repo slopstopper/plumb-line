@@ -77,9 +77,15 @@ python3 -m pytest -q examples            # fixtures + real import-linter boundar
 python3 -m pytest -q scripts             # repo-infrastructure checkers
 ```
 
-The SARIF end-to-end test and some `examples/` tests skip locally without Node
-or the JS fixtures' own `npm ci` (ci.yml's "JS fixture toolchain" step); in CI a
-skip fails the build. CI also runs these repo checks, each from the root:
+Install the Python test deps first, as CI does:
+`pip install --require-hashes -r requirements-test.txt` (hash-pinned;
+[`requirements-test.in`](requirements-test.in) is the list of record). Without
+them the component suites error on `--cov`. Some tests skip locally when a tool
+they drive is missing: Node, the JS fixtures' own `npm ci` (ci.yml's "JS fixture
+toolchain" step), `lint-imports`, or `requests`/`pandas` for the fit-map
+snippets. In CI the must-run ones fail the build instead of skipping.
+
+CI also runs these repo checks, each from the root:
 
 ```bash
 node scripts/check-versions.mjs              # the three release manifests agree
@@ -88,9 +94,15 @@ node scripts/check-bundle-conformance.mjs    # conformance against the bundled c
 python3 scripts/check_version_prose.py       # no stale envelope wire version in live docs
 bash scripts/check-constraints-drift.sh      # copied constraint blocks unaltered
 python3 scripts/check_constraints_canonical.py   # docs/constraints.md matches its sources
+node primitives/js/baseline-cli.mjs validate --dir examples/baseline/baselines   # baseline example validates
+python3 scripts/check_adapter_guarded_imports.py   # adapters import with no extras installed
 ```
 
-Python CI test deps: `pip install pytest import-linter==2.15` (the SARIF text parser is tested against that import-linter; `requirements-test.in` is the pin of record). The Node and Python floors and the versions CI tests are in [`docs/constraints.md`](docs/constraints.md); the Python EOL policy is in [SUPPORT.md](SUPPORT.md).
+The guarded-imports check needs an environment **without** `requests`, `httpx`,
+`pandas` and `numpy`, so CI runs it before installing the test deps; in a dev
+environment that has them it fails by design.
+
+The SARIF text parser is tested against the import-linter pinned in `requirements-test.in`. The Node and Python floors and the versions CI tests are in [`docs/constraints.md`](docs/constraints.md); the Python EOL policy is in [SUPPORT.md](SUPPORT.md).
 
 ## Held to its own principles
 
