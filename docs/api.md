@@ -340,8 +340,8 @@ instead read a `from_cache` attribute off the response when one is present
 `requests-cache` uses). The taggers accept only a real `requests.Response` /
 `httpx.Response` and raise `TypeError` for anything else, so the attribute is
 read only on those. Stock clients never set it, so for them cache detection
-comes from the headers alone. A subclass or wrapper that sets a truthy
-`from_cache` for another reason will read as a cache hit.
+comes from the status and headers alone. A `Response` subclass that sets a
+truthy `from_cache` for another reason will read as a cache hit.
 
 ```js
 import { tagResponse } from "plumb-line-provenance/http";

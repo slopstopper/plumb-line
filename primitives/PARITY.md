@@ -86,9 +86,11 @@ implementations and have been corrected (fix-wave prov-fixwave, 2026-06-28):
 
 Both cases now match. No divergence found between the two languages.
 
-The table is a dated record of that fix: its code quotes and results are as of
-2026-06-28. Both have moved on since. `{}` now audits to the `version-legacy:`
+The table is a dated record of that fix, as of 2026-06-28. The first row still
+holds. The second has moved on: `{}` now audits to the `version-legacy:`
 advisory alone in both languages, because it carries no `provenanceVersion`
-(#93, SPEC §5b), and the entry check is on container type rather than `None`
-(#209). The current results are the `cases.json` rows, notably "empty envelope",
-and not this table.
+(#93, SPEC §5b), and the entry check is on exact container type rather than
+`None` (#165; #209 later split its diagnostic). The current behaviour is pinned
+by the `cases.json` "empty envelope" row, which requires the advisory, and by
+each language's unit test, which requires it to be the only issue
+(`audit.test.mjs`, `tests/test_audit.py`), not by this table.

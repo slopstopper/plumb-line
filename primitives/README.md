@@ -178,13 +178,14 @@ It catches six categories of problem:
 
 Two other kinds of result are not consistency findings:
 
-- **Wrong container** — `missing meta` for `null`/`None`, a scalar or a list;
-  `non-plain meta:` for a container that can carry an envelope but is not the
-  plain type (a `dict` subclass, a null-prototype object). Rebuild it as a plain
-  one (SPEC §5).
+- **Wrong container** — `non-plain meta:` for the two near-miss containers a
+  JSON parser produces: a `dict` subclass such as `OrderedDict` in Python, a
+  null-prototype object in JS. Rebuild it as a plain one. Anything else that is
+  not a plain object/dict (`null`/`undefined`/`None`, a scalar, an array/list,
+  a `Map`, a class instance) gets `missing meta` (SPEC §5).
 - **Version advisories** — at most one of `version-legacy:`, `version-future:`
-  or `version-malformed:`, when `provenanceVersion` is absent or older, newer, or
-  not an integer. They are advisory only and never change another finding
+  or `version-malformed:`, when `provenanceVersion` (`provenance_version` in
+  Python) is absent or older, newer, or not an integer. They are advisory only and never change another finding
   (SPEC §5b).
 
 **Adding a consistency assertion (JS):**

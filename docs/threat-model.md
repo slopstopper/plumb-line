@@ -127,12 +127,16 @@ F4 was JS-total already, so its regression test lives in `primitives/python`.
 
 ---
 
-*This model covers the provenance primitive, including its HTTP ingestion
-adapter (`http.mjs` / `http_adapter.py`), and the enforcement adapters. The
-HTTP adapter's input from outside the process is a response's status and
-headers. It treats header bytes as remote-controlled and parses them without
-throwing; its classification is documented in [`api.md`](api.md) and pinned by
+*This model scopes in the provenance primitive, including its HTTP ingestion
+adapter (`http.mjs` / `http_adapter.py`), and the enforcement adapters. §1–5 do
+not yet analyse the HTTP adapter separately. Its input from outside the process
+is a response's status and headers, which whichever server answered controls.
+It parses header bytes without throwing, and it labels any 2xx `source: real`:
+the envelope records what the server returned, not whether that server deserves
+trust. Its classification is documented in [`api.md`](api.md) and pinned by
 `primitives/conformance/http-cases.json`. The skills in `skills/` carry no
 runtime trust boundary of their own: `plumb-line-method`, `-audit` and `-adopt`
-are read-only, `-bootstrap` generates configuration, and `-remediate` edits code,
-only when the builder asks it to apply an audit report's findings.*
+are read-only; `-bootstrap` installs enforcement into the builder's repo (hook
+scripts, lint rules and, if chosen, the primitive, vendored or as a package);
+and `-remediate` edits code, only when the builder asks it to apply an audit
+report's findings.*
