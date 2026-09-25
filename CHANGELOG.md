@@ -26,6 +26,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   floor, a page section for every public module and subpath, and the
   homepages.
 
+- **A stored `format-validation: … — clean` line now names the checker
+  version that earned it** ([#432](https://github.com/slopstopper/plumb-line/issues/432)).
+  The audit, remediate and adopt skills teach
+  `format-validation: scripts/check_report_format.py v<N> — clean`, with `<N>`
+  copied from the checker's first output line. `check_report_format` v4
+  rejects a stamp newer than itself, and prints a note, without failing, for
+  an older stamp or an unstamped line ("checker version unrecorded"). So
+  reports saved before this release still pass, and the missing provenance
+  shows. This is the owner's chosen fix for 0.11.2 adding a required section
+  under an unchanged `report-format: v3`: a stored verdict now carries the
+  rule set it was earned under, and the report contract stays v3.
+
 ### Fixed
 - The conformance verdict records the case table it was earned on
   ([#433](https://github.com/slopstopper/plumb-line/issues/433)).

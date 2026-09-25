@@ -241,9 +241,11 @@ which has the skills but not this repo's `scripts/`), say so in one line rather
 than implying the report was mechanically checked:
 
 ```
-format-validation: scripts/check_report_format.py — clean
+format-validation: scripts/check_report_format.py v<N> — clean
 format-validation: not run (checker unavailable in this repo)
 ```
+
+`<N>` is the checker version the checker prints on its first line (`check_report_format v<N> — ...`); copy it, so a stored "clean" says which rule set it was earned under. A newer stamp than the checker is rejected; an unstamped one is flagged as "checker version unrecorded".
 
 Put this line **below the coverage map**, and note the key is
 `format-validation:`, *not* `report-format:` — a second `report-format:` line

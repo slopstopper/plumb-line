@@ -192,8 +192,10 @@ implying the record was mechanically checked:
 Emit **one** of these lines, never both:
 
 ```
-format-validation: scripts/check_report_format.py — clean
+format-validation: scripts/check_report_format.py v<N> — clean
 ```
+
+`<N>` is the checker version the checker prints on its first line (`check_report_format v<N> — ...`); copy it, so a stored "clean" says which rule set it was earned under. A newer stamp than the checker is rejected; an unstamped one is flagged as "checker version unrecorded".
 
 ```
 format-validation: not run (checker unavailable in this repo)
