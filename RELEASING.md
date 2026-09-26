@@ -71,7 +71,9 @@ fix-only release is a patch.
    (`check-versions.mjs <tag>` + a CHANGELOG `## [<version>]` check); if the tag
    doesn't match the manifests or the CHANGELOG has no section for it, the run
    fails *before* publishing. Then it runs the full suite and publishes,
-   opens a `Content draft due: v<version>` issue, and pings
+   puts the write-up at the top of the GitHub release if one shipped with
+   the release (otherwise it opens a `Content draft due: v<version>` issue),
+   and pings
    [slopstopper.org](https://github.com/slopstopper/slopstopper.org) to
    resync its version pills and writing list. The ping needs the repository
    secret `SITE_DISPATCH_TOKEN`: a fine-grained PAT scoped to

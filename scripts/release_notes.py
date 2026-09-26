@@ -17,7 +17,8 @@ import re
 import sys
 from pathlib import Path
 
-_LINK = re.compile(r"\]\(([^)\s]+)\)")
+_LINK = re.compile(r'\]\(([^)\s]+)(\s+"[^"]*")?\)')       # [text](target "optional title")
+_REF = re.compile(r"^(\s*\[[^\]]+\]:\s+)(\S+)", re.MULTILINE)  # [label]: target
 _EXTERNAL = ("http://", "https://", "#", "mailto:")
 
 
@@ -34,16 +35,17 @@ def absolute_links(text, repo, ref, path):
     to https://github.com/<repo>/blob/<ref>/<resolved path>."""
     base = posixpath.dirname(path)
 
-    def fix(m):
-        target = m.group(1)
+    def url(target):
         if target.startswith(_EXTERNAL):
-            return m.group(0)
+            return target
         file_part, _, anchor = target.partition("#")
         resolved = posixpath.normpath(posixpath.join(base, file_part))
-        url = f"https://github.com/{repo}/blob/{ref}/{resolved}" + (f"#{anchor}" if anchor else "")
-        return f"]({url})"
+        if resolved == ".." or resolved.startswith("../"):
+            sys.exit(f"release_notes: link {target!r} in {path} escapes the repository")
+        return f"https://github.com/{repo}/blob/{ref}/{resolved}" + (f"#{anchor}" if anchor else "")
 
-    return _LINK.sub(fix, text)
+    text = _LINK.sub(lambda m: f"]({url(m.group(1))}{m.group(2) or ''})", text)
+    return _REF.sub(lambda m: m.group(1) + url(m.group(2)), text)
 
 
 def build_notes(root, version, repo, ref):

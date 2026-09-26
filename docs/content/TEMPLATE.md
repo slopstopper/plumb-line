@@ -74,9 +74,9 @@ kept as dated artifacts.
 ## Publishing
 
 Home is this directory: `docs/content/YYYY-MM-DD-<slug>.md`, merged via PR
-like anything else. Once the piece merges, put it where readers already look
-(one PR / edit each, part of closing the draft-due issue — these three are
-rendering the approved piece, not new outbound):
+like anything else. Once the piece merges, it goes where readers already look
+(these three are rendering the approved piece, not new outbound; for a piece
+merged after the tag, they are part of closing the draft-due issue):
 
 1. **Release notes** — the piece goes in full at the top of the matching
    GitHub release body, above the generated "What's Changed" list, with
@@ -86,7 +86,8 @@ rendering the approved piece, not new outbound):
    A piece merged with the release PR is placed there by the release
    workflow (`scripts/release_notes.py`, #480). For a piece merged after
    the tag, render it with `python3 scripts/release_notes.py <version>
-   --repo slopstopper/plumb-line --ref v<version> --out notes.md` and put
+   --repo slopstopper/plumb-line --ref main --out notes.md` (`main`, since
+   the piece is not in the tagged tree and a link at the tag would 404) and put
    `notes.md` above the existing body with `gh release edit <tag>
    --notes-file …`.
 2. **Site** — nothing per-piece. `slopstopper/slopstopper.org` generates

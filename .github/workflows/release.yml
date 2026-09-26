@@ -127,8 +127,9 @@ jobs:
       #     for events that token creates — an `on: release` workflow can
       #     never fire for a tag-triggered release (found live on v0.10.0,
       #     GH #321). Running as a step after publish gives the correct
-      #     ordering for free. Idempotent: skips if the issue already exists
-      #     (e.g. the piece was drafted with the release). ---
+      #     ordering for free. Skipped when the write-up shipped with the
+      #     release (#480: the create step rendered it); idempotent: skips if
+      #     the issue already exists. ---
       - name: Open the content-draft-due issue (GH #255)
         env:
           GH_TOKEN: ${{ github.token }}
