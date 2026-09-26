@@ -50,10 +50,12 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   bootstrap skill and the adapter contract no longer say the guards work
   directly as git hooks; git supplies neither input, and a commit-hook wrapper
   for the branch guard is planned (#464). The guard also no longer crashes on
-  input it cannot read: stdin that is not JSON, or a payload with no
-  `filePath` (an unmapped host payload), exited 1, which a Claude Code hook
-  does not treat as a block; both twins now exit 2, and the docs say exit 2 is
-  what blocks. ADR-0003 is amended to match.
+  input it cannot read. Stdin that was not JSON, and in the JS twin a payload
+  with no `filePath` (an unmapped host payload), exited 1, which a Claude Code
+  hook does not treat as a block; both twins now exit 2, and the docs say exit
+  2 is what blocks. The JS twin no longer reads config keys from stdin, only
+  from `PLUMBLINE_CFG`, as the contract and the Python twin already did.
+  ADR-0003 is amended to match.
 
 ## [0.11.3] — 2026-09-25
 
