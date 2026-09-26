@@ -96,9 +96,9 @@ _Nothing yet._
   so a config key named `branch` or `filePath` overrode the real one and let
   a code edit through; the Python twin already read only `protectedBranches`
   and `docsAllowlist` (and their snake_case spellings, which #469 settles).
-  The spread predates this release. Separately, Claude Code passes an absolute file path,
-  which never matches a directory allowlist entry, so wiring that passed it
-  straight through blocked every docs edit. The bootstrap skill now says to
+  The spread predates this release. Separately, Claude Code passes an
+  absolute file path, which never matches a directory allowlist entry, so
+  wiring that passed it straight through blocked every docs edit. The bootstrap skill now says to
   strip the project root, gives a tested `jq` shim, and has Step 4 confirm a
   docs edit passes.
 

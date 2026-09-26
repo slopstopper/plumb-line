@@ -801,6 +801,6 @@ backed by the CI matrix.
 - The violation predates this release: v0.11.3's JS CLI already spread the
   config last. The #449 fix removed the stdin spread and kept the config
   one, and its review checked the CLI across 952 input combinations, none of
-  which put a stray key in the config. Most hook findings this cycle (#469, #472, and rows 1, 2 and 6
-  above) are divergences between the twins that a shared case table would
-  have caught, which is the case #475 makes.
+  which put a stray key in the config. Most hook findings this cycle (#469,
+  #472, and rows 1, 2 and 6 above) are divergences between the twins that a
+  shared case table would have caught, which is the case #475 makes.

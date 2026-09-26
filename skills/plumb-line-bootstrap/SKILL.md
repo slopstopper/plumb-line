@@ -172,8 +172,10 @@ jq -c --arg root "$CLAUDE_PROJECT_DIR/" '{filePath: (.tool_input.file_path | ltr
 `$CLAUDE_PROJECT_DIR` is the directory Claude Code was started in, spelled
 the way it spells the file paths it sends, so this assumes it was started at
 the repository root. Started in a subdirectory, paths come out relative to
-that directory and the allowlist entries no longer mean what they say. A
-path the shim cannot strip stays absolute and blocks as a code edit.
+that directory, and a code file can pass as docs: `sub/docs/x.js` becomes
+`docs/x.js`, which matches a `docs/` entry. A path the shim cannot strip
+stays absolute and blocks as a code edit, unless an extension glob such as
+`*.md` matches it.
 
 The guard blocks a code edit when
 the branch is unknown (unset, or empty as on a detached HEAD), so wiring that
