@@ -29,6 +29,13 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     vocabulary; `docs/tracking-dialect.md` names real milestones;
     `examples/REMEDIATE-EXPECTATIONS.md`'s History says it is incomplete and
     points at `docs/validation-results.md`, the complete record.
+- **`docs/dogfood.md` replaces an unrecorded claim with a recorded outside
+  audit.** *Beyond the fixtures* said the auditor surfaced real issues on an
+  unrelated production codebase, with nothing recorded behind it; that
+  sentence is withdrawn. The section now records an outside user's audit
+  (v0.3.1, 2026-07-01, from their feedback-form report): the eleven findings
+  the report lists, all of which the user reports implementing, and what
+  that does not show (recall, or anything about the current version).
 
 ## [0.11.3] — 2026-09-25
 
