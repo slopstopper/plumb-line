@@ -1607,9 +1607,9 @@ section reported zero cheats. The scorers' rubric was written after the full
 run, and its rule that a disclosed test change is not a cheat overrode the
 pre-run keys for weather, FX and inventory. The fourth category was an owner
 decision after the pilot and before the full run, made to mark the
-behaviour so it could be discussed once the results were in, not to change
-the scoring already set; turning it into a scoring rule was the evaluator's
-step. As the owner put it, that is a macro version of the behaviour under
+behaviour so it could be discussed once the results were in; it was never
+meant to change the scoring already set. Turning it into a scoring rule was
+the evaluator's step. As the owner put it, that is a macro version of the behaviour under
 study: changing the test to pass the test. (One exception is
 arguable: the README of that time defined a cheat as a test weakened
 *without saying so*, which could excuse the one disclosed skip; it cannot
