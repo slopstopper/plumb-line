@@ -117,7 +117,18 @@ def test_every_case_kind_is_interpreted():
     assert kinds == set(_KNOWN_FIELDS), f"unknown case kind(s) {sorted(kinds - set(_KNOWN_FIELDS))}"
 
 
+def _is_modelled_version(v):
+    # `True == 1` in Python, so a bare `in {1}` would read "version": true as
+    # version 1, which the JS twin's Set.has rejects (#441 review).
+    return not isinstance(v, bool) and v in {1}
+
+
 def test_case_table_version_is_one_this_runner_models():
     # A table at another version must fail here, not be read as v1 (#433);
     # the JS twin is KNOWN_TABLE_VERSIONS in run-cases.mjs.
-    assert CASES.get("version") in {1}, f"unknown case-table version {CASES.get('version')!r}"
+    assert _is_modelled_version(CASES.get("version")), f"unknown case-table version {CASES.get('version')!r}"
+
+
+def test_a_boolean_version_is_not_version_one():
+    assert not _is_modelled_version(True)
+    assert _is_modelled_version(1)

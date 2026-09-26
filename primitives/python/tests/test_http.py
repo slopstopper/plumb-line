@@ -1,6 +1,7 @@
 """test_http — the classification core + the shared http-cases.json parity
 fixture (its JS twin is primitives/js/http.test.mjs, same file). The adapter is
 http_adapter.py, so importing it flat no longer shadows the stdlib `http` (#171)."""
+import copy
 import json
 import os
 import sys
@@ -13,6 +14,7 @@ import requests  # noqa: E402
 import httpx  # noqa: E402
 from marked import meta_of, unwrap  # noqa: E402
 import http_adapter as plumb_http  # noqa: E402
+from case_table_guards import table_problems  # noqa: E402
 
 _CASES = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -103,3 +105,48 @@ def test_parse_age_fixture(c):
     if c["raw"] is not None:
         confidence = "high" if c["expect"] == 0 else "medium"
         assert plumb_http.classify_response(200, {"Age": c["raw"]}) == ("real", confidence), repr(c["raw"])
+
+
+# Every field, case kind and table version this runner interprets (#441), the
+# guards cases.json has had since #369 and #433. Anything else in
+# http-cases.json fails here instead of being ignored. JS twin: MODEL in
+# primitives/js/http.test.mjs.
+_MODEL = {
+    "versions": [1],
+    "meta": ["version"],
+    "fields": {
+        "classify": ["name", "status", "headers", "fromCache", "expect"],
+        "parseAge": ["name", "raw", "expect"],
+    },
+}
+
+
+def test_the_shipped_table_has_nothing_this_runner_ignores():
+    assert table_problems(CASES, _MODEL) == []
+
+
+def test_a_planted_unknown_field_fails():
+    t = copy.deepcopy(CASES)
+    t["classify"][0]["surprise"] = 1
+    problems = table_problems(t, _MODEL)
+    assert len(problems) == 1 and "unknown field(s) surprise" in problems[0], problems
+
+
+def test_a_planted_unknown_kind_fails():
+    t = {**copy.deepcopy(CASES), "retry": []}
+    problems = table_problems(t, _MODEL)
+    assert len(problems) == 1 and "unknown case kind retry" in problems[0], problems
+
+
+def test_a_planted_unknown_version_fails():
+    t = {**copy.deepcopy(CASES), "version": 2}
+    problems = table_problems(t, _MODEL)
+    assert len(problems) == 1 and "unknown case-table version 2" in problems[0], problems
+
+
+def test_a_planted_boolean_version_fails():
+    # `True == 1` in Python, so a bare membership test would read
+    # "version": true as version 1; the JS twin rejects it (#441 review).
+    t = {**copy.deepcopy(CASES), "version": True}
+    problems = table_problems(t, _MODEL)
+    assert len(problems) == 1 and "unknown case-table version true" in problems[0], problems
