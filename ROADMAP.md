@@ -184,24 +184,44 @@ Version themes for the near-term releases, and the GitHub issues under each.
   milestone under the one-of-two rule. (The Node floor resolution, GH #233,
   moved on from here to v0.9.0 — The front door, the next minor to ship.)
 
-- **v0.12.0 — Refuse and explain** (runtime gates + legibility) · *renumbered
-  from v0.9.0, then from v0.10.0, then from v0.11.0 (see the numbering note).* The runtime learns to say no and to explain itself: egress guard
-  `require()` (#27 / GH #120), `explain()` human-readable lineage + Mermaid/DOT
-  (#28 / GH #121), `summarize()` trust summary for artifacts (#29 / GH #122),
-  pytest/vitest quarantine plugins (#30 / GH #123). Sequenced after wire v2 so
-  new envelope fields are settled; every primitive lands in both languages with
-  conformance rows. One deferral rides here because it is an API-semantics
-  decision this milestone has to settle anyway: the wrapper/`mark` default
+- **v0.12.0 — Honest red** (test theatre + runtime refusal) · *renumbered
+  from v0.9.0, then from v0.10.0, then from v0.11.0 (see the numbering note);
+  narrowed from "Refuse and explain" on 2026-09-27 (owner decision), after the
+  impossible-task spike (GH #462) showed where plumb-line breaks under
+  pressure.* An agent that cannot make a test pass should keep it visibly
+  failing with a tracked reason, and plumb-line should see it when the agent
+  does not. From the spike (`docs/validation-results.md`): teach honest
+  deferral (GH #485); calibrate the audit to name a test that substitutes an
+  unavailable dependency (GH #486, with a planted harness fixture so the
+  calibration stays checked); and make the plugin trigger under pressure
+  (GH #487 — loaded in 90 spike runs, a skill invoked in 1). With them, the two
+  refusals already scheduled here: pytest/vitest quarantine plugins (#30 /
+  GH #123) and the egress guard `require()` (#27 / GH #120), with the
+  primitive semantics `require()` depends on — `mark()` accepting a
+  non-level confidence (GH #443) and the wrapper/`mark` default
   `source='derived'` producing an audit-dirty leaf (GH #177, inherited from
-  the primitive's own default). The `http.py` stdlib-shadow rename (GH #171)
-  once scheduled here moved to the v0.11.2 patch on 2026-09-17: it is a fix,
-  not a feature. Also here after the post-0.11.0 roadmap review: the canonical
-  JSON serialization convention (#31 / GH #124, pulled forward from v1.0.0
-  because two shipped contracts already commit to a form), the PROV-O mapping
-  (#37 / GH #130, docs rider), and the lineage-growth design pass (GH #302,
-  outcome decides whether it ships here or under v1.0.0). The
+  the primitive's own default; at the v0.11.5 scoping it was the deferral
+  outbox's only item over 30 days, and it stays here because a fix-only patch
+  cannot change an API default). The branch guard's commit-hook wrapper
+  (GH #464) rides here as new surface. Spike round 3 is the acceptance
+  measurement, run before the tag; until it reports, nothing here claims a
+  catch rate. Sequenced after wire v2 so new envelope fields are settled;
+  every primitive lands in both languages with conformance rows. The
+  `http.py` stdlib-shadow rename (GH #171) once scheduled here moved to the
+  v0.11.2 patch on 2026-09-17: it is a fix, not a feature. The
   `check_report_format.py` cluster once scheduled here (GH #220–#223: the
   validator's own four findings) was pulled forward and closed under v0.11.0.
+
+- **v0.13.0 — Explain** (legibility) · *split from v0.12.0 "Refuse and
+  explain" on 2026-09-27 (owner decision).* The runtime explains itself:
+  `explain()` human-readable lineage + Mermaid/DOT (#28 / GH #121),
+  `summarize()` trust summary for artifacts (#29 / GH #122), the canonical
+  JSON serialization convention (#31 / GH #124, pulled forward from v1.0.0
+  after the post-0.11.0 roadmap review because two shipped contracts already
+  commit to a form), the PROV-O mapping (#37 / GH #130, docs rider), and the
+  lineage-growth design pass (GH #302, outcome decides whether it ships here
+  or under v1.0.0). Every primitive lands in both languages with conformance
+  rows.
 
 - ~~**v0.11.1 — Ratchet and Action hardening**~~ · **shipped 2026-09-20**:
   seven correctness and hygiene fixes to the ratchet and the
@@ -236,21 +256,34 @@ Version themes for the near-term releases, and the GitHub issues under each.
   the pre-commit gate exiting 2 when it cannot run the tests (GH #467,
   pulled in from v0.12.0); and the second marketplace copy of the plugin
   entry (GH #453). The harness record is in `docs/validation-results.md`.
+- **v0.11.5 — Hook twins parity** (patch, fix-only) · *created 2026-09-27
+  (owner decision).* The hook twins' gaps found in the v0.11.4 work, each a
+  place a guard lets through what it should block: a string
+  `protectedBranches` failing open in Python (GH #469), the boundary guard
+  exiting 1 on input it cannot read, which a Claude Code hook does not treat
+  as a block (GH #471), a quoted argument letting the JS pre-commit gate pass
+  a failing command (GH #472), a value that cannot be a branch name read as a
+  named, unprotected branch (GH #474), and `decide()` with no runners
+  reporting "all gates passed" (GH #476); plus the shared hook case table
+  that runs both twins' CLIs from one table (GH #475). Ships ahead of v0.12.0
+  so the gates are sound before anything is built on them.
 
-- **v0.13.0 — Reproducible enforcement** · *split from v0.12.0 on 2026-09-17,
-  when that milestone reached thirteen issues.* Every enforcement output
+- **v0.14.0 — Reproducible enforcement** · *split from v0.12.0 on 2026-09-17,
+  when that milestone reached thirteen issues; renumbered from v0.13.0 on
+  2026-09-27, when Explain took that number.* Every enforcement output
   records what produced it: `ratchet-format` v2 with reproduction inputs
   (GH #388), a lineage block in the SARIF log and summary (GH #399) with the
   `summary-format` v2 key list and validator that covers it (GH #398),
   append-only history enforced in the ratchet and baseline validators
   (GH #394), and the blind-validation harness as a `claude plugin eval` suite
   (GH #291 — gated on Anthropic enabling the feature for this account; the
-  suite can be authored and reviewed before then). Sequenced after v0.12.0 so
-  the lineage block can reuse any envelope fields `explain()`/`summarize()`
-  settle.
+  suite can be authored and reviewed before then). Sequenced after v0.13.0 —
+  Explain so the lineage block can reuse any envelope fields
+  `explain()`/`summarize()` settle.
 
 - **v1.0.0 — A contract you can build on** (no due date; sequenced after
-  v0.12.0; gated on state, not a date).
+  v0.13.0, where its canonical-serialization gate, GH #124, lands; gated on
+  state, not a date).
 
   **What makes it a major:** not size, and not any particular breaking change
   — SemVer requires neither. It is what the bump *forecloses*. Pre-1.0 the
@@ -292,7 +325,8 @@ Version themes for the near-term releases, and the GitHub issues under each.
   3. **Wire format frozen** — `PROVENANCE_VERSION` 2 readable by every 1.x.
   4. **Canonical serialization is normative in SPEC** (#31 / GH #124, moved
      here from `track:boundaries`, then **scheduled into v0.12.0** after the
-     post-0.11.0 roadmap review; the gate is that it has landed) — both
+     post-0.11.0 roadmap review, then into v0.13.0 — Explain when v0.12.0 was
+     split on 2026-09-27; the gate is that it has landed) — both
      because it is normative wire text
      and 1.0 freezes the spec, and because today the guarantee only holds
      inside one process: taint evaporates at every HTTP response, DB write,
@@ -337,7 +371,8 @@ Version themes for the near-term releases, and the GitHub issues under each.
   The canonical JSON serialization convention (#31 / GH #124) **moved to
   v1.0.0** — it is normative spec text rather than an application of the
   convention, and 1.0 freezes the spec — and was then pulled forward into
-  **v0.12.0**, because two shipped contracts already commit to a form. #32
+  **v0.12.0**, because two shipped contracts already commit to a form (now
+  v0.13.0 — Explain, after the 2026-09-27 split). #32
   and #33 build on it and stay here; they can land anywhere in 1.x.
 
 - **Agent epistemic state** (label `track:agent-state`; the identity track —
@@ -352,7 +387,7 @@ Version themes for the near-term releases, and the GitHub issues under each.
 
 - **Ecosystem docking** (label `track:ecosystem`, demand-driven — design notes
   first, code when a real user asks). OpenLineage exporter (#36 / GH #129), W3C
-  PROV-O vocabulary mapping (#37 / GH #130, scheduled into v0.12.0 as a docs
+  PROV-O vocabulary mapping (#37 / GH #130, scheduled into v0.13.0 as a docs
   rider), dbt model-level tags through the
   DAG (#38 / GH #131).
 
@@ -405,23 +440,25 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
    `docs/validation-results.md`).
 7. ~~v0.11.1~~ — **shipped 2026-09-20** (the ratchet and
    Action hardening; harness record in `docs/validation-results.md`).
-8. ~~v0.11.2~~ and ~~v0.11.3~~ — **shipped 2026-09-25** (harness records
-   in `docs/validation-results.md`). **Next:** the v0.11.4 patch (fix-only),
-   then v0.12.0, sequenced after wire v2 so the envelope fields it adds are
-   settled, then v0.13.0, split from it on 2026-09-17.
+8. ~~v0.11.2~~ and ~~v0.11.3~~ — **shipped 2026-09-25**, ~~v0.11.4~~ —
+   **shipped 2026-09-26** (harness records in `docs/validation-results.md`).
+   **Next:** the v0.11.5 patch (fix-only, the hook twins), then v0.12.0 —
+   Honest red, sequenced after wire v2 so the envelope fields it adds are
+   settled, then v0.13.0 — Explain and v0.14.0 — Reproducible enforcement,
+   both split from the old v0.12.0 (on 2026-09-27 and 2026-09-17).
 9. **After that:** v1.0.0 — the coverage guarantee, the API-surface
    definition (GH #236) that everything else freezes against, canonical
-   serialization in SPEC (GH #124, scheduled to land in v0.12.0), and the
+   serialization in SPEC (GH #124, scheduled to land in v0.13.0), and the
    last-call breaking-change pass (GH #239,
    after #236). No due date; gated on state, not on a date.
 10. **Parallel, start early:** `track:portable` — skill-surface, no runtime
    dependency. (`track:agent-state` is now #35 alone, which waits on the
    ladder decision and on #34, so it no longer starts early.)
 11. **Parallel, after wire v2:** `track:boundaries` (#32/#33, both on #31,
-   which is scheduled into v0.12.0).
+   which is scheduled into v0.13.0).
 12. **Opportunistic:** `track:ecosystem` — OpenLineage/dbt wait for a pilot
    user. The PROV-O mapping (#37), cheap and credibility-bearing, is scheduled
-   into v0.12.0.
+   into v0.13.0.
 
 A note on the numbering: the P9 and runtime-gates milestones have been
 renumbered three times, each time for the same reason — a finished, user-facing
@@ -432,6 +469,11 @@ v0.10.0/v0.11.0 when the distribution lane's adopt skill (GH #176) shipped
 ahead of them and took v0.9.0 — The front door. Then, 2026-08-19, they became
 v0.11.0/v0.12.0 when the integrity fixes and ledger sweep shipped as v0.10.0 —
 Pay down the ledger (recorded on the milestone; this file caught up in GH #378).
+On 2026-09-27 the runtime-gates milestone was split rather than renumbered,
+for a different reason: the impossible-task spike (GH #462) showed that the
+refusal half was the urgent one. v0.12.0 kept that half as Honest red,
+Explain took v0.13.0, and Reproducible enforcement moved from v0.13.0 to
+v0.14.0.
 
 ---
 
@@ -884,7 +926,7 @@ conformance rows per predicate; failing test first.
 
 ### 28. `explain(envelope)` — human-readable lineage
 
-**Priority: medium** · Milestone: v0.12.0 · GitHub: #121
+**Priority: medium** · Milestone: v0.13.0 · GitHub: #121
 
 Lineage is stored but not legible: no way to ask an envelope *why* it is
 low-confidence and get "tainted at step 2: `rate` was mock", and no visual
@@ -897,7 +939,7 @@ Deterministic output, parity-pinned.
 
 ### 29. `summarize(envelopes)` — trust summary for artifacts
 
-**Priority: medium** · Milestone: v0.12.0 · GitHub: #122
+**Priority: medium** · Milestone: v0.13.0 · GitHub: #122
 
 One small record per artifact — % derived-from-mock, weakest source present,
 confidence floor, lineage depth — printable at the bottom of any report or
@@ -923,7 +965,7 @@ adoption friction. Ships as optional extras; zero-dependency core untouched.
 
 ### 31. Envelope transport — canonical JSON serialization convention
 
-**Priority: high** · Milestone: v0.12.0 (from `track:boundaries`, via v1.0.0) · GitHub: #124
+**Priority: high** · Milestone: v0.13.0 (from `track:boundaries`, via v1.0.0 and v0.12.0) · GitHub: #124
 
 Envelopes are in-memory objects; taint evaporates at every HTTP response, DB
 write, file, or queue — today the guarantee only holds inside one process, and
@@ -998,7 +1040,7 @@ Design note first; build when a real user asks.
 
 ### 37. W3C PROV-O vocabulary mapping
 
-**Priority: medium (cheap)** · Milestone: v0.12.0 (docs rider; from `track:ecosystem`) · GitHub: #130
+**Priority: medium (cheap)** · Milestone: v0.13.0 (docs rider; from `track:ecosystem`, via v0.12.0) · GitHub: #130
 
 A documented mapping from the envelope schema to PROV-O terms
 (Entity/Activity/Agent, `wasDerivedFrom`, …). A reference document, not code —
