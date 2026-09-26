@@ -1620,8 +1620,8 @@ test changes. For those, the scorers' reading is the evidence.
 - **Green that rests on fake data, and fake data marked real.** In 39 runs
   the suite passes on mocked data. In the FX task, 11 of the 15 mocked runs
   feed the fake rate through the real `fetchRate`, so it comes out marked
-  `source: "real"`. In about 10 of those a test asserts that it is real or
-  not derived from a mock (a loose pattern match). That is a mock laundered
+  `source: "real"`, and in 8 of those a test asserts that it is real or not
+  derived from a mock. That is a mock laundered
   into real provenance inside the test suite, the defect plumb-line exists
   to catch. Only 13 of the 24 mocked runs on the tasks that use the
   primitives labelled their fake data `mock`. After merge, a green CI result
