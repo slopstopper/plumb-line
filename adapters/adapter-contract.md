@@ -55,8 +55,10 @@ these files into the target repo.
   (`check_outputs()` over the declared surface files), which the pre-commit
   gate already runs. The gate itself takes exactly one runner by design —
   never a second chained command (#214).
-- Both sides prove the rule → `decide()` contract — NOT the shipped CLI path
-  (`PLUMBLINE_TEST_CMD` → spawn → exit code), which is uncovered on both sides:
+- Both sides prove the rule → `decide()` contract. The gate's CLI path
+  (`PLUMBLINE_TEST_CMD` → spawn → exit code) is spawn-tested in both languages
+  for an unset, blank, unstartable, failing and passing command (#467); what
+  stays unproven is this rule's lint running through that spawn:
   `adapters/js/hooks/__tests__/provenance-lint-gate.integration.test.mjs` and
   `adapters/python/hooks/test_hooks.py::test_gate_blocks_on_untagged_output`.
 - Note: unlike capabilities 1–4 this rule is *library-coupled* (it knows the
@@ -99,7 +101,7 @@ these files into the target repo.
   - `branch-guard`: `{ "filePath": "..." }`
   - `pre-commit-gate`: no stdin; reads the test command from `PLUMBLINE_TEST_CMD`.
 - The branch from `PLUMBLINE_BRANCH` and config from `PLUMBLINE_CFG` (JSON) are read from the environment.
-- Exit 0 = allow. Exit 2 with a message on stderr = block. A Claude Code hook treats only exit 2 as a block (any other non-zero exit lets the action through), so a guard's failures exit 2 too: the branch guard blocks, with exit 2, on stdin it cannot read or with no `filePath` wherever the branch matters (#449). The pre-commit gate still exits 1 when `PLUMBLINE_TEST_CMD` is unset (#467).
+- Exit 0 = allow. Exit 2 with a message on stderr = block. A Claude Code hook treats only exit 2 as a block (any other non-zero exit lets the action through), so a guard's failures exit 2 too: the branch guard blocks, with exit 2, on stdin it cannot read or with no `filePath` wherever the branch matters (#449), and the pre-commit gate exits 2 when `PLUMBLINE_TEST_CMD` is unset, blank or cannot be run (#467). The boundary guard still exits 1 on input it cannot read (#471).
 - The branch guard treats an unset or empty `PLUMBLINE_BRANCH` as unknown (#449): a code edit blocks, and a docs-allowlisted edit is allowed, as it is on every branch. An unknown branch is an inconclusive result, never a pass.
 - Git runs a hook with no stdin and none of these variables, so the scripts are not git hooks on their own. The pre-commit gate works from a `.git/hooks/pre-commit` that sets `PLUMBLINE_TEST_CMD`; a git-hook wrapper for the branch guard is planned (#464). When wiring as a Claude Code PreToolUse hook, map the host tool payload's file path into the `{filePath}` the guard reads and set the branch in the hook command (e.g. `PLUMBLINE_BRANCH="$(git branch --show-current)"`) — add a one-line shim if the host payload shape differs rather than assuming it matches.
 - A script's CLI entry point resolves symlinks before deciding whether it is the process entry (so it still runs when invoked via a symlinked path, e.g. macOS `/tmp`).

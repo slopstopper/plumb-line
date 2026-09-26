@@ -126,8 +126,9 @@ the SARIF assembler extracts it and treats a marker-less message as
 unparsed, so change the template and `adapters/sarif/assemble.py`'s
 `SITE_RE` together.
 
-What is **not** covered, stated plainly: the shipped CLI path — `pre-commit-gate`
-spawning a command via `PLUMBLINE_TEST_CMD` and reading its exit code. Both tests
-call `decide()` in-process with their own runner, and the CLI wrapper is excluded
-from coverage (`v8 ignore`, process-entry glue). So "the rule blocks a commit
-through the gate" is demonstrated at the contract level, not through the spawn.
+What is **not** covered, stated plainly: this rule running through the shipped
+CLI path. The gate's spawn-and-exit-code path is itself spawn-tested in both
+languages (an unset, blank, unstartable, failing and passing command; #467), but
+the two tests above call `decide()` in-process with their own runner. So "the
+rule blocks a commit through the gate" is demonstrated at the contract level,
+and the spawn path separately, never the two together.

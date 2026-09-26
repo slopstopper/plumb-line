@@ -40,8 +40,8 @@ describe("hook CLIs run when invoked through a symlink", () => {
   });
 
   it("pre-commit-gate blocks when PLUMBLINE_TEST_CMD is unset, direct and linked", () => {
-    expect(run(join(hooks, "pre-commit-gate.mjs")).status).not.toBe(0);
-    expect(run(linked("pre-commit-gate.mjs")).status).not.toBe(0);
+    expect(run(join(hooks, "pre-commit-gate.mjs")).status).toBe(2);
+    expect(run(linked("pre-commit-gate.mjs")).status).toBe(2);
   });
 
   it("branch-guard blocks a code edit on main, direct and linked", () => {

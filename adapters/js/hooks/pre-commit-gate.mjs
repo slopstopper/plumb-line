@@ -29,21 +29,31 @@ export async function decide({ runners }) {
 // coverage — the pure decide() above is unit-tested.
 /* v8 ignore start */
 if (isMainModule()) {
+  // Every way of not running the tests exits 2 (#467): a Claude Code hook
+  // treats only exit 2 as a block, so exit 1 let the commit through. Git
+  // treats any non-zero exit as a block, so nothing changes there.
   const { spawnSync } = await import("child_process");
-  const cmd = process.env.PLUMBLINE_TEST_CMD;
-  if (!cmd) {
-    process.stderr.write("PLUMBLINE_TEST_CMD not set\n");
-    process.exit(1);
+  const cmd = process.env.PLUMBLINE_TEST_CMD ?? "";
+  const [prog, ...args] = cmd.trim().split(/\s+/);
+  let r;
+  if (!prog) {
+    r = { allow: false, reason: "pre-commit blocked: PLUMBLINE_TEST_CMD is not set" };
+  } else {
+    try {
+      r = await decide({
+        runners: [{
+          name: cmd,
+          fn: () => {
+            const res = spawnSync(prog, args, { stdio: "inherit" });
+            if (res.error) throw res.error; // not started: say so, as the Python twin does
+            return res.status === 0;
+          },
+        }],
+      });
+    } catch (e) {
+      r = { allow: false, reason: `pre-commit blocked: the test command could not be run (${e.message})` };
+    }
   }
-  const [prog, ...args] = cmd.split(/\s+/);
-  const runner = {
-    name: cmd,
-    fn: () => {
-      const result = spawnSync(prog, args, { stdio: "inherit" });
-      return result.status === 0;
-    },
-  };
-  const r = await decide({ runners: [runner] });
   if (!r.allow) {
     process.stderr.write(r.reason + "\n");
     process.exit(2);
