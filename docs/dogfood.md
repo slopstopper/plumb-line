@@ -94,10 +94,10 @@ map (v0.5.0), so what it did not read is not recorded.
 | N2 | Spine | A "categories analysed" count includes only categories that produced a signal, so a run with no signals reports 0, which reads the same as a run that never happened. |
 | N3 | P1 | The analysis rewrites the loaded source-of-truth records in place (lower-casing names), and matching elsewhere depends on that mutation, because another function does not normalise. |
 | N4 | P3, P4 | Values an LLM extracted from web-search snippets are served with no confidence or caveat, while the AI estimate one tier below is honestly labelled, so the weaker source looks more authoritative. |
-| N5 | P8 | Stored experiment verdicts do not record the environment-injectable thresholds that decided them, and stored signal rows omit fields that determined their direction. |
-| N6 | P9 | The signal maths has no golden or baseline test; the test that exists replaces the computation it would need to pin. |
+| N5 | P8 | Stored experiment verdicts do not record the environment-injectable thresholds that decided them, and some stored signal rows omit fields such as the score delta. |
+| N6 | P9 | The signal maths has no golden or baseline test; a test of it stubs out the computation it would need to pin. |
 | Confirmed | P5; P3, spine, P6; P7; P4 | The signal engine's thresholds are bare constants where the rest of the codebase injects them; research snippets are presented as "relevant current research" with their similarity score dropped and no floor; no output carries a contract version; a retrieval outage reads as "no research exists". |
-| Clean | P2, spine | Layering holds apart from one call to another module's private function; three paths return an honest null result (`inconclusive`, not-found). |
+| Clean | P2, spine | Layering holds apart from one call to another module's private function; the experiment evaluator (`inconclusive`), a not-found path and the export honour the null-result spine. |
 
 **Outcome.** The submitter reports implementing all of the findings,
 including finishing the migration to the new engine (N1).
