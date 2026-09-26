@@ -211,6 +211,25 @@ describe("branch-guard CLI", () => {
     expect(runRaw("").status).toBe(2);
   });
 
+  // v0.11.4 dogfood: the CLI spread the whole config after branch and
+  // filePath, so a config key could override either and let the edit through.
+  // Only protectedBranches and docsAllowlist come from PLUMBLINE_CFG.
+  function runWithCfg(extra) {
+    return spawnSync("node", [guardPath], {
+      input: JSON.stringify({ filePath: "src/app.js" }),
+      encoding: "utf8",
+      env: { ...process.env, PLUMBLINE_BRANCH: "main", PLUMBLINE_CFG: JSON.stringify({ ...cfg, ...extra }) },
+    });
+  }
+
+  it("ignores a filePath key in PLUMBLINE_CFG", () => {
+    expect(runWithCfg({ filePath: "docs/x.md" }).status).toBe(2);
+  });
+
+  it("ignores a branch key in PLUMBLINE_CFG", () => {
+    expect(runWithCfg({ branch: "feature/x" }).status).toBe(2);
+  });
+
   it("exits 2 on stdin that is not JSON", () => {
     const r = runRaw("not json");
     expect(r.status).toBe(2);

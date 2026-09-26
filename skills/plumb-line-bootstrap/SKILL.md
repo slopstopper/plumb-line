@@ -78,8 +78,13 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
 - **Verify, don't assume.** After installing, plant a deliberate upward import
   and confirm the boundary check errors; on the protected branch, run a code
   path through the branch guard's installed wiring (the hook command itself,
-  so the branch it sees is the one the wiring supplies) and confirm it blocks.
-  An installed-but-inert guard is the failure mode to rule out.
+  so the branch it sees is the one the wiring supplies) and confirm it blocks,
+  then a docs-allowlisted path the same way and confirm it passes. Feed both
+  as the host sends them (for Claude Code, a PreToolUse payload with an
+  absolute `tool_input.file_path`), or the docs check cannot catch a path
+  the wiring failed to make repo-relative. An
+  installed-but-inert guard is the failure mode to rule out, and a guard that
+  blocks every docs edit is the other.
 
 ### JS boundary zones — get the direction right (easy to invert silently)
 
@@ -154,8 +159,25 @@ not git hooks on their own. The pre-commit gate needs only
 gate works. The branch guard needs each edit's file path and the current
 branch: wire it as a Claude Code PreToolUse hook, map the host's tool
 payload's file path into the `{filePath}` stdin it expects, and set the
-branch in the hook command, e.g.
-`PLUMBLINE_BRANCH="$(git branch --show-current)"`. It blocks a code edit when
+branch in the hook command. `filePath` must be relative to the repository
+root: the allowlist's directory and file entries are compared with it as
+given, and Claude Code passes an absolute `tool_input.file_path`, so an
+unstripped path blocks every docs edit. For example:
+
+```sh
+jq -c --arg root "$CLAUDE_PROJECT_DIR/" '{filePath: (.tool_input.file_path | ltrimstr($root))}' \
+  | PLUMBLINE_BRANCH="$(git branch --show-current)" node .claude/guards/branch-guard.mjs
+```
+
+`$CLAUDE_PROJECT_DIR` is the directory Claude Code was started in, spelled
+the way it spells the file paths it sends, so this assumes it was started at
+the repository root. Started in a subdirectory, paths come out relative to
+that directory, and a code file can pass as docs: `sub/docs/x.js` becomes
+`docs/x.js`, which matches a `docs/` entry. A path the shim cannot strip
+stays absolute and blocks as a code edit, unless an extension glob such as
+`*.md` matches it.
+
+The guard blocks a code edit when
 the branch is unknown (unset, or empty as on a detached HEAD), so wiring that
 forgets the branch blocks every code edit rather than silently allowing it. A
 git commit-hook wrapper for it is planned (slopstopper/plumb-line#464). The

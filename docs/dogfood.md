@@ -759,3 +759,48 @@ corrected before the harness, reads in the project's own type.
 - Both violations are in hooks, the one adapter surface no blind fixture
   exercises end to end. That supports #442's case for a harder tier that
   wires hooks for real.
+
+## v0.11.4 dogfood self-audit — 2026-09-26
+
+Scope: the method-surface diff v0.11.3..`3e9bb9a` (23 files). Report format
+v3, validated with `scripts/check_report_format.py v4` — clean. Coverage:
+23/23 files read at their changed hunks and enclosing units; the hook
+sources, the four runners' case loops and the three case tables' key sets
+in full. Behaviour claims were checked by running both twins on the same
+inputs from an export of `3e9bb9a`. P1 and P2 were scored in full against
+ADR-0018 and are clean: the one source-truth file changed
+(`primitives/SPEC.md`) changed only a test path, cross-references and a
+field-table row,
+and the one new cross-layer use is recorded in ADR-0018's 2026-09-26
+amendment.
+
+**8 findings: 1 violation, 7 needs-review.**
+
+| Path | Issue | Principle | Resolution |
+| ---- | ----- | --------- | ---------- |
+| `adapters/js/hooks/branch-guard.mjs` (CLI) | the whole `PLUMBLINE_CFG` was spread after `branch` and `filePath`, so a config key could override either: on `main`, a config `filePath: "docs/x.md"` or `branch: "feature"` let a code edit through in JS; Python reads only the two documented keys (and their snake_case spellings, row 2) | P7 — Contracted outputs | **fixed in place** — only `protectedBranches` and `docsAllowlist` are read; spawn tests for both overrides, red first |
+| `adapters/python/hooks/branch_guard.py` and JS twin | [needs-review] config keys a twin does not read are ignored and the default applies, and the twins accept different spellings; a typo such as `protectedBranch` fails open in both | spine — null-result expressibility | **deferred** → [#469](https://github.com/slopstopper/plumb-line/issues/469), widened |
+| `adapters/js/hooks/branch-guard.mjs` and Python twin | [needs-review] a value that cannot be a branch name (`HEAD`, a trailing space) reads as a named, unprotected branch | spine — null-result expressibility | **deferred** → [#474](https://github.com/slopstopper/plumb-line/issues/474) (`audit-deferral`; revisit when #464 lands) |
+| `skills/plumb-line-bootstrap/SKILL.md` (hook wiring, Step 4) | [needs-review] the documented wiring maps Claude Code's absolute `tool_input.file_path` into `filePath`, which never matches a directory allowlist entry, so every docs edit on the protected branch is blocked; Step 4 only checked that a code edit blocks | P6 — Maturity vocabulary | **fixed in place** — `filePath` is stated as repo-relative, with a `jq` shim verified end to end in a scratch repo; Step 4 also confirms a docs edit passes |
+| `adapters/adapter-contract.md` (hook I/O) | [needs-review] v0.11.4 changed what `Contract version: 1` promises in practice without moving it, and the twins' parity rests on hand-mirrored tests that already differ | P7 — Contracted outputs | **deferred** → [#475](https://github.com/slopstopper/plumb-line/issues/475) (a shared hook case table; the version question is recorded there for the owner) |
+| `adapters/python/hooks/branch_guard.py` and JS twin | [needs-review] the twins decode stdin differently (Python by locale, strict; JS lossy UTF-8); every divergent case fails closed or allows a path genuinely under the allowlist | P7 — Contracted outputs | **deferred** → [#475](https://github.com/slopstopper/plumb-line/issues/475) |
+| `primitives/conformance/README.md` | [needs-review] said a change to either table fails until runners learn it; the #441 guards catch a new field, kind or version, while a removed field or a changed value passes | P6 — Maturity vocabulary | **fixed in place** — the sentence now says what the guards catch |
+| `adapters/js/hooks/pre-commit-gate.mjs` and Python twin (`decide`) | [needs-review] no runners reads as "all gates passed"; the CLI cannot reach it after #467 | spine — null-result expressibility | **deferred** → [#476](https://github.com/slopstopper/plumb-line/issues/476) (owner decision) |
+
+### What was clean
+
+The #441 guard models match exactly the fields each runner reads, and the
+boolean-version fix holds in all three Python checks. PARITY.md's dated
+note and the primitives README's container and version text match the
+audit code in both languages. The provenance-lint README and SPEC §5b
+wording on spawn coverage match the tests. The Python 3.14 classifier is
+backed by the CI matrix.
+
+### Calibration notes
+
+- The violation predates this release: v0.11.3's JS CLI already spread the
+  config last. The #449 fix removed the stdin spread and kept the config
+  one, and its review checked the CLI across 952 input combinations, none of
+  which put a stray key in the config. Most hook findings this cycle (#469,
+  #472, and rows 1, 2 and 6 above) are divergences between the twins that a
+  shared case table would have caught, which is the case #475 makes.

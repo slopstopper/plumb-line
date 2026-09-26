@@ -226,13 +226,16 @@ Version themes for the near-term releases, and the GitHub issues under each.
   from the code (GH #445), with the two adapter bugs its review found. The
   harness record, including a Part 1b (remediate) run, is in
   `docs/validation-results.md`.
-- **v0.11.4 — Guards and docs tidy** (patch, fix-only) · *created
-  2026-09-25.* The case-table guards for `http-cases.json` and
+- ~~**v0.11.4 — Guards and docs tidy**~~ · **shipped 2026-09-26**
+  (patch, fix-only): the case-table guards for `http-cases.json` and
   `baseline-cases.json` (GH #441); the contributor-facing doc staleness from
-  the 2026-09-25 sweep (GH #444); the `js-payments-service` fixture declaring
-  CommonJS over ESM sources (GH #447, to be changed between releases, not
-  mid-harness); and the branch guard allowing edits on an unknown branch,
-  with direct commit-hook wiring (GH #449, stricter for adopters).
+  the 2026-09-25 sweep (GH #444); the JS fixtures declaring CommonJS over ESM
+  sources (GH #447, changed between releases and recorded before the
+  harness); the branch guard blocking a code edit on an unknown branch, with
+  the direct commit-hook claim withdrawn (GH #449, stricter for adopters);
+  the pre-commit gate exiting 2 when it cannot run the tests (GH #467,
+  pulled in from v0.12.0); and the second marketplace copy of the plugin
+  entry (GH #453). The harness record is in `docs/validation-results.md`.
 
 - **v0.13.0 — Reproducible enforcement** · *split from v0.12.0 on 2026-09-17,
   when that milestone reached thirteen issues.* Every enforcement output
