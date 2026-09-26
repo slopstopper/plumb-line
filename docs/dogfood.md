@@ -59,26 +59,58 @@ pass," not "provably absent."
 
 ## Beyond the fixtures
 
-At least one outside user has run plumb-line on their own code (the owner's
-account, 2026-09-25). What is recorded is the feedback outside users gave,
-and where each piece landed:
+What is recorded of outside use, and where each piece landed:
 
-- **2026-07-01** — a tester who ran the audit found its report hard to act
-  on: bare `P#` codes, a report whose shape varied between runs, and a report
-  file written only sometimes; the README also buried the install path. This
-  became the v0.4.1 *Legible audit* release (#83–#86).
+- **2026-07-01** — an outside user's audit of their own codebase, submitted
+  through the feedback form. The report is recorded below. Its friction note
+  (move the marketplace install up) is quoted in #86; #83–#85 cite the same
+  first tester's feedback that day: the audit's report was hard to act on
+  (bare `P#` codes, a report whose shape varied between runs, a report file
+  written only sometimes). Together these became the v0.4.1 *Legible audit*
+  release.
 - **2026-08-14** — before adopting the primitives, doubt about starting on a
   project already under way, and about using them wrong. Quoted and answered
   in the fit map,
   [*Mid-project is the normal case*](../reference/fit-map.md#mid-project-is-the-normal-case).
 
-What is **not** recorded is the findings themselves. An earlier version of
-this section said the auditor "surfaced real issues that had passed human
-review"; no finding, date or version was kept to show it, so by this
-project's own lineage rule (P8) it is not evidence, and it is not repeated
-here until a recorded example backs it. Examples that arrive are added here
-with their date, the plumb-line version, and what the audit found and
-missed, redacted as their owner asks.
+Examples that arrive are added here with their date, the plumb-line version,
+and what the audit found and missed, redacted as their owner asks.
+
+### 2026-07-01 — outside audit, v0.3.1
+
+Recorded 2026-09-26 from the feedback-form submission; the submitter agreed
+to be quoted. Scope: `plumb-line-audit` v0.3.1, a deep pass over a
+~30k-line API that tracks meals and symptoms and reports food–symptom
+correlations and elimination-experiment verdicts. The form lists both
+languages; every file the report cites is Python. The report says it read
+the highest-leverage paths line by line rather than the whole codebase.
+v0.3.1 predates the coverage map (v0.5.0), so what it did not read is not
+recorded.
+
+| # | Principle | Finding |
+| - | --------- | ------- |
+| Headline | P3, P8, spine | One LLM call assigns each food to categories and returns no confidence. Two decision chains then treat the guess as fact: a relative-risk figure rounded to three decimals, and a clean/dirty adherence verdict that decides whether an experiment can be evaluated at all. |
+| N1 | P6 | A docstring says the new correlation engine "replaces" the old one. It does not: the old engine still feeds the user-facing export, so the export and the chat could tell different stories from the same data. |
+| N2 | Spine | `categories_analysed` counts only the categories that produced a signal, so a run with no signals reads 0, indistinguishable from "nothing ran". |
+| N3 | P1 | The analysis rewrites the loaded meal records in place to lower-case names, silently compensating for a normalisation gap two functions away. |
+| N4 | P3, P4 | Values an LLM extracted from web-search snippets are served with no confidence or caveat, while the AI estimate one tier below is honestly labelled, so the weaker source looks more authoritative. |
+| N5 | P8 | Experiment verdicts and stored signals do not record the injectable thresholds that produced them, so changing a threshold makes every stored verdict unreproducible. |
+| N6 | P9 | The signal maths has no golden or baseline test; the only test replaces the computation it would need to pin. |
+| Confirmed | P5, P3, P7, P4 | The signal engine's thresholds are bare constants where the rest of the codebase injects them; research snippets are presented as "relevant current research" with their similarity score dropped and no floor; no output carries a contract version; a retrieval outage reads as "no research exists". |
+| Clean | P2, spine | Layering holds; the experiment evaluator returns an honest `inconclusive`. |
+
+**Outcome.** The submitter reports implementing every finding, including
+finishing the migration to the new engine (N1).
+
+**What this shows, and what it does not.** Every finding was accepted by the
+person who owns the code, which is the precision evidence this project
+otherwise lacks. Recall is unknown: there is no answer key for a real
+codebase, so nothing records what the audit missed. It is one run, by one
+user, of a version seventeen releases old; it says nothing about the skill as
+it ships now. An earlier version of this section said the auditor "surfaced
+real issues that had passed human review". This record backs the first half.
+Nothing recorded shows the code had been reviewed, so the second half is not
+repeated.
 
 ## See also
 
