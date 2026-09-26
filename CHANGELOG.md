@@ -44,6 +44,24 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   that does not show (recall, or anything about the current version).
 
 ### Fixed
+- **The branch guard blocks a code edit when the branch is unknown**
+  ([#449](https://github.com/slopstopper/plumb-line/issues/449)). Both twins
+  read an unset `PLUMBLINE_BRANCH` as "not a protected branch" and allowed
+  every edit, and an empty one (a detached HEAD) the same way. An unknown
+  branch now blocks a code edit, as the pre-commit gate already blocks when its
+  variable is unset; a docs-allowlisted edit is still allowed, as it is on
+  every branch. **Stricter for adopters:** wiring that never set the branch was
+  silently allowing everything and now blocks code edits; set it in the hook
+  command, e.g. `PLUMBLINE_BRANCH="$(git branch --show-current)"`. The
+  bootstrap skill and the adapter contract no longer say the guards work
+  directly as git hooks; git supplies neither input, and a commit-hook wrapper
+  for the branch guard is planned (#464). The guard also no longer crashes on
+  input it cannot read. Stdin that was not JSON, and in the JS twin a payload
+  with no `filePath` (an unmapped host payload), exited 1, which a Claude Code
+  hook does not treat as a block; both twins now exit 2, and the docs say exit
+  2 is what blocks. The JS twin no longer reads config keys from stdin, only
+  from `PLUMBLINE_CFG`, as the contract and the Python twin already did.
+  ADR-0003 is amended to match.
 - **Every conformance table now fails on what its runners do not read**
   ([#441](https://github.com/slopstopper/plumb-line/issues/441)).
   `cases.json`'s runners already failed on an unknown case field, case kind

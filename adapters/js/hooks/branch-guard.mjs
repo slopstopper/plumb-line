@@ -37,32 +37,53 @@ function matchesAllowlistEntry(normalizedCandidate, entry) {
   return normalizedCandidate === normalizedEntry;
 }
 
+function blocked(filePath, branch, unknown) {
+  return {
+    allow: false,
+    reason: unknown
+      ? `blocked: code edit to ${filePath} with the branch unknown (PLUMBLINE_BRANCH is unset or empty). Set it to the current branch.`
+      : `blocked: code edit to ${filePath} on protected branch ${branch}. Branch first.`,
+  };
+}
+
 export function decide({
   filePath,
   branch,
   protectedBranches = ["main"],
   docsAllowlist = [],
 }) {
-  if (!protectedBranches.includes(branch)) {
+  // An unknown branch (unset, or empty as on a detached HEAD) is an
+  // inconclusive result, never a pass (#449): judge the edit as if the branch
+  // were protected, so only an edit allowed on every branch passes. Blank
+  // means ASCII whitespace, as in the Python twin.
+  const unknown = branch == null || !/[^ \t\n\r\f\v]/.test(String(branch));
+  if (!unknown && !protectedBranches.includes(branch)) {
     return { allow: true, reason: "not a protected branch" };
+  }
+  // No path to judge (an unmapped host payload) cannot be a docs edit.
+  if (typeof filePath !== "string" || filePath === "") {
+    return {
+      allow: false,
+      reason:
+        "blocked: no file path to judge. Map the host payload's file path into the {filePath} stdin the branch guard reads.",
+    };
   }
   // Normalize candidate first; an upward-escaping path is never a docs match.
   const normalizedCandidate = normalizePath(filePath);
   if (normalizedCandidate.startsWith("..")) {
-    return {
-      allow: false,
-      reason: `blocked: code edit to ${filePath} on protected branch ${branch}. Branch first.`,
-    };
+    return blocked(filePath, branch, unknown);
   }
   const isDocs = docsAllowlist.some((entry) =>
     matchesAllowlistEntry(normalizedCandidate, entry),
   );
   if (isDocs)
-    return { allow: true, reason: "docs edit allowed on protected branch" };
-  return {
-    allow: false,
-    reason: `blocked: code edit to ${filePath} on protected branch ${branch}. Branch first.`,
-  };
+    return {
+      allow: true,
+      reason: unknown
+        ? "docs edit allowed on any branch"
+        : "docs edit allowed on protected branch",
+    };
+  return blocked(filePath, branch, unknown);
 }
 
 /**
@@ -94,15 +115,23 @@ if (isMainModule()) {
   let raw = "";
   process.stdin.on("data", (d) => (raw += d));
   process.stdin.on("end", () => {
-    const input = raw ? JSON.parse(raw) : {};
-    const cfg = process.env.PLUMBLINE_CFG
-      ? JSON.parse(process.env.PLUMBLINE_CFG)
-      : {};
-    const r = decide({
-      ...input,
-      branch: process.env.PLUMBLINE_BRANCH,
-      ...cfg,
-    });
+    // Every failure exits 2 (#449 review): a Claude Code hook treats only
+    // exit 2 as a block, so a crash's exit 1 would let the edit through.
+    let r;
+    try {
+      const input = raw.trim() ? JSON.parse(raw) : {};
+      const cfg = process.env.PLUMBLINE_CFG
+        ? JSON.parse(process.env.PLUMBLINE_CFG)
+        : {};
+      r = decide({
+        filePath: input?.filePath,
+        branch: process.env.PLUMBLINE_BRANCH,
+        ...cfg,
+      });
+    } catch (e) {
+      process.stderr.write(`blocked: the branch guard could not run (${e.message}).\n`);
+      process.exit(2);
+    }
     if (!r.allow) {
       process.stderr.write(r.reason + "\n");
       process.exit(2);
