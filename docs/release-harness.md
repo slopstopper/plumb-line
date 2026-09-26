@@ -71,9 +71,10 @@ the owner.** Owner decision, 2026-09-26, from the impossible-task spike (#462,
   not decide it, record the scorer's verdict as scored and the competing
   reading beside it. The evaluator then gives a labelled recommendation for
   that case, with the evidence, and the owner rules.
-- **No blanket rule in either direction.** Neither side settles such cases by
-  a general rule. A rule for the reading that favours the tool inflates
-  results, and a rule against it can flatten real ones.
+- **No standing rule in either direction.** The owner rules per case, or per
+  named pattern of cases, after seeing the evidence. Neither side settles
+  them by a standing rule for or against the reading that favours the tool:
+  one inflates results, the other can flatten real ones.
 - **Record the ruling.** Write the ruling, its reason and who decided it into
   the results doc, because rulings are how the harness's own line gets
   calibrated.
