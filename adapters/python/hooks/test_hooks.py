@@ -202,3 +202,50 @@ def test_branch_guard_cli_allows_docs_when_the_branch_is_unset():
     r = _run_branch_guard({"filePath": "docs/x.md"}, None,
                           {"protectedBranches": ["main"], "docsAllowlist": ["docs/"]})
     assert r.returncode == 0, r.stderr
+
+
+# --- #449 review: a missing or non-string filePath (an unmapped host payload)
+# must block wherever the branch matters, and every CLI failure must exit 2,
+# since a Claude Code hook treats only exit 2 as a block.
+
+@pytest.mark.parametrize("file_path", [None, 5, ""])
+def test_branch_blocks_when_there_is_no_file_path_on_a_protected_branch(file_path):
+    r = branch_guard.decide(file_path=file_path, branch="main", **CFG)
+    assert r["allow"] is False and "no file path" in r["reason"]
+
+
+def test_branch_blocks_when_there_is_no_file_path_and_the_branch_is_unknown():
+    assert branch_guard.decide(file_path=None, branch=None, **CFG)["allow"] is False
+
+
+def test_branch_allows_no_file_path_on_an_unprotected_branch():
+    assert branch_guard.decide(file_path=None, branch="feature/x", **CFG)["allow"] is True
+
+
+@pytest.mark.parametrize("branch", ["\ufeff", "\x85"])
+def test_branch_blank_means_ascii_whitespace_as_in_the_js_twin(branch):
+    assert branch_guard.decide(file_path="src/app.py", branch=branch, **CFG)["allow"] is True
+
+
+def _run_branch_guard_raw(stdin):
+    import subprocess
+    env = dict(os.environ, PLUMBLINE_BRANCH="main")
+    env.pop("PLUMBLINE_CFG", None)
+    return subprocess.run([sys.executable, _BRANCH_GUARD], input=stdin,
+                          capture_output=True, text=True, env=env)
+
+
+def test_branch_guard_cli_exits_2_on_an_unmapped_host_payload():
+    import json
+    r = _run_branch_guard_raw(json.dumps({"tool_input": {"file_path": "src/app.py"}}))
+    assert r.returncode == 2 and "no file path" in r.stderr
+
+
+def test_branch_guard_cli_exits_2_on_a_null_file_path():
+    r = _run_branch_guard_raw('{"filePath": null}')
+    assert r.returncode == 2, r.stderr
+
+
+def test_branch_guard_cli_exits_2_on_stdin_that_is_not_json():
+    r = _run_branch_guard_raw("not json")
+    assert r.returncode == 2 and "branch guard" in r.stderr

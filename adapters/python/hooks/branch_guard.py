@@ -4,6 +4,10 @@ import os
 import re
 import sys
 
+# What counts as a blank branch: ASCII whitespace only, as in the JS twin
+# (str.strip() alone would also strip Unicode spaces that JS trim() keeps).
+_ASCII_WHITESPACE = " \t\n\r\f\v"
+
 # A bare "*.ext" extension glob (no path separators).
 _EXTENSION_GLOB = re.compile(r"^\*\.[A-Za-z0-9.]+$")
 
@@ -43,9 +47,14 @@ def decide(file_path, branch, protected_branches=("main",), docs_allowlist=()):
     # An unknown branch (unset, or empty as on a detached HEAD) is an
     # inconclusive result, never a pass (#449): judge the edit as if the
     # branch were protected, so only an edit allowed on every branch passes.
-    unknown = branch is None or not str(branch).strip()
+    unknown = branch is None or not str(branch).strip(_ASCII_WHITESPACE)
     if not unknown and branch not in protected_branches:
         return {"allow": True, "reason": "not a protected branch"}
+    # No path to judge (an unmapped host payload) cannot be a docs edit.
+    if not isinstance(file_path, str) or not file_path:
+        return {"allow": False,
+                "reason": "blocked: no file path to judge. Map the host payload's file path "
+                          "into the {filePath} stdin the branch guard reads."}
     # Normalize candidate first; an upward-escaping path is never a docs match.
     normalized_candidate = _normalize_path(file_path)
     if normalized_candidate.startswith(".."):
@@ -61,16 +70,26 @@ def decide(file_path, branch, protected_branches=("main",), docs_allowlist=()):
 # block. Until 0.11.3 this module had no entry point, so wired as a hook it
 # exited 0 and never blocked, while its JS twin did. PLUMBLINE_CFG is the
 # shared JSON the JS twin reads (camelCase); snake_case keys are accepted too.
-if __name__ == "__main__":
+# Every failure exits 2 (#449 review): a Claude Code hook treats only exit 2
+# as a block, so a traceback's exit 1 would let the edit through.
+def _main():
     raw = sys.stdin.read()
     input_data = json.loads(raw) if raw.strip() else {}
     cfg = json.loads(os.environ.get("PLUMBLINE_CFG", "{}"))
-    r = decide(
-        file_path=input_data.get("filePath", ""),
+    return decide(
+        file_path=input_data.get("filePath") if isinstance(input_data, dict) else None,
         branch=os.environ.get("PLUMBLINE_BRANCH"),
         protected_branches=tuple(cfg.get("protectedBranches", cfg.get("protected_branches", ["main"]))),
         docs_allowlist=tuple(cfg.get("docsAllowlist", cfg.get("docs_allowlist", []))),
     )
+
+
+if __name__ == "__main__":
+    try:
+        r = _main()
+    except Exception as e:  # noqa: BLE001 — fail closed on anything
+        sys.stderr.write(f"blocked: the branch guard could not run ({e}).\n")
+        sys.exit(2)
     if not r["allow"]:
         sys.stderr.write(r["reason"] + "\n")
         sys.exit(2)

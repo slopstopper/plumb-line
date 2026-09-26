@@ -20,6 +20,33 @@ describe("branch-guard decide", () => {
     });
   }
 
+  // #449 review: a missing or non-string filePath (an unmapped host payload)
+  // crashed the JS twin (exit 1, which Claude Code does not treat as a block).
+  for (const filePath of [undefined, null, 5, ""]) {
+    it(`blocks when there is no file path to judge (${JSON.stringify(filePath)}) on a protected branch`, () => {
+      const r = decide({ filePath, branch: "main", ...cfg });
+      expect(r.allow).toBe(false);
+      expect(r.reason).toMatch(/no file path/i);
+    });
+  }
+
+  it("blocks when there is no file path and the branch is unknown", () => {
+    const r = decide({ filePath: undefined, branch: undefined, ...cfg });
+    expect(r.allow).toBe(false);
+  });
+
+  it("allows an edit with no file path on an unprotected branch, as it allows any edit there", () => {
+    expect(decide({ filePath: undefined, branch: "feature/x", ...cfg }).allow).toBe(true);
+  });
+
+  // Blank means ASCII whitespace in both twins (JS trim() and Python strip()
+  // disagree on a few Unicode characters).
+  for (const branch of ["\ufeff", "\x85"]) {
+    it(`reads ${JSON.stringify(branch)} as a named, unprotected branch, as the Python twin does`, () => {
+      expect(decide({ filePath: "src/app.js", branch, ...cfg }).allow).toBe(true);
+    });
+  }
+
   it("allows a docs edit when the branch is unknown", () => {
     const r = decide({ filePath: "docs/x.md", branch: undefined, ...cfg });
     expect(r.allow).toBe(true);
@@ -162,5 +189,31 @@ describe("branch-guard CLI", () => {
 
   it("allows a docs edit when PLUMBLINE_BRANCH is unset", () => {
     expect(runCli("docs/x.md", null).status).toBe(0);
+  });
+
+  // In a Claude Code hook only exit 2 blocks; a crash (exit 1) lets the edit
+  // through. Every CLI failure must exit 2 (#449 review).
+  function runRaw(stdin) {
+    return spawnSync("node", [guardPath], {
+      input: stdin,
+      encoding: "utf8",
+      env: { ...process.env, PLUMBLINE_BRANCH: "main", PLUMBLINE_CFG: JSON.stringify(cfg) },
+    });
+  }
+
+  it("exits 2 when stdin carries no filePath (an unmapped host payload)", () => {
+    const r = runRaw(JSON.stringify({ tool_input: { file_path: "src/app.js" } }));
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/no file path/i);
+  });
+
+  it("exits 2 on empty stdin", () => {
+    expect(runRaw("").status).toBe(2);
+  });
+
+  it("exits 2 on stdin that is not JSON", () => {
+    const r = runRaw("not json");
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/branch guard/i);
   });
 });

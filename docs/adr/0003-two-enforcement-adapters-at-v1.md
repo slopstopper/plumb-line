@@ -42,3 +42,16 @@ stderr = block) so the same script works as a git hook and a Claude Code hook.
   [ADR-0005](0005-provenance-primitive-one-law-two-layers.md), where the
   provenance primitive is also dual-language and parity bugs surfaced in review).
 - Go, Rust, and other adapters are explicitly out of scope for v1.
+
+## Amendments
+
+- **2026-09-26 (#449).** The last sentence of *Decision*, "the same script
+  works as a git hook and a Claude Code hook", does not hold, and is kept
+  above only as the record of what was decided. Git runs a hook with no stdin
+  and none of the guards' environment variables, so the branch guard has
+  nothing to judge there; a git commit-hook wrapper for it is planned (#464).
+  And a Claude Code hook treats only exit 2 as a block, while any other
+  non-zero exit lets the action through, so the shared convention is now exit
+  2 to block
+  (`adapters/adapter-contract.md`), with the pre-commit gate's exit 1 on an
+  unset test command tracked as #467. The rest of the decision stands.

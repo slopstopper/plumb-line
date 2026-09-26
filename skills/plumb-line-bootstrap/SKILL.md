@@ -129,8 +129,11 @@ Empty entries are rejected. (Earlier versions matched files exactly only; a bare
 
 ### Hook I/O contract (for wiring)
 
-Each hook is a stdin/exit-code CLI; exit 0 allows, non-zero (with a message on
-stderr) blocks. Input is per hook (`adapter-contract.md`, "Hook I/O
+Each hook is a stdin/exit-code CLI; exit 0 allows, exit 2 (with a message on
+stderr) blocks. A Claude Code hook treats only exit 2 as a block, so the branch
+guard also exits 2 when it cannot read its input; the pre-commit gate still
+exits 1 when `PLUMBLINE_TEST_CMD` is unset (#467), which blocks as a git hook
+but not as a Claude Code hook. Input is per hook (`adapter-contract.md`, "Hook I/O
 convention"):
 
 - **branch guard:** `{ "filePath": "..." }` on stdin; the branch from
