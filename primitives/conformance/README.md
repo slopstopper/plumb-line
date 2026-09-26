@@ -27,8 +27,8 @@ read by the ordinary test suites (`js/http.test.mjs` and
 `python/tests/test_baseline_conformance.py`). They have the same three
 guards: `table-guards.mjs` and its Python twin
 `python/tests/case_table_guards.py` report any case field, case kind or table
-version a runner does not interpret, so a change to either table also fails
-until every runner is taught to read it.
+version a runner does not interpret, so a new field, case kind or table
+version in either table fails until every runner is taught to read it.
 
 ```bash
 node primitives/conformance/report.mjs          # human report + badge

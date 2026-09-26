@@ -123,10 +123,13 @@ if (isMainModule()) {
       const cfg = process.env.PLUMBLINE_CFG
         ? JSON.parse(process.env.PLUMBLINE_CFG)
         : {};
+      // Only the two documented config keys, as the Python twin reads: a
+      // spread let a config `branch` or `filePath` override the real ones.
       r = decide({
         filePath: input?.filePath,
         branch: process.env.PLUMBLINE_BRANCH,
-        ...cfg,
+        protectedBranches: cfg?.protectedBranches,
+        docsAllowlist: cfg?.docsAllowlist,
       });
     } catch (e) {
       process.stderr.write(`blocked: the branch guard could not run (${e.message}).\n`);
