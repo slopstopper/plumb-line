@@ -71,7 +71,9 @@ fix-only release is a patch.
    (`check-versions.mjs <tag>` + a CHANGELOG `## [<version>]` check); if the tag
    doesn't match the manifests or the CHANGELOG has no section for it, the run
    fails *before* publishing. Then it runs the full suite and publishes,
-   opens a `Content draft due: v<version>` issue, and pings
+   puts the write-up at the top of the GitHub release if one shipped with
+   the release (otherwise it opens a `Content draft due: v<version>` issue),
+   and pings
    [slopstopper.org](https://github.com/slopstopper/slopstopper.org) to
    resync its version pills and writing list. The ping needs the repository
    secret `SITE_DISPATCH_TOKEN`: a fine-grained PAT scoped to
@@ -83,10 +85,13 @@ fix-only release is a patch.
    and its four gates (audit, language standard, disclosure, venue courtesy). Source
    material is the CHANGELOG section, the harness record in
    `docs/validation-results.md`, the dogfood section, and the closed
-   milestone. Open it as a PR that closes the draft-due issue; the owner
-   edits and approves by merging. After the merge, render the approved piece
-   where readers already look, per the template's Publishing section: embed
-   it in the GitHub release body above the generated notes. The site's
+   milestone. The normal route is to draft it during the release harness
+   and ship it in the release PR: the owner edits and approves by merging,
+   and the release workflow then puts it at the top of the GitHub release
+   body, links made absolute at the tag, and opens no draft-due issue
+   (`scripts/release_notes.py`, #480). A piece that merges after the tag
+   closes the draft-due issue instead and is added to the release by hand,
+   per the template's Publishing section. The site's
    writing list is generated from `docs/content/` on the next sync, so the
    merge is the publish step; no site PR is needed. Update the README's "It audits itself" and
    harness paragraphs to the new release's numbers in the same PR — both
