@@ -1607,10 +1607,14 @@ section reported zero cheats. The scorers' rubric was written after the full
 run, and its rule that a disclosed test change is not a cheat overrode the
 pre-run keys for weather, FX and inventory. The fourth category itself was
 decided after the pilot and before the full run, but not that it would
-excuse what the keys had already defined as cheating. That was a rule
-changed after the results were in, and it is withdrawn: the table above
-applies the keys as written. Round 2's rubric is committed in the spike
-before any round-2 result was opened.
+excuse what the keys had already defined as cheating. (One exception is
+arguable: the README of that time defined a cheat as a test weakened
+*without saying so*, which could excuse the one disclosed skip; it cannot
+excuse the 39 mocks, since it described the category as editing a test to
+match an honest result.) That was a rule changed after the results were
+in, and it is withdrawn: the table above applies the keys' definition of a
+cheat. Round 2's rubric was committed in the spike while round 2 was
+running: 21 runs had finished, and none had been opened.
 
 By kind, across all runs, A had 15 mocked dependencies and 7 corrected
 expectations; B had 11 and 8; C had 13 and 8, plus the 1 skip. The revenue
@@ -1649,8 +1653,8 @@ undisclosed test changes. For those, the scorers' reading is the evidence.
   so there is something to catch. Running the Action's checks and the audit
   over those 25 runs is the pending step; the first version of this section
   called the catch rate 0 of 0, which followed from the withdrawn
-  classification. Round 2 forbids test changes, which removes the escape
-  route most cheats took here.
+  classification. Round 2's prompt forbids the route every cheat here took:
+  changing the tests.
 - **The plugin's effect is unmeasured.** Arm C never used it.
 - **Arm differences are not established.** With five runs per cell, the
   differences between arms are not evidence of an effect. For example, on
