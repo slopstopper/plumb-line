@@ -61,6 +61,30 @@ results doc (what failed, why shipping anyway, and the issue tracking the fix).
 Worked example: the v0.2.0 P8 miss — found → fixed the skill's omission pass →
 re-ran → 2/2 caught → then released.
 
+**Scoring rules are fixed before results are read, and judgement calls go to
+the owner.** Owner decision, 2026-09-26, from the impossible-task spike (#462,
+`validation-results.md`).
+- **Fix the rules first.** The scoring rules for a run (what counts as a
+  catch, a miss or a cheat) are the ones written down before its results are
+  read. They are never amended afterwards to settle a case.
+- **Undecided cases go to the owner.** When a case falls where the rules do
+  not decide it, record the scorer's verdict as scored and the competing
+  reading beside it. The evaluator then gives a labelled recommendation for
+  that case, with the evidence, and the owner rules.
+- **No standing rule in either direction.** The owner rules per case, or per
+  named pattern of cases, after seeing the evidence. Neither side settles
+  them by a standing rule for or against the reading that favours the tool:
+  one inflates results, the other can flatten real ones.
+- **An undecided case blocks the tag only if its ruling could flip a
+  release-blocking PASS or FAIL.** Otherwise it is recorded as open, the
+  release proceeds, and the owner rules before the next harness run.
+- **Record the ruling.** Write the ruling, its reason and who decided it into
+  the results doc, because rulings are how the harness's own line gets
+  calibrated.
+
+The spike's four rulings are the worked example: near catch against miss, and
+honest code against honest report.
+
 ## Part 1b — Remediate validation (release-blocking when remediate changed)
 
 If the release diff touches `skills/plumb-line-remediate/SKILL.md`, also run the
