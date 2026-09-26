@@ -123,7 +123,8 @@ if (isMainModule()) {
       const cfg = process.env.PLUMBLINE_CFG
         ? JSON.parse(process.env.PLUMBLINE_CFG)
         : {};
-      // Only the two documented config keys, as the Python twin reads: a
+      // Only the two documented config keys (the Python twin also accepts
+      // snake_case spellings; #469 settles one set for both): a
       // spread let a config `branch` or `filePath` override the real ones.
       r = decide({
         filePath: input?.filePath,

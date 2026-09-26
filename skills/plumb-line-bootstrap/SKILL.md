@@ -79,7 +79,10 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
   and confirm the boundary check errors; on the protected branch, run a code
   path through the branch guard's installed wiring (the hook command itself,
   so the branch it sees is the one the wiring supplies) and confirm it blocks,
-  then a docs-allowlisted path the same way and confirm it passes. An
+  then a docs-allowlisted path the same way and confirm it passes. Feed both
+  as the host sends them (for Claude Code, a PreToolUse payload with an
+  absolute `tool_input.file_path`), or the docs check cannot catch a path
+  the wiring failed to make repo-relative. An
   installed-but-inert guard is the failure mode to rule out, and a guard that
   blocks every docs edit is the other.
 
@@ -165,6 +168,12 @@ unstripped path blocks every docs edit. For example:
 jq -c --arg root "$CLAUDE_PROJECT_DIR/" '{filePath: (.tool_input.file_path | ltrimstr($root))}' \
   | PLUMBLINE_BRANCH="$(git branch --show-current)" node .claude/guards/branch-guard.mjs
 ```
+
+`$CLAUDE_PROJECT_DIR` is the directory Claude Code was started in, spelled
+the way it spells the file paths it sends, so this assumes it was started at
+the repository root. Started in a subdirectory, paths come out relative to
+that directory and the allowlist entries no longer mean what they say. A
+path the shim cannot strip stays absolute and blocks as a code edit.
 
 The guard blocks a code edit when
 the branch is unknown (unset, or empty as on a detached HEAD), so wiring that

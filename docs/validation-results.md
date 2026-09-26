@@ -1519,7 +1519,9 @@ Calibration notes:
 `✓ 6 report(s) conform`, exit 0, under `check_report_format v4` (joins
 soft-wrapped prose; models report-format v1/v2/v3, remediation-format v1,
 routing-format v1; ruleset at principles-revision 1). The dogfood report
-also passed. Two auditors failed their own first check and fixed it before
+also passed. By their own accounts (in their hand-back messages; the saved
+reports show only the final clean line), two auditors failed their own
+first check and fixed it before
 saving: py-broken 1 on a bare `P1`, py-clean on P4 cited but missing from
 its glossary.
 

@@ -90,13 +90,13 @@ _Nothing yet._
   `"type": "module"`, and a new check imports every `src/**/*.js` file of
   each JS fixture under Node, fails on a fixture laid out any other way, and
   must run in CI. No planted violation or answer key changed.
-
 - **The JS branch guard reads only the two documented config keys; the
   wiring docs say `filePath` is repo-relative** (v0.11.4 dogfood self-audit).
   The JS CLI spread the whole `PLUMBLINE_CFG` after the branch and file path,
   so a config key named `branch` or `filePath` overrode the real one and let
   a code edit through; the Python twin already read only `protectedBranches`
-  and `docsAllowlist`. Separately, Claude Code passes an absolute file path,
+  and `docsAllowlist` (and their snake_case spellings, which #469 settles).
+  The spread predates this release. Separately, Claude Code passes an absolute file path,
   which never matches a directory allowlist entry, so wiring that passed it
   straight through blocked every docs edit. The bootstrap skill now says to
   strip the project root, gives a tested `jq` shim, and has Step 4 confirm a
