@@ -142,3 +142,11 @@ def test_a_planted_unknown_version_fails():
     t = {**copy.deepcopy(CASES), "version": 2}
     problems = table_problems(t, _MODEL)
     assert len(problems) == 1 and "unknown case-table version 2" in problems[0], problems
+
+
+def test_a_planted_boolean_version_fails():
+    # `True == 1` in Python, so a bare membership test would read
+    # "version": true as version 1; the JS twin rejects it (#441 review).
+    t = {**copy.deepcopy(CASES), "version": True}
+    problems = table_problems(t, _MODEL)
+    assert len(problems) == 1 and "unknown case-table version true" in problems[0], problems

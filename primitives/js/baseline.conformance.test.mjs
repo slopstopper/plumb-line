@@ -40,6 +40,10 @@ describe("baseline-cases.json — the runner interprets every field, kind and ve
     const t = { ...structuredClone(cases), version: 2 };
     expect(tableProblems(t, MODEL)).toEqual([expect.stringContaining("unknown case-table version 2")]);
   });
+  it("a planted boolean version fails, as it does in the Python twin", () => {
+    const t = { ...structuredClone(cases), version: true };
+    expect(tableProblems(t, MODEL)).toEqual([expect.stringContaining("unknown case-table version true")]);
+  });
 });
 
 describe("baseline conformance — attribute", () => {

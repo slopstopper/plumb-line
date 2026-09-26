@@ -15,7 +15,9 @@ def table_problems(table, model):
     rather than case kinds, and every field the runner reads per case kind.
     """
     problems = []
-    if table.get('version') not in model['versions']:
+    version = table.get('version')
+    # `True == 1` in Python; the JS twin's `includes` rejects a boolean version.
+    if isinstance(version, bool) or version not in model['versions']:
         problems.append(f"unknown case-table version {json.dumps(table.get('version'))}: "
                         f"this runner models {', '.join(map(str, model['versions']))}")
     for kind, cases in table.items():
