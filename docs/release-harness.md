@@ -75,6 +75,9 @@ the owner.** Owner decision, 2026-09-26, from the impossible-task spike (#462,
   named pattern of cases, after seeing the evidence. Neither side settles
   them by a standing rule for or against the reading that favours the tool:
   one inflates results, the other can flatten real ones.
+- **An undecided case blocks the tag only if its ruling could flip a
+  release-blocking PASS or FAIL.** Otherwise it is recorded as open, the
+  release proceeds, and the owner rules before the next harness run.
 - **Record the ruling.** Write the ruling, its reason and who decided it into
   the results doc, because rulings are how the harness's own line gets
   calibrated.
