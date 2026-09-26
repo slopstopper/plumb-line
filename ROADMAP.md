@@ -13,7 +13,7 @@ The long-run identity (status: **planned** — this names direction, not current
 capability): plumb-line is **the epistemic honesty layer for agent-built
 software**, with the provenance library as its runtime enforcement arm. Three
 horizons: (1) deepen the existing promise — P9 tooling, boundary gates,
-CI-native enforcement (v0.11.0–v0.12.0); (2) make provenance a property of a
+CI-native enforcement (v0.11.0–v0.14.0); (2) make provenance a property of a
 *system*, not a process — taint that survives serialization, files, and HTTP
 (Provenance across boundaries); (3) make honest self-reporting a spec any agent
 can adopt — coverage maps, honest denominators, and envelopes on agent-produced
@@ -184,45 +184,6 @@ Version themes for the near-term releases, and the GitHub issues under each.
   milestone under the one-of-two rule. (The Node floor resolution, GH #233,
   moved on from here to v0.9.0 — The front door, the next minor to ship.)
 
-- **v0.12.0 — Honest red** (test theatre + runtime refusal) · *renumbered
-  from v0.9.0, then from v0.10.0, then from v0.11.0 (see the numbering note);
-  narrowed from "Refuse and explain" on 2026-09-27 (owner decision), after the
-  impossible-task spike (GH #462) showed where plumb-line breaks under
-  pressure.* An agent that cannot make a test pass should keep it visibly
-  failing with a tracked reason, and plumb-line should see it when the agent
-  does not. From the spike (`docs/validation-results.md`): teach honest
-  deferral (GH #485); calibrate the audit to name a test that substitutes an
-  unavailable dependency (GH #486, with a planted harness fixture so the
-  calibration stays checked); and make the plugin trigger under pressure
-  (GH #487 — loaded in 90 spike runs, a skill invoked in 1). With them, the two
-  refusals already scheduled here: pytest/vitest quarantine plugins (#30 /
-  GH #123) and the egress guard `require()` (#27 / GH #120), with the
-  primitive semantics `require()` depends on — `mark()` accepting a
-  non-level confidence (GH #443) and the wrapper/`mark` default
-  `source='derived'` producing an audit-dirty leaf (GH #177, inherited from
-  the primitive's own default; at the v0.11.5 scoping it was the deferral
-  outbox's only item over 30 days, and it stays here because a fix-only patch
-  cannot change an API default). The branch guard's commit-hook wrapper
-  (GH #464) rides here as new surface. Spike round 3 is the acceptance
-  measurement, run before the tag; until it reports, nothing here claims a
-  catch rate. Sequenced after wire v2 so new envelope fields are settled;
-  every primitive lands in both languages with conformance rows. The
-  `http.py` stdlib-shadow rename (GH #171) once scheduled here moved to the
-  v0.11.2 patch on 2026-09-17: it is a fix, not a feature. The
-  `check_report_format.py` cluster once scheduled here (GH #220–#223: the
-  validator's own four findings) was pulled forward and closed under v0.11.0.
-
-- **v0.13.0 — Explain** (legibility) · *split from v0.12.0 "Refuse and
-  explain" on 2026-09-27 (owner decision).* The runtime explains itself:
-  `explain()` human-readable lineage + Mermaid/DOT (#28 / GH #121),
-  `summarize()` trust summary for artifacts (#29 / GH #122), the canonical
-  JSON serialization convention (#31 / GH #124, pulled forward from v1.0.0
-  after the post-0.11.0 roadmap review because two shipped contracts already
-  commit to a form), the PROV-O mapping (#37 / GH #130, docs rider), and the
-  lineage-growth design pass (GH #302, outcome decides whether it ships here
-  or under v1.0.0). Every primitive lands in both languages with conformance
-  rows.
-
 - ~~**v0.11.1 — Ratchet and Action hardening**~~ · **shipped 2026-09-20**:
   seven correctness and hygiene fixes to the ratchet and the
   Action (GH #389–#393, #395, #397; two of them stricter for adopters and
@@ -256,9 +217,10 @@ Version themes for the near-term releases, and the GitHub issues under each.
   the pre-commit gate exiting 2 when it cannot run the tests (GH #467,
   pulled in from v0.12.0); and the second marketplace copy of the plugin
   entry (GH #453). The harness record is in `docs/validation-results.md`.
+
 - **v0.11.5 — Hook twins parity** (patch, fix-only) · *created 2026-09-27
   (owner decision).* The hook twins' gaps found in the v0.11.4 work, each a
-  place a guard lets through what it should block: a string
+  place a guard fails open or reports a pass it did not earn: a string
   `protectedBranches` failing open in Python (GH #469), the boundary guard
   exiting 1 on input it cannot read, which a Claude Code hook does not treat
   as a block (GH #471), a quoted argument letting the JS pre-commit gate pass
@@ -266,7 +228,46 @@ Version themes for the near-term releases, and the GitHub issues under each.
   named, unprotected branch (GH #474), and `decide()` with no runners
   reporting "all gates passed" (GH #476); plus the shared hook case table
   that runs both twins' CLIs from one table (GH #475). Ships ahead of v0.12.0
-  so the gates are sound before anything is built on them.
+  so the known fail-open gaps are closed before anything is built on them.
+
+- **v0.12.0 — Honest red** (test theatre + runtime refusal) · *renumbered
+  from v0.9.0, then from v0.10.0, then from v0.11.0 (see the numbering note);
+  narrowed from "Refuse and explain" on 2026-09-27 (owner decision), after the
+  impossible-task spike (GH #462) showed where plumb-line breaks under
+  pressure.* An agent that cannot make a test pass should keep it visibly
+  failing with a tracked reason, and plumb-line should see it when the agent
+  does not. From the spike (`docs/validation-results.md`): teach honest
+  deferral (GH #485); calibrate the audit to name a test that substitutes an
+  unavailable dependency (GH #486, with a planted harness fixture so the
+  calibration stays checked); and make the plugin trigger under pressure
+  (GH #487 — loaded in 90 spike runs, a skill invoked in 1). With them, the two
+  refusals already scheduled here: pytest/vitest quarantine plugins (#30 /
+  GH #123) and the egress guard `require()` (#27 / GH #120), with the
+  primitive semantics `require()` depends on — `mark()` accepting a
+  non-level confidence (GH #443) and the wrapper/`mark` default
+  `source='derived'` producing an audit-dirty leaf (GH #177, inherited from
+  the primitive's own default; at the v0.11.5 scoping it was the deferral
+  outbox's only item over 30 days, and it stays here because a fix-only patch
+  cannot change an API default). The branch guard's commit-hook wrapper
+  (GH #464) rides here as new surface. Spike round 3 (GH #462, open in
+  this milestone) is the acceptance measurement, run before the tag; until it reports, nothing here claims a
+  catch rate. Sequenced after wire v2 so new envelope fields are settled;
+  every primitive lands in both languages with conformance rows. The
+  `http.py` stdlib-shadow rename (GH #171) once scheduled here moved to the
+  v0.11.2 patch on 2026-09-17: it is a fix, not a feature. The
+  `check_report_format.py` cluster once scheduled here (GH #220–#223: the
+  validator's own four findings) was pulled forward and closed under v0.11.0.
+
+- **v0.13.0 — Explain** (legibility) · *split from v0.12.0 "Refuse and
+  explain" on 2026-09-27 (owner decision).* The runtime explains itself:
+  `explain()` human-readable lineage + Mermaid/DOT (#28 / GH #121),
+  `summarize()` trust summary for artifacts (#29 / GH #122), the canonical
+  JSON serialization convention (#31 / GH #124, pulled forward from v1.0.0
+  after the post-0.11.0 roadmap review because two shipped contracts already
+  commit to a form), the PROV-O mapping (#37 / GH #130, docs rider), and the
+  lineage-growth design pass (GH #302, outcome decides whether it ships here
+  or under v1.0.0). Every primitive lands in both languages with conformance
+  rows.
 
 - **v0.14.0 — Reproducible enforcement** · *split from v0.12.0 on 2026-09-17,
   when that milestone reached thirteen issues; renumbered from v0.13.0 on
@@ -277,13 +278,17 @@ Version themes for the near-term releases, and the GitHub issues under each.
   append-only history enforced in the ratchet and baseline validators
   (GH #394), and the blind-validation harness as a `claude plugin eval` suite
   (GH #291 — gated on Anthropic enabling the feature for this account; the
-  suite can be authored and reviewed before then). Sequenced after v0.13.0 —
+  suite can be authored and reviewed before then). Also here: a contract for
+  the `report.mjs --json` verdict that records which build earned it
+  (GH #448), a mined real-fix tier and a harder planted tier for the release
+  harness (GH #442), and switching off GitHub Pages after 2026-12-23
+  (GH #426). Sequenced after v0.13.0 —
   Explain so the lineage block can reuse any envelope fields
   `explain()`/`summarize()` settle.
 
 - **v1.0.0 — A contract you can build on** (no due date; sequenced after
-  v0.13.0, where its canonical-serialization gate, GH #124, lands; gated on
-  state, not a date).
+  v0.14.0 — its canonical-serialization gate, GH #124, lands in v0.13.0;
+  gated on state, not a date).
 
   **What makes it a major:** not size, and not any particular breaking change
   — SemVer requires neither. It is what the bump *forecloses*. Pre-1.0 the
