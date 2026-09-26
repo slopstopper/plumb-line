@@ -185,8 +185,9 @@ jobs:
           # pytest's -rs line names the file, never the test, so the pattern
           # matches the demo modules by name — all three, present and future —
           # and the ratchet fixture byte checks (#412), whose JS half needs
-          # the fixture toolchain installed above.
-          if grep -qE 'SKIPPED.*(test_[a-z]+_demo|test_ratchet_fixtures)\.py' /tmp/examples-pytest.txt; then
+          # the fixture toolchain installed above, and the fixture load check
+          # (#447), which needs node.
+          if grep -qE 'SKIPPED.*(test_[a-z]+_demo|test_ratchet_fixtures|test_js_fixture_loads)\.py' /tmp/examples-pytest.txt; then
             echo "::error::a must-run examples test skipped in CI — node or the JS fixture toolchain is missing"; exit 1
           fi
       - name: conformance against the plugin-bundled Python copy

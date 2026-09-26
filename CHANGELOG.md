@@ -45,6 +45,14 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `baseline-cases.json` silently ignored all three. They now share the same
   guards (`primitives/conformance/table-guards.mjs` and its Python twin),
   each proven by a test that plants the change. ADR-0018 records it.
+- **The JS example fixtures load under Node**
+  ([#447](https://github.com/slopstopper/plumb-line/issues/447)).
+  `js-payments-service` and `ratchet-adoption-js` declared CommonJS over ESM
+  sources, so `node` could not load any of their files; ESLint parses them as
+  modules, which is why the lints and CI never noticed. Both now declare
+  `"type": "module"`, and a new check imports every `src/**/*.js` file of
+  each JS fixture under Node, fails on a fixture laid out any other way, and
+  must run in CI. No planted violation or answer key changed.
 
 ## [0.11.3] — 2026-09-25
 
