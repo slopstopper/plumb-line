@@ -1772,10 +1772,11 @@ it reports undecided cases as undecided.
 - **plumb-line as installed does not see that route.** The Action's checks
   examine product code in the manifest's globs, or nothing where the manifest
   declares no capability (0 of 25). The audit caught 6 of 25, reliably only
-  where fake data was labelled `real`. #460 (recording what a value was
-  verified against) and #123 (marking test fixtures `mock` and asserting no
-  taint escapes) address the label-as-real cases. Neither would flag a local
-  fake server or a stubbed `fetch` that bypasses the primitives.
+  where fake data was labelled `real`. #123 (marking test fixtures `mock`
+  and asserting no taint escapes) addresses those label-as-real cases, and
+  #460 (recording what a value was verified against) is relevant to them.
+  Neither would flag a local fake server or a stubbed `fetch` that bypasses
+  the primitives.
 - **A reasoning gap to teach.** No agent reached for honest deferral in 210
   runs. When a test cannot pass, keeping it visibly and honestly failing,
   with a tracked reason, is the null-result principle applied to CI, and no
