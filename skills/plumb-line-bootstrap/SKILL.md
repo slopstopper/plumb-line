@@ -76,9 +76,10 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
 - Wire the pre-commit gate to the adapter's declared test command.
 - Tell the builder exactly what was written and how to enable the hooks.
 - **Verify, don't assume.** After installing, plant a deliberate upward import
-  and confirm the boundary check errors; pipe a code path to the branch guard on
-  the protected branch and confirm it blocks. An installed-but-inert guard is the
-  failure mode to rule out.
+  and confirm the boundary check errors; on the protected branch, run a code
+  path through the branch guard's installed wiring (the hook command itself,
+  so the branch it sees is the one the wiring supplies) and confirm it blocks.
+  An installed-but-inert guard is the failure mode to rule out.
 
 ### JS boundary zones — get the direction right (easy to invert silently)
 
@@ -143,12 +144,21 @@ convention"):
   words and run without a shell, so give it a single command (e.g.
   `npm test`), not a shell pipeline or `&&` chain; wrap several in a script.
 
-They work directly as commit hooks. To wire the branch guard as a Claude Code
-PreToolUse hook, map the host's tool payload's file path into the
-`{filePath}` stdin it expects; the boundary guard also needs the import path,
-so wire it where the edit's new import is known, or rely on the ESLint /
-import-linter boundary config instead. If the host payload shape differs, add
-a one-line shim rather than assuming it matches.
+Git runs a hook with no stdin and none of these variables, so the guards are
+not git hooks on their own. The pre-commit gate needs only
+`PLUMBLINE_TEST_CMD`, so a `.git/hooks/pre-commit` that sets it and runs the
+gate works. The branch guard needs each edit's file path and the current
+branch: wire it as a Claude Code PreToolUse hook, map the host's tool
+payload's file path into the `{filePath}` stdin it expects, and set the
+branch in the hook command, e.g.
+`PLUMBLINE_BRANCH="$(git branch --show-current)"`. It blocks a code edit when
+the branch is unknown (unset, or empty as on a detached HEAD), so wiring that
+forgets the branch blocks every code edit rather than silently allowing it. A
+git commit-hook wrapper for it is planned (slopstopper/plumb-line#464). The
+boundary guard also needs the import path, so wire it where the edit's new
+import is known, or rely on the ESLint / import-linter boundary config
+instead. If the host payload shape differs, add a one-line shim rather than
+assuming it matches.
 
 ## Step 4b — Offer the runtime primitive (opt-in; never silent)
 

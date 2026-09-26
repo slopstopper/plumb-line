@@ -135,7 +135,10 @@ _BRANCH_GUARD = os.path.join(os.path.dirname(__file__), "branch_guard.py")
 def _run_branch_guard(payload, branch, cfg=None):
     import json
     import subprocess
-    env = dict(os.environ, PLUMBLINE_BRANCH=branch)
+    env = dict(os.environ)
+    env.pop("PLUMBLINE_BRANCH", None)
+    if branch is not None:
+        env["PLUMBLINE_BRANCH"] = branch
     env.pop("PLUMBLINE_CFG", None)
     if cfg is not None:
         env["PLUMBLINE_CFG"] = json.dumps(cfg)
@@ -163,3 +166,39 @@ def test_branch_guard_cli_accepts_snake_case_cfg():
 
 def test_branch_guard_cli_allows_a_feature_branch():
     assert _run_branch_guard({"filePath": "src/app.py"}, "feature/x").returncode == 0
+
+
+# --- #449: "branch unknown" is an inconclusive result, never a pass. A code
+# edit's answer depends on the branch, so it blocks; a docs-allowlisted edit is
+# allowed on every branch, so it stays allowed. Until 0.11.4 an unset
+# PLUMBLINE_BRANCH read as "not a protected branch" and exited 0.
+
+@pytest.mark.parametrize("branch", [None, "", "  "])
+def test_branch_blocks_code_when_the_branch_is_unknown(branch):
+    r = branch_guard.decide(file_path="src/app.py", branch=branch, **CFG)
+    assert r["allow"] is False and "branch unknown" in r["reason"]
+
+
+def test_branch_allows_docs_when_the_branch_is_unknown():
+    assert branch_guard.decide(file_path="docs/x.md", branch=None, **CFG)["allow"] is True
+
+
+def test_branch_blocks_an_upward_escape_when_the_branch_is_unknown():
+    r = branch_guard.decide(file_path="../docs/x.md", branch="", **CFG)
+    assert r["allow"] is False and "branch unknown" in r["reason"]
+
+
+def test_branch_guard_cli_blocks_code_when_the_branch_is_unset():
+    r = _run_branch_guard({"filePath": "src/app.py"}, None)
+    assert r.returncode == 2 and "branch unknown" in r.stderr
+
+
+def test_branch_guard_cli_blocks_code_when_the_branch_is_empty():
+    # `git branch --show-current` prints nothing on a detached HEAD.
+    assert _run_branch_guard({"filePath": "src/app.py"}, "").returncode == 2
+
+
+def test_branch_guard_cli_allows_docs_when_the_branch_is_unset():
+    r = _run_branch_guard({"filePath": "docs/x.md"}, None,
+                          {"protectedBranches": ["main"], "docsAllowlist": ["docs/"]})
+    assert r.returncode == 0, r.stderr

@@ -30,18 +30,30 @@ def _matches_allowlist_entry(normalized_candidate, entry):
     return normalized_candidate == normalized_entry
 
 
+def _blocked(file_path, branch, unknown):
+    if unknown:
+        return {"allow": False,
+                "reason": f"blocked: code edit to {file_path} with the branch unknown "
+                          "(PLUMBLINE_BRANCH is unset or empty). Set it to the current branch."}
+    return {"allow": False,
+            "reason": f"blocked: code edit to {file_path} on protected branch {branch}. Branch first."}
+
+
 def decide(file_path, branch, protected_branches=("main",), docs_allowlist=()):
-    if branch not in protected_branches:
+    # An unknown branch (unset, or empty as on a detached HEAD) is an
+    # inconclusive result, never a pass (#449): judge the edit as if the
+    # branch were protected, so only an edit allowed on every branch passes.
+    unknown = branch is None or not str(branch).strip()
+    if not unknown and branch not in protected_branches:
         return {"allow": True, "reason": "not a protected branch"}
     # Normalize candidate first; an upward-escaping path is never a docs match.
     normalized_candidate = _normalize_path(file_path)
     if normalized_candidate.startswith(".."):
-        return {"allow": False,
-                "reason": f"blocked: code edit to {file_path} on protected branch {branch}. Branch first."}
+        return _blocked(file_path, branch, unknown)
     if any(_matches_allowlist_entry(normalized_candidate, entry) for entry in docs_allowlist):
-        return {"allow": True, "reason": "docs edit allowed on protected branch"}
-    return {"allow": False,
-            "reason": f"blocked: code edit to {file_path} on protected branch {branch}. Branch first."}
+        return {"allow": True, "reason": "docs edit allowed on any branch" if unknown
+                else "docs edit allowed on protected branch"}
+    return _blocked(file_path, branch, unknown)
 
 
 # CLI, the hook I/O contract (adapter-contract.md): `{ "filePath": ... }` on

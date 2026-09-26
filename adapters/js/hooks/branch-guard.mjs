@@ -37,32 +37,44 @@ function matchesAllowlistEntry(normalizedCandidate, entry) {
   return normalizedCandidate === normalizedEntry;
 }
 
+function blocked(filePath, branch, unknown) {
+  return {
+    allow: false,
+    reason: unknown
+      ? `blocked: code edit to ${filePath} with the branch unknown (PLUMBLINE_BRANCH is unset or empty). Set it to the current branch.`
+      : `blocked: code edit to ${filePath} on protected branch ${branch}. Branch first.`,
+  };
+}
+
 export function decide({
   filePath,
   branch,
   protectedBranches = ["main"],
   docsAllowlist = [],
 }) {
-  if (!protectedBranches.includes(branch)) {
+  // An unknown branch (unset, or empty as on a detached HEAD) is an
+  // inconclusive result, never a pass (#449): judge the edit as if the branch
+  // were protected, so only an edit allowed on every branch passes.
+  const unknown = branch == null || String(branch).trim() === "";
+  if (!unknown && !protectedBranches.includes(branch)) {
     return { allow: true, reason: "not a protected branch" };
   }
   // Normalize candidate first; an upward-escaping path is never a docs match.
   const normalizedCandidate = normalizePath(filePath);
   if (normalizedCandidate.startsWith("..")) {
-    return {
-      allow: false,
-      reason: `blocked: code edit to ${filePath} on protected branch ${branch}. Branch first.`,
-    };
+    return blocked(filePath, branch, unknown);
   }
   const isDocs = docsAllowlist.some((entry) =>
     matchesAllowlistEntry(normalizedCandidate, entry),
   );
   if (isDocs)
-    return { allow: true, reason: "docs edit allowed on protected branch" };
-  return {
-    allow: false,
-    reason: `blocked: code edit to ${filePath} on protected branch ${branch}. Branch first.`,
-  };
+    return {
+      allow: true,
+      reason: unknown
+        ? "docs edit allowed on any branch"
+        : "docs edit allowed on protected branch",
+    };
+  return blocked(filePath, branch, unknown);
 }
 
 /**

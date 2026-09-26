@@ -100,5 +100,6 @@ these files into the target repo.
   - `pre-commit-gate`: no stdin; reads the test command from `PLUMBLINE_TEST_CMD`.
 - The branch from `PLUMBLINE_BRANCH` and config from `PLUMBLINE_CFG` (JSON) are read from the environment.
 - Exit 0 = allow. Exit non-zero with a message on stderr = block.
-- The scripts work directly as git hooks. When wiring as a Claude Code PreToolUse hook, map the host tool payload's file path into the `{filePath}` the guard reads — add a one-line shim if the host payload shape differs rather than assuming it matches.
+- The branch guard treats an unset or empty `PLUMBLINE_BRANCH` as unknown (#449): a code edit blocks, and a docs-allowlisted edit is allowed, as it is on every branch. An unknown branch is an inconclusive result, never a pass.
+- Git runs a hook with no stdin and none of these variables, so the scripts are not git hooks on their own. The pre-commit gate works from a `.git/hooks/pre-commit` that sets `PLUMBLINE_TEST_CMD`; a git-hook wrapper for the branch guard is planned (#464). When wiring as a Claude Code PreToolUse hook, map the host tool payload's file path into the `{filePath}` the guard reads and set the branch in the hook command (e.g. `PLUMBLINE_BRANCH="$(git branch --show-current)"`) — add a one-line shim if the host payload shape differs rather than assuming it matches.
 - A script's CLI entry point resolves symlinks before deciding whether it is the process entry (so it still runs when invoked via a symlinked path, e.g. macOS `/tmp`).

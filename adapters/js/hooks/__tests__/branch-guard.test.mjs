@@ -9,6 +9,28 @@ const cfg = {
 };
 
 describe("branch-guard decide", () => {
+  // #449: "branch unknown" is an inconclusive result, never a pass. A code
+  // edit's answer depends on the branch, so it blocks; a docs-allowlisted edit
+  // is allowed on every branch, so it stays allowed.
+  for (const branch of [undefined, null, "", "  "]) {
+    it(`blocks a code edit when the branch is unknown (${JSON.stringify(branch)})`, () => {
+      const r = decide({ filePath: "src/app.js", branch, ...cfg });
+      expect(r.allow).toBe(false);
+      expect(r.reason).toMatch(/branch unknown/i);
+    });
+  }
+
+  it("allows a docs edit when the branch is unknown", () => {
+    const r = decide({ filePath: "docs/x.md", branch: undefined, ...cfg });
+    expect(r.allow).toBe(true);
+  });
+
+  it("blocks an upward-escaping path when the branch is unknown", () => {
+    const r = decide({ filePath: "../docs/x.md", branch: "", ...cfg });
+    expect(r.allow).toBe(false);
+    expect(r.reason).toMatch(/branch unknown/i);
+  });
+
   it("blocks a code edit on a protected branch", () => {
     const r = decide({ filePath: "src/app.js", branch: "main", ...cfg });
     expect(r.allow).toBe(false);
@@ -99,13 +121,15 @@ describe("branch-guard CLI", () => {
   const guardPath = fileURLToPath(
     new URL("../branch-guard.mjs", import.meta.url),
   );
-  function runCli(filePath) {
+  function runCli(filePath, branch = "main") {
+    const env = { ...process.env };
+    delete env.PLUMBLINE_BRANCH;
+    if (branch !== null) env.PLUMBLINE_BRANCH = branch; // null = unset
     return spawnSync("node", [guardPath], {
       input: JSON.stringify({ filePath }),
       encoding: "utf8",
       env: {
-        ...process.env,
-        PLUMBLINE_BRANCH: "main",
+        ...env,
         PLUMBLINE_CFG: JSON.stringify({
           protectedBranches: ["main"],
           docsAllowlist: ["docs/", "README.md"],
@@ -123,5 +147,20 @@ describe("branch-guard CLI", () => {
   it("allows a docs edit with exit code 0 when invoked as a CLI hook", () => {
     const r = runCli("docs/x.md");
     expect(r.status).toBe(0);
+  });
+
+  // #449: until 0.11.4 an unset PLUMBLINE_BRANCH exited 0 on every edit.
+  it("blocks a code edit with exit code 2 when PLUMBLINE_BRANCH is unset", () => {
+    const r = runCli("src/app.js", null);
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/branch unknown/i);
+  });
+
+  it("blocks a code edit when PLUMBLINE_BRANCH is empty (a detached HEAD)", () => {
+    expect(runCli("src/app.js", "").status).toBe(2);
+  });
+
+  it("allows a docs edit when PLUMBLINE_BRANCH is unset", () => {
+    expect(runCli("docs/x.md", null).status).toBe(0);
   });
 });
