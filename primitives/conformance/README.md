@@ -21,6 +21,15 @@ cannot read `cases.json` differently. It reports any case field it does not
 interpret as a failure; so do both Python runners. A new field in `cases.json`
 therefore fails every runner until each is taught to read it.
 
+The other two case tables, `http-cases.json` and `baseline-cases.json`, are
+read by the ordinary test suites (`js/http.test.mjs` and
+`python/tests/test_http.py`; `js/baseline.conformance.test.mjs` and
+`python/tests/test_baseline_conformance.py`). They have the same three
+guards: `table-guards.mjs` and its Python twin
+`python/tests/case_table_guards.py` report any case field, case kind or table
+version a runner does not interpret, so a change to either table also fails
+until every runner is taught to read it.
+
 ```bash
 node primitives/conformance/report.mjs          # human report + badge
 node primitives/conformance/report.mjs --badge   # badge markdown only

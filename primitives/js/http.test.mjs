@@ -5,10 +5,43 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseAge, classifyResponse, tagResponse, taggedFetch } from "./http.mjs";
 import { metaOf, unwrap } from "./marked.mjs";
+import { tableProblems } from "../conformance/table-guards.mjs";
 
 const cases = JSON.parse(
   readFileSync(fileURLToPath(new URL("../conformance/http-cases.json", import.meta.url)), "utf8"),
 );
+
+// Every field, case kind and table version this runner interprets (#441), the
+// guards cases.json has had since #369 and #433. Anything else in
+// http-cases.json fails here instead of being ignored. Python twin: _MODEL in
+// primitives/python/tests/test_http.py.
+const MODEL = {
+  versions: [1],
+  meta: ["version"],
+  fields: {
+    classify: ["name", "status", "headers", "fromCache", "expect"],
+    parseAge: ["name", "raw", "expect"],
+  },
+};
+
+describe("http-cases.json — the runner interprets every field, kind and version", () => {
+  it("the shipped table has nothing this runner ignores", () => {
+    expect(tableProblems(cases, MODEL)).toEqual([]);
+  });
+  it("a planted unknown field fails", () => {
+    const t = structuredClone(cases);
+    t.classify[0].surprise = 1;
+    expect(tableProblems(t, MODEL)).toEqual([expect.stringContaining("unknown field(s) surprise")]);
+  });
+  it("a planted unknown kind fails", () => {
+    const t = { ...structuredClone(cases), retry: [] };
+    expect(tableProblems(t, MODEL)).toEqual([expect.stringContaining("unknown case kind retry")]);
+  });
+  it("a planted unknown version fails", () => {
+    const t = { ...structuredClone(cases), version: 2 };
+    expect(tableProblems(t, MODEL)).toEqual([expect.stringContaining("unknown case-table version 2")]);
+  });
+});
 
 describe("classifyResponse — shared fixture", () => {
   for (const c of cases.classify) {

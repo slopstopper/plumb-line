@@ -130,3 +130,16 @@ found one runtime use the first draft missed, now listed).
   only, like the two uses already listed; the published modules still import
   nothing from the consumers layer. Recorded here rather than by editing the
   list, because this record is append-only.
+- **2026-09-26 (#441).** The Maturity item "`planned`: the same three guards
+  for `http-cases.json` and `baseline-cases.json`" is now `current`: each of
+  the four runners fails on a case field, case kind or table version it does
+  not interpret, and each guard is proven by a test that plants one. It
+  brings a fourth primitives-test use of a consumer:
+  `primitives/js/http.test.mjs` and
+  `primitives/js/baseline.conformance.test.mjs` import
+  `primitives/conformance/table-guards.mjs`, the guard helper, as the tests
+  already import `run-cases.mjs`. Test code only; the published modules
+  import nothing from it. The Python runners use
+  `primitives/python/tests/case_table_guards.py`, which sits inside the
+  primitives' own tests. Recorded here rather than by editing the lists,
+  because this record is append-only.

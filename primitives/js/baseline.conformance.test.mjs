@@ -4,9 +4,43 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { compare, summarize, canonicalJson, validateBaseline } from "./baseline.mjs";
+import { tableProblems } from "../conformance/table-guards.mjs";
 
 const cases = JSON.parse(readFileSync(
   fileURLToPath(new URL("../conformance/baseline-cases.json", import.meta.url)), "utf8"));
+
+// Every field, case kind and table version this runner interprets (#441), the
+// guards cases.json has had since #369 and #433. `_expectBytes` is the table's
+// inline note on `expectBytes`, read by people, not runners. Python twin:
+// _MODEL in primitives/python/tests/test_baseline_conformance.py.
+const MODEL = {
+  versions: [1],
+  meta: ["_doc", "version"],
+  fields: {
+    attribute: ["name", "record", "meta", "value", "runningVersion", "expectFindings", "expectSummary"],
+    canonical: ["name", "input", "expect", "expectBytes", "_expectBytes"],
+    validate: ["name", "record", "expectContains"],
+  },
+};
+
+describe("baseline-cases.json — the runner interprets every field, kind and version", () => {
+  it("the shipped table has nothing this runner ignores", () => {
+    expect(tableProblems(cases, MODEL)).toEqual([]);
+  });
+  it("a planted unknown field fails", () => {
+    const t = structuredClone(cases);
+    t.validate[0].surprise = 1;
+    expect(tableProblems(t, MODEL)).toEqual([expect.stringContaining("unknown field(s) surprise")]);
+  });
+  it("a planted unknown kind fails", () => {
+    const t = { ...structuredClone(cases), drift: [] };
+    expect(tableProblems(t, MODEL)).toEqual([expect.stringContaining("unknown case kind drift")]);
+  });
+  it("a planted unknown version fails", () => {
+    const t = { ...structuredClone(cases), version: 2 };
+    expect(tableProblems(t, MODEL)).toEqual([expect.stringContaining("unknown case-table version 2")]);
+  });
+});
 
 describe("baseline conformance — attribute", () => {
   for (const c of cases.attribute) {
