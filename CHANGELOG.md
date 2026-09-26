@@ -10,6 +10,12 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Changed
+- **The plugin's second marketplace entry is checked at every release**
+  ([#453](https://github.com/slopstopper/plumb-line/issues/453)). Users who
+  install `plumb-line@slopstopper` see the entry in `slopstopper/marketplace`,
+  which still described four skills and `plumb-line-method` first. It is
+  corrected to match this repository's manifest in slopstopper/marketplace#2,
+  and `RELEASING.md` step 8 compares the two copies.
 - **CI tests Python 3.14, and the PyPI classifiers list it**
   ([#444](https://github.com/slopstopper/plumb-line/issues/444)).
   `SUPPORT.md` already promised that CI tests the newest released CPython; the
@@ -65,6 +71,21 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   now exits 2 with its reason, in the same words in both twins. The boundary
   guard's exit 1 on unreadable input (#471) and the twins' different command
   splitting (#472) are filed.
+- **Every conformance table now fails on what its runners do not read**
+  ([#441](https://github.com/slopstopper/plumb-line/issues/441)).
+  `cases.json`'s runners already failed on an unknown case field, case kind
+  or table version (#369, #433); the four runners of `http-cases.json` and
+  `baseline-cases.json` silently ignored all three. They now share the same
+  guards (`primitives/conformance/table-guards.mjs` and its Python twin),
+  each proven by a test that plants the change. ADR-0018 records it.
+- **The JS example fixtures load under Node**
+  ([#447](https://github.com/slopstopper/plumb-line/issues/447)).
+  `js-payments-service` and `ratchet-adoption-js` declared CommonJS over ESM
+  sources, so `node` could not load any of their files; ESLint parses them as
+  modules, which is why the lints and CI never noticed. Both now declare
+  `"type": "module"`, and a new check imports every `src/**/*.js` file of
+  each JS fixture under Node, fails on a fixture laid out any other way, and
+  must run in CI. No planted violation or answer key changed.
 
 ## [0.11.3] — 2026-09-25
 
