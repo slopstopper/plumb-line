@@ -202,7 +202,7 @@ jobs:
         # suite's sys.path put primitives/python/http.py ahead of the stdlib.
         run: |
           set -o pipefail
-          python -m pytest -q -rs scripts/test_version_prose.py scripts/test_report_format.py scripts/test_fit_map_snippets.py scripts/test_content_language.py scripts/test_trigger_check.py scripts/test_constraints_canonical.py scripts/test_constraints_drift.py scripts/test_bundle_sync.py scripts/test_baseline_roundtrip.py scripts/test_enforcement_manifest.py scripts/test_spec_step_id.py scripts/test_package_pages.py scripts/test_skill_facts.py scripts/test_api_reference.py | tee /tmp/scripts-pytest.txt
+          python -m pytest -q -rs scripts/test_version_prose.py scripts/test_report_format.py scripts/test_fit_map_snippets.py scripts/test_content_language.py scripts/test_trigger_check.py scripts/test_constraints_canonical.py scripts/test_constraints_drift.py scripts/test_bundle_sync.py scripts/test_baseline_roundtrip.py scripts/test_enforcement_manifest.py scripts/test_spec_step_id.py scripts/test_package_pages.py scripts/test_skill_facts.py scripts/test_api_reference.py scripts/test_release_notes.py | tee /tmp/scripts-pytest.txt
           if grep -q 'SKIPPED.*test_fit_map_snippets\.py' /tmp/scripts-pytest.txt; then
             echo "::error::a fit-map snippet test skipped in CI — requests/pandas missing, or the stdlib http is shadowed again (#171)"; exit 1
           fi

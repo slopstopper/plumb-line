@@ -96,15 +96,27 @@ jobs:
         with:
           packages-dir: primitives/python/dist
 
-      # --- GitHub release with auto-generated notes. Idempotent: if the tag was
-      #     pushed by publishing a release in the GitHub UI (the no-terminal
-      #     route), the release already exists — don't fail, just leave it. ---
+      # --- GitHub release with auto-generated notes. A write-up merged with
+      #     the release PR is approved (docs/content/TEMPLATE.md), so it goes
+      #     above the generated notes, links made absolute at the tag (#480).
+      #     Idempotent: if the tag was pushed by publishing a release in the
+      #     GitHub UI (the no-terminal route), the release already exists; it
+      #     gets the write-up on top if it does not carry it yet. ---
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          NOTES="$RUNNER_TEMP/notes.md"
+          python scripts/release_notes.py "${GITHUB_REF_NAME#v}" --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" --out "$NOTES"
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            echo "Release $GITHUB_REF_NAME already exists (created in the UI) — leaving it as-is."
+            echo "Release $GITHUB_REF_NAME already exists (created in the UI)."
+            if [ -s "$NOTES" ] && ! gh release view "$GITHUB_REF_NAME" --json body --jq .body | grep -qF "Canonical copy:"; then
+              { cat "$NOTES"; echo; gh release view "$GITHUB_REF_NAME" --json body --jq .body; } > "$RUNNER_TEMP/combined.md"
+              gh release edit "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/combined.md"
+              echo "Added the write-up to the top of the existing release."
+            fi
+          elif [ -s "$NOTES" ]; then
+            gh release create "$GITHUB_REF_NAME" --generate-notes --notes-file "$NOTES" --title "plumb-line $GITHUB_REF_NAME"
           else
             gh release create "$GITHUB_REF_NAME" --generate-notes --title "plumb-line $GITHUB_REF_NAME"
           fi
@@ -122,7 +134,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TITLE="Content draft due: $GITHUB_REF_NAME"
-          if gh issue list --repo "$GITHUB_REPOSITORY" --search "in:title \"$TITLE\"" --state all --json number --jq 'length' | grep -qv '^0$'; then
+          if [ -s "$RUNNER_TEMP/notes.md" ]; then
+            echo "The write-up shipped with the release (#480) — no draft is due."
+          elif gh issue list --repo "$GITHUB_REPOSITORY" --search "in:title \"$TITLE\"" --state all --json number --jq 'length' | grep -qv '^0$'; then
             echo "Draft-due issue already exists for $GITHUB_REF_NAME — leaving it."
           else
             gh issue create \
