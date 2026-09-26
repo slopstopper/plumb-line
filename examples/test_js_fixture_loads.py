@@ -18,11 +18,17 @@ import pytest
 
 EXAMPLES = Path(__file__).resolve().parent
 SOURCES = sorted(p for p in EXAMPLES.glob("*/*/src/**/*.js") if "node_modules" not in p.parts)
+TREES = sorted(p.parent for p in EXAMPLES.glob("*/*/package.json"))
 
 
-def test_the_fixture_sources_are_found():
-    trees = {p.relative_to(EXAMPLES).parts[0] for p in SOURCES}
-    assert {"js-payments-service", "ratchet-adoption-js"} <= trees, trees
+def test_every_js_fixture_tree_has_its_sources_found():
+    # The load check reads `<fixture>/<tree>/src/**/*.js`. A JS fixture laid out
+    # any other way would otherwise go unchecked without a word.
+    found = {p.relative_to(EXAMPLES).parts[:2] for p in SOURCES}
+    trees = [t.relative_to(EXAMPLES).parts for t in TREES]
+    assert {"js-payments-service", "ratchet-adoption-js"} <= {t[0] for t in trees}, trees
+    missing = ["/".join(t) for t in trees if t not in found]
+    assert not missing, f"JS fixture trees with no src/**/*.js for the load check: {missing}"
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")

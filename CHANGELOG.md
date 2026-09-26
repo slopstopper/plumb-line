@@ -43,8 +43,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `js-payments-service` and `ratchet-adoption-js` declared CommonJS over ESM
   sources, so `node` could not load any of their files; ESLint parses them as
   modules, which is why the lints and CI never noticed. Both now declare
-  `"type": "module"`, and a new check imports every fixture source under Node
-  and must run in CI. No planted violation or answer key changed.
+  `"type": "module"`, and a new check imports every `src/**/*.js` file of
+  each JS fixture under Node, fails on a fixture laid out any other way, and
+  must run in CI. No planted violation or answer key changed.
 
 ## [0.11.3] — 2026-09-25
 
