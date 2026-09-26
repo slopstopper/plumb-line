@@ -56,6 +56,13 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   2 is what blocks. The JS twin no longer reads config keys from stdin, only
   from `PLUMBLINE_CFG`, as the contract and the Python twin already did.
   ADR-0003 is amended to match.
+- **The pre-commit gate blocks when it cannot run the tests**
+  ([#467](https://github.com/slopstopper/plumb-line/issues/467)). With
+  `PLUMBLINE_TEST_CMD` unset both twins exited 1, and the Python twin crashed
+  with exit 1 on a blank or unparseable command or one that could not be
+  started. Git treats any non-zero exit as a block, but a Claude Code hook
+  blocks only on exit 2, so wired there the commit went ahead. Every such case
+  now exits 2 with its reason.
 
 ## [0.11.3] — 2026-09-25
 

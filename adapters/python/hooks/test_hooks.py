@@ -249,3 +249,36 @@ def test_branch_guard_cli_exits_2_on_a_null_file_path():
 def test_branch_guard_cli_exits_2_on_stdin_that_is_not_json():
     r = _run_branch_guard_raw("not json")
     assert r.returncode == 2 and "branch guard" in r.stderr
+
+# --- #467: a Claude Code hook treats only exit 2 as a block; exit 1 lets the
+# action through. Every way the gate cannot run the tests must exit 2.
+
+_GATE = os.path.join(os.path.dirname(__file__), "pre_commit_gate.py")
+
+
+def _run_gate(cmd):
+    import subprocess
+    env = dict(os.environ)
+    env.pop("PLUMBLINE_TEST_CMD", None)
+    if cmd is not None:
+        env["PLUMBLINE_TEST_CMD"] = cmd
+    return subprocess.run([sys.executable, _GATE], capture_output=True, text=True, env=env)
+
+
+def test_gate_cli_exits_2_when_the_test_command_is_unset():
+    r = _run_gate(None)
+    assert r.returncode == 2 and "PLUMBLINE_TEST_CMD" in r.stderr
+
+
+@pytest.mark.parametrize("cmd", ["   ", "plumb-line-no-such-command-467", "echo 'unbalanced"])
+def test_gate_cli_exits_2_when_the_command_cannot_be_run(cmd):
+    r = _run_gate(cmd)
+    assert r.returncode == 2, r.stderr
+
+
+def test_gate_cli_exits_2_when_the_command_fails():
+    assert _run_gate(f"{sys.executable} -c 'raise SystemExit(3)'").returncode == 2
+
+
+def test_gate_cli_exits_0_when_the_command_passes():
+    assert _run_gate(f"{sys.executable} -c 'raise SystemExit(0)'").returncode == 0
