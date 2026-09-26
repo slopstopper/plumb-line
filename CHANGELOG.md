@@ -13,8 +13,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 - **The plugin's second marketplace entry is checked at every release**
   ([#453](https://github.com/slopstopper/plumb-line/issues/453)). Users who
   install `plumb-line@slopstopper` see the entry in `slopstopper/marketplace`,
-  which still described four skills and `plumb-line-method` first; it now
-  matches this repository's manifest (slopstopper/marketplace#2), and
+  which still described four skills and `plumb-line-method` first. It is
+  corrected to match this repository's manifest in slopstopper/marketplace#2,
+  and
   `RELEASING.md` step 8 compares the two copies.
 - **CI tests Python 3.14, and the PyPI classifiers list it**
   ([#444](https://github.com/slopstopper/plumb-line/issues/444)).

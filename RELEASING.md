@@ -104,11 +104,11 @@ fix-only release is a patch.
 
    Then check the second copy. Users who install `plumb-line@slopstopper` see
    the plumb-line entry in `slopstopper/marketplace`, a separate copy of this
-   repository's manifest entry. Its `description` in `.claude-plugin/marketplace.json` must match
-   this repository's word for word, and the plumb-line row of its README's
-   status table names the current minor series (`v0.N.x`). Open a PR there if
-   either has drifted; it once still described four skills and
-   `plumb-line-method` first
+   repository's manifest entry. Its `description` in
+   `.claude-plugin/marketplace.json` must match this repository's word for
+   word, and the plumb-line row of its README's status table names the
+   current minor series (`v0.N.x`). Open a PR there if either has drifted; it
+   once still described four skills and `plumb-line-method` first
    ([#453](https://github.com/slopstopper/plumb-line/issues/453)).
 
 ## Releasing without a terminal
