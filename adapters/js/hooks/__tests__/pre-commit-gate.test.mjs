@@ -56,8 +56,10 @@ describe("pre-commit-gate CLI", () => {
     expect(runGate("   ").status).toBe(2);
   });
 
-  it("exits 2 when the command cannot be started", () => {
-    expect(runGate("plumb-line-no-such-command-467").status).toBe(2);
+  it("exits 2 when the command cannot be started, and says so as the Python twin does", () => {
+    const r = runGate("plumb-line-no-such-command-467");
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/could not be run/);
   });
 
   it("exits 2 when the command fails", () => {

@@ -43,7 +43,11 @@ if (isMainModule()) {
       r = await decide({
         runners: [{
           name: cmd,
-          fn: () => spawnSync(prog, args, { stdio: "inherit" }).status === 0,
+          fn: () => {
+            const res = spawnSync(prog, args, { stdio: "inherit" });
+            if (res.error) throw res.error; // not started: say so, as the Python twin does
+            return res.status === 0;
+          },
         }],
       });
     } catch (e) {

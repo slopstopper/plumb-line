@@ -56,5 +56,6 @@ stderr = block) so the same script works as a git hook and a Claude Code hook.
   (`adapters/adapter-contract.md`), with the pre-commit gate's exit 1 on an
   unset test command tracked as #467. The rest of the decision stands.
 - **2026-09-26 (#467).** The pre-commit gate now exits 2 when its test
-  command is unset, blank or cannot be run, so every guard's failures exit 2
-  and the convention above holds for all three.
+  command is unset, blank or cannot be run, as the branch guard does on input
+  it cannot read. The boundary guard still exits 1 on input it cannot read
+  (#471), so the convention does not yet hold for all three.

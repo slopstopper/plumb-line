@@ -62,7 +62,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   with exit 1 on a blank or unparseable command or one that could not be
   started. Git treats any non-zero exit as a block, but a Claude Code hook
   blocks only on exit 2, so wired there the commit went ahead. Every such case
-  now exits 2 with its reason.
+  now exits 2 with its reason, in the same words in both twins. The boundary
+  guard's exit 1 on unreadable input (#471) and the twins' different command
+  splitting (#472) are filed.
 
 ## [0.11.3] — 2026-09-25
 

@@ -276,6 +276,10 @@ def test_gate_cli_exits_2_when_the_command_cannot_be_run(cmd):
     assert r.returncode == 2, r.stderr
 
 
+def test_gate_cli_says_a_command_that_cannot_start_could_not_be_run():
+    assert "could not be run" in _run_gate("plumb-line-no-such-command-467").stderr
+
+
 def test_gate_cli_exits_2_when_the_command_fails():
     assert _run_gate(f"{sys.executable} -c 'raise SystemExit(3)'").returncode == 2
 
