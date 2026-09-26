@@ -59,6 +59,11 @@ def test_titled_and_reference_style_links_become_absolute_too():
     assert f"[ref]: {URL}/docs/dogfood.md" in out
 
 
+def test_footnotes_and_angle_bracket_targets_are_left_alone():
+    text = "[^1]: See the log for details.\n\n[a]: <../x.md>\n"
+    assert rn.absolute_links(text, REPO, "v9.9.9", "docs/content/x.md") == text
+
+
 def test_a_link_that_escapes_the_repository_is_an_error():
     with pytest.raises(SystemExit, match="escapes the repository"):
         rn.absolute_links("[x](../../../outside.md)", REPO, "v9.9.9", "docs/content/x.md")

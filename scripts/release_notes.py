@@ -18,7 +18,8 @@ import sys
 from pathlib import Path
 
 _LINK = re.compile(r'\]\(([^)\s]+)(\s+"[^"]*")?\)')       # [text](target "optional title")
-_REF = re.compile(r"^(\s*\[[^\]]+\]:\s+)(\S+)", re.MULTILINE)  # [label]: target
+# [label]: target — not a footnote ([^1]: text) and not an <angle-bracket> target
+_REF = re.compile(r"^(\s*\[[^\]^][^\]]*\]:\s+)([^\s<]\S*)", re.MULTILINE)
 _EXTERNAL = ("http://", "https://", "#", "mailto:")
 
 
