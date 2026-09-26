@@ -37,6 +37,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the report lists, all of which the user reports implementing, and what
   that does not show (recall, or anything about the current version).
 
+### Fixed
+- **The JS example fixtures load under Node**
+  ([#447](https://github.com/slopstopper/plumb-line/issues/447)).
+  `js-payments-service` and `ratchet-adoption-js` declared CommonJS over ESM
+  sources, so `node` could not load any of their files; ESLint parses them as
+  modules, which is why the lints and CI never noticed. Both now declare
+  `"type": "module"`, and a new check imports every `src/**/*.js` file of
+  each JS fixture under Node, fails on a fixture laid out any other way, and
+  must run in CI. No planted violation or answer key changed.
+
 ## [0.11.3] — 2026-09-25
 
 ### Changed

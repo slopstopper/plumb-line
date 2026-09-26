@@ -201,6 +201,7 @@ def test_examples_step_fails_on_skipped_must_run_tests():
     assert "-rs" in step and "set -o pipefail" in step
     guard = _SKIP_GUARD.search(step)
     assert guard and "test_ratchet_fixtures" in guard.group(1) and "_demo" in guard.group(1)
+    assert "test_js_fixture_loads" in guard.group(1), "the fixture load check (#447) must not skip in CI"
     assert "::error::" in step
 
 
