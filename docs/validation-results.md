@@ -1462,3 +1462,81 @@ the boundary lint still flags only the planted `data → ui` import in
 load, so smoke-loading an edit no longer needs a shim. A new check,
 `examples/test_js_fixture_loads.py`, imports every JS fixture source under
 Node, and CI fails if it skips.
+
+## v0.11.4 release-harness record — 2026-09-26 (pre-tag)
+
+Method-surface diff since v0.11.3: milestone v0.11.4 (#441, #444, #447, #449,
+#453, #467). That covers the case-table guards for `http-cases.json` and
+`baseline-cases.json` and their four runners, the branch guard and
+pre-commit gate CLIs in both languages, the bootstrap skill's hook wiring
+text, the adapter contract, and the #444 documentation fixes in
+`primitives/`. **Part 1b did not run**: `skills/plumb-line-remediate/SKILL.md`
+did not change. Run at `3e9bb9a` (main after PR #473), before the bump
+commit. This is the first run on the `js-payments-service` fixture as
+changed by #447 (recorded above); its sources, answer key and planted
+violations are unchanged.
+
+Fixtures were staged answer-stripped (both key files deleted, every
+`violation` line removed, `node_modules` and untracked linter caches left
+out, then checked with `grep -ri violation`). The v0.11.3 run's leftover
+reports were moved out of the staging area first. Seven agents ran on
+Claude Opus 5.5: six blind auditors and one dogfood auditor. Each read the
+worktree's skill directly (plugin root = the worktree) and ran the format
+checker itself, unprompted.
+
+### Part 1 — Blind validation (release-blocking): 6/6 findings PASS
+
+| Run | Planted set | Result |
+| --- | --- | --- |
+| js-broken 1 | P2 rates.js, P5 pricing.js `FEE`, P3 gateway.js — all confirmed violations (16 findings: 9 violations) | PASS |
+| js-broken 2 | same three confirmed (16 findings: 9 violations) | PASS |
+| py-broken 1 | P2 schema.py, P5 `SIGNAL_THRESHOLD`, P8 source.py missing `lineage` — all confirmed (14 findings: 7 violations) | PASS |
+| py-broken 2 | same three confirmed (14 findings: 6 violations) | PASS |
+| js-clean | 0 confirmed violations; 2 needs-review, 3 advisory | PASS |
+| py-clean | 0 confirmed violations; binary engine confidence needs-review; P7/P9 advisory | PASS |
+
+Calibration notes:
+
+- The stub-confidence overwrite in the Python service was again split: a
+  violation in py-broken 1, needs-review in py-broken 2, the same split as
+  v0.11.3. Recorded as variance; no planted violation was missed.
+- The #447 fixture change showed up as intended. The js-clean auditor ran
+  the fixture to confirm a finding (an empty config gives a NaN total still
+  stamped `confidence: 1.0`), which the CommonJS declaration made impossible
+  before. py-broken 2 imported every layer module and confirmed that the
+  planted upward import makes the whole package unimportable (a circular
+  import).
+- Two labelling slips the format checker cannot see, filed as
+  [#477](https://github.com/slopstopper/plumb-line/issues/477): two runs
+  tagged an advisory with P6 where the row concerned P1, P7 or P9, and
+  py-clean credited the owner with declaring `data` as the source-truth
+  layer when the invocation declared none. Neither affects the scored
+  findings.
+
+### Format scoring (tool, not impression) — 6/6 conform
+
+`python3 scripts/check_report_format.py` over the six blind reports:
+`✓ 6 report(s) conform`, exit 0, under `check_report_format v4` (joins
+soft-wrapped prose; models report-format v1/v2/v3, remediation-format v1,
+routing-format v1; ruleset at principles-revision 1). The dogfood report
+also passed. Two auditors failed their own first check and fixed it before
+saving: py-broken 1 on a bare `P1`, py-clean on P4 cited but missing from
+its glossary.
+
+### Part 2 — Dogfood self-audit (non-blocking)
+
+See [`dogfood.md`](dogfood.md), v0.11.4 section — **8 findings: 1
+violation, 7 needs-review**. Three were fixed in place, including the one
+violation: the JS branch guard let a config `branch` or `filePath` key
+override the real ones. Five were deferred
+([#469](https://github.com/slopstopper/plumb-line/issues/469) widened,
+[#474](https://github.com/slopstopper/plumb-line/issues/474),
+[#475](https://github.com/slopstopper/plumb-line/issues/475) for two,
+[#476](https://github.com/slopstopper/plumb-line/issues/476)).
+
+### Deterministic pre-tag checks
+
+`check_report_format` (above); `check_version_prose` clean;
+`check-bundle-sync` in sync; bundle conformance CONFORMANT;
+`check-versions` at the bump (see the release PR). Full suites and the
+Action matrix ran green in CI on PRs #465, #466, #468, #470 and #473.

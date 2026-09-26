@@ -48,7 +48,7 @@ steps:
   - uses: actions/setup-node@<sha>  # v6   (JS consumers)
   - run: npm ci                            # ESLint + the bootstrap-installed rules
   - run: pip install import-linter==2.15   # Python consumers with a boundary contract (the tested version; see Tools)
-  - uses: slopstopper/plumb-line@v0.11.3
+  - uses: slopstopper/plumb-line@v0.11.4
     with:
       fail-on: findings   # or none, for incremental adoption
 ```
