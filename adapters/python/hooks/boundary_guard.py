@@ -6,7 +6,9 @@ import sys
 
 def _layer_of(path, layers):
     for layer in layers:
-        if re.search(rf"(^|/){re.escape(layer)}(/|$)", path):
+        # \Z, not $: $ also matches before a trailing newline, which the JS
+        # twin's search does not (#471 re-review).
+        if re.search(rf"(^|/){re.escape(layer)}(/|\Z)", path):
             return layer
     return None
 
@@ -151,16 +153,23 @@ def _main():
     )
 
 
+def _say(text):
+    """Write a reason to stderr; with stderr closed the exit code still says it."""
+    if sys.stderr is not None:
+        sys.stderr.write(text)
+
+
 if __name__ == "__main__":
     # Reasons are written as UTF-8, as Node writes them, whatever the locale
     # or PYTHONIOENCODING says (#471 review).
-    sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
+    if sys.stderr is not None:  # closed (2>&-): nothing to write to
+        sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
     try:
         r = _main()
     except Exception as e:  # noqa: BLE001 — fail closed on anything
-        sys.stderr.write(f"blocked: the boundary guard could not run ({e}).\n")
+        _say(f"blocked: the boundary guard could not run ({e}).\n")
         sys.exit(2)
     if not r["allow"]:
-        sys.stderr.write(r["reason"] + "\n")
+        _say(r["reason"] + "\n")
         sys.exit(2)
     sys.exit(0)

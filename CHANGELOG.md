@@ -90,7 +90,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   JSON gives one reason, "stdin is not valid JSON", instead of each parser's
   own message, and the branch guard now does the same. The Python twins of
   both guards write their reasons as UTF-8, as Node does, so a non-ASCII path
-  or layer reads the same under any locale, and read a closed stdin as empty.
+  or layer reads the same under any locale (for valid text; a lone surrogate
+  is still escaped differently), and read a closed stdin as empty; a closed
+  stderr does not change the exit code.
   `filePath` is required: missing, empty or not a string
   blocks. `importPath` stays optional: missing or empty, there is nothing to
   judge and the edit is allowed; present but not a string, it blocks. Stdin
@@ -101,14 +103,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `protectedBranches` and `docsAllowlist` are allowed without validation, the
   mirror of the branch guard's rule (#469), and any key neither guard reads
   blocks. Unset, the defaults still apply: no layers, so no import is judged,
-  and direction downward. **Two loosenings**, for a host that treats any
+  and direction downward. **Three loosenings**, for a host that treats any
   non-zero exit as a block: the JS twin with no `layers` configured crashed
   with exit 1 on every input, and now allows an import it cannot judge (no
   layers), as the Python twin did; and the Python twin under a
   `PYTHONIOENCODING` or locale that could not decode a valid non-ASCII path
-  crashed with exit 1, and now judges the path. A layer name of tens of
-  thousands of characters no longer overflows the JS twin's pattern matching,
-  where Python judged it. **Called directly**, the exported `decide()` now
+  crashed with exit 1, and now judges the path; and a layer name of tens of
+  thousands of characters overflowed the JS twin's pattern matching (exit 2,
+  where Python judged it) and is now judged. A path ending in a newline is
+  now read the same way in both twins (Python's `$` matched before it). **Called directly**, the exported `decide()` now
   blocks a missing or empty `filePath` in both twins (Python raised a
   `TypeError` on `None`); it still reads any `direction` other than
   `"downward"` as upward, since only the CLI validates the config.

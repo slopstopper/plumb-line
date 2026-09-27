@@ -224,3 +224,24 @@ def test_boundary_decide_blocks_an_import_path_that_is_not_a_string():
     r = boundary_guard.decide(file_path="src/data/store.py", import_path=7, **LAYERS)
     assert r["allow"] is False
     assert r["reason"].startswith("blocked: importPath must be a string.")
+
+
+# --- #471 re-review: with stderr closed (2>&-), sys.stderr is None. The
+# UTF-8 reconfigure must not crash the hook (exit 1): an allowed edit still
+# exits 0 and a blocked one exits 2, as in the JS twins. The shared table's
+# runners cannot close a stream, so this is spawned through sh here.
+
+@pytest.mark.parametrize("script,stdin,env,code", [
+    ("branch_guard.py", '{"filePath": "src/app.py"}', {"PLUMBLINE_BRANCH": "feature/x"}, 0),
+    ("branch_guard.py", '{"filePath": "src/app.py"}', {"PLUMBLINE_BRANCH": "main"}, 2),
+    ("boundary_guard.py", '{"filePath": "src/ui/x.py"}', {}, 0),
+    ("boundary_guard.py", "not json", {}, 2),
+])
+def test_hooks_exit_the_same_with_stderr_closed(script, stdin, env, code):
+    import subprocess
+    path = os.path.join(os.path.dirname(__file__), script)
+    full_env = {k: v for k, v in os.environ.items() if not k.startswith("PLUMBLINE_")}
+    full_env.update(env)
+    r = subprocess.run(["sh", "-c", '"$0" "$1" 2>&-', sys.executable, path],
+                       input=stdin, text=True, capture_output=False, env=full_env)
+    assert r.returncode == code
