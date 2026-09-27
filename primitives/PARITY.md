@@ -66,7 +66,8 @@ fourth case file, `adapters/hook-cases.json`, with one kind per hook
 with its fix, in v0.11.5 (planned): a quoted `PLUMBLINE_TEST_CMD` (#472), and
 boundary-guard input it cannot read or judge, such as a null `filePath`
 (#471). A few pathological inputs (a `PLUMBLINE_CFG` integer of thousands of
-digits or nested thousands of levels deep, an environment value that is not
+digits or nested about a thousand levels or more, depending on the Python
+version, an environment value that is not
 valid UTF-8) give the same exit 2 in both twins but differently worded
 reasons (found by review, 2026-09-27; not in the table).
 

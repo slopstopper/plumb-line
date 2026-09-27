@@ -35,7 +35,8 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   in JS, and blocked in Python only as a crash; Python also accepted `NaN`,
   which is not JSON.
   Now both accept only a JSON object with the camelCase keys `protectedBranches`
-  and `docsAllowlist`, each an array of strings, and block with a reason naming
+  and `docsAllowlist`, each an array of strings (plus the boundary guard's
+  `layers` and `direction`, see below), and block with a reason naming
   `PLUMBLINE_CFG` otherwise. **A Python config with snake_case keys now blocks
   and must be renamed** (`protected_branches` → `protectedBranches`,
   `docs_allowlist` → `docsAllowlist`); the reason names the key to use. Unset,

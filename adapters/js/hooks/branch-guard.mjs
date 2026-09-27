@@ -139,8 +139,10 @@ function quoteKey(k) {
 
 /**
  * PLUMBLINE_CFG as the config decide() takes, or a reason to block (#469).
- * Unset gives the defaults; set, it must be a JSON object with only the
- * camelCase keys, each an array of strings. Anything else fails closed: an
+ * Unset gives the defaults; set, it must be a JSON object whose own keys are
+ * the camelCase ones, each an array of strings with no empty docsAllowlist
+ * entry, plus the boundary guard's keys, left unchecked (BOUNDARY_KEYS).
+ * Anything else fails closed: an
  * ignored key (a typo, or the snake_case spelling the Python twin used to
  * accept) fell back to protecting only main. Twin of _read_config in
  * branch_guard.py.

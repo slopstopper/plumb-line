@@ -90,8 +90,10 @@ def _reject_constant(name):
 
 def _read_config(raw):
     """PLUMBLINE_CFG as (config, None), or (None, a reason to block) (#469).
-    Unset gives the defaults; set, it must be a JSON object with only the
-    camelCase keys, each an array of strings. Anything else fails closed: an
+    Unset gives the defaults; set, it must be a JSON object whose own keys are
+    the camelCase ones, each an array of strings with no empty docsAllowlist
+    entry, plus the boundary guard's keys, left unchecked (_BOUNDARY_KEYS).
+    Anything else fails closed: an
     ignored key fell back to protecting only main, and a coerced value
     (tuple("main") is its characters) left main unprotected. Twin of
     readConfig in branch-guard.mjs."""
