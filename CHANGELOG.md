@@ -39,8 +39,14 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   already drifted: JS tested empty stdin and Python did not, and Python tested
   a null `filePath` and JS did not. `adapters/adapter-contract.md` now states
   that `Contract version: 1` versions the stdin, environment and exit shape
-  only; a behaviour change that fails closed within it is recorded here, not
-  versioned.
+  only. A behaviour change within that shape, stricter or looser, is recorded
+  here, not versioned, and a change that allows something a guard used to
+  block is named here as a loosening. **The first loosening** is in the
+  branch-guard UTF-8 fix above: the Python twin now allows a valid
+  non-ASCII docs-allowlisted path that it used to block when
+  `PYTHONIOENCODING` or the locale could not decode it, or decoded it
+  differently (for example under `ascii`, or a non-ASCII file entry under
+  `latin-1`).
 
 ## [0.11.4] — 2026-09-26
 
