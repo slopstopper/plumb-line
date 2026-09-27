@@ -86,7 +86,12 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   ignored, so no layers were checked, and any `direction` but `"downward"`
   was read as upward.
   Now every failure exits 2 with a reason starting `blocked:`, in the same
-  words in both twins. `filePath` is required: missing, empty or not a string
+  words in both twins for every case the shared table pins. Stdin that is not
+  JSON gives one reason, "stdin is not valid JSON", instead of each parser's
+  own message, and the branch guard now does the same. The Python twins of
+  both guards write their reasons as UTF-8, as Node does, so a non-ASCII path
+  or layer reads the same under any locale, and read a closed stdin as empty.
+  `filePath` is required: missing, empty or not a string
   blocks. `importPath` stays optional: missing or empty, there is nothing to
   judge and the edit is allowed; present but not a string, it blocks. Stdin
   is strict UTF-8 with a byte-order mark kept, and only JSON whitespace
@@ -98,9 +103,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   blocks. Unset, the defaults still apply: no layers, so no import is judged,
   and direction downward. **Two loosenings**, for a host that treats any
   non-zero exit as a block: the JS twin with no `layers` configured crashed
-  with exit 1 on every input, and now allows, as the Python twin did; and the
-  Python twin under a `PYTHONIOENCODING` or locale that could not decode a
-  valid non-ASCII path crashed with exit 1, and now judges the path.
+  with exit 1 on every input, and now allows an import it cannot judge (no
+  layers), as the Python twin did; and the Python twin under a
+  `PYTHONIOENCODING` or locale that could not decode a valid non-ASCII path
+  crashed with exit 1, and now judges the path. A layer name of tens of
+  thousands of characters no longer overflows the JS twin's pattern matching,
+  where Python judged it. **Called directly**, the exported `decide()` now
+  blocks a missing or empty `filePath` in both twins (Python raised a
+  `TypeError` on `None`); it still reads any `direction` other than
+  `"downward"` as upward, since only the CLI validates the config.
 
 ### Changed
 - **One case table specifies the hook twins' CLIs**

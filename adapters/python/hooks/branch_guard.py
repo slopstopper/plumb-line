@@ -153,9 +153,21 @@ def _read_config(raw):
     return cfg, None
 
 
+def _parse_stdin(raw):
+    """Stdin JSON, or ValueError("stdin is not valid JSON"): one reason in both
+    twins, since each parser's own detail differs (#471 review). NaN and
+    Infinity are refused, as the JS twin's JSON.parse refuses them."""
+    try:
+        return json.loads(raw, parse_constant=_reject_constant)
+    except ValueError:
+        raise ValueError("stdin is not valid JSON") from None
+
+
 def _read_stdin():
     """Stdin as strict UTF-8, whatever the locale or PYTHONIOENCODING says, as
     in the JS twin (#475). A byte-order mark is kept, as the JS twin keeps it."""
+    if sys.stdin is None:  # closed stdin reads as empty, as in the JS twin
+        return ""
     try:
         return sys.stdin.buffer.read().decode("utf-8")
     except UnicodeDecodeError:
@@ -166,7 +178,7 @@ def _main():
     raw = _read_stdin()
     # Empty means JSON whitespace only, as in the JS twin: str.strip() also
     # strips \x1c-\x1f, and JS trim() also strips a byte-order mark.
-    input_data = json.loads(raw) if raw.strip(" \t\n\r") else {}
+    input_data = _parse_stdin(raw) if raw.strip(" \t\n\r") else {}
     cfg, reason = _read_config(os.environ.get("PLUMBLINE_CFG"))
     if reason:
         return {"allow": False, "reason": reason}
@@ -179,6 +191,9 @@ def _main():
 
 
 if __name__ == "__main__":
+    # Reasons are written as UTF-8, as Node writes them, whatever the locale
+    # or PYTHONIOENCODING says (#471 review).
+    sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
     try:
         r = _main()
     except Exception as e:  # noqa: BLE001 — fail closed on anything

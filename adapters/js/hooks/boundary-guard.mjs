@@ -16,15 +16,23 @@ function isMainModule() {
   }
 }
 
-/** Escape a string so it can be used literally inside a RegExp. */
-function escapeRegExp(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/**
+ * True when `layer` occurs in `path` bounded by the start or a "/" on the left
+ * and the end or a "/" on the right. A plain search, not a RegExp: a RegExp
+ * built from a very long layer name hit V8's size limit and blocked where
+ * the Python twin allowed (#471 review).
+ */
+function inPath(path, layer) {
+  for (let i = path.indexOf(layer); i !== -1; i = path.indexOf(layer, i + 1)) {
+    const end = i + layer.length;
+    if ((i === 0 || path[i - 1] === "/") && (end === path.length || path[end] === "/")) return true;
+    if (i === path.length) break;
+  }
+  return false;
 }
 
 function layerOf(path, layers) {
-  return layers.find((l) =>
-    new RegExp(`(^|/)${escapeRegExp(l)}(/|$)`).test(path),
-  );
+  return layers.find((l) => inPath(path, l));
 }
 
 /** The reason for an importPath that is present but not a string (#471).
@@ -186,7 +194,15 @@ if (isMainModule()) {
       }
       // Empty means JSON whitespace only, as in the Python twin: trim() also
       // strips a byte-order mark, and Python's strip() also strips \x1c-\x1f.
-      const parsed = /^[ \t\n\r]*$/.test(raw) ? {} : JSON.parse(raw);
+      let parsed = {};
+      if (!/^[ \t\n\r]*$/.test(raw)) {
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          // One reason in both twins; each parser's own detail differs (#471 review).
+          throw new Error("stdin is not valid JSON");
+        }
+      }
       // Stdin that is not an object has no filePath, so decide() blocks it.
       const input =
         parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
