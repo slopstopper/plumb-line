@@ -414,9 +414,8 @@ Version themes for the near-term releases, and the GitHub issues under each.
 - **Benchmarks** (label `track:benchmarks`; added 2026-09-27, owner decision,
   after the impossible-task spike, GH #462). Measures how much plumb-line
   changes outcomes, not only whether it does. The rules every benchmark here
-  follows (held out from tuning, pre-registered, a no-plumb-line baseline
-  arm, costs reported beside gains, no single score) and the candidate
-  benchmarks are on the umbrella, GH #489. The first external one is
+  follows and the candidate benchmarks are on the umbrella, GH #489. The
+  first external one is
   ImpossibleBench (GH #490), sequenced after spike round 3.
 
 - **Backlog** (unversioned, no issue filed yet). IDE integration (#3); Go and

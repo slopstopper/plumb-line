@@ -54,7 +54,8 @@ change, failing-test-first, DCO sign-off, `CHANGELOG.md` under
 - **`track:*`** (`track:portable`, `track:boundaries`, `track:agent-state`,
   `track:ecosystem`, `track:skills`, `track:runtime`, `track:distribution`,
   `track:benchmarks`) — parallel tracks,
-  deliberately unscheduled. Established by
+  deliberately unscheduled (`track:distribution` is scheduled by bursts, as
+  its label says). Established by
   [#203](https://github.com/slopstopper/plumb-line/pull/203).
 
   **The rule:** every open issue carries *exactly one* of a release
