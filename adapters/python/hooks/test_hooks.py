@@ -89,6 +89,18 @@ def test_pre_commit_blocks_when_there_are_no_runners():
     r = pre_commit_gate.decide(runners=[])
     assert r == {"allow": False, "reason": "pre-commit blocked: no gates configured"}
 
+def test_pre_commit_reads_a_generator_of_runners_lazily_stopping_at_the_first_failure():
+    order = []
+
+    def runners():
+        order.append("y1")
+        yield ("tests", lambda: order.append("tests") or False)
+        order.append("y2")
+        yield ("lint", lambda: True)
+
+    assert pre_commit_gate.decide(runners=runners())["allow"] is False
+    assert order == ["y1", "tests"]
+
 def test_pre_commit_blocks_when_the_runners_are_an_empty_generator():
     r = pre_commit_gate.decide(runners=(x for x in ()))
     assert r == {"allow": False, "reason": "pre-commit blocked: no gates configured"}

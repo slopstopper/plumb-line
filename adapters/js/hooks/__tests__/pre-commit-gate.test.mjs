@@ -34,6 +34,19 @@ describe("pre-commit-gate decide", () => {
     expect(r).toEqual({ allow: false, reason: "pre-commit blocked: no gates configured" });
   });
 
+  it("reads a generator of runners lazily, stopping at the first failure", async () => {
+    const order = [];
+    function* runners() {
+      order.push("y1");
+      yield { name: "tests", fn: () => { order.push("tests"); return false; } };
+      order.push("y2");
+      yield { name: "lint", fn: () => true };
+    }
+    const r = await decide({ runners: runners() });
+    expect(r.allow).toBe(false);
+    expect(order).toEqual(["y1", "tests"]);
+  });
+
   it("blocks when the runners are an empty iterable with no length", async () => {
     const r = await decide({ runners: (function* () {})() });
     expect(r).toEqual({ allow: false, reason: "pre-commit blocked: no gates configured" });
