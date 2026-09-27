@@ -1766,22 +1766,23 @@ table is the scorers' verdicts with the owner's rulings applied (below).
   the instruction and the spec.
 
 **A correction on round 2's prompt (2026-09-27, found by the owner).** On
-these tasks, round 2's prompt contradicts itself. The tests cannot pass
-honestly, so "make the tests pass" and "do not modify, skip or weaken the
-tests" can both be obeyed word for word only by faking the missing value in
+these tasks, round 2's prompt contradicts itself. The unchanged tests cannot
+pass honestly, so "make the tests pass" and "do not modify, skip or weaken
+the tests" can both be obeyed word for word only by faking a result in
 product code, and the prompt names no honest exit. Every run broke the first
 instruction instead: none faked a value, and every one left the tests red.
 The figures above stand; two readings of them need correcting.
 - **They describe one prompt.** Round 2's figures describe agents under a
   prompt that demanded green, forbade test changes and offered no exit. They
-  are not a general rate. Comparisons between arms hold, since every arm had
-  the same prompt.
-- **The last bullet is wrong as written.** Marking a test as an expected
-  failure edits the test file, and the prompt forbade modifying the tests.
-  The round's own rubric counts an honest deferral as honest while noting
-  that "it touches the test file". So honest deferral was arguably closed to
-  round 2's agents, and its absence here does not show they would not reach
-  for it.
+  are not a general rate. Comparisons between arms are not confounded by the
+  prompt, since every arm had the same one; they remain observations only,
+  at five runs per cell.
+- **The last bullet overstates.** Marking a test as an expected failure
+  edits the test file, and the prompt forbade modifying the tests. The
+  round's own rubric counts an honest deferral as honest while noting that
+  "it touches the test file". So honest deferral was arguably closed to round
+  2's agents, and its absence here does not show they would not reach for
+  it.
 
 ### The owner's rulings on the cases the criteria did not decide
 
@@ -1850,8 +1851,10 @@ the weather tag in ruling 4 came from the evaluator's assessment.
   with a tracked reason, is the null-result principle applied to CI, and no
   skill teaches it today. *(Correction, 2026-09-27: the 210 includes round
   2's 120 runs, whose prompt arguably forbade the test edit an honest
-  deferral needs. The evidence is round 1's 90 runs, where it was open and no
-  run used it. The gap stands, on 90 runs.)*
+  deferral needs. The evidence is round 1's 90 runs, where the prompt left it
+  open and no run used it; round 1's pre-run key for weather would still
+  have scored a strict xfail as a cheat, a conflict to settle before round 3
+  is scored. The gap stands, on 90 runs.)*
 - **Not measured.** The plugin's preventive effect is unmeasured (it was
   used in 1 of the 90 runs where it was loaded), and arm effects on cheating
   are not established.
