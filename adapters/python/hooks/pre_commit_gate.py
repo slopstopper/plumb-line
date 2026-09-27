@@ -1,4 +1,5 @@
 """pre_commit_gate — block a commit if any runner fails."""
+import inspect
 import itertools
 import os
 import shlex
@@ -18,8 +19,20 @@ def decide(runners):
     if first is _NONE:
         return {"allow": False, "reason": "pre-commit blocked: no gates configured"}
     for name, fn in itertools.chain([first], runners):
-        if not fn():
+        ok = fn()
+        # Only True passes (#493): any other answer is one the gate cannot
+        # read, and reading it by truth let 1, "ok" or an un-awaited coroutine
+        # through. As in the JS twin, which awaits its runners.
+        if inspect.isawaitable(ok):
+            if inspect.iscoroutine(ok):
+                ok.close()  # never awaited on purpose; close it quietly
+            return {"allow": False, "reason": f"pre-commit blocked: {name} returned an awaitable; "
+                                              "the Python gate runs synchronous runners only"}
+        if ok is False:
             return {"allow": False, "reason": f"pre-commit blocked: {name} failed"}
+        if ok is not True:
+            return {"allow": False,
+                    "reason": f"pre-commit blocked: {name} returned a result that is not true or false"}
     return {"allow": True, "reason": "all gates passed"}
 
 # CLI. Every way of not running the tests exits 2 (#467): a Claude Code hook

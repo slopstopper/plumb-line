@@ -105,6 +105,25 @@ def test_pre_commit_blocks_when_the_runners_are_an_empty_generator():
     r = pre_commit_gate.decide(runners=(x for x in ()))
     assert r == {"allow": False, "reason": "pre-commit blocked: no gates configured"}
 
+# #493 (owner decision): a runner passes only by returning True. Anything else
+# that is not False is an answer the gate cannot read, so it blocks, with the
+# same reason as the JS twin.
+@pytest.mark.parametrize("value", [1, "ok", None, {}])
+def test_pre_commit_blocks_a_runner_result_that_is_not_true_or_false(value):
+    r = pre_commit_gate.decide(runners=[("tests", lambda: value)])
+    assert r == {"allow": False,
+                 "reason": "pre-commit blocked: tests returned a result that is not true or false"}
+
+def test_pre_commit_blocks_an_async_runner_it_cannot_await():
+    # An un-awaited coroutine is truthy, so this passed the gate (#493).
+    async def runner():
+        return False
+
+    r = pre_commit_gate.decide(runners=[("tests", runner)])
+    assert r == {"allow": False,
+                 "reason": "pre-commit blocked: tests returned an awaitable; "
+                           "the Python gate runs synchronous runners only"}
+
 def test_boundary_allows_same_layer_import():
     # importPath resolves to the same layer as filePath — exercises the src == dst branch.
     r = boundary_guard.decide(

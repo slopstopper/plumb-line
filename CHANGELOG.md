@@ -71,6 +71,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `refs/heads/-x`) can still be printed, and now blocks. The table's rows
   are cross-checked against `git check-ref-format --branch` in both twins'
   suites.
+- **The pre-commit gate's `decide()` passes a runner only when it returns
+  `true`** ([#493](https://github.com/slopstopper/plumb-line/issues/493)).
+  Both twins read a runner's result by truthiness, so a runner returning `1`
+  or `"ok"` passed the gate, and in Python an `async` runner passed without
+  ever running, because its un-awaited coroutine is truthy (the JS twin
+  awaits its runners). Now, in both twins, `false` is a failure and any other
+  result blocks with a reason naming the runner. A Python runner that returns
+  an awaitable blocks with a reason saying the Python gate runs synchronous
+  runners only. **This is stricter** for callers of the exported `decide()`
+  (owner decision); the shipped CLI already returns booleans.
 
 ### Changed
 - **One case table specifies the hook twins' CLIs**

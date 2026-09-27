@@ -51,6 +51,29 @@ describe("pre-commit-gate decide", () => {
     const r = await decide({ runners: (function* () {})() });
     expect(r).toEqual({ allow: false, reason: "pre-commit blocked: no gates configured" });
   });
+
+  // #493 (owner decision): a runner passes only by returning true. Anything
+  // else that is not false is an answer the gate cannot read, so it blocks,
+  // with the same reason as the Python twin.
+  for (const [label, value] of [["1", 1], ["\"ok\"", "ok"], ["undefined", undefined], ["null", null], ["an object", {}]]) {
+    it(`blocks when a runner returns ${label}, which is not true or false`, async () => {
+      const r = await decide({ runners: [{ name: "tests", fn: () => value }] });
+      expect(r).toEqual({
+        allow: false,
+        reason: "pre-commit blocked: tests returned a result that is not true or false",
+      });
+    });
+  }
+
+  it("awaits an async runner, so one that resolves to true passes", async () => {
+    const r = await decide({ runners: [{ name: "tests", fn: async () => true }] });
+    expect(r.allow).toBe(true);
+  });
+
+  it("blocks an async runner that resolves to something other than true or false", async () => {
+    const r = await decide({ runners: [{ name: "tests", fn: async () => 1 }] });
+    expect(r.reason).toBe("pre-commit blocked: tests returned a result that is not true or false");
+  });
 });
 
 // CLI behaviour is in adapters/hook-cases.json, run against both twins by
