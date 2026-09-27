@@ -535,6 +535,357 @@
       "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/engine/calc.js\"}",
       "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
       "expectExit": 0
+    },
+    {
+      "name": "empty stdin has no file path, so it blocks (#471)",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: no file path to judge. Map the host payload's file path into the {filePath, importPath} stdin the boundary guard reads."
+    },
+    {
+      "name": "JSON-whitespace-only stdin counts as empty, so it blocks (#471)",
+      "stdin": " \t\r\n",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: no file path to judge. Map the host payload's file path into the {filePath, importPath} stdin the boundary guard reads."
+    },
+    {
+      "name": "an empty object has no file path, so it blocks (#471)",
+      "stdin": "{}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: no file path to judge. Map the host payload's file path into the {filePath, importPath} stdin the boundary guard reads."
+    },
+    {
+      "name": "an unmapped host payload has no file path, so it blocks (#471)",
+      "stdin": "{\"tool_input\": {\"file_path\": \"src/data/store.js\"}}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: no file path to judge. Map the host payload's file path into the {filePath, importPath} stdin the boundary guard reads."
+    },
+    {
+      "name": "a null filePath blocks (#471; Python crashed with exit 1)",
+      "stdin": "{\"filePath\": null, \"importPath\": \"src/data/store.js\"}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: no file path to judge. Map the host payload's file path into the {filePath, importPath} stdin the boundary guard reads."
+    },
+    {
+      "name": "a numeric filePath blocks (#471)",
+      "stdin": "{\"filePath\": 7, \"importPath\": \"src/data/store.js\"}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: no file path to judge. Map the host payload's file path into the {filePath, importPath} stdin the boundary guard reads."
+    },
+    {
+      "name": "an empty filePath blocks (#471)",
+      "stdin": "{\"filePath\": \"\", \"importPath\": \"src/data/store.js\"}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: no file path to judge. Map the host payload's file path into the {filePath, importPath} stdin the boundary guard reads."
+    },
+    {
+      "name": "a JSON array on stdin is not an object, so it has no file path and blocks (#471)",
+      "stdin": "[{\"filePath\": \"src/ui/button.js\"}]",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: no file path to judge. Map the host payload's file path into the {filePath, importPath} stdin the boundary guard reads."
+    },
+    {
+      "name": "JSON null on stdin is not an object, so it has no file path and blocks (#471)",
+      "stdin": "null",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: no file path to judge. Map the host payload's file path into the {filePath, importPath} stdin the boundary guard reads."
+    },
+    {
+      "name": "a file path with no importPath has nothing to judge and is allowed (#471)",
+      "stdin": "{\"filePath\": \"src/data/store.js\"}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 0
+    },
+    {
+      "name": "an empty importPath names no import, so it is allowed as a missing one is (#471)",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"\"}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 0
+    },
+    {
+      "name": "a null importPath blocks (#471)",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": null}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: importPath must be a string. Map the import being added into the {filePath, importPath} stdin the boundary guard reads, or leave it out when there is none."
+    },
+    {
+      "name": "a numeric importPath blocks (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": 7}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: importPath must be a string. Map the import being added into the {filePath, importPath} stdin the boundary guard reads, or leave it out when there is none."
+    },
+    {
+      "name": "stdin that is not JSON exits 2, not 1 (#471)",
+      "stdin": "not json",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: the boundary guard could not run"
+    },
+    {
+      "name": "NaN is not JSON, on stdin too, so an allowed import cannot pass in one twin only (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\", \"n\": NaN}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: the boundary guard could not run"
+    },
+    {
+      "name": "stdin is read as UTF-8 whatever PYTHONIOENCODING says (#471)",
+      "stdin": "{\"filePath\": \"src/data/café.js\", \"importPath\": \"src/ui/button.js\"}",
+      "env": { "PYTHONIOENCODING": "ascii" },
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "boundary break: data must not import ui (downward)"
+    },
+    {
+      "name": "stdin that is not valid UTF-8 blocks rather than being read lossily (#471)",
+      "stdinHex": "7b2266696c6550617468223a20227372632f75692fff2e6a73222c2022696d706f727450617468223a20227372632f646174612f73746f72652e6a73227d",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "stdin is not valid UTF-8"
+    },
+    {
+      "name": "stdin that is not valid UTF-8 blocks under a single-byte PYTHONIOENCODING (#471)",
+      "stdinHex": "7b2266696c6550617468223a20227372632f75692fff2e6a73222c2022696d706f727450617468223a20227372632f646174612f73746f72652e6a73227d",
+      "env": { "PYTHONIOENCODING": "latin-1" },
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "stdin is not valid UTF-8"
+    },
+    {
+      "name": "stdin that is not valid UTF-8 blocks under the C locale with UTF-8 mode off (#471)",
+      "stdinHex": "7b2266696c6550617468223a20227372632f75692fff2e6a73222c2022696d706f727450617468223a20227372632f646174612f73746f72652e6a73227d",
+      "env": { "LC_ALL": "C", "PYTHONUTF8": "0" },
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "stdin is not valid UTF-8"
+    },
+    {
+      "name": "a UTF-8 byte-order mark is not stripped, so the stdin is not JSON (#471)",
+      "stdinHex": "efbbbf7b2266696c6550617468223a20227372632f75692f627574746f6e2e6a73222c2022696d706f727450617468223a20227372632f646174612f73746f72652e6a73227d",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: the boundary guard could not run"
+    },
+    {
+      "name": "a lone byte-order mark is not whitespace, so the stdin is not JSON (#471)",
+      "stdinHex": "efbbbf",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: the boundary guard could not run"
+    },
+    {
+      "name": "only JSON whitespace counts as empty stdin: \\x1c is not JSON (#471)",
+      "stdinHex": "1c",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: the boundary guard could not run"
+    },
+    {
+      "name": "with no PLUMBLINE_CFG there are no layers, so an import is allowed (#471; JS crashed with exit 1)",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
+      "expectExit": 0
+    },
+    {
+      "name": "an explicit empty object gives the defaults: no layers, so an import is allowed (#471)",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
+      "cfg": {},
+      "expectExit": 0
+    },
+    {
+      "name": "with layers and no direction, the direction is downward (#471)",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"] },
+      "expectExit": 2,
+      "expectStderr": "boundary break: data must not import ui (downward)"
+    },
+    {
+      "name": "direction upward allows a lower layer importing an upper one (#471)",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "upward" },
+      "expectExit": 0
+    },
+    {
+      "name": "direction upward blocks an upper layer importing a lower one (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "upward" },
+      "expectExit": 2,
+      "expectStderr": "boundary break: ui must not import data (upward)"
+    },
+    {
+      "name": "an empty PLUMBLINE_CFG is set but not JSON, so it blocks (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "env": { "PLUMBLINE_CFG": "" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not valid JSON. Set it to a JSON object, or unset it for the defaults."
+    },
+    {
+      "name": "a PLUMBLINE_CFG that does not parse blocks (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "env": { "PLUMBLINE_CFG": "{" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not valid JSON. Set it to a JSON object, or unset it for the defaults."
+    },
+    {
+      "name": "NaN is not JSON, in PLUMBLINE_CFG too (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "env": { "PLUMBLINE_CFG": "{\"layers\": [\"ui\", \"data\"], \"direction\": NaN}" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not valid JSON. Set it to a JSON object, or unset it for the defaults."
+    },
+    {
+      "name": "a null PLUMBLINE_CFG is not an object, so it blocks (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "env": { "PLUMBLINE_CFG": "null" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not a JSON object. Set it to a JSON object, or unset it for the defaults."
+    },
+    {
+      "name": "an array PLUMBLINE_CFG is not an object, so it blocks (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "env": { "PLUMBLINE_CFG": "[\"ui\", \"data\"]" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not a JSON object. Set it to a JSON object, or unset it for the defaults."
+    },
+    {
+      "name": "a string PLUMBLINE_CFG is not an object, so it blocks (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "env": { "PLUMBLINE_CFG": "\"ui\"" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not a JSON object. Set it to a JSON object, or unset it for the defaults."
+    },
+    {
+      "name": "a number PLUMBLINE_CFG is not an object, so it blocks (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "env": { "PLUMBLINE_CFG": "7" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not a JSON object. Set it to a JSON object, or unset it for the defaults."
+    },
+    {
+      "name": "a PLUMBLINE_CFG shared with the branch guard still blocks a boundary break (#471, owner decision B)",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"], "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "boundary break: data must not import ui (downward)"
+    },
+    {
+      "name": "a PLUMBLINE_CFG shared with the branch guard still allows a downward import (#471, owner decision B)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"], "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 0
+    },
+    {
+      "name": "the branch guard's keys are left to the branch guard to validate (#471, owner decision B)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "cfg": { "protectedBranches": "main", "docsAllowlist": [""], "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 0
+    },
+    {
+      "name": "a typo key such as layer is unknown, so it blocks rather than checking no layers (#471)",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
+      "cfg": { "layer": ["ui", "data"] },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"layer\". The boundary guard reads only \"layers\" and \"direction\"; \"protectedBranches\" and \"docsAllowlist\" are the branch guard's."
+    },
+    {
+      "name": "a typo of a branch-guard key is unknown here too (#471, owner decision B)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "cfg": { "protectedBranch": ["main"], "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"protectedBranch\". The boundary guard reads only \"layers\" and \"direction\"; \"protectedBranches\" and \"docsAllowlist\" are the branch guard's."
+    },
+    {
+      "name": "a snake_case branch-guard key is named with the camelCase key to use (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "cfg": { "protected_branches": ["main"], "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"protected_branches\" (use \"protectedBranches\"). The boundary guard reads only \"layers\" and \"direction\"; \"protectedBranches\" and \"docsAllowlist\" are the branch guard's."
+    },
+    {
+      "name": "several unknown keys are listed in UTF-16 order in both twins (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "env": { "PLUMBLINE_CFG": "{\"zeta\": 1, \"10\": 1, \"9\": 1}" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"10\", \"9\", \"zeta\". The boundary guard reads only \"layers\" and \"direction\"; \"protectedBranches\" and \"docsAllowlist\" are the branch guard's."
+    },
+    {
+      "name": "unknown keys sort by UTF-16 code unit, not code point: an astral key before U+FF01 (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "env": { "PLUMBLINE_CFG": "{\"\\uff01\": 1, \"\\ud83d\\ude00\": 1}" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"\\ud83d\\ude00\", \"\\uff01\". The boundary guard reads only \"layers\" and \"direction\"; \"protectedBranches\" and \"docsAllowlist\" are the branch guard's."
+    },
+    {
+      "name": "an unknown key is named in ASCII, whatever the stderr encoding (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "env": { "PLUMBLINE_CFG": "{\"läyers\": [\"ui\"]}" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"l\\u00e4yers\". The boundary guard reads only \"layers\" and \"direction\"; \"protectedBranches\" and \"docsAllowlist\" are the branch guard's."
+    },
+    {
+      "name": "a string layers blocks rather than being read as its characters (#471)",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
+      "cfg": { "layers": "ui" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG layers must be an array of strings."
+    },
+    {
+      "name": "a null layers blocks rather than falling back to no layers (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "cfg": { "layers": null },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG layers must be an array of strings."
+    },
+    {
+      "name": "a number in layers blocks (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "cfg": { "layers": ["ui", 1] },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG layers must be an array of strings."
+    },
+    {
+      "name": "an explicit empty layers blocks rather than checking nothing (#471)",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
+      "cfg": { "layers": [] },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG layers must not be empty."
+    },
+    {
+      "name": "an empty layers entry is a config error (#471)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "cfg": { "layers": ["ui", "", "data"] },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG layers must not contain an empty entry."
+    },
+    {
+      "name": "a direction other than downward or upward blocks rather than being read as upward (#471)",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "sideways" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG direction must be \"downward\" or \"upward\"."
+    },
+    {
+      "name": "a null direction blocks rather than being read as upward (#471)",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": null },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG direction must be \"downward\" or \"upward\"."
+    },
+    {
+      "name": "direction is case-sensitive: Downward blocks rather than being read as upward (#471)",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "Downward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG direction must be \"downward\" or \"upward\"."
     }
   ],
   "preCommitGate": [

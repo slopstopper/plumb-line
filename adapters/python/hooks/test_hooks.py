@@ -202,3 +202,25 @@ def test_gate_cli_exits_2_on_an_unbalanced_quote():
     env = dict(os.environ, PLUMBLINE_TEST_CMD="echo 'unbalanced")
     assert subprocess.run([sys.executable, _GATE], capture_output=True, text=True,
                           env=env).returncode == 2
+
+
+# #471: the CLI rows in adapters/hook-cases.json pin the same rules end to end;
+# these pin decide() for a caller that imports it. JS twin: the #471 cases in
+# adapters/js/hooks/__tests__/boundary-guard.test.mjs.
+@pytest.mark.parametrize("file_path", [None, "", 7])
+def test_boundary_decide_blocks_with_no_file_path(file_path):
+    r = boundary_guard.decide(file_path=file_path, import_path="src/ui/view.py", **LAYERS)
+    assert r["allow"] is False
+    assert r["reason"].startswith("blocked: no file path to judge.")
+
+
+@pytest.mark.parametrize("import_path", [None, ""])
+def test_boundary_decide_allows_with_no_import_to_judge(import_path):
+    r = boundary_guard.decide(file_path="src/data/store.py", import_path=import_path, **LAYERS)
+    assert r == {"allow": True, "reason": "no import to judge"}
+
+
+def test_boundary_decide_blocks_an_import_path_that_is_not_a_string():
+    r = boundary_guard.decide(file_path="src/data/store.py", import_path=7, **LAYERS)
+    assert r["allow"] is False
+    assert r["reason"].startswith("blocked: importPath must be a string.")

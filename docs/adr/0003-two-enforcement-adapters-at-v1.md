@@ -59,3 +59,6 @@ stderr = block) so the same script works as a git hook and a Claude Code hook.
   command is unset, blank or cannot be run, as the branch guard does on input
   it cannot read. The boundary guard still exits 1 on input it cannot read
   (#471), so the convention does not yet hold for all three.
+- **2026-09-27 (#471).** The boundary guard now exits 2 on input it cannot
+  read or judge, and on a `PLUMBLINE_CFG` it cannot use, so the exit-2
+  convention holds for all three hooks.
