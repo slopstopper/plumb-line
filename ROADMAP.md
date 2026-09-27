@@ -33,7 +33,8 @@ hang:
   stalled release milestone is therefore always a real signal.
 - **Parallel tracks** are GitHub *labels* (`track:portable`,
   `track:boundaries`, `track:agent-state`, `track:ecosystem`,
-  `track:skills`, `track:runtime`). They have no version and no due date by
+  `track:skills`, `track:runtime`, `track:distribution`,
+  `track:benchmarks`). They have no version and no due date by
   design. They were previously modelled as milestones, which made them
   permanently "stalled" by construction and trained the eye to ignore the
   stalled signal.
@@ -409,6 +410,13 @@ Version themes for the near-term releases, and the GitHub issues under each.
 
 - **Runtime enforcement direction** (label `track:runtime`). Type-level
   enforcement — `Marked<T>` branded type + mypy plugin (#39 / GH #132).
+
+- **Benchmarks** (label `track:benchmarks`; added 2026-09-27, owner decision,
+  after the impossible-task spike, GH #462). Measures how much plumb-line
+  changes outcomes, not only whether it does. The rules every benchmark here
+  follows and the candidate benchmarks are on the umbrella, GH #489. The
+  first external one is
+  ImpossibleBench (GH #490), sequenced after spike round 3.
 
 - **Backlog** (unversioned, no issue filed yet). IDE integration (#3); Go and
   Rust ports (#7); relocate `provenance-lint` to `primitives/` (#8).
