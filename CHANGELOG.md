@@ -21,6 +21,14 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   valid UTF-8 the same way whatever the environment says. Both also count
   only JSON whitespace as empty stdin, so a lone byte-order mark or a `\x1c`
   gives the same reason in each.
+- **The pre-commit gate's `decide()` blocks when it is given no runners**
+  ([#476](https://github.com/slopstopper/plumb-line/issues/476)). It returned
+  `allow: true` with the reason "all gates passed", so a gate that ran
+  nothing reported that everything passed. It now blocks, in both twins,
+  with the reason "pre-commit blocked: no gates configured" (owner decision).
+  The shipped CLI could not reach this, because it blocks an empty
+  `PLUMBLINE_TEST_CMD` first (#467); `decide()` is exported, so a caller
+  building its own gate could.
 - **The branch guard fails closed on a `PLUMBLINE_CFG` it cannot use, with one
   key spelling in both twins**
   ([#469](https://github.com/slopstopper/plumb-line/issues/469)). This is

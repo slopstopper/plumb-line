@@ -16,7 +16,18 @@ function isMainModule() {
   }
 }
 export async function decide({ runners }) {
-  for (const { name, fn } of runners) {
+  // A gate that ran nothing did not pass (#476): every way of not running the
+  // tests blocks (#467), as in the Python twin. Any iterable counts, so an
+  // empty generator (which has no length) blocks too. Only the first runner
+  // is read to tell, so a generator is still read lazily and stops at the
+  // first failure.
+  const it = runners[Symbol.iterator]();
+  let next = it.next();
+  if (next.done) {
+    return { allow: false, reason: "pre-commit blocked: no gates configured" };
+  }
+  for (; !next.done; next = it.next()) {
+    const { name, fn } = next.value;
     const ok = await fn();
     if (!ok)
       return { allow: false, reason: `pre-commit blocked: ${name} failed` };
