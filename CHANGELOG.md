@@ -57,6 +57,21 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `layers` and `direction` keeps working, and a key neither guard reads (such
   as a `layer` typo) blocks.
 
+- **The branch guard reads a value that cannot be a branch name as unknown**
+  ([#474](https://github.com/slopstopper/plumb-line/issues/474)). `HEAD`
+  (what `git rev-parse --abbrev-ref HEAD` prints on a detached HEAD), `main `
+  with a trailing space or newline, and any other value git would not accept
+  as a branch name were read as a named, unprotected branch, so a code edit
+  was allowed. Both twins now apply git's own rule and treat such a value as
+  unknown: a code edit blocks, naming the value, and a docs-allowlisted edit
+  is still allowed. **This is stricter** (owner decision): wiring that passes
+  such a value now blocks code edits. The documented wiring,
+  `$(git branch --show-current)`, does not produce one for a branch git's
+  own commands would create; a ref written by hand (for example
+  `refs/heads/-x`) can still be printed, and now blocks. The table's rows
+  are cross-checked against `git check-ref-format --branch` in both twins'
+  suites.
+
 ### Changed
 - **One case table specifies the hook twins' CLIs**
   ([#475](https://github.com/slopstopper/plumb-line/issues/475)).
@@ -66,8 +81,14 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   already drifted: JS tested empty stdin and Python did not, and Python tested
   a null `filePath` and JS did not. `adapters/adapter-contract.md` now states
   that `Contract version: 1` versions the stdin, environment and exit shape
-  only; a behaviour change that fails closed within it is recorded here, not
-  versioned.
+  only. A behaviour change within that shape, stricter or looser, is recorded
+  here, not versioned, and a change that allows something a guard used to
+  block is named here as a loosening. **The first loosening** is in the
+  branch-guard UTF-8 fix above: the Python twin now allows a valid
+  non-ASCII docs-allowlisted path that it used to block when
+  `PYTHONIOENCODING` or the locale could not decode it, or decoded it
+  differently (for example under `ascii`, or a non-ASCII file entry under
+  `latin-1`).
 
 ## [0.11.4] — 2026-09-26
 

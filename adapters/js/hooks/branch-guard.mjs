@@ -37,13 +37,43 @@ function matchesAllowlistEntry(normalizedCandidate, entry) {
   return normalizedCandidate === normalizedEntry;
 }
 
+/** Characters git never allows in a ref name: ASCII controls, space, ~ ^ : ? * [ \ */
+// eslint-disable-next-line no-control-regex -- matching control characters is the point
+const BAD_REF_CHARS = /[\x00-\x20\x7f~^:?*[\\]/;
+
+/**
+ * True when git would accept `name` as a branch name, by git's own rule: `git
+ * branch` refuses `HEAD` and a leading `-`, then applies check-ref-format to
+ * `refs/heads/<name>` (#474). The table's rows are cross-checked against
+ * `git check-ref-format --branch`. Python twin: _is_branch_name.
+ */
+function isBranchName(name) {
+  if (name === "HEAD" || name.startsWith("-")) return false;
+  if (BAD_REF_CHARS.test(name) || name.includes("..") || name.includes("@{") || name.endsWith(".")) {
+    return false;
+  }
+  return name.split("/").every((c) => c !== "" && !c.startsWith(".") && !c.endsWith(".lock"));
+}
+
 function blocked(filePath, branch, unknown) {
+  if (!unknown) {
+    return {
+      allow: false,
+      reason: `blocked: code edit to ${filePath} on protected branch ${branch}. Branch first.`,
+    };
+  }
+  const why = isBlank(branch)
+    ? "PLUMBLINE_BRANCH is unset or empty"
+    : `PLUMBLINE_BRANCH ${JSON.stringify(String(branch))} is not a branch name`;
   return {
     allow: false,
-    reason: unknown
-      ? `blocked: code edit to ${filePath} with the branch unknown (PLUMBLINE_BRANCH is unset or empty). Set it to the current branch.`
-      : `blocked: code edit to ${filePath} on protected branch ${branch}. Branch first.`,
+    reason: `blocked: code edit to ${filePath} with the branch unknown (${why}). Set it to the current branch.`,
   };
+}
+
+/** Unset, or ASCII whitespace only, as in the Python twin. */
+function isBlank(branch) {
+  return branch == null || !/[^ \t\n\r\f\v]/.test(String(branch));
 }
 
 export function decide({
@@ -54,9 +84,10 @@ export function decide({
 }) {
   // An unknown branch (unset, or empty as on a detached HEAD) is an
   // inconclusive result, never a pass (#449): judge the edit as if the branch
-  // were protected, so only an edit allowed on every branch passes. Blank
-  // means ASCII whitespace, as in the Python twin.
-  const unknown = branch == null || !/[^ \t\n\r\f\v]/.test(String(branch));
+  // were protected, so only an edit allowed on every branch passes. A value
+  // git would not accept as a branch name, such as `HEAD` or `main ` (#474),
+  // is unknown too: it names no branch the edit could be on.
+  const unknown = isBlank(branch) || !isBranchName(String(branch));
   if (!unknown && !protectedBranches.includes(branch)) {
     return { allow: true, reason: "not a protected branch" };
   }

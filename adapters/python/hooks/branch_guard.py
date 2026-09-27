@@ -34,20 +34,45 @@ def _matches_allowlist_entry(normalized_candidate, entry):
     return normalized_candidate == normalized_entry
 
 
+# Characters git never allows in a ref name: ASCII controls, space, ~ ^ : ? * [ \
+_BAD_REF_CHARS = re.compile(r"[\x00-\x20\x7f~^:?*\[\\]")
+
+
+def _is_branch_name(name):
+    """True when git would accept `name` as a branch name, by git's own rule:
+    `git branch` refuses HEAD and a leading "-", then applies check-ref-format
+    to refs/heads/<name> (#474). The table's rows are cross-checked against
+    `git check-ref-format --branch`. JS twin: isBranchName."""
+    if name == "HEAD" or name.startswith("-"):
+        return False
+    if _BAD_REF_CHARS.search(name) or ".." in name or "@{" in name or name.endswith("."):
+        return False
+    return all(c and not c.startswith(".") and not c.endswith(".lock") for c in name.split("/"))
+
+
+def _is_blank(branch):
+    """Unset, or ASCII whitespace only, as in the JS twin."""
+    return branch is None or not str(branch).strip(_ASCII_WHITESPACE)
+
+
 def _blocked(file_path, branch, unknown):
-    if unknown:
+    if not unknown:
         return {"allow": False,
-                "reason": f"blocked: code edit to {file_path} with the branch unknown "
-                          "(PLUMBLINE_BRANCH is unset or empty). Set it to the current branch."}
+                "reason": f"blocked: code edit to {file_path} on protected branch {branch}. Branch first."}
+    why = ("PLUMBLINE_BRANCH is unset or empty" if _is_blank(branch)
+           else f"PLUMBLINE_BRANCH {json.dumps(str(branch), ensure_ascii=False)} is not a branch name")
     return {"allow": False,
-            "reason": f"blocked: code edit to {file_path} on protected branch {branch}. Branch first."}
+            "reason": f"blocked: code edit to {file_path} with the branch unknown ({why}). "
+                      "Set it to the current branch."}
 
 
 def decide(file_path, branch, protected_branches=("main",), docs_allowlist=()):
     # An unknown branch (unset, or empty as on a detached HEAD) is an
     # inconclusive result, never a pass (#449): judge the edit as if the
     # branch were protected, so only an edit allowed on every branch passes.
-    unknown = branch is None or not str(branch).strip(_ASCII_WHITESPACE)
+    # A value git would not accept as a branch name, such as HEAD or "main "
+    # (#474), is unknown too: it names no branch the edit could be on.
+    unknown = _is_blank(branch) or not _is_branch_name(str(branch))
     if not unknown and branch not in protected_branches:
         return {"allow": True, "reason": "not a protected branch"}
     # No path to judge (an unmapped host payload) cannot be a docs edit.

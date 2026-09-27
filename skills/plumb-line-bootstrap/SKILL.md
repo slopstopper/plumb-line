@@ -178,7 +178,8 @@ stays absolute and blocks as a code edit, unless an extension glob such as
 `*.md` matches it.
 
 The guard blocks a code edit when
-the branch is unknown (unset, or empty as on a detached HEAD), so wiring that
+the branch is unknown (unset, empty as on a detached HEAD, or a value git would
+not accept as a branch name, such as `HEAD`), so wiring that
 forgets the branch blocks every code edit rather than silently allowing it. A
 git commit-hook wrapper for it is planned (slopstopper/plumb-line#464). The
 boundary guard also needs the import path, so wire it where the edit's new
