@@ -21,6 +21,14 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   valid UTF-8 the same way whatever the environment says. Both also count
   only JSON whitespace as empty stdin, so a lone byte-order mark or a `\x1c`
   gives the same reason in each.
+- **The pre-commit gate's `decide()` blocks when it is given no runners**
+  ([#476](https://github.com/slopstopper/plumb-line/issues/476)). It returned
+  `allow: true` with the reason "all gates passed", so a gate that ran
+  nothing reported that everything passed. It now blocks, in both twins,
+  with the reason "pre-commit blocked: no gates configured" (owner decision).
+  The shipped CLI could not reach this, because it blocks an empty
+  `PLUMBLINE_TEST_CMD` first (#467); `decide()` is exported, so a caller
+  building its own gate could.
 
 - **The branch guard reads a value that cannot be a branch name as unknown**
   ([#474](https://github.com/slopstopper/plumb-line/issues/474)). `HEAD`
@@ -46,8 +54,14 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   already drifted: JS tested empty stdin and Python did not, and Python tested
   a null `filePath` and JS did not. `adapters/adapter-contract.md` now states
   that `Contract version: 1` versions the stdin, environment and exit shape
-  only; a behaviour change that fails closed within it is recorded here, not
-  versioned.
+  only. A behaviour change within that shape, stricter or looser, is recorded
+  here, not versioned, and a change that allows something a guard used to
+  block is named here as a loosening. **The first loosening** is in the
+  branch-guard UTF-8 fix above: the Python twin now allows a valid
+  non-ASCII docs-allowlisted path that it used to block when
+  `PYTHONIOENCODING` or the locale could not decode it, or decoded it
+  differently (for example under `ascii`, or a non-ASCII file entry under
+  `latin-1`).
 
 ## [0.11.4] — 2026-09-26
 
