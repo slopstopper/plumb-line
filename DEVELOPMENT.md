@@ -85,6 +85,12 @@ they drive is missing: Node, the JS fixtures' own `npm ci` (ci.yml's "JS fixture
 toolchain" step), `lint-imports`, or `requests`/`pandas` for the fit-map
 snippets. In CI the must-run ones fail the build instead of skipping.
 
+The `adapters/js` suite needs `python3` and `git` on `PATH` as well as Node,
+and fails (it does not skip) without them. Its hook tests check the JS gate's
+command splitter against Python's `shlex.split` (#472), and check the table's
+branch names against `git check-ref-format` (#474). CI's JavaScript job uses
+the ones the Ubuntu runner ships.
+
 CI also runs these repo checks, each from the root:
 
 ```bash

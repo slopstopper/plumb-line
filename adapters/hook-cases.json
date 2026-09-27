@@ -578,10 +578,9 @@
       "expectExit": 0
     },
     {
-      "name": "a single-quoted argument is one word: sh -c 'exit 3' fails (#472)",
-      "env": { "PLUMBLINE_TEST_CMD": "sh -c 'exit 3'" },
-      "expectExit": 2,
-      "expectStderr": "pre-commit blocked: sh -c 'exit 3' failed"
+      "name": "a single-quoted argument is one word: sh -c 'exit 0' passes (#472)",
+      "env": { "PLUMBLINE_TEST_CMD": "sh -c 'exit 0'" },
+      "expectExit": 0
     },
     {
       "name": "an unbalanced single quote cannot be split, so it blocks (#472)",

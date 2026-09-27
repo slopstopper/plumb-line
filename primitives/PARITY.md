@@ -66,11 +66,13 @@ fourth case file, `adapters/hook-cases.json`, with one kind per hook
 its fix, in v0.11.5 (planned): boundary-guard input it cannot read or judge,
 such as a null `filePath` (#471). The JS gate's command splitter is also
 checked word for word against Python's `shlex.split`
-(`pre-commit-gate.test.mjs`, #472). A few pathological inputs (a `PLUMBLINE_CFG` integer of thousands of
-digits or nested about a thousand levels or more, depending on the Python
-version, an environment value that is not
-valid UTF-8) give the same exit 2 in both twins but differently worded
-reasons (found by review, 2026-09-27; not in the table).
+(`pre-commit-gate.test.mjs`, #472). A few pathological `PLUMBLINE_CFG`
+inputs (an integer of thousands of digits, or nesting about a thousand levels
+or more, depending on the Python version) give the same exit 2 in both twins
+but differently worded reasons (found by review, 2026-09-27; not in the
+table). An environment value that is not valid UTF-8 is a real divergence:
+JS decodes it lossily and Python keeps the bytes, so the pre-commit gate can
+exit 0 in JS and 2 in Python on the same command (#501, planned).
 
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |

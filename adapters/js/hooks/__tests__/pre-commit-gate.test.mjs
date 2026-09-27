@@ -4,6 +4,20 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { decide, splitCommand } from "../pre-commit-gate.mjs";
 
+/**
+ * Deterministic random strings over the characters the splitter treats
+ * specially, plus a non-BMP character and lone surrogates (#472 review).
+ * Seeded, so a failure names the same string on every run.
+ */
+function seededStrings(n) {
+  const alphabet = [" ", "\t", "\r", "\n", "'", "\"", "\\", "#", "a", "-", "é", "$", "😀",
+    "\ud800", "\udc00", " ", "　"];
+  let seed = 472;
+  const next = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+  return Array.from({ length: n }, () =>
+    Array.from({ length: 1 + Math.floor(next() * 12) }, () => alphabet[Math.floor(next() * alphabet.length)]).join(""));
+}
+
 // #472: the reference for splitting PLUMBLINE_TEST_CMD is the Python twin's
 // shlex.split. Every command in the shared table, and a few harder strings,
 // must split the same way here, or fail with the same message.
@@ -14,6 +28,7 @@ describe("splitCommand agrees with Python's shlex.split (#472)", () => {
     ...table.preCommitGate.map((c) => c.env?.PLUMBLINE_TEST_CMD).filter((c) => typeof c === "string"),
     "", "a  b", " lead", "trail ", "a\\", "\"a\\", "'a\\'", "a'b'c", "a\"b\"c", "\"\"", "''x", "a\\\\b",
     "\"a\\\\b\"", "\"a\\$b\"", "a\\'b", "'a\"b'", "\"a'b\"", "x\\\ny", "é 'ü'", "a\r\nb",
+    ...seededStrings(300),
   ];
   const py = spawnSync("python3", ["-c", [
     "import json, shlex, sys",
