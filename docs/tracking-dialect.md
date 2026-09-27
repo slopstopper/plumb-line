@@ -52,7 +52,8 @@ change, failing-test-first, DCO sign-off, `CHANGELOG.md` under
 ### Local label conventions this repo adds
 
 - **`track:*`** (`track:portable`, `track:boundaries`, `track:agent-state`,
-  `track:ecosystem`, `track:skills`, `track:runtime`) — parallel tracks,
+  `track:ecosystem`, `track:skills`, `track:runtime`, `track:distribution`,
+  `track:benchmarks`) — parallel tracks,
   deliberately unscheduled. Established by
   [#203](https://github.com/slopstopper/plumb-line/pull/203).
 
