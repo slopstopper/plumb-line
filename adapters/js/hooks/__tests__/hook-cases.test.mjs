@@ -4,7 +4,9 @@
 // language's spawn tests, so neither twin can quietly miss it.
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { tableProblems } from "../../../../primitives/conformance/table-guards.mjs";
 
@@ -116,6 +118,42 @@ describe("hook-cases.json — the runner interprets every field, kind and versio
   it("every hook has at least one case", () => {
     for (const kind of Object.keys(HOOKS)) expect(cases[kind]?.length, kind).toBeGreaterThan(0);
   });
+});
+
+// #474: what counts as a branch name is git's rule, not ours. A row whose
+// reason shows how the guard read a named branch (not unset or blank) must
+// agree with `git check-ref-format --branch`: "branch unknown" means git
+// rejects the name, "on protected branch" means git accepts it. Python twin:
+// test_branch_rows_agree_with_git.
+function readsBranch(c) {
+  const branch = c.env?.PLUMBLINE_BRANCH;
+  if (typeof branch !== "string" || !/[^ \t\n\r\f\v]/.test(branch)) return null;
+  const reason = c.expectStderr ?? "";
+  if (reason.includes("branch unknown")) return { branch, unknown: true };
+  if (reason.includes("on protected branch")) return { branch, unknown: false };
+  return null;
+}
+
+// git runs outside any repository: inside one, `--branch` expands `@{-1}` and
+// `@{u}` against that repository's history, so the verdict would depend on
+// where the tests run (#474 review).
+const OUTSIDE_REPO = mkdtempSync(path.join(os.tmpdir(), "plumb-line-refcheck-"));
+const GIT_ENV = { ...process.env, GIT_CEILING_DIRECTORIES: path.dirname(OUTSIDE_REPO) };
+
+describe("hook-cases.json — branch names agree with git (#474)", () => {
+  const read = (cases.branchGuard ?? []).map((c) => [c, readsBranch(c)]).filter(([, r]) => r);
+  // A change to the reason wording would otherwise select nothing, silently.
+  it("selects rows on both sides of git's rule", () => {
+    expect(read.filter(([, r]) => r.unknown).length).toBeGreaterThanOrEqual(10);
+    expect(read.filter(([, r]) => !r.unknown).length).toBeGreaterThanOrEqual(3);
+  });
+  for (const [c, { branch, unknown }] of read) {
+    it(`${JSON.stringify(branch)}: ${c.name}`, () => {
+      const git = spawnSync("git", ["check-ref-format", "--branch", branch], { cwd: OUTSIDE_REPO, env: GIT_ENV });
+      expect(git.error, "git did not start").toBeUndefined();
+      expect(git.status === 0, "git accepts it as a branch name").toBe(!unknown);
+    });
+  }
 });
 
 for (const kind of Object.keys(HOOKS)) {
