@@ -16,7 +16,14 @@ function isMainModule() {
   }
 }
 export async function decide({ runners }) {
-  for (const { name, fn } of runners) {
+  // A gate that ran nothing did not pass (#476): every way of not running the
+  // tests blocks (#467), as in the Python twin. Any iterable counts, so an
+  // empty generator (which has no length) blocks too.
+  const list = [...runners];
+  if (list.length === 0) {
+    return { allow: false, reason: "pre-commit blocked: no gates configured" };
+  }
+  for (const { name, fn } of list) {
     const ok = await fn();
     if (!ok)
       return { allow: false, reason: `pre-commit blocked: ${name} failed` };

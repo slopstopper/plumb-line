@@ -5,6 +5,11 @@ import subprocess
 import sys
 
 def decide(runners):
+    # A gate that ran nothing did not pass (#476): every way of not running the
+    # tests blocks (#467), as in the JS twin.
+    runners = list(runners)
+    if not runners:
+        return {"allow": False, "reason": "pre-commit blocked: no gates configured"}
     for name, fn in runners:
         if not fn():
             return {"allow": False, "reason": f"pre-commit blocked: {name} failed"}

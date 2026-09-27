@@ -27,9 +27,16 @@ describe("pre-commit-gate decide", () => {
     expect(calls).toEqual(["tests"]);
   });
 
-  it("allows the commit when there are no runners", async () => {
+  // #476: a gate that ran nothing must not report that everything passed.
+  // Every way of not running the tests blocks (#467), in both twins.
+  it("blocks the commit when there are no runners, with its own reason", async () => {
     const r = await decide({ runners: [] });
-    expect(r.allow).toBe(true);
+    expect(r).toEqual({ allow: false, reason: "pre-commit blocked: no gates configured" });
+  });
+
+  it("blocks when the runners are an empty iterable with no length", async () => {
+    const r = await decide({ runners: (function* () {})() });
+    expect(r).toEqual({ allow: false, reason: "pre-commit blocked: no gates configured" });
   });
 });
 

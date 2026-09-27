@@ -83,6 +83,16 @@ def test_pre_commit_allows_when_all_runners_pass():
     assert r["allow"] is True
     assert r["reason"] == "all gates passed"
 
+# #476: a gate that ran nothing must not report that everything passed.
+# Every way of not running the tests blocks (#467), in both twins.
+def test_pre_commit_blocks_when_there_are_no_runners():
+    r = pre_commit_gate.decide(runners=[])
+    assert r == {"allow": False, "reason": "pre-commit blocked: no gates configured"}
+
+def test_pre_commit_blocks_when_the_runners_are_an_empty_generator():
+    r = pre_commit_gate.decide(runners=(x for x in ()))
+    assert r == {"allow": False, "reason": "pre-commit blocked: no gates configured"}
+
 def test_boundary_allows_same_layer_import():
     # importPath resolves to the same layer as filePath — exercises the src == dst branch.
     r = boundary_guard.decide(
