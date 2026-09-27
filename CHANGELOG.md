@@ -34,9 +34,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   only. A behaviour change within that shape, stricter or looser, is recorded
   here, not versioned, and a change that allows something a guard used to
   block is named here as a loosening. **The first loosening** is in the
-  branch-guard UTF-8 fix above: under `PYTHONIOENCODING=ascii`, the Python
-  twin now allows a valid non-ASCII docs-allowlisted path that it used to
-  block.
+  branch-guard UTF-8 fix above: the Python twin now allows a valid
+  non-ASCII docs-allowlisted path that it used to block when
+  `PYTHONIOENCODING` or the locale could not decode it, or decoded it
+  differently (for example under `ascii`, or a non-ASCII file entry under
+  `latin-1`).
 
 ## [0.11.4] — 2026-09-26
 
