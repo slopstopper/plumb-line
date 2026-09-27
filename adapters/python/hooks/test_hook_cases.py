@@ -136,6 +136,33 @@ def test_every_hook_has_at_least_one_case(kind):
     assert CASES.get(kind)
 
 
+def _reads_branch(c):
+    """(branch, unknown) when the row's reason shows how the guard read a named
+    branch, else None. JS twin: readsBranch."""
+    branch = c.get('env', {}).get('PLUMBLINE_BRANCH')
+    if not isinstance(branch, str) or not branch.strip(' \t\n\r\f\v'):
+        return None
+    reason = c.get('expectStderr', '')
+    if 'branch unknown' in reason:
+        return branch, True
+    if 'on protected branch' in reason:
+        return branch, False
+    return None
+
+
+# #474: what counts as a branch name is git's rule, not ours. A row whose
+# reason shows how the guard read a named branch (not unset or blank) must
+# agree with `git check-ref-format --branch`: "branch unknown" means git
+# rejects the name, "on protected branch" means git accepts it. JS twin:
+# "branch names agree with git".
+@pytest.mark.parametrize('c', [c for c in CASES.get('branchGuard', []) if _reads_branch(c)],
+                         ids=lambda c: c['name'])
+def test_branch_rows_agree_with_git(c):
+    branch, unknown = _reads_branch(c)
+    git = subprocess.run(['git', 'check-ref-format', '--branch', branch], capture_output=True)
+    assert (git.returncode == 0) is (not unknown), branch
+
+
 @pytest.mark.parametrize('kind,c', [(k, c) for k in _HOOKS for c in CASES.get(k, [])],
                          ids=lambda v: v['name'] if isinstance(v, dict) else v)
 def test_hook_case(kind, c):

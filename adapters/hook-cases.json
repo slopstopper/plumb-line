@@ -25,6 +25,93 @@
       "expectExit": 0
     },
     {
+      "name": "a branch with a trailing space is not a branch name, so it is unknown (#474)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "main " },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown (PLUMBLINE_BRANCH \"main \" is not a branch name)"
+    },
+    {
+      "name": "a branch with a trailing newline is not a branch name, so it is unknown (#474)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "main\n" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
+      "name": "HEAD, as printed on a detached HEAD, is not a branch name (#474)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "HEAD" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown (PLUMBLINE_BRANCH \"HEAD\" is not a branch name)"
+    },
+    {
+      "name": "a name git refuses (leading dash) is unknown (#474)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "-x" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
+      "name": "a name git refuses (two dots) is unknown (#474)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "a..b" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
+      "name": "a name git refuses (a component ending .lock) is unknown (#474)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "a.lock/b" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
+      "name": "a name git refuses (@{) is unknown (#474)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "a@{b" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
+      "name": "a name git refuses (a component starting with a dot) is unknown (#474)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "a/.b" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
+      "name": "a docs edit is allowed when the branch is not a branch name (#474)",
+      "stdin": "{\"filePath\": \"docs/x.md\"}",
+      "env": { "PLUMBLINE_BRANCH": "HEAD" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 0
+    },
+    {
+      "name": "a non-ASCII name git accepts is read as that branch (#474)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "café" },
+      "cfg": { "protectedBranches": ["café"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "on protected branch café"
+    },
+    {
+      "name": "HEAD as a later component is a name git accepts, read as that branch (#474)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "x/HEAD" },
+      "cfg": { "protectedBranches": ["x/HEAD"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "on protected branch x/HEAD"
+    },
+    {
       "name": "with no PLUMBLINE_CFG the default protected branch is main (#449)",
       "stdin": "{\"filePath\": \"src/app.js\"}",
       "env": { "PLUMBLINE_BRANCH": "main" },

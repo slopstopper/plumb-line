@@ -118,6 +118,33 @@ describe("hook-cases.json — the runner interprets every field, kind and versio
   });
 });
 
+// #474: what counts as a branch name is git's rule, not ours. A row whose
+// reason shows how the guard read a named branch (not unset or blank) must
+// agree with `git check-ref-format --branch`: "branch unknown" means git
+// rejects the name, "on protected branch" means git accepts it. Python twin:
+// test_branch_rows_agree_with_git.
+function readsBranch(c) {
+  const branch = c.env?.PLUMBLINE_BRANCH;
+  if (typeof branch !== "string" || !/[^ \t\n\r\f\v]/.test(branch)) return null;
+  const reason = c.expectStderr ?? "";
+  if (reason.includes("branch unknown")) return { branch, unknown: true };
+  if (reason.includes("on protected branch")) return { branch, unknown: false };
+  return null;
+}
+
+describe("hook-cases.json — branch names agree with git (#474)", () => {
+  for (const c of cases.branchGuard ?? []) {
+    const read = readsBranch(c);
+    if (!read) continue;
+    const { branch, unknown } = read;
+    it(`${JSON.stringify(branch)}: ${c.name}`, () => {
+      const git = spawnSync("git", ["check-ref-format", "--branch", branch]);
+      expect(git.error, "git did not start").toBeUndefined();
+      expect(git.status === 0, "git accepts it as a branch name").toBe(!unknown);
+    });
+  }
+});
+
 for (const kind of Object.keys(HOOKS)) {
   describe(`hook cases — ${kind} CLI`, () => {
     for (const c of cases[kind] ?? []) {

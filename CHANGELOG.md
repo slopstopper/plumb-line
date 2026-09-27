@@ -22,6 +22,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   only JSON whitespace as empty stdin, so a lone byte-order mark or a `\x1c`
   gives the same reason in each.
 
+- **The branch guard reads a value that cannot be a branch name as unknown**
+  ([#474](https://github.com/slopstopper/plumb-line/issues/474)). `HEAD`
+  (what `git rev-parse --abbrev-ref HEAD` prints on a detached HEAD), `main `
+  with a trailing space or newline, and any other value git would not accept
+  as a branch name were read as a named, unprotected branch, so a code edit
+  was allowed. Both twins now apply git's own rule and treat such a value as
+  unknown: a code edit blocks, naming the value, and a docs-allowlisted edit
+  is still allowed. **This is stricter** (owner decision): wiring that passes
+  such a value now blocks code edits. The documented wiring,
+  `$(git branch --show-current)`, never produces one. The table's rows are
+  cross-checked against `git check-ref-format --branch` in both twins' suites.
+
 ### Changed
 - **One case table specifies the hook twins' CLIs**
   ([#475](https://github.com/slopstopper/plumb-line/issues/475)).
