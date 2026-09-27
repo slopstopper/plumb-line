@@ -1,11 +1,23 @@
 """pre_commit_gate — block a commit if any runner fails."""
+import itertools
 import os
 import shlex
 import subprocess
 import sys
 
+# Marks an empty iterable; a runner that is itself None is not "no runners".
+_NONE = object()
+
+
 def decide(runners):
-    for name, fn in runners:
+    # A gate that ran nothing did not pass (#476): every way of not running the
+    # tests blocks (#467), as in the JS twin. Only the first runner is read to
+    # tell, so a generator is still read lazily and stops at the first failure.
+    runners = iter(runners)
+    first = next(runners, _NONE)
+    if first is _NONE:
+        return {"allow": False, "reason": "pre-commit blocked: no gates configured"}
+    for name, fn in itertools.chain([first], runners):
         if not fn():
             return {"allow": False, "reason": f"pre-commit blocked: {name} failed"}
     return {"allow": True, "reason": "all gates passed"}
