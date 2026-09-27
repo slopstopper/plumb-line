@@ -26,12 +26,35 @@ const MODEL = {
   fields: Object.fromEntries(Object.keys(HOOKS).map((kind) => [kind, ROW])),
 };
 
-// Variables a row may set; removed first so the caller's shell cannot leak in.
-const CLEARED = ["PLUMBLINE_BRANCH", "PLUMBLINE_CFG", "PLUMBLINE_TEST_CMD", "PYTHONIOENCODING"];
+// The field types this runner reads, checked up front so both twins reject
+// the same rows: a null or a number where a string belongs is a table error,
+// not something each language coerces its own way. Python twin: _type_problems.
+function typeProblems(c) {
+  const problems = [];
+  for (const f of ["name", "stdin", "stdinHex", "expectStderr"]) {
+    if (f in c && typeof c[f] !== "string") problems.push(`${f} must be a string`);
+  }
+  if (!Number.isInteger(c.expectExit)) problems.push("expectExit must be an integer");
+  if ("env" in c) {
+    if (c.env === null || typeof c.env !== "object" || Array.isArray(c.env)) {
+      problems.push("env must be an object");
+    } else {
+      for (const [k, v] of Object.entries(c.env)) {
+        if (v !== null && typeof v !== "string") problems.push(`env.${k} must be a string or null`);
+      }
+    }
+  }
+  return problems;
+}
+
+// Removed first so the caller's shell cannot leak in: every PLUMBLINE_*
+// variable (including ones a later hook adds) and PYTHONIOENCODING.
+function isCleared(k) {
+  return k.startsWith("PLUMBLINE_") || k === "PYTHONIOENCODING";
+}
 
 function run(kind, c) {
-  const env = { ...process.env };
-  for (const k of CLEARED) delete env[k];
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !isCleared(k)));
   if (c.cfg !== undefined) env.PLUMBLINE_CFG = JSON.stringify(c.cfg);
   for (const [k, v] of Object.entries(c.env ?? {})) {
     if (v === null) delete env[k];
@@ -41,7 +64,8 @@ function run(kind, c) {
     ? Buffer.from(c.stdinHex, "hex")
     : Buffer.from(c.stdin ?? "", "utf8");
   const script = fileURLToPath(new URL(HOOKS[kind], import.meta.url));
-  return spawnSync(process.execPath, [script], { input, env, encoding: "utf8" });
+  // A hook that hangs fails its row instead of hanging the suite.
+  return spawnSync(process.execPath, [script], { input, env, encoding: "utf8", timeout: 30_000 });
 }
 
 describe("hook-cases.json — the runner interprets every field, kind and version", () => {
@@ -61,6 +85,21 @@ describe("hook-cases.json — the runner interprets every field, kind and versio
     const t = { ...structuredClone(cases), version: 2 };
     expect(tableProblems(t, MODEL)).toEqual([expect.stringContaining("unknown case-table version 2")]);
   });
+  it("a planted boolean version fails, as it does in the Python twin", () => {
+    const t = { ...structuredClone(cases), version: true };
+    expect(tableProblems(t, MODEL)).toEqual([expect.stringContaining("unknown case-table version true")]);
+  });
+  it("every row's fields have the types this runner reads", () => {
+    const problems = Object.keys(HOOKS).flatMap((kind) =>
+      (cases[kind] ?? []).flatMap((c) => typeProblems(c).map((p) => `${kind} ${JSON.stringify(c.name)}: ${p}`)));
+    expect(problems).toEqual([]);
+  });
+  it("a planted null or number where a string belongs fails", () => {
+    expect(typeProblems({ name: "x", expectExit: 0, stdin: null })).toEqual(["stdin must be a string"]);
+    expect(typeProblems({ name: "x", expectExit: 0, env: null })).toEqual(["env must be an object"]);
+    expect(typeProblems({ name: "x", expectExit: 0, env: { A: 1 } })).toEqual(["env.A must be a string or null"]);
+    expect(typeProblems({ name: "x", expectExit: "2" })).toEqual(["expectExit must be an integer"]);
+  });
   it("every hook has at least one case", () => {
     for (const kind of Object.keys(HOOKS)) expect(cases[kind]?.length, kind).toBeGreaterThan(0);
   });
@@ -71,7 +110,7 @@ for (const kind of Object.keys(HOOKS)) {
     for (const c of cases[kind] ?? []) {
       it(c.name, () => {
         const r = run(kind, c);
-        expect(r.error, "the hook did not start").toBeUndefined();
+        expect(r.error, "the hook did not start, or timed out").toBeUndefined();
         expect(r.status, r.stderr).toBe(c.expectExit);
         if (c.expectStderr !== undefined) expect(r.stderr).toContain(c.expectStderr);
       });

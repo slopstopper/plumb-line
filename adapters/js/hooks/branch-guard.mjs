@@ -107,7 +107,8 @@ function isMainModule() {
 }
 
 // CLI wrapper: read {filePath} on stdin, branch from env, config from env JSON.
-// Exercised end-to-end by the spawn-based "branch-guard CLI" tests below; v8's
+// Exercised end-to-end by the rows of adapters/hook-cases.json, which
+// __tests__/hook-cases.test.mjs runs by spawning this file; v8's
 // in-process instrumentation cannot see across the child process, so this glue
 // is excluded from coverage rather than left falsely "uncovered".
 /* v8 ignore start */
@@ -127,7 +128,9 @@ if (isMainModule()) {
       } catch {
         throw new Error("stdin is not valid UTF-8");
       }
-      const input = raw.trim() ? JSON.parse(raw) : {};
+      // Empty means JSON whitespace only, as in the Python twin: trim() also
+      // strips a byte-order mark, and Python's strip() also strips \x1c-\x1f.
+      const input = /^[ \t\n\r]*$/.test(raw) ? {} : JSON.parse(raw);
       const cfg = process.env.PLUMBLINE_CFG
         ? JSON.parse(process.env.PLUMBLINE_CFG)
         : {};

@@ -62,7 +62,10 @@ fourth case file, `adapters/hook-cases.json`, with one kind per hook
 (`branchGuard`, `boundaryGuard`, `preCommitGate`). It is loaded by
 `adapters/js/hooks/__tests__/hook-cases.test.mjs` and
 `adapters/python/hooks/test_hook_cases.py`, which spawn each hook as a process
-(#475).
+(#475). Three known divergences are not in it yet; each moves into the table
+with its fix, in v0.11.5 (planned): a malformed or snake_case `PLUMBLINE_CFG`
+(#469), a quoted `PLUMBLINE_TEST_CMD` (#472), and boundary-guard stdin it
+cannot read (#471).
 
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |

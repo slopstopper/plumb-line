@@ -33,12 +33,34 @@ _MODEL = {
     'fields': {kind: _ROW for kind in _HOOKS},
 }
 
-# Variables a row may set; removed first so the caller's shell cannot leak in.
-_CLEARED = ('PLUMBLINE_BRANCH', 'PLUMBLINE_CFG', 'PLUMBLINE_TEST_CMD', 'PYTHONIOENCODING')
+def _type_problems(c):
+    """The field types this runner reads, checked up front so both twins reject
+    the same rows: a null or a number where a string belongs is a table error,
+    not something each language coerces its own way. JS twin: typeProblems."""
+    problems = []
+    for f in ('name', 'stdin', 'stdinHex', 'expectStderr'):
+        if f in c and not isinstance(c[f], str):
+            problems.append(f'{f} must be a string')
+    exit_code = c.get('expectExit')
+    if not isinstance(exit_code, int) or isinstance(exit_code, bool):
+        problems.append('expectExit must be an integer')
+    if 'env' in c:
+        if not isinstance(c['env'], dict):
+            problems.append('env must be an object')
+        else:
+            problems += [f'env.{k} must be a string or null'
+                         for k, v in c['env'].items() if v is not None and not isinstance(v, str)]
+    return problems
+
+
+def _is_cleared(k):
+    """Removed first so the caller's shell cannot leak in: every PLUMBLINE_*
+    variable (including ones a later hook adds) and PYTHONIOENCODING."""
+    return k.startswith('PLUMBLINE_') or k == 'PYTHONIOENCODING'
 
 
 def _run(kind, c):
-    env = {k: v for k, v in os.environ.items() if k not in _CLEARED}
+    env = {k: v for k, v in os.environ.items() if not _is_cleared(k)}
     if 'cfg' in c:
         env['PLUMBLINE_CFG'] = json.dumps(c['cfg'])
     for k, v in c.get('env', {}).items():
@@ -48,7 +70,8 @@ def _run(kind, c):
             env[k] = v
     stdin = bytes.fromhex(c['stdinHex']) if 'stdinHex' in c else c.get('stdin', '').encode('utf-8')
     return subprocess.run([sys.executable, os.path.join(_HERE, _HOOKS[kind])], input=stdin,
-                          capture_output=True, env=env)
+                          capture_output=True, env=env,
+                          timeout=30)  # a hook that hangs fails its row, not the suite
 
 
 def test_the_shipped_table_has_nothing_this_runner_ignores():
@@ -72,6 +95,25 @@ def test_a_planted_unknown_version_fails():
     t = dict(copy.deepcopy(CASES), version=2)
     [problem] = table_problems(t, _MODEL)
     assert 'unknown case-table version 2' in problem
+
+
+def test_a_planted_boolean_version_fails_as_it_does_in_the_js_twin():
+    t = dict(copy.deepcopy(CASES), version=True)
+    [problem] = table_problems(t, _MODEL)
+    assert 'unknown case-table version true' in problem
+
+
+def test_every_rows_fields_have_the_types_this_runner_reads():
+    problems = [f'{kind} {json.dumps(c.get("name"))}: {p}'
+                for kind in _HOOKS for c in CASES.get(kind, []) for p in _type_problems(c)]
+    assert problems == []
+
+
+def test_a_planted_null_or_number_where_a_string_belongs_fails():
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'stdin': None}) == ['stdin must be a string']
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'env': None}) == ['env must be an object']
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'env': {'A': 1}}) == ['env.A must be a string or null']
+    assert _type_problems({'name': 'x', 'expectExit': '2'}) == ['expectExit must be an integer']
 
 
 @pytest.mark.parametrize('kind', list(_HOOKS))

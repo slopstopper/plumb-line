@@ -17,7 +17,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   followed the locale or `PYTHONIOENCODING`, so under `ascii` it blocked a
   valid non-ASCII docs path, and under `latin-1` it allowed an invalid one.
   Both now block, with exit 2, on stdin that is not valid UTF-8, and read
-  valid UTF-8 the same way whatever the environment says.
+  valid UTF-8 the same way whatever the environment says. Both also count
+  only JSON whitespace as empty stdin, so a lone byte-order mark or a `\x1c`
+  gives the same reason in each.
 
 ### Changed
 - **One case table specifies the hook twins' CLIs**
