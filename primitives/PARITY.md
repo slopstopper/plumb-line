@@ -62,10 +62,11 @@ fourth case file, `adapters/hook-cases.json`, with one kind per hook
 (`branchGuard`, `boundaryGuard`, `preCommitGate`). It is loaded by
 `adapters/js/hooks/__tests__/hook-cases.test.mjs` and
 `adapters/python/hooks/test_hook_cases.py`, which spawn each hook as a process
-(#475). Two known divergences are not in it yet; each moves into the table
-with its fix, in v0.11.5 (planned): a quoted `PLUMBLINE_TEST_CMD` (#472), and
-boundary-guard input it cannot read or judge, such as a null `filePath`
-(#471). A few pathological inputs (a `PLUMBLINE_CFG` integer of thousands of
+(#475). One known divergence is not in it yet; it moves into the table with
+its fix, in v0.11.5 (planned): boundary-guard input it cannot read or judge,
+such as a null `filePath` (#471). The JS gate's command splitter is also
+checked word for word against Python's `shlex.split`
+(`pre-commit-gate.test.mjs`, #472). A few pathological inputs (a `PLUMBLINE_CFG` integer of thousands of
 digits or nested about a thousand levels or more, depending on the Python
 version, an environment value that is not
 valid UTF-8) give the same exit 2 in both twins but differently worded

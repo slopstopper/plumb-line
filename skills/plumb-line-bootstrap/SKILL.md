@@ -149,9 +149,10 @@ convention"):
   added: given a file path alone it has nothing to judge and allows.
 - **pre-commit gate:** no stdin; runs the command in `PLUMBLINE_TEST_CMD` and
   blocks when it fails or the variable is unset. The command is split into
-  words and run without a shell (the JS gate splits on whitespace only, so
-  avoid quoted arguments there; #472), so give it a single command (e.g.
-  `npm test`), not a shell pipeline or `&&` chain; wrap several in a script.
+  words with shell-style quoting (`'…'`, `"…"`, backslash escapes, as Python's
+  `shlex.split`) and run without a shell, in both twins, so give it a single
+  command (e.g. `npm test`), not a shell pipeline or `&&` chain; wrap several
+  in a script.
 
 Git runs a hook with no stdin and none of these variables, so the guards are
 not git hooks on their own. The pre-commit gate needs only
