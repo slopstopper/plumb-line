@@ -72,9 +72,20 @@ def decide(file_path, branch, protected_branches=("main",), docs_allowlist=()):
 # shared JSON the JS twin reads (camelCase); snake_case keys are accepted too.
 # Every failure exits 2 (#449 review): a Claude Code hook treats only exit 2
 # as a block, so a traceback's exit 1 would let the edit through.
+def _read_stdin():
+    """Stdin as strict UTF-8, whatever the locale or PYTHONIOENCODING says, as
+    in the JS twin (#475). A byte-order mark is kept, as the JS twin keeps it."""
+    try:
+        return sys.stdin.buffer.read().decode("utf-8")
+    except UnicodeDecodeError:
+        raise ValueError("stdin is not valid UTF-8") from None
+
+
 def _main():
-    raw = sys.stdin.read()
-    input_data = json.loads(raw) if raw.strip() else {}
+    raw = _read_stdin()
+    # Empty means JSON whitespace only, as in the JS twin: str.strip() also
+    # strips \x1c-\x1f, and JS trim() also strips a byte-order mark.
+    input_data = json.loads(raw) if raw.strip(" \t\n\r") else {}
     cfg = json.loads(os.environ.get("PLUMBLINE_CFG", "{}"))
     return decide(
         file_path=input_data.get("filePath") if isinstance(input_data, dict) else None,

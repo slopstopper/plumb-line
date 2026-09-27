@@ -1,8 +1,8 @@
 // table-guards.mjs — the three case-table guards for the conformance tables
-// read by the ordinary test runners (#441): http-cases.json and
-// baseline-cases.json. They are the checks run-cases.mjs applies to cases.json
-// (#369, #433): a field, a case kind or a table version the runner does not
-// interpret is reported, never ignored. Python twin:
+// read by the ordinary test runners (#441): http-cases.json,
+// baseline-cases.json and adapters/hook-cases.json (#475). They are the checks
+// run-cases.mjs applies to cases.json (#369, #433): a field, a case kind or a
+// table version the runner does not interpret is reported, never ignored. Python twin:
 // primitives/python/tests/case_table_guards.py.
 
 /**

@@ -1,6 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { decide } from "../branch-guard.mjs";
 
 const cfg = {
@@ -140,99 +138,5 @@ describe("branch-guard decide", () => {
   });
 });
 
-// Bug C regression: the guard must run as a CLI hook. A naive
-// `import.meta.url === file://${argv[1]}` entry check fails on symlinked paths
-// (macOS /tmp, /var) and the guard would silently exit 0 (fail-open). These
-// tests exercise the real CLI path so a broken entry check is caught.
-describe("branch-guard CLI", () => {
-  const guardPath = fileURLToPath(
-    new URL("../branch-guard.mjs", import.meta.url),
-  );
-  function runCli(filePath, branch = "main") {
-    const env = { ...process.env };
-    delete env.PLUMBLINE_BRANCH;
-    if (branch !== null) env.PLUMBLINE_BRANCH = branch; // null = unset
-    return spawnSync("node", [guardPath], {
-      input: JSON.stringify({ filePath }),
-      encoding: "utf8",
-      env: {
-        ...env,
-        PLUMBLINE_CFG: JSON.stringify({
-          protectedBranches: ["main"],
-          docsAllowlist: ["docs/", "README.md"],
-        }),
-      },
-    });
-  }
-
-  it("blocks a code edit with exit code 2 when invoked as a CLI hook", () => {
-    const r = runCli("src/app.js");
-    expect(r.status).toBe(2);
-    expect(r.stderr).toMatch(/protected branch/i);
-  });
-
-  it("allows a docs edit with exit code 0 when invoked as a CLI hook", () => {
-    const r = runCli("docs/x.md");
-    expect(r.status).toBe(0);
-  });
-
-  // #449: until 0.11.4 an unset PLUMBLINE_BRANCH exited 0 on every edit.
-  it("blocks a code edit with exit code 2 when PLUMBLINE_BRANCH is unset", () => {
-    const r = runCli("src/app.js", null);
-    expect(r.status).toBe(2);
-    expect(r.stderr).toMatch(/branch unknown/i);
-  });
-
-  it("blocks a code edit when PLUMBLINE_BRANCH is empty (a detached HEAD)", () => {
-    expect(runCli("src/app.js", "").status).toBe(2);
-  });
-
-  it("allows a docs edit when PLUMBLINE_BRANCH is unset", () => {
-    expect(runCli("docs/x.md", null).status).toBe(0);
-  });
-
-  // In a Claude Code hook only exit 2 blocks; a crash (exit 1) lets the edit
-  // through. Every CLI failure must exit 2 (#449 review).
-  function runRaw(stdin) {
-    return spawnSync("node", [guardPath], {
-      input: stdin,
-      encoding: "utf8",
-      env: { ...process.env, PLUMBLINE_BRANCH: "main", PLUMBLINE_CFG: JSON.stringify(cfg) },
-    });
-  }
-
-  it("exits 2 when stdin carries no filePath (an unmapped host payload)", () => {
-    const r = runRaw(JSON.stringify({ tool_input: { file_path: "src/app.js" } }));
-    expect(r.status).toBe(2);
-    expect(r.stderr).toMatch(/no file path/i);
-  });
-
-  it("exits 2 on empty stdin", () => {
-    expect(runRaw("").status).toBe(2);
-  });
-
-  // v0.11.4 dogfood: the CLI spread the whole config after branch and
-  // filePath, so a config key could override either and let the edit through.
-  // Only protectedBranches and docsAllowlist come from PLUMBLINE_CFG.
-  function runWithCfg(extra) {
-    return spawnSync("node", [guardPath], {
-      input: JSON.stringify({ filePath: "src/app.js" }),
-      encoding: "utf8",
-      env: { ...process.env, PLUMBLINE_BRANCH: "main", PLUMBLINE_CFG: JSON.stringify({ ...cfg, ...extra }) },
-    });
-  }
-
-  it("ignores a filePath key in PLUMBLINE_CFG", () => {
-    expect(runWithCfg({ filePath: "docs/x.md" }).status).toBe(2);
-  });
-
-  it("ignores a branch key in PLUMBLINE_CFG", () => {
-    expect(runWithCfg({ branch: "feature/x" }).status).toBe(2);
-  });
-
-  it("exits 2 on stdin that is not JSON", () => {
-    const r = runRaw("not json");
-    expect(r.status).toBe(2);
-    expect(r.stderr).toMatch(/branch guard/i);
-  });
-});
+// CLI behaviour is in adapters/hook-cases.json, run against both twins by
+// hook-cases.test.mjs (#475).
