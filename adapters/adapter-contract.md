@@ -95,11 +95,13 @@ these files into the target repo.
 
 ## Hook I/O convention (shared)
 
-- Contract version: 1.
+- Contract version: 1. The version covers the **shape**: what is read from stdin and the environment, and that exit 0 allows and exit 2 blocks. A behaviour change that fails closed within that shape is recorded in the CHANGELOG, not versioned (owner decision, #475).
+- The cases in `adapters/hook-cases.json` are this convention's parity contract: both twins' CLIs run every row (#475). A CLI behaviour one twin's tests pin and the table does not is not yet a shared behaviour.
 - Input is per guard, read as JSON on stdin (the pre-commit gate takes no stdin):
   - `boundary-guard`: `{ "filePath": "...", "importPath": "..." }`
   - `branch-guard`: `{ "filePath": "..." }`
   - `pre-commit-gate`: no stdin; reads the test command from `PLUMBLINE_TEST_CMD`.
+- Stdin is strict UTF-8, whatever the locale or `PYTHONIOENCODING` says, and a byte-order mark is not stripped. The branch guard blocks, with exit 2, on stdin that is not valid UTF-8 (#475); the boundary guard follows with #471.
 - The branch from `PLUMBLINE_BRANCH` and config from `PLUMBLINE_CFG` (JSON) are read from the environment.
 - Exit 0 = allow. Exit 2 with a message on stderr = block. A Claude Code hook treats only exit 2 as a block (any other non-zero exit lets the action through), so a guard's failures exit 2 too: the branch guard blocks, with exit 2, on stdin it cannot read or with no `filePath` wherever the branch matters (#449), and the pre-commit gate exits 2 when `PLUMBLINE_TEST_CMD` is unset, blank or cannot be run (#467). The boundary guard still exits 1 on input it cannot read (#471).
 - The branch guard treats an unset or empty `PLUMBLINE_BRANCH` as unknown (#449): a code edit blocks, and a docs-allowlisted edit is allowed, as it is on every branch. An unknown branch is an inconclusive result, never a pass.

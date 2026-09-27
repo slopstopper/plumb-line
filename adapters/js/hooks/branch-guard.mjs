@@ -112,13 +112,21 @@ function isMainModule() {
 // is excluded from coverage rather than left falsely "uncovered".
 /* v8 ignore start */
 if (isMainModule()) {
-  let raw = "";
-  process.stdin.on("data", (d) => (raw += d));
+  const chunks = [];
+  process.stdin.on("data", (d) => chunks.push(d));
   process.stdin.on("end", () => {
     // Every failure exits 2 (#449 review): a Claude Code hook treats only
     // exit 2 as a block, so a crash's exit 1 would let the edit through.
     let r;
     try {
+      // Stdin is strict UTF-8, as in the Python twin (#475): a lossy decode
+      // judged a mangled path. A byte-order mark is kept, as Python keeps it.
+      let raw;
+      try {
+        raw = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(Buffer.concat(chunks));
+      } catch {
+        throw new Error("stdin is not valid UTF-8");
+      }
       const input = raw.trim() ? JSON.parse(raw) : {};
       const cfg = process.env.PLUMBLINE_CFG
         ? JSON.parse(process.env.PLUMBLINE_CFG)

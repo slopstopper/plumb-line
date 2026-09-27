@@ -1,0 +1,186 @@
+{
+  "_doc": "Language-neutral CLI cases for the hook twins (#475). Both runners spawn each hook as a process and must see the same exit code, with `expectStderr` somewhere in stderr: adapters/js/hooks/__tests__/hook-cases.test.mjs and adapters/python/hooks/test_hook_cases.py. Each run starts from the test process's environment with PLUMBLINE_BRANCH, PLUMBLINE_CFG, PLUMBLINE_TEST_CMD and PYTHONIOENCODING removed. `cfg` is JSON-encoded into PLUMBLINE_CFG; `env` then sets variables (null unsets one), so a raw PLUMBLINE_CFG string goes in `env`. `stdin` is written as UTF-8; `stdinHex` gives raw bytes instead; neither means empty stdin. Commands in PLUMBLINE_TEST_CMD are POSIX utilities, so neither runner needs the other language. This file, not prose, is the hook parity contract (adapters/adapter-contract.md, Hook I/O convention).",
+  "version": 1,
+  "branchGuard": [
+    {
+      "name": "a code edit on a protected branch blocks",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"] },
+      "expectExit": 2,
+      "expectStderr": "on protected branch main"
+    },
+    {
+      "name": "a docs edit on a protected branch is allowed",
+      "stdin": "{\"filePath\": \"docs/x.md\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"] },
+      "expectExit": 0
+    },
+    {
+      "name": "a code edit on an unprotected branch is allowed",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"] },
+      "expectExit": 0
+    },
+    {
+      "name": "with no PLUMBLINE_CFG the default protected branch is main (#449)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "expectExit": 2,
+      "expectStderr": "on protected branch main"
+    },
+    {
+      "name": "an unset branch is unknown, so a code edit blocks (#449)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
+      "name": "an empty branch, as on a detached HEAD, is unknown (#449)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
+      "name": "a docs edit is allowed when the branch is unknown (#449)",
+      "stdin": "{\"filePath\": \"docs/x.md\"}",
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"] },
+      "expectExit": 0
+    },
+    {
+      "name": "an unmapped host payload has no file path, so it blocks (#449 review)",
+      "stdin": "{\"tool_input\": {\"file_path\": \"src/app.js\"}}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"] },
+      "expectExit": 2,
+      "expectStderr": "no file path"
+    },
+    {
+      "name": "a null filePath blocks (#449 review)",
+      "stdin": "{\"filePath\": null}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"] },
+      "expectExit": 2,
+      "expectStderr": "no file path"
+    },
+    {
+      "name": "empty stdin has no file path, so it blocks (#449 review)",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"] },
+      "expectExit": 2,
+      "expectStderr": "no file path"
+    },
+    {
+      "name": "stdin that is not JSON exits 2, not 1 (#449 review)",
+      "stdin": "not json",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"] },
+      "expectExit": 2,
+      "expectStderr": "the branch guard could not run"
+    },
+    {
+      "name": "a filePath key in PLUMBLINE_CFG does not replace the edited file (v0.11.4 dogfood)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"], "filePath": "docs/x.md" },
+      "expectExit": 2,
+      "expectStderr": "on protected branch main"
+    },
+    {
+      "name": "a branch key in PLUMBLINE_CFG does not replace the real branch (v0.11.4 dogfood)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"], "branch": "feature/x" },
+      "expectExit": 2,
+      "expectStderr": "on protected branch main"
+    },
+    {
+      "name": "stdin is read as UTF-8: a non-ASCII docs path is allowed (#475)",
+      "stdin": "{\"filePath\": \"docs/café.md\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 0
+    },
+    {
+      "name": "stdin is read as UTF-8 whatever PYTHONIOENCODING says (#475)",
+      "stdin": "{\"filePath\": \"docs/café.md\"}",
+      "env": { "PLUMBLINE_BRANCH": "main", "PYTHONIOENCODING": "ascii" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 0
+    },
+    {
+      "name": "stdin that is not valid UTF-8 blocks rather than being read lossily (#475)",
+      "stdinHex": "7b2266696c6550617468223a2022646f63732fff2e6d64227d",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "stdin is not valid UTF-8"
+    },
+    {
+      "name": "stdin that is not valid UTF-8 blocks under a single-byte PYTHONIOENCODING (#475)",
+      "stdinHex": "7b2266696c6550617468223a2022646f63732fff2e6d64227d",
+      "env": { "PLUMBLINE_BRANCH": "main", "PYTHONIOENCODING": "latin-1" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "stdin is not valid UTF-8"
+    },
+    {
+      "name": "a UTF-8 byte-order mark is not stripped, so the stdin is not JSON (#475)",
+      "stdinHex": "efbbbf7b2266696c6550617468223a2022646f63732f782e6d64227d",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "the branch guard could not run"
+    }
+  ],
+  "boundaryGuard": [
+    {
+      "name": "a lower layer importing an upper layer blocks",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "boundary break: data must not import ui (downward)"
+    },
+    {
+      "name": "an upper layer importing a lower layer is allowed",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/engine/calc.js\"}",
+      "cfg": { "layers": ["ui", "engine", "services", "data"], "direction": "downward" },
+      "expectExit": 0
+    }
+  ],
+  "preCommitGate": [
+    {
+      "name": "an unset PLUMBLINE_TEST_CMD blocks (#467)",
+      "expectExit": 2,
+      "expectStderr": "PLUMBLINE_TEST_CMD is not set"
+    },
+    {
+      "name": "a blank PLUMBLINE_TEST_CMD blocks (#467)",
+      "env": { "PLUMBLINE_TEST_CMD": "   " },
+      "expectExit": 2,
+      "expectStderr": "PLUMBLINE_TEST_CMD is not set"
+    },
+    {
+      "name": "a command that cannot be started blocks and says so (#467)",
+      "env": { "PLUMBLINE_TEST_CMD": "plumb-line-no-such-command-467" },
+      "expectExit": 2,
+      "expectStderr": "the test command could not be run"
+    },
+    {
+      "name": "a failing command blocks",
+      "env": { "PLUMBLINE_TEST_CMD": "false" },
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: false failed"
+    },
+    {
+      "name": "a passing command is allowed",
+      "env": { "PLUMBLINE_TEST_CMD": "true" },
+      "expectExit": 0
+    }
+  ]
+}

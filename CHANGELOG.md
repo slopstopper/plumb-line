@@ -9,7 +9,27 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+- **The branch guard reads stdin as strict UTF-8 in both twins**
+  ([#475](https://github.com/slopstopper/plumb-line/issues/475)). The JS twin
+  decoded bytes that are not UTF-8 lossily and judged the mangled path, so
+  `docs/\xff.md` was allowed there and blocked in Python. The Python twin
+  followed the locale or `PYTHONIOENCODING`, so under `ascii` it blocked a
+  valid non-ASCII docs path, and under `latin-1` it allowed an invalid one.
+  Both now block, with exit 2, on stdin that is not valid UTF-8, and read
+  valid UTF-8 the same way whatever the environment says.
+
+### Changed
+- **One case table specifies the hook twins' CLIs**
+  ([#475](https://github.com/slopstopper/plumb-line/issues/475)).
+  `adapters/hook-cases.json` gives each case's stdin, environment and config,
+  and the exit code and stderr expected; both twins' spawn tests run every row,
+  under the #441 table guards. It replaces hand-mirrored spawn tests that had
+  already drifted: JS tested empty stdin and Python did not, and Python tested
+  a null `filePath` and JS did not. `adapters/adapter-contract.md` now states
+  that `Contract version: 1` versions the stdin, environment and exit shape
+  only; a behaviour change that fails closed within it is recorded here, not
+  versioned.
 
 ## [0.11.4] — 2026-09-26
 

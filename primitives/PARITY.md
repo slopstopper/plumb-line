@@ -56,6 +56,14 @@ the `plumb-line-provenance/baseline` subpath only, so the main entry stays
 free of `node:fs` (the `./http` precedent), while Python exports it from the
 package — a documented asymmetry of packaging, not of behaviour.
 
+The enforcement hooks outside `primitives/` follow the same rule. Their twins'
+CLI behaviour (stdin, environment, exit code, the reason on stderr) is the
+fourth case file, `adapters/hook-cases.json`, with one kind per hook
+(`branchGuard`, `boundaryGuard`, `preCommitGate`). It is loaded by
+`adapters/js/hooks/__tests__/hook-cases.test.mjs` and
+`adapters/python/hooks/test_hook_cases.py`, which spawn each hook as a process
+(#475).
+
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |
 | `real + mock` (combine)                                | true            | low        | derived      | ✓    | ✓      |
