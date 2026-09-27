@@ -235,8 +235,16 @@
       "expectStderr": "the branch guard could not run"
     },
     {
-      "name": "Infinity on stdin is not JSON (#503)",
+      "name": "-Infinity on stdin is not JSON (#503)",
       "stdin": "{\"filePath\": \"docs/x.md\", \"n\": -Infinity}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "the branch guard could not run"
+    },
+    {
+      "name": "Infinity on stdin is not JSON (#503 review)",
+      "stdin": "{\"filePath\": \"docs/x.md\", \"n\": Infinity}",
       "env": { "PLUMBLINE_BRANCH": "main" },
       "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
       "expectExit": 2,
