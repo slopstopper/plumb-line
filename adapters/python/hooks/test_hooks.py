@@ -114,15 +114,29 @@ def test_pre_commit_blocks_a_runner_result_that_is_not_true_or_false(value):
     assert r == {"allow": False,
                  "reason": "pre-commit blocked: tests returned a result that is not true or false"}
 
+@pytest.mark.filterwarnings("error")
 def test_pre_commit_blocks_an_async_runner_it_cannot_await():
-    # An un-awaited coroutine is truthy, so this passed the gate (#493).
+    # An un-awaited coroutine is truthy, so this passed the gate (#493). The
+    # gate closes it, so no "coroutine was never awaited" warning is left.
+    import gc
+
     async def runner():
         return False
 
     r = pre_commit_gate.decide(runners=[("tests", runner)])
+    gc.collect()
     assert r == {"allow": False,
                  "reason": "pre-commit blocked: tests returned an awaitable; "
                            "the Python gate runs synchronous runners only"}
+
+def test_pre_commit_blocks_an_awaitable_that_is_not_a_coroutine():
+    import asyncio
+    loop = asyncio.new_event_loop()
+    try:
+        r = pre_commit_gate.decide(runners=[("tests", loop.create_future)])
+    finally:
+        loop.close()
+    assert r["allow"] is False and "returned an awaitable" in r["reason"]
 
 def test_boundary_allows_same_layer_import():
     # importPath resolves to the same layer as filePath — exercises the src == dst branch.
