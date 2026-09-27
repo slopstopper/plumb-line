@@ -225,9 +225,11 @@ Version themes for the near-term releases, and the GitHub issues under each.
   exiting 1 on input it cannot read, which a Claude Code hook does not treat
   as a block (GH #471), a quoted argument letting the JS pre-commit gate pass
   a failing command (GH #472), a value that cannot be a branch name read as a
-  named, unprotected branch (GH #474), and `decide()` with no runners
-  reporting "all gates passed" (GH #476); plus the shared hook case table
-  that runs both twins' CLIs from one table (GH #475). Ships ahead of v0.12.0
+  named, unprotected branch (GH #474, decided without waiting for its
+  revisit condition, #464: such values count as unknown, so they block),
+  and `decide()` with no runners reporting "all gates passed" (GH #476); plus the shared hook case table
+  that runs both twins' CLIs from one table (GH #475; no contract-version
+  bump, since v1 versions the hook I/O shape only). Ships ahead of v0.12.0
   so the known fail-open gaps are closed before anything is built on them.
 
 - **v0.12.0 — Honest red** (test theatre + runtime refusal) · *renumbered
