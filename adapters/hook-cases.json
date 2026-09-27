@@ -89,7 +89,7 @@
       "env": { "PLUMBLINE_BRANCH": "main" },
       "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"], "filePath": "docs/x.md" },
       "expectExit": 2,
-      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"filePath\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"filePath\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"; \"layers\" and \"direction\" are the boundary guard's."
     },
     {
       "name": "a branch key in PLUMBLINE_CFG is an unknown key, so it blocks (v0.11.4 dogfood, #469)",
@@ -97,7 +97,7 @@
       "env": { "PLUMBLINE_BRANCH": "main" },
       "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"], "branch": "feature/x" },
       "expectExit": 2,
-      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"branch\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"branch\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"; \"layers\" and \"direction\" are the boundary guard's."
     },
     {
       "name": "an empty PLUMBLINE_CFG is set but not JSON, so it blocks on an unprotected branch (#469)",
@@ -154,7 +154,7 @@
       "env": { "PLUMBLINE_BRANCH": "release" },
       "cfg": { "protected_branches": ["release"] },
       "expectExit": 2,
-      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"protected_branches\" (use \"protectedBranches\"). The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"protected_branches\" (use \"protectedBranches\"). The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"; \"layers\" and \"direction\" are the boundary guard's."
     },
     {
       "name": "snake_case docs_allowlist is an unknown key, so a docs edit on main blocks (#469; Python allowed it)",
@@ -162,7 +162,7 @@
       "env": { "PLUMBLINE_BRANCH": "main" },
       "cfg": { "protectedBranches": ["main"], "docs_allowlist": ["docs/"] },
       "expectExit": 2,
-      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"docs_allowlist\" (use \"docsAllowlist\"). The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"docs_allowlist\" (use \"docsAllowlist\"). The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"; \"layers\" and \"direction\" are the boundary guard's."
     },
     {
       "name": "a typo key such as protectedBranch is unknown, so it blocks rather than falling back to main (#469)",
@@ -170,28 +170,58 @@
       "env": { "PLUMBLINE_BRANCH": "release" },
       "cfg": { "protectedBranch": ["release"] },
       "expectExit": 2,
-      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"protectedBranch\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"protectedBranch\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"; \"layers\" and \"direction\" are the boundary guard's."
+    },
+    {
+      "name": "a PLUMBLINE_CFG shared with the boundary guard still protects main (#469, owner decision B)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"], "layers": ["ui", "engine", "data"], "direction": "downward" },
+      "expectExit": 2,
+      "expectStderr": "on protected branch main"
+    },
+    {
+      "name": "a PLUMBLINE_CFG shared with the boundary guard still allows a docs edit (#469, owner decision B)",
+      "stdin": "{\"filePath\": \"docs/x.md\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"], "layers": ["ui", "engine", "data"], "direction": "downward" },
+      "expectExit": 0
+    },
+    {
+      "name": "a PLUMBLINE_CFG shared with the boundary guard allows a code edit on an unprotected branch (#469, owner decision B)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"], "layers": ["ui", "engine", "data"], "direction": "downward" },
+      "expectExit": 0
+    },
+    {
+      "name": "a typo of a boundary-guard key is still unknown (#469, owner decision B)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x" },
+      "cfg": { "protectedBranches": ["main"], "layer": ["ui"] },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"layer\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"; \"layers\" and \"direction\" are the boundary guard's."
     },
     {
       "name": "several unknown keys are listed in UTF-16 order in both twins (#469)",
       "stdin": "{\"filePath\": \"src/app.js\"}",
       "env": { "PLUMBLINE_BRANCH": "feature/x", "PLUMBLINE_CFG": "{\"zeta\": 1, \"10\": 1, \"9\": 1}" },
       "expectExit": 2,
-      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"10\", \"9\", \"zeta\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"10\", \"9\", \"zeta\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"; \"layers\" and \"direction\" are the boundary guard's."
     },
     {
       "name": "unknown keys sort by UTF-16 code unit, not code point: an astral key before U+FF01 (#469)",
       "stdin": "{\"filePath\": \"src/app.js\"}",
       "env": { "PLUMBLINE_BRANCH": "feature/x", "PLUMBLINE_CFG": "{\"\\uff01\": 1, \"\\ud83d\\ude00\": 1}" },
       "expectExit": 2,
-      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"\\ud83d\\ude00\", \"\\uff01\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"\\ud83d\\ude00\", \"\\uff01\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"; \"layers\" and \"direction\" are the boundary guard's."
     },
     {
       "name": "an unknown key is named in ASCII, whatever the stderr encoding (#469)",
       "stdin": "{\"filePath\": \"src/app.js\"}",
       "env": { "PLUMBLINE_BRANCH": "feature/x", "PLUMBLINE_CFG": "{\"protectedBränches\": [\"main\"]}" },
       "expectExit": 2,
-      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"protectedBr\\u00e4nches\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"protectedBr\\u00e4nches\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"; \"layers\" and \"direction\" are the boundary guard's."
     },
     {
       "name": "a string protectedBranches blocks rather than being read as its characters (#469)",

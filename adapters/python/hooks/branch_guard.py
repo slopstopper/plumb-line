@@ -75,6 +75,11 @@ def decide(file_path, branch, protected_branches=("main",), docs_allowlist=()):
 
 # The only PLUMBLINE_CFG keys, and the snake_case spellings to rename (#469).
 _CFG_KEYS = ("protectedBranches", "docsAllowlist")
+# PLUMBLINE_CFG is shared by the hooks (adapter-contract.md), so the boundary
+# guard's keys are allowed here and left to it to validate (owner decision on
+# #469). The branch guard never reads them, so allowing them cannot fail open;
+# anything neither guard reads still blocks.
+_BOUNDARY_KEYS = ("layers", "direction")
 _CFG_RENAMES = {"protected_branches": "protectedBranches", "docs_allowlist": "docsAllowlist"}
 
 
@@ -100,7 +105,7 @@ def _read_config(raw):
     if not isinstance(cfg, dict):
         return None, "blocked: PLUMBLINE_CFG is not a JSON object." + retry
     # Sorted by UTF-16 code unit, as the JS twin's sort() orders them.
-    unknown = sorted((k for k in cfg if k not in _CFG_KEYS),
+    unknown = sorted((k for k in cfg if k not in _CFG_KEYS and k not in _BOUNDARY_KEYS),
                      key=lambda k: k.encode("utf-16-be", "surrogatepass"))
     if unknown:
         # json.dumps escapes everything outside printable ASCII, as the JS
@@ -108,7 +113,8 @@ def _read_config(raw):
         named = [f"{json.dumps(k)} (use {json.dumps(_CFG_RENAMES[k])})" if k in _CFG_RENAMES
                  else json.dumps(k) for k in unknown]
         return None, (f"blocked: PLUMBLINE_CFG has unknown key(s) {', '.join(named)}. "
-                      'The branch guard reads only "protectedBranches" and "docsAllowlist".')
+                      'The branch guard reads only "protectedBranches" and "docsAllowlist"; '
+                      '"layers" and "direction" are the boundary guard\'s.')
     for key in _CFG_KEYS:
         if key in cfg and not (isinstance(cfg[key], list)
                                and all(isinstance(e, str) for e in cfg[key])):

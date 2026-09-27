@@ -115,6 +115,13 @@ function isMainModule() {
 
 /** The only PLUMBLINE_CFG keys, and the snake_case spellings to rename (#469). */
 const CFG_KEYS = ["protectedBranches", "docsAllowlist"];
+/**
+ * PLUMBLINE_CFG is shared by the hooks (adapter-contract.md), so the boundary
+ * guard's keys are allowed here and left to it to validate (owner decision
+ * on #469). The branch guard never reads them, so allowing them cannot fail
+ * open; anything neither guard reads still blocks.
+ */
+const BOUNDARY_KEYS = ["layers", "direction"];
 const CFG_RENAMES = {
   protected_branches: "protectedBranches",
   docs_allowlist: "docsAllowlist",
@@ -152,7 +159,9 @@ function readConfig(raw) {
   }
   // Sorted by UTF-16 code unit, as the Python twin sorts: Object.keys puts
   // integer-like keys first, so parse order is not the same in both.
-  const unknown = Object.keys(cfg).filter((k) => !CFG_KEYS.includes(k)).sort();
+  const unknown = Object.keys(cfg)
+    .filter((k) => !CFG_KEYS.includes(k) && !BOUNDARY_KEYS.includes(k))
+    .sort();
   if (unknown.length > 0) {
     const named = unknown.map((k) =>
       Object.hasOwn(CFG_RENAMES, k)
@@ -162,7 +171,8 @@ function readConfig(raw) {
     return {
       reason:
         `blocked: PLUMBLINE_CFG has unknown key(s) ${named.join(", ")}. ` +
-        `The branch guard reads only "protectedBranches" and "docsAllowlist".`,
+        `The branch guard reads only "protectedBranches" and "docsAllowlist"; ` +
+        `"layers" and "direction" are the boundary guard's.`,
     };
   }
   for (const key of CFG_KEYS) {

@@ -43,7 +43,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   explicit empty `protectedBranches` still protects no branch. An empty
   `docsAllowlist` entry is now a config error too: before, it was rejected
   only when the matching reached it, so `["README.md", ""]` let a README edit
-  through and an unprotected branch never checked it.
+  through and an unprotected branch never checked it. `PLUMBLINE_CFG` stays
+  shared between the hooks: a config that also carries the boundary guard's
+  `layers` and `direction` keeps working, and a key neither guard reads (such
+  as a `layer` typo) blocks.
 
 ### Changed
 - **One case table specifies the hook twins' CLIs**
