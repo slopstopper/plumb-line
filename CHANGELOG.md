@@ -29,6 +29,33 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   The shipped CLI could not reach this, because it blocks an empty
   `PLUMBLINE_TEST_CMD` first (#467); `decide()` is exported, so a caller
   building its own gate could.
+- **The branch guard fails closed on a `PLUMBLINE_CFG` it cannot use, with one
+  key spelling in both twins**
+  ([#469](https://github.com/slopstopper/plumb-line/issues/469)). This is
+  **stricter for adopters**: a config that used to be ignored or coerced now
+  blocks every edit, with exit 2, until it is fixed. The twins read different
+  keys and silently fell back to protecting `main`. The JS twin ignored the
+  snake_case `protected_branches`, so on branch `release` with
+  `{"protected_branches": ["release"]}` a code edit was allowed; a typo such as
+  `protectedBranch` was ignored in both. The Python twin read a string
+  `"protectedBranches": "main"` as its characters, so `main` was not protected.
+  An empty, `null`, array, string or number `PLUMBLINE_CFG` gave the defaults
+  in JS, and blocked in Python only as a crash; Python also accepted `NaN`,
+  which is not JSON.
+  Now both accept only a JSON object with the camelCase keys `protectedBranches`
+  and `docsAllowlist`, each an array of strings (plus the boundary guard's
+  `layers` and `direction`, see below), and block with a reason naming
+  `PLUMBLINE_CFG` otherwise. **A Python config with snake_case keys now blocks
+  and must be renamed** (`protected_branches` → `protectedBranches`,
+  `docs_allowlist` → `docsAllowlist`); the reason names the key to use. Unset,
+  the defaults still apply (`main` protected, no docs allowlist), and an
+  explicit empty `protectedBranches` still protects no branch. An empty
+  `docsAllowlist` entry is now a config error too: before, it was rejected
+  only when the matching reached it, so `["README.md", ""]` let a README edit
+  through and an unprotected branch never checked it. `PLUMBLINE_CFG` stays
+  shared between the hooks: a config that also carries the boundary guard's
+  `layers` and `direction` keeps working, and a key neither guard reads (such
+  as a `layer` typo) blocks.
 
 - **The branch guard reads a value that cannot be a branch name as unknown**
   ([#474](https://github.com/slopstopper/plumb-line/issues/474)). `HEAD`
