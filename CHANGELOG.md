@@ -31,8 +31,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   unknown: a code edit blocks, naming the value, and a docs-allowlisted edit
   is still allowed. **This is stricter** (owner decision): wiring that passes
   such a value now blocks code edits. The documented wiring,
-  `$(git branch --show-current)`, never produces one. The table's rows are
-  cross-checked against `git check-ref-format --branch` in both twins' suites.
+  `$(git branch --show-current)`, does not produce one for a branch git's
+  own commands would create; a ref written by hand (for example
+  `refs/heads/-x`) can still be printed, and now blocks. The table's rows
+  are cross-checked against `git check-ref-format --branch` in both twins'
+  suites.
 
 ### Changed
 - **One case table specifies the hook twins' CLIs**

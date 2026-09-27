@@ -155,11 +155,24 @@ def _reads_branch(c):
 # agree with `git check-ref-format --branch`: "branch unknown" means git
 # rejects the name, "on protected branch" means git accepts it. JS twin:
 # "branch names agree with git".
-@pytest.mark.parametrize('c', [c for c in CASES.get('branchGuard', []) if _reads_branch(c)],
-                         ids=lambda c: c['name'])
-def test_branch_rows_agree_with_git(c):
+_READS = [(c, _reads_branch(c)) for c in CASES.get('branchGuard', []) if _reads_branch(c)]
+
+
+def test_the_git_cross_check_selects_rows_on_both_sides_of_the_rule():
+    # A change to the reason wording would otherwise select nothing, silently.
+    assert sum(1 for _, (_, unknown) in _READS if unknown) >= 10
+    assert sum(1 for _, (_, unknown) in _READS if not unknown) >= 3
+
+
+@pytest.mark.parametrize('c', [c for c, _ in _READS], ids=lambda c: c['name'])
+def test_branch_rows_agree_with_git(c, tmp_path):
     branch, unknown = _reads_branch(c)
-    git = subprocess.run(['git', 'check-ref-format', '--branch', branch], capture_output=True)
+    # git runs outside any repository: inside one, `--branch` expands `@{-1}`
+    # and `@{u}` against that repository's history, so the verdict would
+    # depend on where the tests run (#474 review).
+    env = dict(os.environ, GIT_CEILING_DIRECTORIES=str(tmp_path.parent))
+    git = subprocess.run(['git', 'check-ref-format', '--branch', branch], capture_output=True,
+                         cwd=tmp_path, env=env)
     assert (git.returncode == 0) is (not unknown), branch
 
 

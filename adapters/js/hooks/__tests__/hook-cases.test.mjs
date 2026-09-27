@@ -4,7 +4,9 @@
 // language's spawn tests, so neither twin can quietly miss it.
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { tableProblems } from "../../../../primitives/conformance/table-guards.mjs";
 
@@ -132,13 +134,22 @@ function readsBranch(c) {
   return null;
 }
 
+// git runs outside any repository: inside one, `--branch` expands `@{-1}` and
+// `@{u}` against that repository's history, so the verdict would depend on
+// where the tests run (#474 review).
+const OUTSIDE_REPO = mkdtempSync(path.join(os.tmpdir(), "plumb-line-refcheck-"));
+const GIT_ENV = { ...process.env, GIT_CEILING_DIRECTORIES: path.dirname(OUTSIDE_REPO) };
+
 describe("hook-cases.json — branch names agree with git (#474)", () => {
-  for (const c of cases.branchGuard ?? []) {
-    const read = readsBranch(c);
-    if (!read) continue;
-    const { branch, unknown } = read;
+  const read = (cases.branchGuard ?? []).map((c) => [c, readsBranch(c)]).filter(([, r]) => r);
+  // A change to the reason wording would otherwise select nothing, silently.
+  it("selects rows on both sides of git's rule", () => {
+    expect(read.filter(([, r]) => r.unknown).length).toBeGreaterThanOrEqual(10);
+    expect(read.filter(([, r]) => !r.unknown).length).toBeGreaterThanOrEqual(3);
+  });
+  for (const [c, { branch, unknown }] of read) {
     it(`${JSON.stringify(branch)}: ${c.name}`, () => {
-      const git = spawnSync("git", ["check-ref-format", "--branch", branch]);
+      const git = spawnSync("git", ["check-ref-format", "--branch", branch], { cwd: OUTSIDE_REPO, env: GIT_ENV });
       expect(git.error, "git did not start").toBeUndefined();
       expect(git.status === 0, "git accepts it as a branch name").toBe(!unknown);
     });

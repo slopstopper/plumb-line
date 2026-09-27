@@ -89,6 +89,62 @@
       "expectStderr": "branch unknown"
     },
     {
+      "name": "a name git refuses (a trailing dot) is unknown (#474 review)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "a." },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
+      "name": "a name git refuses (an empty component: a doubled slash) is unknown (#474 review)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "a//b" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
+      "name": "a name git refuses (an empty component: a leading slash) is unknown (#474 review)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "/a" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
+      "name": "a name git refuses (an empty component: a trailing slash) is unknown (#474 review)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "a/" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
+      "name": "a name git refuses (a tilde) is unknown (#474 review)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "a~b" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
+      "name": "a name git refuses (a colon) is unknown (#474 review)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "a:b" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
+      "name": "a name git refuses (a backslash) is unknown (#474 review)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "a\\b" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "branch unknown"
+    },
+    {
       "name": "a docs edit is allowed when the branch is not a branch name (#474)",
       "stdin": "{\"filePath\": \"docs/x.md\"}",
       "env": { "PLUMBLINE_BRANCH": "HEAD" },
