@@ -15,7 +15,8 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   decoded bytes that are not UTF-8 lossily and judged the mangled path, so
   `docs/\xff.md` was allowed there and blocked in Python. The Python twin
   followed the locale or `PYTHONIOENCODING`, so under `ascii` it blocked a
-  valid non-ASCII docs path, and under `latin-1` it allowed an invalid one.
+  valid non-ASCII docs path, and under `latin-1`, or the C locale with UTF-8
+  mode off, it allowed an invalid one.
   Both now block, with exit 2, on stdin that is not valid UTF-8, and read
   valid UTF-8 the same way whatever the environment says. Both also count
   only JSON whitespace as empty stdin, so a lone byte-order mark or a `\x1c`

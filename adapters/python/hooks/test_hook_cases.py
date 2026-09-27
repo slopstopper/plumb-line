@@ -5,6 +5,7 @@ so neither twin can quietly miss it."""
 import copy
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -34,15 +35,21 @@ _MODEL = {
 }
 
 def _type_problems(c):
-    """The field types this runner reads, checked up front so both twins reject
-    the same rows: a null or a number where a string belongs is a table error,
-    not something each language coerces its own way. JS twin: typeProblems."""
+    """The field types this runner reads. Each row is checked before it runs, so
+    both twins refuse the same rows: a null or a number where a string belongs,
+    or stdinHex that is not whole hex bytes, is a table error, not something
+    each language coerces its own way. JS reads JSON 2.0 as the integer 2, so a
+    whole float is accepted here too. JS twin: typeProblems."""
     problems = []
     for f in ('name', 'stdin', 'stdinHex', 'expectStderr'):
         if f in c and not isinstance(c[f], str):
             problems.append(f'{f} must be a string')
+    if isinstance(c.get('stdinHex'), str) and not re.fullmatch(r'(?:[0-9a-fA-F]{2})*', c['stdinHex']):
+        problems.append('stdinHex must be whole hex bytes')
     exit_code = c.get('expectExit')
-    if not isinstance(exit_code, int) or isinstance(exit_code, bool):
+    whole = (isinstance(exit_code, int) and not isinstance(exit_code, bool)) or (
+        isinstance(exit_code, float) and exit_code.is_integer())
+    if not whole:
         problems.append('expectExit must be an integer')
     if 'env' in c:
         if not isinstance(c['env'], dict):
@@ -114,6 +121,14 @@ def test_a_planted_null_or_number_where_a_string_belongs_fails():
     assert _type_problems({'name': 'x', 'expectExit': 0, 'env': None}) == ['env must be an object']
     assert _type_problems({'name': 'x', 'expectExit': 0, 'env': {'A': 1}}) == ['env.A must be a string or null']
     assert _type_problems({'name': 'x', 'expectExit': '2'}) == ['expectExit must be an integer']
+    assert _type_problems({'name': 'x', 'expectExit': 2.5}) == ['expectExit must be an integer']
+    assert _type_problems({'name': 'x', 'expectExit': 2.0}) == []
+
+
+@pytest.mark.parametrize('hex_', ['efbbb', '1g2c'])
+def test_a_planted_stdinhex_that_is_not_whole_hex_bytes_fails(hex_):
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'stdinHex': hex_}) == [
+        'stdinHex must be whole hex bytes']
 
 
 @pytest.mark.parametrize('kind', list(_HOOKS))
@@ -124,6 +139,7 @@ def test_every_hook_has_at_least_one_case(kind):
 @pytest.mark.parametrize('kind,c', [(k, c) for k in _HOOKS for c in CASES.get(k, [])],
                          ids=lambda v: v['name'] if isinstance(v, dict) else v)
 def test_hook_case(kind, c):
+    assert _type_problems(c) == []
     r = _run(kind, c)
     stderr = r.stderr.decode('utf-8', 'replace')
     assert r.returncode == c['expectExit'], stderr

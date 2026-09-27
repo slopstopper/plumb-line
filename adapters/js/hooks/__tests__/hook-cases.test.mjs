@@ -26,13 +26,19 @@ const MODEL = {
   fields: Object.fromEntries(Object.keys(HOOKS).map((kind) => [kind, ROW])),
 };
 
-// The field types this runner reads, checked up front so both twins reject
-// the same rows: a null or a number where a string belongs is a table error,
-// not something each language coerces its own way. Python twin: _type_problems.
+// The field types this runner reads. Each row is checked before it runs, so
+// both twins refuse the same rows: a null or a number where a string belongs,
+// or stdinHex that is not whole hex bytes (Buffer.from would silently
+// truncate it), is a table error, not something each language coerces its
+// own way. JSON cannot tell 2 from 2.0 here, so the Python twin accepts a
+// whole float too. Python twin: _type_problems.
 function typeProblems(c) {
   const problems = [];
   for (const f of ["name", "stdin", "stdinHex", "expectStderr"]) {
     if (f in c && typeof c[f] !== "string") problems.push(`${f} must be a string`);
+  }
+  if (typeof c.stdinHex === "string" && !/^(?:[0-9a-fA-F]{2})*$/.test(c.stdinHex)) {
+    problems.push("stdinHex must be whole hex bytes");
   }
   if (!Number.isInteger(c.expectExit)) problems.push("expectExit must be an integer");
   if ("env" in c) {
@@ -99,7 +105,14 @@ describe("hook-cases.json — the runner interprets every field, kind and versio
     expect(typeProblems({ name: "x", expectExit: 0, env: null })).toEqual(["env must be an object"]);
     expect(typeProblems({ name: "x", expectExit: 0, env: { A: 1 } })).toEqual(["env.A must be a string or null"]);
     expect(typeProblems({ name: "x", expectExit: "2" })).toEqual(["expectExit must be an integer"]);
+    expect(typeProblems({ name: "x", expectExit: 2.5 })).toEqual(["expectExit must be an integer"]);
+    expect(typeProblems(JSON.parse('{"name": "x", "expectExit": 2.0}'))).toEqual([]);
   });
+  for (const hex of ["efbbb", "1g2c"]) {
+    it(`a planted stdinHex that is not whole hex bytes fails (${hex})`, () => {
+      expect(typeProblems({ name: "x", expectExit: 0, stdinHex: hex })).toEqual(["stdinHex must be whole hex bytes"]);
+    });
+  }
   it("every hook has at least one case", () => {
     for (const kind of Object.keys(HOOKS)) expect(cases[kind]?.length, kind).toBeGreaterThan(0);
   });
@@ -109,6 +122,7 @@ for (const kind of Object.keys(HOOKS)) {
   describe(`hook cases — ${kind} CLI`, () => {
     for (const c of cases[kind] ?? []) {
       it(c.name, () => {
+        expect(typeProblems(c)).toEqual([]);
         const r = run(kind, c);
         expect(r.error, "the hook did not start, or timed out").toBeUndefined();
         expect(r.status, r.stderr).toBe(c.expectExit);

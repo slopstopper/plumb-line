@@ -154,11 +154,12 @@
       "expectStderr": "the branch guard could not run"
     },
     {
-      "name": "stdin is read as UTF-8 under the C locale with UTF-8 mode off (#475 review)",
-      "stdin": "{\"filePath\": \"docs/café.md\"}",
+      "name": "stdin that is not valid UTF-8 blocks under the C locale with UTF-8 mode off (#475 review)",
+      "stdinHex": "7b2266696c6550617468223a2022646f63732fff2e6d64227d",
       "env": { "PLUMBLINE_BRANCH": "main", "LC_ALL": "C", "PYTHONUTF8": "0" },
       "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
-      "expectExit": 0
+      "expectExit": 2,
+      "expectStderr": "stdin is not valid UTF-8"
     }
   ],
   "boundaryGuard": [
