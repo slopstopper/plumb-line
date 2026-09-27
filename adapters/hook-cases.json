@@ -84,20 +84,191 @@
       "expectStderr": "the branch guard could not run"
     },
     {
-      "name": "a filePath key in PLUMBLINE_CFG does not replace the edited file (v0.11.4 dogfood)",
+      "name": "a filePath key in PLUMBLINE_CFG is an unknown key, so it blocks (v0.11.4 dogfood, #469)",
       "stdin": "{\"filePath\": \"src/app.js\"}",
       "env": { "PLUMBLINE_BRANCH": "main" },
       "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"], "filePath": "docs/x.md" },
       "expectExit": 2,
-      "expectStderr": "on protected branch main"
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"filePath\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
     },
     {
-      "name": "a branch key in PLUMBLINE_CFG does not replace the real branch (v0.11.4 dogfood)",
+      "name": "a branch key in PLUMBLINE_CFG is an unknown key, so it blocks (v0.11.4 dogfood, #469)",
       "stdin": "{\"filePath\": \"src/app.js\"}",
       "env": { "PLUMBLINE_BRANCH": "main" },
       "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"], "branch": "feature/x" },
       "expectExit": 2,
-      "expectStderr": "on protected branch main"
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"branch\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+    },
+    {
+      "name": "an empty PLUMBLINE_CFG is set but not JSON, so it blocks on an unprotected branch (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x", "PLUMBLINE_CFG": "" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not valid JSON. Set it to a JSON object, or unset it for the defaults."
+    },
+    {
+      "name": "a PLUMBLINE_CFG that does not parse blocks (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x", "PLUMBLINE_CFG": "{" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not valid JSON. Set it to a JSON object, or unset it for the defaults."
+    },
+    {
+      "name": "NaN is not JSON, in PLUMBLINE_CFG too (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x", "PLUMBLINE_CFG": "{\"protectedBranches\": [NaN]}" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not valid JSON. Set it to a JSON object, or unset it for the defaults."
+    },
+    {
+      "name": "a null PLUMBLINE_CFG is not an object, so it blocks (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x", "PLUMBLINE_CFG": "null" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not a JSON object. Set it to a JSON object, or unset it for the defaults."
+    },
+    {
+      "name": "an array PLUMBLINE_CFG is not an object, so it blocks (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x", "PLUMBLINE_CFG": "[]" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not a JSON object. Set it to a JSON object, or unset it for the defaults."
+    },
+    {
+      "name": "a string PLUMBLINE_CFG is not an object, so it blocks (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x", "PLUMBLINE_CFG": "\"main\"" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not a JSON object. Set it to a JSON object, or unset it for the defaults."
+    },
+    {
+      "name": "a number PLUMBLINE_CFG is not an object, so it blocks (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x", "PLUMBLINE_CFG": "7" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not a JSON object. Set it to a JSON object, or unset it for the defaults."
+    },
+    {
+      "name": "snake_case protected_branches is an unknown key, so a code edit on release blocks (#469; JS let it through)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "release" },
+      "cfg": { "protected_branches": ["release"] },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"protected_branches\" (use \"protectedBranches\"). The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+    },
+    {
+      "name": "snake_case docs_allowlist is an unknown key, so a docs edit on main blocks (#469; Python allowed it)",
+      "stdin": "{\"filePath\": \"docs/x.md\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docs_allowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"docs_allowlist\" (use \"docsAllowlist\"). The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+    },
+    {
+      "name": "a typo key such as protectedBranch is unknown, so it blocks rather than falling back to main (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "release" },
+      "cfg": { "protectedBranch": ["release"] },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"protectedBranch\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+    },
+    {
+      "name": "several unknown keys are listed in UTF-16 order in both twins (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x", "PLUMBLINE_CFG": "{\"zeta\": 1, \"10\": 1, \"9\": 1}" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"10\", \"9\", \"zeta\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+    },
+    {
+      "name": "unknown keys sort by UTF-16 code unit, not code point: an astral key before U+FF01 (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x", "PLUMBLINE_CFG": "{\"\\uff01\": 1, \"\\ud83d\\ude00\": 1}" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"\\ud83d\\ude00\", \"\\uff01\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+    },
+    {
+      "name": "an unknown key is named in ASCII, whatever the stderr encoding (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x", "PLUMBLINE_CFG": "{\"protectedBränches\": [\"main\"]}" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"protectedBr\\u00e4nches\". The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"."
+    },
+    {
+      "name": "a string protectedBranches blocks rather than being read as its characters (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": "main" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG protectedBranches must be an array of strings."
+    },
+    {
+      "name": "a null protectedBranches blocks rather than falling back to main (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x" },
+      "cfg": { "protectedBranches": null },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG protectedBranches must be an array of strings."
+    },
+    {
+      "name": "a number in protectedBranches blocks (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x" },
+      "cfg": { "protectedBranches": ["main", 1] },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG protectedBranches must be an array of strings."
+    },
+    {
+      "name": "a nested array in protectedBranches blocks (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": [["main"]] },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG protectedBranches must be an array of strings."
+    },
+    {
+      "name": "a string docsAllowlist blocks rather than being read as its characters (#469)",
+      "stdin": "{\"filePath\": \"docs/x.md\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": "docs/" },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG docsAllowlist must be an array of strings."
+    },
+    {
+      "name": "a number in docsAllowlist blocks, on an unprotected branch too (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x" },
+      "cfg": { "docsAllowlist": ["docs/", 1] },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG docsAllowlist must be an array of strings."
+    },
+    {
+      "name": "an empty docsAllowlist entry still blocks (#469 keeps it)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": [""] },
+      "expectExit": 2,
+      "expectStderr": "the branch guard could not run"
+    },
+    {
+      "name": "with no PLUMBLINE_CFG only main is protected: a code edit on release is allowed (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "release" },
+      "expectExit": 0
+    },
+    {
+      "name": "an explicit empty object gives the defaults: main is protected (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": {},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch main. Branch first."
+    },
+    {
+      "name": "an explicit empty protectedBranches protects nothing: a code edit on main is allowed (#469)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": [] },
+      "expectExit": 0
     },
     {
       "name": "stdin is read as UTF-8: a non-ASCII docs path is allowed (#475)",

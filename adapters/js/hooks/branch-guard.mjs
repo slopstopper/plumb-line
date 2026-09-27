@@ -112,6 +112,70 @@ function isMainModule() {
 // in-process instrumentation cannot see across the child process, so this glue
 // is excluded from coverage rather than left falsely "uncovered".
 /* v8 ignore start */
+
+/** The only PLUMBLINE_CFG keys, and the snake_case spellings to rename (#469). */
+const CFG_KEYS = ["protectedBranches", "docsAllowlist"];
+const CFG_RENAMES = {
+  protected_branches: "protectedBranches",
+  docs_allowlist: "docsAllowlist",
+};
+
+/** A key as JSON, with everything outside printable ASCII escaped, so the
+ * reason reads the same in the Python twin (json.dumps) whatever stderr's
+ * encoding. */
+function quoteKey(k) {
+  return JSON.stringify(k).replace(
+    /[^\x20-\x7e]/g,
+    (c) => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0"),
+  );
+}
+
+/**
+ * PLUMBLINE_CFG as the config decide() takes, or a reason to block (#469).
+ * Unset gives the defaults; set, it must be a JSON object with only the
+ * camelCase keys, each an array of strings. Anything else fails closed: an
+ * ignored key (a typo, or the snake_case spelling the Python twin used to
+ * accept) fell back to protecting only main. Twin of _read_config in
+ * branch_guard.py.
+ */
+function readConfig(raw) {
+  if (raw === undefined) return { config: {} };
+  const retry = " Set it to a JSON object, or unset it for the defaults.";
+  let cfg;
+  try {
+    cfg = JSON.parse(raw);
+  } catch {
+    return { reason: "blocked: PLUMBLINE_CFG is not valid JSON." + retry };
+  }
+  if (cfg === null || typeof cfg !== "object" || Array.isArray(cfg)) {
+    return { reason: "blocked: PLUMBLINE_CFG is not a JSON object." + retry };
+  }
+  // Sorted by UTF-16 code unit, as the Python twin sorts: Object.keys puts
+  // integer-like keys first, so parse order is not the same in both.
+  const unknown = Object.keys(cfg).filter((k) => !CFG_KEYS.includes(k)).sort();
+  if (unknown.length > 0) {
+    const named = unknown.map((k) =>
+      Object.hasOwn(CFG_RENAMES, k)
+        ? `${quoteKey(k)} (use ${quoteKey(CFG_RENAMES[k])})`
+        : quoteKey(k),
+    );
+    return {
+      reason:
+        `blocked: PLUMBLINE_CFG has unknown key(s) ${named.join(", ")}. ` +
+        `The branch guard reads only "protectedBranches" and "docsAllowlist".`,
+    };
+  }
+  for (const key of CFG_KEYS) {
+    if (
+      Object.hasOwn(cfg, key) &&
+      !(Array.isArray(cfg[key]) && cfg[key].every((e) => typeof e === "string"))
+    ) {
+      return { reason: `blocked: PLUMBLINE_CFG ${key} must be an array of strings.` };
+    }
+  }
+  return { config: cfg };
+}
+
 if (isMainModule()) {
   const chunks = [];
   process.stdin.on("data", (d) => chunks.push(d));
@@ -131,18 +195,17 @@ if (isMainModule()) {
       // Empty means JSON whitespace only, as in the Python twin: trim() also
       // strips a byte-order mark, and Python's strip() also strips \x1c-\x1f.
       const input = /^[ \t\n\r]*$/.test(raw) ? {} : JSON.parse(raw);
-      const cfg = process.env.PLUMBLINE_CFG
-        ? JSON.parse(process.env.PLUMBLINE_CFG)
-        : {};
-      // Only the two documented config keys (the Python twin also accepts
-      // snake_case spellings; #469 settles one set for both): a
-      // spread let a config `branch` or `filePath` override the real ones.
-      r = decide({
-        filePath: input?.filePath,
-        branch: process.env.PLUMBLINE_BRANCH,
-        protectedBranches: cfg?.protectedBranches,
-        docsAllowlist: cfg?.docsAllowlist,
-      });
+      const { config, reason } = readConfig(process.env.PLUMBLINE_CFG);
+      // Only the two documented config keys, never a spread: a spread let a
+      // config `branch` or `filePath` override the real ones.
+      r = reason
+        ? { allow: false, reason }
+        : decide({
+            filePath: input?.filePath,
+            branch: process.env.PLUMBLINE_BRANCH,
+            protectedBranches: config.protectedBranches,
+            docsAllowlist: config.docsAllowlist,
+          });
     } catch (e) {
       process.stderr.write(`blocked: the branch guard could not run (${e.message}).\n`);
       process.exit(2);

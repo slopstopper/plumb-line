@@ -21,6 +21,26 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   valid UTF-8 the same way whatever the environment says. Both also count
   only JSON whitespace as empty stdin, so a lone byte-order mark or a `\x1c`
   gives the same reason in each.
+- **The branch guard fails closed on a `PLUMBLINE_CFG` it cannot use, with one
+  key spelling in both twins**
+  ([#469](https://github.com/slopstopper/plumb-line/issues/469)). This is
+  **stricter for adopters**: a config that used to be ignored or coerced now
+  blocks every edit, with exit 2, until it is fixed. The twins read different
+  keys and silently fell back to protecting `main`. The JS twin ignored the
+  snake_case `protected_branches`, so on branch `release` with
+  `{"protected_branches": ["release"]}` a code edit was allowed; a typo such as
+  `protectedBranch` was ignored in both. The Python twin read a string
+  `"protectedBranches": "main"` as its characters, so `main` was not protected.
+  An empty, `null`, array, string or number `PLUMBLINE_CFG` gave the defaults
+  in JS, and blocked in Python only as a crash; Python also accepted `NaN`,
+  which is not JSON.
+  Now both accept only a JSON object with the camelCase keys `protectedBranches`
+  and `docsAllowlist`, each an array of strings, and block with a reason naming
+  `PLUMBLINE_CFG` otherwise. **A Python config with snake_case keys now blocks
+  and must be renamed** (`protected_branches` → `protectedBranches`,
+  `docs_allowlist` → `docsAllowlist`); the reason names the key to use. Unset,
+  the defaults still apply (`main` protected, no docs allowlist), and an
+  explicit empty `protectedBranches` still protects no branch.
 
 ### Changed
 - **One case table specifies the hook twins' CLIs**

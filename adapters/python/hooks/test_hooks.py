@@ -168,23 +168,10 @@ def test_branch_blank_means_ascii_whitespace_as_in_the_js_twin(branch):
 
 
 # --- CLI behaviour is in adapters/hook-cases.json, run against both twins by
-# test_hook_cases.py (#475). The two CLI tests below are cases where the twins
-# still diverge; each moves into the table with its fix.
+# test_hook_cases.py (#475). The CLI test below is a case where the twins
+# still diverge; it moves into the table with its fix.
 
-_BRANCH_GUARD = os.path.join(os.path.dirname(__file__), "branch_guard.py")
 _GATE = os.path.join(os.path.dirname(__file__), "pre_commit_gate.py")
-
-
-def test_branch_guard_cli_accepts_snake_case_cfg():
-    # Python-only: the JS twin reads camelCase keys only. #469 settles one set.
-    import json
-    import subprocess
-    env = dict(os.environ, PLUMBLINE_BRANCH="main",
-               PLUMBLINE_CFG=json.dumps({"protected_branches": ["main"],
-                                         "docs_allowlist": ["README.md"]}))
-    r = subprocess.run([sys.executable, _BRANCH_GUARD], input=json.dumps({"filePath": "README.md"}),
-                       capture_output=True, text=True, env=env)
-    assert r.returncode == 0, r.stderr
 
 
 def test_gate_cli_exits_2_on_an_unbalanced_quote():

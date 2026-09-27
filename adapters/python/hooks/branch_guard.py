@@ -69,9 +69,53 @@ def decide(file_path, branch, protected_branches=("main",), docs_allowlist=()):
 # stdin, the branch from PLUMBLINE_BRANCH, config from PLUMBLINE_CFG; exit 2 to
 # block. Until 0.11.3 this module had no entry point, so wired as a hook it
 # exited 0 and never blocked, while its JS twin did. PLUMBLINE_CFG is the
-# shared JSON the JS twin reads (camelCase); snake_case keys are accepted too.
+# shared JSON the JS twin reads, camelCase keys only (#469).
 # Every failure exits 2 (#449 review): a Claude Code hook treats only exit 2
 # as a block, so a traceback's exit 1 would let the edit through.
+
+# The only PLUMBLINE_CFG keys, and the snake_case spellings to rename (#469).
+_CFG_KEYS = ("protectedBranches", "docsAllowlist")
+_CFG_RENAMES = {"protected_branches": "protectedBranches", "docs_allowlist": "docsAllowlist"}
+
+
+def _reject_constant(name):
+    """NaN and Infinity are not JSON, and the JS twin's JSON.parse refuses them."""
+    raise ValueError(f"{name} is not JSON")
+
+
+def _read_config(raw):
+    """PLUMBLINE_CFG as (config, None), or (None, a reason to block) (#469).
+    Unset gives the defaults; set, it must be a JSON object with only the
+    camelCase keys, each an array of strings. Anything else fails closed: an
+    ignored key fell back to protecting only main, and a coerced value
+    (tuple("main") is its characters) left main unprotected. Twin of
+    readConfig in branch-guard.mjs."""
+    if raw is None:
+        return {}, None
+    retry = " Set it to a JSON object, or unset it for the defaults."
+    try:
+        cfg = json.loads(raw, parse_constant=_reject_constant)
+    except ValueError:
+        return None, "blocked: PLUMBLINE_CFG is not valid JSON." + retry
+    if not isinstance(cfg, dict):
+        return None, "blocked: PLUMBLINE_CFG is not a JSON object." + retry
+    # Sorted by UTF-16 code unit, as the JS twin's sort() orders them.
+    unknown = sorted((k for k in cfg if k not in _CFG_KEYS),
+                     key=lambda k: k.encode("utf-16-be", "surrogatepass"))
+    if unknown:
+        # json.dumps escapes everything outside printable ASCII, as the JS
+        # twin's quoteKey does, whatever stderr's encoding.
+        named = [f"{json.dumps(k)} (use {json.dumps(_CFG_RENAMES[k])})" if k in _CFG_RENAMES
+                 else json.dumps(k) for k in unknown]
+        return None, (f"blocked: PLUMBLINE_CFG has unknown key(s) {', '.join(named)}. "
+                      'The branch guard reads only "protectedBranches" and "docsAllowlist".')
+    for key in _CFG_KEYS:
+        if key in cfg and not (isinstance(cfg[key], list)
+                               and all(isinstance(e, str) for e in cfg[key])):
+            return None, f"blocked: PLUMBLINE_CFG {key} must be an array of strings."
+    return cfg, None
+
+
 def _read_stdin():
     """Stdin as strict UTF-8, whatever the locale or PYTHONIOENCODING says, as
     in the JS twin (#475). A byte-order mark is kept, as the JS twin keeps it."""
@@ -86,12 +130,14 @@ def _main():
     # Empty means JSON whitespace only, as in the JS twin: str.strip() also
     # strips \x1c-\x1f, and JS trim() also strips a byte-order mark.
     input_data = json.loads(raw) if raw.strip(" \t\n\r") else {}
-    cfg = json.loads(os.environ.get("PLUMBLINE_CFG", "{}"))
+    cfg, reason = _read_config(os.environ.get("PLUMBLINE_CFG"))
+    if reason:
+        return {"allow": False, "reason": reason}
     return decide(
         file_path=input_data.get("filePath") if isinstance(input_data, dict) else None,
         branch=os.environ.get("PLUMBLINE_BRANCH"),
-        protected_branches=tuple(cfg.get("protectedBranches", cfg.get("protected_branches", ["main"]))),
-        docs_allowlist=tuple(cfg.get("docsAllowlist", cfg.get("docs_allowlist", []))),
+        protected_branches=tuple(cfg.get("protectedBranches", ["main"])),
+        docs_allowlist=tuple(cfg.get("docsAllowlist", [])),
     )
 
 
