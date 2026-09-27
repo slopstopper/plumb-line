@@ -6,12 +6,18 @@
 # (`if __name__ == "__main__":`) and the argv/print `main()` glue are excluded:
 # they are exercised via the shipped git-hook / lint entry points, not in
 # in-process unit tests. The decision logic they wrap is unit-tested.
+#
+# `patch = ["subprocess"]` also measures the Python processes the tests spawn,
+# so the CLI logic that adapters/hook-cases.json exercises (config and stdin
+# reading, #469, #475) counts as covered by those rows rather than duplicated
+# in in-process tests.
 [tool.pytest.ini_options]
 addopts = "--cov=. --cov-report=term-missing --cov-fail-under=80"
 
 [tool.coverage.run]
 source = ["."]
 omit = ["test_*.py", "*/test_*.py"]
+patch = ["subprocess"]
 
 [tool.coverage.report]
 exclude_also = [

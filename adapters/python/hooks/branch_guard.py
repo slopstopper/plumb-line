@@ -113,6 +113,10 @@ def _read_config(raw):
         if key in cfg and not (isinstance(cfg[key], list)
                                and all(isinstance(e, str) for e in cfg[key])):
             return None, f"blocked: PLUMBLINE_CFG {key} must be an array of strings."
+    # decide() only meets an empty entry when it reaches it, so an earlier
+    # match or an unprotected branch let the config through (#469 review).
+    if "" in cfg.get("docsAllowlist", []):
+        return None, "blocked: PLUMBLINE_CFG docsAllowlist must not contain an empty entry."
     return cfg, None
 
 

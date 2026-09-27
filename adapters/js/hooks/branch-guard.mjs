@@ -173,6 +173,11 @@ function readConfig(raw) {
       return { reason: `blocked: PLUMBLINE_CFG ${key} must be an array of strings.` };
     }
   }
+  // decide() only meets an empty entry when it reaches it, so an earlier match
+  // or an unprotected branch let the config through (#469 review).
+  if (cfg.docsAllowlist?.includes("")) {
+    return { reason: "blocked: PLUMBLINE_CFG docsAllowlist must not contain an empty entry." };
+  }
   return { config: cfg };
 }
 

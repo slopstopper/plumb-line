@@ -40,7 +40,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   and must be renamed** (`protected_branches` → `protectedBranches`,
   `docs_allowlist` → `docsAllowlist`); the reason names the key to use. Unset,
   the defaults still apply (`main` protected, no docs allowlist), and an
-  explicit empty `protectedBranches` still protects no branch.
+  explicit empty `protectedBranches` still protects no branch. An empty
+  `docsAllowlist` entry is now a config error too: before, it was rejected
+  only when the matching reached it, so `["README.md", ""]` let a README edit
+  through and an unprotected branch never checked it.
 
 ### Changed
 - **One case table specifies the hook twins' CLIs**

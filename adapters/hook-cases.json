@@ -242,12 +242,28 @@
       "expectStderr": "blocked: PLUMBLINE_CFG docsAllowlist must be an array of strings."
     },
     {
-      "name": "an empty docsAllowlist entry still blocks (#469 keeps it)",
+      "name": "an empty docsAllowlist entry is a config error (#469 review)",
       "stdin": "{\"filePath\": \"src/app.js\"}",
       "env": { "PLUMBLINE_BRANCH": "main" },
       "cfg": { "protectedBranches": ["main"], "docsAllowlist": [""] },
       "expectExit": 2,
-      "expectStderr": "the branch guard could not run"
+      "expectStderr": "blocked: PLUMBLINE_CFG docsAllowlist must not contain an empty entry."
+    },
+    {
+      "name": "an empty docsAllowlist entry blocks even after an entry that matches (#469 review)",
+      "stdin": "{\"filePath\": \"README.md\"}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["README.md", ""] },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG docsAllowlist must not contain an empty entry."
+    },
+    {
+      "name": "an empty docsAllowlist entry blocks on an unprotected branch too (#469 review)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": { "PLUMBLINE_BRANCH": "feature/x" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": [""] },
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG docsAllowlist must not contain an empty entry."
     },
     {
       "name": "with no PLUMBLINE_CFG only main is protected: a code edit on release is allowed (#469)",
