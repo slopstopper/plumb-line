@@ -1946,3 +1946,23 @@ from `config["stub_confidence"]` to
 violations and every other file are unchanged; the example tests pass. It is
 the first change to that fixture's `src/` since the v0.6.0 release commit
 (`312c42c`).
+
+### Part 2 — Dogfood self-audit (non-blocking)
+
+See [`dogfood.md`](dogfood.md), v0.11.5 section — **8 findings: 2
+violations, 6 needs-review**. Five were fixed in place, both violations
+among them: the Python pre-commit gate exited 1 with stderr closed, and the
+branch guard's Python twin normalised paths differently from JS, allowing a
+code file outside `docs/` (fixed before the tag by owner decision,
+[#515](https://github.com/slopstopper/plumb-line/issues/515)). Three were
+deferred to v0.12.0 with owner decisions recorded
+([#516](https://github.com/slopstopper/plumb-line/issues/516),
+[#517](https://github.com/slopstopper/plumb-line/issues/517) for two).
+
+### Deterministic pre-tag checks
+
+`check_report_format` (above; the dogfood report also conforms);
+`check_version_prose` clean; `check-bundle-sync` in sync; bundle
+conformance CONFORMANT; `check-versions` at 0.11.5 after the bump. Full
+suites green on the release branch (JS adapters 682, Python adapters 340,
+examples and scripts 128); CI on the release PR.

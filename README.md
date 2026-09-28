@@ -137,7 +137,7 @@ The audit and remediate skills use an LLM, so plumb-line measures them instead o
 
 ## It audits itself
 
-Before each of those releases, plumb-line also runs its own audit skill over its own code and publishes what it found in the [dogfooding report](docs/dogfood.md). For v0.11.4: eight findings, three fixed on the spot (among them an older hole in the JS branch guard, where a config key could override the branch), five tracked as issues ([#469](https://github.com/slopstopper/plumb-line/issues/469), [#474](https://github.com/slopstopper/plumb-line/issues/474), [#475](https://github.com/slopstopper/plumb-line/issues/475), [#476](https://github.com/slopstopper/plumb-line/issues/476)). "The auditor found no problem" is never treated as proof that no problem exists.
+Before each of those releases, plumb-line also runs its own audit skill over its own code and publishes what it found in the [dogfooding report](docs/dogfood.md). For v0.11.5: eight findings, five fixed before release (among them an older hole in the Python branch guard, which allowed a code file outside `docs/` that the JS twin blocked, [#515](https://github.com/slopstopper/plumb-line/issues/515)), three tracked as issues ([#516](https://github.com/slopstopper/plumb-line/issues/516), [#517](https://github.com/slopstopper/plumb-line/issues/517)). "The auditor found no problem" is never treated as proof that no problem exists.
 
 ## What plumb-line does not claim
 
