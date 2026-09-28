@@ -43,8 +43,8 @@ claude plugin eval --json results.json --report report.html
 `evals/trigger/` holds description trigger-quality query sets
 (`audit-queries.json`, `adopt-queries.json`: realistic should-trigger queries
 plus near-miss should-NOT-trigger queries), run by
-`scripts/trigger_check.py` against the *installed* plugin — no early access
-needed. The harness is tiered by design: a small-model screen over every
+`scripts/trigger_check.py` against the *installed* plugin — no `claude plugin
+eval` needed. The harness is tiered by design: a small-model screen over every
 query, then a session-tier confirm pass over only the contested ones, with
 every reported rate labeled by the model that measured it (a haiku-measured
 trigger rate is a haiku claim). Triggering is detected on the Skill tool's
@@ -73,9 +73,8 @@ model sampling, so a re-run is not guaranteed to reproduce the same rates.
 
 ## Status and honest caveats
 
-- `claude plugin eval` was early access and org-gated when this suite was
-  written; the owner's account has it as of 2026-09-28 (#291, Claude Code
-  2.1.283). The suite was authored 2026-08-18 against the harness format as
+- `claude plugin eval` is early access and org-gated; it is enabled on the
+  owner's account as of 2026-09-28 (#291, Claude Code 2.1.283). The suite was authored 2026-08-18 against the harness format as
   reported that day and **has not yet been executed**. Field
   names, `case.yaml` schema details, and scaffold path resolution may need
   adjustment on the first real run.

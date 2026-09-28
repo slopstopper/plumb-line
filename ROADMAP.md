@@ -248,7 +248,8 @@ Version themes for the near-term releases, and the GitHub issues under each.
   calibration stays checked); and make the plugin trigger under pressure
   (GH #487 — loaded in 90 spike runs, a skill invoked in 1; the method is
   skill-creator's description optimisation, measured with `claude plugin
-  eval`'s with/without-plugin runs, owner decision 2026-09-28). The
+  eval`'s with/without-plugin runs and round 3's plugin arm, owner decision
+  2026-09-28). The
   blind-validation harness becomes a `claude plugin eval` suite (GH #291,
   moved from v0.14.0 on 2026-09-28 once the command proved enabled for this
   account); a first real run comes first, and the manual protocol stays the
