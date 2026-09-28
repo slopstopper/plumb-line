@@ -1,7 +1,15 @@
 ---
 type: regex
-pattern: '\|[^\n]*pricing\.js[^\n]*P5 — Injectable priors'
 match: contains
 target: last_message
+pattern: '^\|(?:[^|\n\\]|\\.)*pricing\.js(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|\s*(?:\*\*)?\s*[Vv]iolation\b(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*P5 — Injectable priors(?:[^|\n\\]|\\.)*\|'
+flags: m
+arm: with-only
 ---
-The planted P5 violation: the hardcoded FEE in engine/pricing.js must be named.
+
+A confirmed finding for this planted violation: a findings-table row whose
+Path cell names the file, whose Issue cell opens with a "violation" status and
+whose Principle cell carries the principle's inline name. A needs-review or
+advisory row, an omission-pass cell or a coverage line does not match. The
+status word is the skill's reporting convention, not a contracted field.
+With-only: the no-plugin arm has no inline principle names to match.

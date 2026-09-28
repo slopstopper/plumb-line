@@ -25,21 +25,35 @@ plain bash and were tested directly on 2026-08-18; the planted violation lines
 survive the strip.
 
 Graders per case:
-- `tool_used`: the audit skill was invoked. Under the default with/without
-  ablation this is a with-only indicator of whether the plugin fired, not part
-  of the score.
-- `tool_used`: the report-format checker actually ran, as every blind auditor
-  runs it in the manual harness. A report's own `format-validation:` line is
-  not taken on trust.
-- `regex`: the v3 report header. A format FAIL is scored independently of the
-  findings, per the harness.
-- `regex`, one per planted violation: the file **and** its principle's inline
-  name on one line, which is a findings-table row. A bare file-name pattern
-  would pass on a run that only listed the fixture's files. The first real run
-  did exactly that, crediting a run that had audited nothing (#291).
+- `tool_used` (with-only): the audit skill was invoked. This shows whether the
+  plugin fired; it is not part of the score.
+- `tool_used` (with-only): a Python interpreter **invoked** the report-format
+  checker, as the audit skill instructs. It proves the call was made, not that
+  it succeeded, because `tool_used` matches a call's input, never its outcome.
+  The pattern needs the interpreter, so a heredoc whose report text names the
+  checker does not count.
+- `regex` (with-only): the v3 report header. A format FAIL is scored
+  independently of the findings, per the harness.
+- `regex` (with-only), one per planted violation: a findings-table row whose
+  Path cell names the file, whose Issue cell opens with a `violation` status
+  and whose Principle cell carries the principle's inline name.
+  - A needs-review or advisory row does not match, and neither does an
+    omission-pass cell or a coverage line.
+  - The status word is the skill's reporting convention, not a contracted
+    field, so a report that words its status differently would be missed.
+  - A bare file-name pattern would pass on a run that only listed the
+    fixture's files. The first real run did exactly that, crediting a run
+    that had audited nothing (#291).
 - `llm` judge, holding the harness's scoring rule: a planted violation
   downgraded to advisory is a FAIL, and on clean fixtures any confirmed
   violation is a FAIL.
+
+**What the with/without delta measures.** Every grader except the `llm` judge
+is with-only, because the no-plugin arm cannot pass it: it has no v3 header,
+no inline principle names and no checker. So the delta comes from the judge
+alone. On 2026-09-28 the runner's judge failed broken-fixture reports that it
+passes when asked directly (#291). Until that is resolved, the delta is not
+evidence of finding accuracy.
 
 Each case lists the tools the auditor may use in `prompt.md`
 (`allowed_tools`). The sandbox grants none by default. Without `Read`, the
@@ -53,11 +67,12 @@ every case audits an empty directory.
 
 Running the checker needs Bash. Bash is a gated tool: it cannot go in
 `allowed_tools`, which takes read-only tools only, and without the operator
-grant it is removed from the session. The grant is bare `Bash`, because the
-skill first writes the report to a temp file, which a narrower pattern such
-as `Bash(python3 *)` does not cover. Under eval, every Bash command runs in
-the OS sandbox: writes are confined to the run's workspace, and the home
-directory and Claude Code configuration are unreadable.
+grant it is removed from the session. `Bash(python3 *)` alone is not enough,
+because the skill first writes the report to a temp file. Bare `Bash` is the
+grant used here; `--allow-tools Write "Bash(python3 *)"` would also cover it,
+and is narrower. Under eval, every Bash command runs in the OS sandbox:
+writes are confined to the run's workspace, and the home directory and
+Claude Code configuration are unreadable.
 
 ```sh
 claude plugin eval --scaffold --allow-tools Bash --no-publish \
@@ -67,8 +82,9 @@ claude plugin eval --scaffold --allow-tools Bash --no-publish \
 ```
 
 `--no-publish` keeps the HTML report local; by default it is published to
-claude.ai. Pass `--trust-plugin` when there is no terminal to confirm the
-first-run trust prompt.
+claude.ai. Pass `--trust-plugin` with no terminal, or with `--json`: in
+either case the first-run trust prompt cannot be answered, and the run is
+refused.
 
 ## trigger/ — tiered trigger-quality checks (runnable today)
 
@@ -116,7 +132,9 @@ model sampling, so a re-run is not guaranteed to reproduce the same rates.
   - Bash needs the operator grant, and a narrow pattern is not enough, so
     the checker never ran;
   - the judge criteria did not say that extra confirmed violations are
-    acceptable, which is how the manual harness has always scored them.
+    acceptable, although recorded harness runs score them as PASS
+    (`examples/AUDIT-EXPECTATIONS.md` now cites those runs). Whether the
+    old wording caused any judge FAIL is not shown.
 
   `context.add_dirs` cannot reach outside the case directory, so it cannot be
   used to expose the plugin's own files. Read access alone was enough.
@@ -124,6 +142,7 @@ model sampling, so a re-run is not guaranteed to reproduce the same rates.
   supplements the manual protocol in `examples/AUDIT-EXPECTATIONS.md` and does
   not replace it. The manual protocol remains the release gate.
 - The auditor's grants are read-only tools plus sandboxed Bash for the
-  checker. The audit skill's contract is read-only toward the audited code,
-  and the sandbox confines writes to the run's workspace, where only the
-  staged fixture copy and the temp report live.
+  checker. The read-only contract toward the audited code is the audit
+  skill's, not the sandbox's. The staged fixture copy sits in the writable
+  workspace, so Bash could modify it. The graders read only the final message
+  and the tool calls.
