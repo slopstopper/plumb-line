@@ -136,7 +136,8 @@ def _env_text(name):
     """The variable read from its bytes as UTF-8, whatever the locale says. Under
     an 8-bit locale, os.environ decodes each byte as one character, so a byte
     that is not UTF-8 looks valid and valid non-ASCII text is garbled (#501
-    review). None when unset; U+FFFD where it is not UTF-8."""
+    review). None when unset; a single U+FFFD for the whole value when it is
+    not UTF-8, which _env_problem reads as a reason to block."""
     if os.supports_bytes_environ:
         raw = os.environb.get(name.encode())
     else:  # Windows: the environment is already text

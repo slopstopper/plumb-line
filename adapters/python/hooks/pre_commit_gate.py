@@ -39,7 +39,8 @@ def _env_text(name):
     """The variable read from its bytes as UTF-8, whatever the locale says. Under
     an 8-bit locale, os.environ decodes each byte as one character, so a byte
     that is not UTF-8 looks valid and valid non-ASCII text is garbled (#501
-    review). None when unset; U+FFFD where it is not UTF-8."""
+    review). None when unset; a single U+FFFD for the whole value when it is
+    not UTF-8, which _env_problem reads as a reason to block."""
     if os.supports_bytes_environ:
         raw = os.environb.get(name.encode())
     else:  # Windows: the environment is already text
@@ -81,8 +82,13 @@ def _main():
     if not argv:
         return {"allow": False, "reason": "pre-commit blocked: PLUMBLINE_TEST_CMD is not set"}
 
+    # The command reaches the process as the UTF-8 bytes it was given, as in
+    # the JS twin: subprocess would re-encode str arguments by the locale
+    # (#501 re-review). Windows takes str arguments.
+    run_argv = [w.encode("utf-8") for w in argv] if os.supports_bytes_environ else argv
+
     def _runner():
-        return subprocess.run(argv).returncode == 0
+        return subprocess.run(run_argv).returncode == 0
 
     return decide(runners=[(cmd, _runner)])
 
