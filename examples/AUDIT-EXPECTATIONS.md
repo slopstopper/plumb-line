@@ -66,7 +66,7 @@ planted violation blocks the release.
 
 ## Expected findings
 
-### `broken/` — exactly the planted set must appear as VIOLATIONS
+### `broken/` — all of the planted set must appear as VIOLATIONS
 
 | Fixture              | Must flag as violations                                      | Principle |
 | -------------------- | ------------------------------------------------------------ | --------- |
@@ -80,9 +80,14 @@ planted violation blocks the release.
 Scoring: **PASS** only if all three planted violations for a fixture appear as
 confirmed violations. The P8 row is the regression this harness exists to guard —
 a missing-lineage omission caught only by the skill's omission pass + the
-"declared adoption" calibration. Extra advisory/needs-review items are acceptable;
-a _missed_ planted violation or a planted violation downgraded to advisory is a
-FAIL.
+"declared adoption" calibration. Only the planted set decides the verdict: extra
+advisory/needs-review items are acceptable, and so are extra confirmed violations,
+since each broken fixture has more defects than the three planted. This states
+recorded practice rather than changing it: `docs/validation-results.md` scores
+such runs as PASS. See the v0.6.0 record ("the answer key tolerates extras"),
+v0.8.0 ("the protocol allows extra items") and v0.11.5, js-broken 1 and 2
+("14 findings: 9 violations"). A _missed_ planted violation, or a planted
+violation downgraded to advisory or needs-review, is a FAIL.
 
 ### `clean/` — zero violations of adopted principles
 

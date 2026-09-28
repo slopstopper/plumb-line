@@ -24,19 +24,67 @@ case-insensitively, strip verified before dispatch). The scaffold scripts are
 plain bash and were tested directly on 2026-08-18; the planted violation lines
 survive the strip.
 
-Graders per case: `tool_used` (the audit skill was actually invoked), `regex`
-for the v3 report header (format FAIL is scored independently of findings, per
-the harness) and for each planted violation's file name, plus an `llm` judge
-holding the harness's scoring rule: a planted violation downgraded to advisory
-is a FAIL; on clean fixtures any confirmed violation is a FAIL.
+Graders per case:
+- `tool_used` (with-only): the audit skill was invoked. This shows whether the
+  plugin fired; it is not part of the score.
+- `tool_used` (with-only): a Python interpreter **invoked** the report-format
+  checker, as the audit skill instructs. It proves the call was made, not that
+  it succeeded, because `tool_used` matches a call's input, never its outcome.
+  The pattern needs the interpreter, so a heredoc whose report text names the
+  checker does not count.
+- `regex` (with-only): the v3 report header. A format FAIL is scored
+  independently of the findings, per the harness.
+- `regex` (with-only), one per planted violation: a findings-table row whose
+  Path cell names the file, whose Issue cell opens with a `violation` status
+  and whose Principle cell carries the principle's inline name.
+  - A needs-review or advisory row does not match, and neither does an
+    omission-pass cell or a coverage line.
+  - The status word is the skill's reporting convention, not a contracted
+    field, so a report that words its status differently would be missed.
+  - A bare file-name pattern would pass on a run that only listed the
+    fixture's files. The first real run did exactly that, crediting a run
+    that had audited nothing (#291).
+- `llm` judge, holding the harness's scoring rule: a planted violation
+  downgraded to advisory is a FAIL, and on clean fixtures any confirmed
+  violation is a FAIL.
+
+**What the with/without delta measures.** Every grader except the `llm` judge
+is with-only, because the no-plugin arm cannot pass it: it has no v3 header,
+no inline principle names and no checker. So the delta comes from the judge
+alone. On 2026-09-28 the runner's judge failed broken-fixture reports that it
+passes when asked directly (#291). Until that is resolved, the delta is not
+evidence of finding accuracy.
+
+Each case lists the tools the auditor may use in `prompt.md`
+(`allowed_tools`). The sandbox grants none by default. Without `Read`, the
+skill cannot read its own `reference/portable-principles.md`, and it rightly
+stops rather than audit from memory.
 
 ## Running
 
+The scaffolds stage the fixtures, so `--scaffold` is required: without it
+every case audits an empty directory.
+
+Running the checker needs Bash. Bash is a gated tool: it cannot go in
+`allowed_tools`, which takes read-only tools only, and without the operator
+grant it is removed from the session. `Bash(python3 *)` alone is not enough,
+because the skill first writes the report to a temp file. Bare `Bash` is the
+grant used here; `--allow-tools Write "Bash(python3 *)"` would also cover it,
+and is narrower. Under eval, every Bash command runs in the OS sandbox:
+writes are confined to the run's workspace, and the home directory and
+Claude Code configuration are unreadable.
+
 ```sh
-claude plugin eval                       # all cases
-claude plugin eval --case "audit-py-*"   # one fixture
-claude plugin eval --json results.json --report report.html
+claude plugin eval --scaffold --allow-tools Bash --no-publish \
+    --max-cost-usd 15 --json results.json --report report.html
+claude plugin eval --scaffold --allow-tools Bash --no-publish \
+    --case "audit-py-*"                  # one fixture
 ```
+
+`--no-publish` keeps the HTML report local; by default it is published to
+claude.ai. Pass `--trust-plugin` with no terminal, or with `--json`: in
+either case the first-run trust prompt cannot be answered, and the run is
+refused.
 
 ## trigger/ — tiered trigger-quality checks (runnable today)
 
@@ -74,12 +122,27 @@ model sampling, so a re-run is not guaranteed to reproduce the same rates.
 ## Status and honest caveats
 
 - `claude plugin eval` is early access and org-gated; it is enabled on the
-  owner's account as of 2026-09-28 (#291, Claude Code 2.1.283). The suite was authored 2026-08-18 against the harness format as
-  reported that day and **has not yet been executed**. Field
-  names, `case.yaml` schema details, and scaffold path resolution may need
-  adjustment on the first real run.
+  owner's account as of 2026-09-28 (#291, Claude Code 2.1.283). The suite
+  was authored 2026-08-18 against the harness format as reported that day.
+  Its first real run (2026-09-28, one run per case, with and without the
+  plugin, $1.34) found drift, fixed here:
+  - no tools were granted, so the skill could not read its principles file;
+  - `--scaffold` is needed;
+  - the file-name graders credited a bare file listing;
+  - Bash needs the operator grant, and a narrow pattern is not enough, so
+    the checker never ran;
+  - the judge criteria did not say that extra confirmed violations are
+    acceptable, although recorded harness runs score them as PASS
+    (`examples/AUDIT-EXPECTATIONS.md` now cites those runs). Whether the
+    old wording caused any judge FAIL is not shown.
+
+  `context.add_dirs` cannot reach outside the case directory, so it cannot be
+  used to expose the plugin's own files. Read access alone was enough.
 - Until a green run is recorded in `docs/validation-results.md`, this suite
   supplements the manual protocol in `examples/AUDIT-EXPECTATIONS.md` and does
   not replace it. The manual protocol remains the release gate.
-- The eval sandbox runs read-only tools by default, which matches the audit
-  skill's read-only contract; no `--allow-tools` should be needed.
+- The auditor's grants are read-only tools plus sandboxed Bash for the
+  checker. The read-only contract toward the audited code is the audit
+  skill's, not the sandbox's. The staged fixture copy sits in the writable
+  workspace, so Bash could modify it. The graders read only the final message
+  and the tool calls.

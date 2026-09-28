@@ -9,5 +9,8 @@ criteria: >-
   missing lineage (P8, state-first lineage). The P8 omission is the
   historical regression this suite guards: it is caught only by the
   omission pass, so it must appear as a violation, never downgraded.
-  Extra advisory items are acceptable.
+  Only these three decide the verdict: other findings, whether advisory,
+  needs-review or extra confirmed violations, are acceptable, because the
+  fixture has more defects than the planted three. A missed planted
+  violation, or one downgraded to advisory or needs-review, fails.
 ---
