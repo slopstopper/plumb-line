@@ -3,7 +3,10 @@
 The provenance/lineage primitive ships in JavaScript (`primitives/js/`) and Python
 (`primitives/python/`). The conservative-combination law and the runtime checker
 must behave identically in both. This file records the shared case table verified
-against both implementations.
+against both implementations. The two API shapes (JS options object vs Python
+keyword arguments, camelCase vs snake_case) are documented once, in
+[`docs/api.md`](../docs/api.md); this file does not repeat them (owner decision
+2026-09-28).
 
 Suites: JS `npm ci && npx vitest run` → 287/287; Python `python3 -m pytest` → 218/218 (reproduced 2026-09-25).
 (Run JS after `npm ci` — the count includes the fast-check property suite, which
