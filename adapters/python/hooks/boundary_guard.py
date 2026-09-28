@@ -18,6 +18,11 @@ _IMPORT_PATH_REASON = ("blocked: importPath must be a string. Map the import bei
                        "{filePath, importPath} stdin the boundary guard reads, or leave it out "
                        "when there is none.")
 
+# The reason for an import with no layers to judge it by (#516).
+# JS twin: NO_LAYERS_REASON.
+_NO_LAYERS_REASON = ('blocked: no layers configured, so this import cannot be judged. Set "layers" in '
+                     "PLUMBLINE_CFG to the project's layer names, top to bottom.")
+
 def decide(file_path, import_path, layers, direction="downward"):
     # No path to judge (an unmapped host payload) cannot be judged, so it
     # blocks (#471), as in the branch guard (#449 review).
@@ -32,6 +37,11 @@ def decide(file_path, import_path, layers, direction="downward"):
         return {"allow": True, "reason": "no import to judge"}
     if not isinstance(import_path, str):
         return {"allow": False, "reason": _IMPORT_PATH_REASON}
+    # An import to judge and no layers to judge it by is not a pass: it
+    # blocks, as the gate blocks with no gates (#476) and an explicit empty
+    # `layers` does (#471). Owner decision on #516. JS twin: NO_LAYERS_REASON.
+    if not isinstance(layers, list) or not layers:
+        return {"allow": False, "reason": _NO_LAYERS_REASON}
     src, dst = _layer_of(file_path, layers), _layer_of(import_path, layers)
     if not src or not dst or src == dst:
         return {"allow": True, "reason": "same or unscoped layer"}
@@ -68,8 +78,8 @@ def _reject_constant(name):
 
 def _read_config(raw):
     """PLUMBLINE_CFG as (config, None), or (None, a reason to block) (#471).
-    Unset gives the defaults (no layers, so nothing is judged; direction
-    downward); set, it must be a JSON object whose own keys are `layers`, a
+    Unset gives the defaults (no layers, so an import to judge blocks, #516;
+    direction downward); set, it must be a JSON object whose own keys are `layers`, a
     non-empty array of non-empty strings, and `direction`, exactly "downward"
     or "upward", plus the branch guard's keys, left unchecked (_BRANCH_KEYS).
     Anything else fails closed: an ignored `layer` typo checked no layers, and

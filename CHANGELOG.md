@@ -10,6 +10,17 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Changed
+- **Stricter: the boundary guard blocks an import when no layers are
+  configured** ([#516](https://github.com/slopstopper/plumb-line/issues/516)).
+  With `PLUMBLINE_CFG` unset, `{}`, or holding only `direction` or the
+  branch guard's keys, it used to allow every import with the reason "same
+  or unscoped layer", the same reason a real pass gives. It now blocks, with
+  exit 2 and the reason "no layers configured", in both twins. An edit with
+  no import still allows, and an explicit `layers: []` still blocks as
+  before (#471). **If you wire the boundary guard without layers, set
+  `layers` in `PLUMBLINE_CFG`**, or every import it is given will block.
+  Owner decision on #516; consistent with the pre-commit gate's "no gates
+  configured" (#476).
 - **The hook case table is source truth**
   ([#517](https://github.com/slopstopper/plumb-line/issues/517)). An
   ADR-0018 amendment declares `adapters/hook-cases.json` part of the

@@ -733,15 +733,48 @@
       "expectStderr": "blocked: the boundary guard could not run"
     },
     {
-      "name": "with no PLUMBLINE_CFG there are no layers, so an import is allowed (#471; JS crashed with exit 1)",
+      "name": "with no PLUMBLINE_CFG there are no layers, so an import it would judge blocks (#516; was allowed as 'same or unscoped layer', #471)",
       "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
+      "expectExit": 2,
+      "expectStderr": "blocked: no layers configured"
+    },
+    {
+      "name": "an explicit empty object gives the defaults: no layers, so an import blocks (#516)",
+      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
+      "cfg": {},
+      "expectExit": 2,
+      "expectStderr": "blocked: no layers configured"
+    },
+    {
+      "name": "a direction with no layers still has no layers, so an import blocks (#516)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "cfg": { "direction": "upward" },
+      "expectExit": 2,
+      "expectStderr": "blocked: no layers configured"
+    },
+    {
+      "name": "a PLUMBLINE_CFG holding only the branch guard's keys gives the boundary guard no layers, so an import blocks (#516)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"src/data/store.js\"}",
+      "cfg": { "protectedBranches": ["main"] },
+      "expectExit": 2,
+      "expectStderr": "blocked: no layers configured"
+    },
+    {
+      "name": "with no layers and no import there is still nothing to judge, so it allows (#516 keeps #471's rule)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\"}",
       "expectExit": 0
     },
     {
-      "name": "an explicit empty object gives the defaults: no layers, so an import is allowed (#471)",
-      "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
-      "cfg": {},
-      "expectExit": 0
+      "name": "with no layers and no file path, the file-path reason comes first (#516)",
+      "stdin": "{\"importPath\": \"src/data/store.js\"}",
+      "expectExit": 2,
+      "expectStderr": "blocked: no file path to judge"
+    },
+    {
+      "name": "with no layers, an importPath that is not a string keeps its own reason (#516)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": 42}",
+      "expectExit": 2,
+      "expectStderr": "blocked: importPath must be a string"
     },
     {
       "name": "with layers and no direction, the direction is downward (#471)",
