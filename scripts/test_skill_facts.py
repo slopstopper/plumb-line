@@ -113,8 +113,9 @@ def test_principle_names_are_read_from_the_reference():
 # output names principles in prose an agent may carry forward.
 @pytest.mark.parametrize("skill", ["plumb-line-audit", "plumb-line-remediate", "plumb-line-adopt"])
 def test_skill_models_inline_named_codes(skill):
-    bare, _ = _scan_codes(SKILLS[skill])
+    bare, named = _scan_codes(SKILLS[skill])
     assert bare == [], f"principle codes not inline-named in {skill}:\n" + "\n".join(bare)
+    assert named, f"the scan saw no named code in {skill}: masking may have blanked it"
 
 
 def test_the_scan_sees_the_audit_skills_named_codes():
@@ -139,4 +140,5 @@ def test_bare_code_scan_catches_the_forms_it_must():
     assert not _bare_codes("never `Provenance (P3)`")
     assert not _bare_codes("a header (`Provenance (P3 —\nConfidence + provenance)`, not `Provenance (P3)`)")
     assert not _bare_codes("cite P3 —\nConfidence + provenance")
+    assert not _bare_codes("P8 — State-first\n  lineage")                # wrapped, indented
     assert _bare_codes("```\na fenced example citing P3 bare\n```")   # examples get copied too

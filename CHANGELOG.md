@@ -20,7 +20,8 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   in code spans, as wrong. The remediate and adopt skills had the same
   defect: a bare `(P8)`, a bare `P7`, and a wrong name, "P9 — the explanation
   IS the fix". Remediation records are checked for principle names too.
-- A test in `scripts/test_skill_facts.py` now keeps all three skills that
+
+  A test in `scripts/test_skill_facts.py` now keeps all three skills that
   way. It checks for the canonical name from
   `reference/portable-principles.md`, as the checker does, and is stricter
   than the checker on joined codes. The checker lets a slash- or
