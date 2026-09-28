@@ -75,16 +75,26 @@ function typeProblems(c) {
     if (c.repeat === null || typeof c.repeat !== "object" || Array.isArray(c.repeat)) {
       problems.push("repeat must be an object");
     } else {
-      for (const [k, v] of Object.entries(c.repeat)) {
+      for (const k of Object.keys(c.repeat).sort()) {
+        const v = c.repeat[k];
         if (!/^[A-Z][A-Z0-9_]*$/.test(k)) problems.push(`repeat key ${JSON.stringify(k)} must be an upper-case name`);
         if (!Array.isArray(v) || v.length !== 2 || typeof v[0] !== "string" || v[0] === ""
             || !Number.isInteger(v[1]) || v[1] < 1 || v[1] > 1_000_000) {
           problems.push(`repeat.${k} must be [a non-empty string, a count from 1 to 1000000]`);
+        } else if (v[0].length * v[1] > 100_000) {
+          // Linux caps one environment value at 128 KB (MAX_ARG_STRLEN).
+          problems.push(`repeat.${k} must expand to at most 100000 characters`);
         }
       }
     }
   }
-  const declared = c.repeat && typeof c.repeat === "object" && !Array.isArray(c.repeat) ? Object.keys(c.repeat) : [];
+  const declared = c.repeat && typeof c.repeat === "object" && !Array.isArray(c.repeat) ? Object.keys(c.repeat).sort() : [];
+  if (repeatableStrings(c).some((s) => s.replace(/\{\{[A-Z][A-Z0-9_]*\}\}/g, "").includes("{{"))) {
+    problems.push("a repeat token must be written {{UPPER_CASE}}");
+  }
+  if (repeatableKeys(c).some((k) => k.includes("{{"))) {
+    problems.push("repeat tokens are expanded only in values, not keys");
+  }
   const used = new Set(repeatTokens(c));
   for (const t of [...used].sort()) if (!declared.includes(t)) problems.push(`repeat token {{${t}}} is not declared`);
   for (const k of declared) if (!used.has(k)) problems.push(`repeat.${k} is not used`);
@@ -100,6 +110,17 @@ function repeatableStrings(c) {
     else if (v !== null && typeof v === "object") Object.values(v).forEach(walk);
   };
   walk([c.stdin, c.env, c.cfg, c.expectStderr]);
+  return out;
+}
+
+/** Every object key in env and cfg, where tokens are never expanded. */
+function repeatableKeys(c) {
+  const out = [];
+  const walk = (v) => {
+    if (Array.isArray(v)) v.forEach(walk);
+    else if (v !== null && typeof v === "object") for (const [k, x] of Object.entries(v)) { out.push(k); walk(x); }
+  };
+  walk([c.env, c.cfg]);
   return out;
 }
 
@@ -203,7 +224,19 @@ describe("hook-cases.json — the runner interprets every field, kind and versio
     expect(typeProblems({ name: "x", expectExit: 0, repeat: { LONG: ["a", 0] }, stdin: "{{LONG}}" }))
       .toEqual(["repeat.LONG must be [a non-empty string, a count from 1 to 1000000]"]);
     expect(typeProblems({ name: "x", expectExit: 0, repeat: { long: ["a", 2] }, stdin: "{{long}}" }))
-      .toEqual(["repeat key \"long\" must be an upper-case name", "repeat.long is not used"]);
+      .toEqual(["repeat key \"long\" must be an upper-case name",
+        "a repeat token must be written {{UPPER_CASE}}", "repeat.long is not used"]);
+  });
+  it("repeat accepts a whole float count and refuses keys, malformed tokens and long expansions (#513 review)", () => {
+    expect(typeProblems(JSON.parse('{"name": "x", "expectExit": 0, "repeat": {"A": ["a", 2.0]}, "stdin": "{{A}}"}'))).toEqual([]);
+    expect(typeProblems({ name: "x", expectExit: 0, cfg: { "{{A}}": "x" } }))
+      .toEqual(["repeat tokens are expanded only in values, not keys"]);
+    expect(typeProblems({ name: "x", expectExit: 0, stdin: "{{long}}" }))
+      .toEqual(["a repeat token must be written {{UPPER_CASE}}"]);
+    expect(typeProblems({ name: "x", expectExit: 0, repeat: { A: ["ab", 60000] }, stdin: "{{A}}" }))
+      .toEqual(["repeat.A must expand to at most 100000 characters"]);
+    expect(typeProblems({ name: "x", expectExit: 0, repeat: { B: ["a", 1], 10: ["a", 1] }, stdin: "{{B}}" }))
+      .toEqual(["repeat key \"10\" must be an upper-case name", "repeat.10 is not used"]);
   });
   for (const hex of ["efbbb", "1g2c"]) {
     it(`a planted stdinHex that is not whole hex bytes fails (${hex})`, () => {
@@ -236,7 +269,8 @@ const OUTSIDE_REPO = mkdtempSync(path.join(os.tmpdir(), "plumb-line-refcheck-"))
 const GIT_ENV = { ...process.env, GIT_CEILING_DIRECTORIES: path.dirname(OUTSIDE_REPO) };
 
 describe("hook-cases.json — branch names agree with git (#474)", () => {
-  const read = (cases.branchGuard ?? []).map((c) => [c, readsBranch(c)]).filter(([, r]) => r);
+  // Judged as the row runs: after any repeat is expanded (#513 review).
+  const read = (cases.branchGuard ?? []).map((c) => [c, readsBranch(expandRepeat(c))]).filter(([, r]) => r);
   // A change to the reason wording would otherwise select nothing, silently.
   it("selects rows on both sides of git's rule", () => {
     expect(read.filter(([, r]) => r.unknown).length).toBeGreaterThanOrEqual(10);

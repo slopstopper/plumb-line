@@ -81,15 +81,26 @@ def _type_problems(c):
         if not isinstance(c['repeat'], dict):
             problems.append('repeat must be an object')
         else:
-            for k, v in c['repeat'].items():
+            for k in sorted(c['repeat']):
+                v = c['repeat'][k]
                 if not re.fullmatch(r'[A-Z][A-Z0-9_]*', k):
                     problems.append(f'repeat key {json.dumps(k)} must be an upper-case name')
                 count = v[1] if isinstance(v, list) and len(v) == 2 else None
+                # JSON cannot tell 2 from 2.0, and the JS twin reads both as 2.
+                whole = (isinstance(count, int) and not isinstance(count, bool)) or (
+                    isinstance(count, float) and count.is_integer())
                 if not (isinstance(v, list) and len(v) == 2 and isinstance(v[0], str) and v[0]
-                        and isinstance(count, int) and not isinstance(count, bool)
-                        and 1 <= count <= 1_000_000):
+                        and whole and 1 <= count <= 1_000_000):
                     problems.append(f'repeat.{k} must be [a non-empty string, a count from 1 to 1000000]')
-    declared = list(c['repeat']) if isinstance(c.get('repeat'), dict) else []
+                elif len(v[0].encode('utf-16-le')) // 2 * int(count) > 100_000:
+                    # Linux caps one environment value at 128 KB (MAX_ARG_STRLEN); counted
+                    # in UTF-16 units, as the JS twin's .length is.
+                    problems.append(f'repeat.{k} must expand to at most 100000 characters')
+    declared = sorted(c['repeat']) if isinstance(c.get('repeat'), dict) else []
+    if any('{{' in _TOKEN.sub('', s) for s in _repeatable_strings(c)):
+        problems.append('a repeat token must be written {{UPPER_CASE}}')
+    if any('{{' in k for k in _repeatable_keys(c)):
+        problems.append('repeat tokens are expanded only in values, not keys')
     used = set(_repeat_tokens(c))
     problems += [f'repeat token {{{{{t}}}}} is not declared' for t in sorted(used) if t not in declared]
     problems += [f'repeat.{k} is not used' for k in declared if k not in used]
@@ -118,6 +129,23 @@ def _repeatable_strings(c):
     return out
 
 
+def _repeatable_keys(c):
+    """Every object key in env and cfg, where tokens are never expanded."""
+    out = []
+
+    def walk(v):
+        if isinstance(v, list):
+            for x in v:
+                walk(x)
+        elif isinstance(v, dict):
+            for k, x in v.items():
+                out.append(k)
+                walk(x)
+
+    walk([c.get('env'), c.get('cfg')])
+    return out
+
+
 def _repeat_tokens(c):
     return [m.group(1) for s in _repeatable_strings(c) for m in _TOKEN.finditer(s)]
 
@@ -129,7 +157,7 @@ def _expand_repeat(c):
 
     def expand(v):
         if isinstance(v, str):
-            return _TOKEN.sub(lambda m: c['repeat'][m.group(1)][0] * c['repeat'][m.group(1)][1]
+            return _TOKEN.sub(lambda m: c['repeat'][m.group(1)][0] * int(c['repeat'][m.group(1)][1])
                               if m.group(1) in c['repeat'] else m.group(0), v)
         if isinstance(v, list):
             return [expand(x) for x in v]
@@ -236,7 +264,23 @@ def test_repeat_expands_a_declared_token_and_refuses_misuse():
         'repeat.LONG must be [a non-empty string, a count from 1 to 1000000]']
     assert _type_problems({'name': 'x', 'expectExit': 0, 'repeat': {'long': ['a', 2]},
                            'stdin': '{{long}}'}) == [
-        'repeat key "long" must be an upper-case name', 'repeat.long is not used']
+        'repeat key "long" must be an upper-case name',
+        'a repeat token must be written {{UPPER_CASE}}', 'repeat.long is not used']
+
+
+def test_repeat_accepts_a_whole_float_count_and_refuses_misuse():
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'repeat': {'A': ['a', 2.0]}, 'stdin': '{{A}}'}) == []
+    assert _expand_repeat({'name': 'x', 'expectExit': 0, 'repeat': {'A': ['a', 2.0]},
+                           'stdin': '{{A}}'})['stdin'] == 'aa'
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'cfg': {'{{A}}': 'x'}}) == [
+        'repeat tokens are expanded only in values, not keys']
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'stdin': '{{long}}'}) == [
+        'a repeat token must be written {{UPPER_CASE}}']
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'repeat': {'A': ['ab', 60000]},
+                           'stdin': '{{A}}'}) == ['repeat.A must expand to at most 100000 characters']
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'repeat': {'B': ['a', 1], '10': ['a', 1]},
+                           'stdin': '{{B}}'}) == [
+        'repeat key "10" must be an upper-case name', 'repeat.10 is not used']
 
 
 @pytest.mark.parametrize('hex_', ['efbbb', '1g2c'])
@@ -269,7 +313,9 @@ def _reads_branch(c):
 # agree with `git check-ref-format --branch`: "branch unknown" means git
 # rejects the name, "on protected branch" means git accepts it. JS twin:
 # "branch names agree with git".
-_READS = [(c, _reads_branch(c)) for c in CASES.get('branchGuard', []) if _reads_branch(c)]
+# Judged as the row runs: after any repeat is expanded (#513 review).
+_READS = [(c, _reads_branch(_expand_repeat(c))) for c in CASES.get('branchGuard', [])
+          if _reads_branch(_expand_repeat(c))]
 
 
 def test_the_git_cross_check_selects_rows_on_both_sides_of_the_rule():
@@ -280,7 +326,7 @@ def test_the_git_cross_check_selects_rows_on_both_sides_of_the_rule():
 
 @pytest.mark.parametrize('c', [c for c, _ in _READS], ids=lambda c: c['name'])
 def test_branch_rows_agree_with_git(c, tmp_path):
-    branch, unknown = _reads_branch(c)
+    branch, unknown = _reads_branch(_expand_repeat(c))
     # git runs outside any repository: inside one, `--branch` expands `@{-1}`
     # and `@{u}` against that repository's history, so the verdict would
     # depend on where the tests run (#474 review).
