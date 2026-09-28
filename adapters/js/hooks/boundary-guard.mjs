@@ -41,6 +41,16 @@ const IMPORT_PATH_REASON =
   "blocked: importPath must be a string. Map the import being added into the " +
   "{filePath, importPath} stdin the boundary guard reads, or leave it out when there is none.";
 
+/** The reason for an import with no layers to judge it by (#516).
+ * Python twin: _NO_LAYERS_REASON. */
+const NO_LAYERS_REASON =
+  'blocked: no layers configured, so this import cannot be judged. Set "layers" in ' +
+  "PLUMBLINE_CFG to the project's layer names, top to bottom.";
+/** The reason for layers that are given but not a list of non-empty
+ * strings (#516 review).
+ * Python twin: _LAYERS_TYPE_REASON. */
+const LAYERS_TYPE_REASON = "blocked: layers must be a list of layer names.";
+
 export function decide({
   filePath,
   importPath,
@@ -64,6 +74,20 @@ export function decide({
   }
   if (typeof importPath !== "string") {
     return { allow: false, reason: IMPORT_PATH_REASON };
+  }
+  // An import to judge and no layers to judge it by is not a pass: it
+  // blocks, as the gate blocks with no gates (#476) and an explicit empty
+  // `layers` does (#471). Owner decision on #516. Python twin: NO_LAYERS_REASON.
+  if (layers == null || (Array.isArray(layers) && layers.length === 0)) {
+    return { allow: false, reason: NO_LAYERS_REASON };
+  }
+  // Only a library caller can reach this: the CLI's readConfig rejects a
+  // non-array first. Its own reason, since layers were given (#516 review).
+  // Entries too, as readConfig checks them: a non-string entry matched no
+  // path, so it read as "same or unscoped layer" (#516 review).
+  // Array.from, not layers.every: every skips the holes of a sparse array.
+  if (!Array.isArray(layers) || !Array.from(layers).every((l) => typeof l === "string" && l !== "")) {
+    return { allow: false, reason: LAYERS_TYPE_REASON };
   }
   const from = layerOf(filePath, layers);
   const to = layerOf(importPath, layers);
@@ -116,8 +140,8 @@ function quoteKey(k) {
 
 /**
  * PLUMBLINE_CFG as the config decide() takes, or a reason to block (#471).
- * Unset gives the defaults (no layers, so nothing is judged; direction
- * downward); set, it must be a JSON object whose own keys are `layers`, a
+ * Unset gives the defaults (no layers, so an import to judge blocks, #516;
+ * direction downward); set, it must be a JSON object whose own keys are `layers`, a
  * non-empty array of non-empty strings, and `direction`, exactly "downward"
  * or "upward", plus the branch guard's keys, left unchecked (BRANCH_KEYS).
  * Anything else fails closed: an ignored `layer` typo checked no layers, and

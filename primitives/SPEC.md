@@ -84,6 +84,20 @@ input MUST be treated as the weakest (`none`) by the combination law (§3) and
 MUST be ignored by the audit's over-claim comparison (§5). For `source`, unknown
 values are ignored when computing `weakestSource` (§4).
 
+That tolerance is for envelopes an implementation is **handed**, such as parsed
+JSON or another producer's output. The combination law and the checkers MUST
+NOT refuse an unknown value there; they read it as above. It does not extend to envelopes an implementation
+**constructs**. `makeMeta`/`make_meta`, and every constructor built on it
+(`mark`, a `derive` override), MUST refuse a `source` not in the status ladder
+or a `confidence` not in the certainty ladder, with an error whose message
+contains `source must be one of <the ladder, comma-separated>` or
+`confidence must be one of <the ladder, comma-separated>`. Refusing means the
+constructor throws (JS) or raises `ValueError` (Python); it does not return
+an envelope. A numeric `confidence` (`0`, `0.8`) is refused: the number
+belongs in `confidenceScore`. Added in v0.12.0 (#443, ADR-0019). Before that, an
+off-ladder value was stored silently, and only `validateEnvelope` noticed a
+non-string.
+
 ---
 
 ## 3. The combination law
@@ -395,7 +409,9 @@ An implementation **conforms to envelope schema version 2** if, for every case i
 - each `audit` case's issue list contains the expected substrings (or is empty
   when none are expected), and
 - each `validate` case's issue list contains the expected substrings (or is empty
-  when none are expected).
+  when none are expected), and
+- each `construct` case either builds an envelope with the expected fields or
+  is refused with an error containing the expected substring (§2).
 
 Conformance is verifiable mechanically — see [`conformance/`](conformance/) and
 the report tool documented there. New behavior MUST be added to `cases.json`

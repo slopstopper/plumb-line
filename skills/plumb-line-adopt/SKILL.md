@@ -103,7 +103,7 @@ present a guessed fit as a match.
 
 The audit and remediate siblings emit versioned, checker-validated shapes;
 this skill's routing recommendation is a public output and carries one too
-(#269, P7 applied to our own output). The contract is deliberately light —
+(#269, P7 — Contracted outputs, applied to our own output). The contract is deliberately light —
 conversational prose stays conversational; five elements are pinned:
 
 ```

@@ -12,7 +12,7 @@ Scope the audit to the diff if one is given, else the whole repo. For broad
 sweeps, dispatch read-only subagents and keep only their findings.
 
 **Declared architecture first (stop before auditing blind).** Several checks
-(P1 source-truth, P2 layering, the omission pass's adoption calibration) are
+(P1 — Source-truth layer, P2 — One-way layering, the omission pass's adoption calibration) are
 only as good as the audit's knowledge of what the project *declares*. Resolve
 it, in order: (1) supplied in the invocation/prompt by the builder; (2) the
 project's ruleset file (`AGENTS.md`, `CLAUDE.md`, or equivalent) and boundary
@@ -26,12 +26,13 @@ config. If neither yields a source-truth layer and layer direction:
   the freshly declared architecture. On no, proceed as below.
 - **Builder absent, or declined** — proceed, calibrated to adopted principles
   only (see "Calibrate to adopted principles"), and record the gap in the
-  report: an undeclared architecture is itself a P6-adjacent advisory (the
-  project's rules exist only as vibes), and the audit's P1/P2 coverage is
+  report: an undeclared architecture is itself an advisory under P6 — Maturity vocabulary (the
+  project's rules exist only as vibes), and the audit's coverage of P1 — Source-truth layer and P2 — One-way layering is
   correspondingly `partial`, which the coverage map must say.
 
 Never infer a source-truth layer the project did not declare — an invented
-layer would make P1/P2 findings artifacts of the audit's own assumptions.
+layer would turn findings under P1 — Source-truth layer and P2 — One-way
+layering into artifacts of the audit's own assumptions.
 
 **Coverage honesty (emit a traversal plan first).** Before reading, list the
 in-scope files — the diff's touched files, or the repo's source tree — and state
@@ -46,26 +47,26 @@ honest-denominator discipline), turned on the audit itself.
 
 ## Check catalogue (each finding cites the principle it violates)
 
-1. Laundered uncertainty (P3) — a value that lost its confidence/provenance as it flowed downstream; a mock/approximate value treated as clean truth.
+1. Laundered uncertainty (P3 — Confidence + provenance) — a value that lost its confidence/provenance as it flowed downstream; a mock/approximate value treated as clean truth.
    - If the project uses the plumb-line provenance primitive: flag code that hand-builds provenance metadata bypassing combineProvenance/derive, and any value given a clean source while derived from a tainted input. Runtime complement: auditMeta().
-2. Boundary leak (P2) — an import or call crossing layers against the declared direction; symbolic/derived/mock logic inside the source-truth layer (P1).
-3. Hardcoded prior (P5) — a magic number encoding a judgment call, not injected/versioned config.
-4. Overstated maturity (P6) — code or docs claiming current/done for something partial/mock/planned.
-5. Missing lineage (P8) — an output stored without the inputs needed to reproduce it.
+2. Boundary leak (P2 — One-way layering) — an import or call crossing layers against the declared direction; symbolic/derived/mock logic inside the source-truth layer (P1 — Source-truth layer).
+3. Hardcoded prior (P5 — Injectable priors) — a magic number encoding a judgment call, not injected/versioned config.
+4. Overstated maturity (P6 — Maturity vocabulary) — code or docs claiming current/done for something partial/mock/planned.
+5. Missing lineage (P8 — State-first lineage) — an output stored without the inputs needed to reproduce it.
    - If the project uses the provenance primitive: flag derived values that are never marked or carry no lineage; recommend a test asserting auditMeta(metaOf(value)) is empty (`.toEqual([])` or length 0 in JS; `== []` in Python).
-6. Unexplained drift (P9) — a changed golden-baseline value with no recorded reason.
+6. Unexplained drift (P9 — Golden baseline + explain-the-drift) — a changed golden-baseline value with no recorded reason.
 7. Suppressed null result (spine) — a code path that cannot express "no structure/no effect/inconclusive". Confirmed only where rejection is a declared or practiced concern; where rejection is adopted nowhere, an always-accept/always-success stub is an advisory adoption gap, not a violation (see "Calibrate to adopted principles" below).
-8. Escaped fakery (P4) — mock/approximate/fallback/cached data that left its container: not labelled (e.g. missing a derivedFromMock-style marker), or flowing into an export/output path that should exclude it unless explicitly opted in.
-9. Uncontracted output (P7) — a public output shape with no versioned, validated contract: missing a validator, a version constant, or a canonical key list.
+8. Escaped fakery (P4 — Quarantined fakery) — mock/approximate/fallback/cached data that left its container: not labelled (e.g. missing a derivedFromMock-style marker), or flowing into an export/output path that should exclude it unless explicitly opted in.
+9. Uncontracted output (P7 — Contracted outputs) — a public output shape with no versioned, validated contract: missing a validator, a version constant, or a canonical key list.
 
 ## Method
 
 Run two passes — they catch different failure modes, and some checks need both.
 
 **Presence pass — things wrongly present.** A bad thing IS in the code: an upward
-import (P2), a magic number (P5), an escaped/unlabelled mock (P4), a mock value
-treated as clean truth (P3), overstated maturity (P6), a changed baseline value
-(P9 drift). Grep/read for the smell, then confirm by reading context — never
+import (P2 — One-way layering), a magic number (P5 — Injectable priors), an escaped/unlabelled mock (P4 — Quarantined fakery), a mock value
+treated as clean truth (P3 — Confidence + provenance), overstated maturity (P6 — Maturity vocabulary), a changed baseline value
+(P9 — Golden baseline + explain-the-drift). Grep/read for the smell, then confirm by reading context — never
 report on a keyword match alone.
 
 **Omission pass — things wrongly absent.** A good thing is MISSING, and an
@@ -75,12 +76,12 @@ Give each question below its OWN column — do not collapse them. This table is 
 REQUIRED artifact: the dropped field is invisible unless you walk every output,
 and skipping the table is how the omission gets missed. For each output ask —
 
-- does it carry **provenance** (where the value came from) where it influences a decision? (P3)
-- does it carry **confidence** where it influences a decision? (P3)
-- does it record **lineage** — the inputs needed to *reproduce* it (source, record/row count, field names, config/version used)? (P8)
-- does it have a versioned, validated contract? (P7)
+- does it carry **provenance** (where the value came from) where it influences a decision? (P3 — Confidence + provenance)
+- does it carry **confidence** where it influences a decision? (P3 — Confidence + provenance)
+- does it record **lineage** — the inputs needed to *reproduce* it (source, record/row count, field names, config/version used)? (P8 — State-first lineage)
+- does it have a versioned, validated contract? (P7 — Contracted outputs)
 - can it express a null / "no effect" / rejection outcome? (spine)
-- is there a golden baseline pinning it? (P9)
+- is there a golden baseline pinning it? (P9 — Golden baseline + explain-the-drift)
 
 The table's header row, in this order (a header may go on to inline-name its
 principle, e.g. `Lineage (P8 — State-first lineage)`, but must start with these
@@ -95,7 +96,7 @@ NOT satisfy lineage: a free-text `provenance` ("stub source: …") or a
 regenerate this exact output* — which usually needs the record count, the field
 names, and the source identity that a provenance string omits. If the
 lineage-bearing layer's output has provenance but no field recording those
-reproduction inputs, that is a missing-lineage (P8) violation, not a pass.
+reproduction inputs, that is a missing-lineage (P8 — State-first lineage) violation, not a pass.
 
 The failure this pass exists to prevent is a `lineage`, `confidence`, or
 `provenance` field silently dropped from ONE output while a declared rule (or a
@@ -114,7 +115,7 @@ rule even if NO other output happens to carry lineage (the field may have been
 removed from the only place it lived — its absence cannot also be its alibi).
 Only where a principle is neither declared nor practiced anywhere — adopted
 nowhere — do you refrain from flagging each output: report it ONCE as an advisory
-adoption gap (a P6 maturity note), not as N violations. This keeps the audit
+adoption gap (a maturity note under P6 — Maturity vocabulary), not as N violations. This keeps the audit
 honest on small or early repos while still catching the dropped-field regression.
 
 **The spine obeys this calibration too.** An always-`true` / always-success stub
@@ -231,7 +232,7 @@ never `(P8 finding)` — a bare code inside any table cell is exactly the drift
 the checker flags, and it was the one live format FAIL in an otherwise-clean
 six-run validation (#293).
 
-**Validate the report against its own contract before emitting it.** P7 applies
+**Validate the report against its own contract before emitting it.** P7 — Contracted outputs applies
 to this skill's own output: a contract with a version and a key list but no
 check is a claim, not a contract. The checker ships inside this plugin: run
 `python3 <plugin root>/scripts/check_report_format.py <report>` (or

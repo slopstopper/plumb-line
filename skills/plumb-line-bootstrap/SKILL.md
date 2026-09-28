@@ -147,7 +147,9 @@ convention"):
 - **boundary guard:** `{ "filePath": "...", "importPath": "..." }` on stdin;
   `layers` / `direction` from `PLUMBLINE_CFG`. It needs the import being
   added: given a file path alone it has nothing to judge and allows. With no
-  file path it blocks.
+  file path it blocks. With an import to judge and no `layers` in
+  `PLUMBLINE_CFG` it blocks ("no layers configured"), so always wire it with
+  the project's layers set.
 - **pre-commit gate:** no stdin; runs the command in `PLUMBLINE_TEST_CMD` and
   blocks when it fails or the variable is unset. The command is split into
   words with shell-style quoting (`'…'`, `"…"`, backslash escapes, as Python's
