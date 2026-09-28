@@ -193,8 +193,8 @@ Constructs a provenance metadata envelope (JS: frozen object, Python: dict).
 
 | Field | Default | Description |
 |---|---|---|
-| `source` | `"derived"` | One of `STATUS` |
-| `confidence` | `"none"` | One of `CONFIDENCE` |
+| `source` | `"derived"` | One of `STATUS`; anything else is refused |
+| `confidence` | `"none"` | One of `CONFIDENCE`; anything else, including a number, is refused |
 | `confidenceScore` / `confidence_score` | — | Numeric `[0, 1]`; omitted if invalid |
 | `derivedFromMock` / `derived_from_mock` | `source === "mock"` | Mock-taint flag |
 | `lineage` | `[]` | Prior lineage steps; each step is cloned |
@@ -204,6 +204,17 @@ Constructs a provenance metadata envelope (JS: frozen object, Python: dict).
 
 Every envelope `makeMeta` builds is stamped with `provenanceVersion` (the
 current `PROVENANCE_VERSION`); callers do not pass it.
+
+A `source` outside `STATUS` or a `confidence` outside `CONFIDENCE` is refused
+(since v0.12.0, #443). JS throws an `Error` and Python raises `ValueError`.
+Both messages start the same way,
+`confidence must be one of none, low, medium, high; got 0` (or the `source`
+equivalent), though the quoted value can differ in form between the two. In
+Python, `None` is refused rather than defaulted: omit the argument to get the
+default. This applies to `mark` and to a `derive` override, which build on
+`makeMeta`. A numeric certainty belongs in `confidenceScore`. Envelopes you are
+*handed*, such as parsed JSON, are not refused: `combineProvenance` and the
+audit still tolerate unknown values in them (SPEC §2).
 
 ---
 

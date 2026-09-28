@@ -62,3 +62,24 @@ def test_child_derive_owns_copy_of_parent_lineage_steps():
     d2 = m.derive([d1], lambda b: b)
     assert d2['meta']['lineage'][0] is not d1['meta']['lineage'][0]
     assert d2['meta']['lineage'][0]['id'] == d1['meta']['lineage'][0]['id']
+
+
+# #443: mark and a derive override build on make_meta, so they refuse an
+# off-ladder rung or source too. JS twin: the #443 tests in marked.test.mjs.
+def test_mark_refuses_a_numeric_confidence():
+    import pytest
+    with pytest.raises(ValueError, match=r"^confidence must be one of none, low, medium, high; got 0$"):
+        m.mark(1, source='mock', confidence=0)
+
+
+def test_mark_refuses_a_source_outside_status():
+    import pytest
+    with pytest.raises(ValueError, match=r"^source must be one of unavailable, mock"):
+        m.mark(1, source='bogus')
+
+
+def test_a_derive_override_is_refused_the_same_way():
+    import pytest
+    a = m.mark(1, source='real', confidence='high')
+    with pytest.raises(ValueError, match=r"^confidence must be one of none, low, medium, high; got 0\.8$"):
+        m.derive([a], lambda x: x, confidence=0.8)

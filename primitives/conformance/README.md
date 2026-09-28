@@ -56,7 +56,12 @@ Generate it (and verify you actually pass before claiming it) with
 A new-language port conforms to **envelope schema version 2** when it produces
 the expected result for every case in `cases.json` — see [SPEC §7](../SPEC.md).
 Mirror the runner pattern: load `cases.json`, translate the camelCase field
-names to your language's binding, run `combine`/`audit`/`validate`, and assert
-every field a case carries (including `expectLineageIds`). A JS
+names to your language's binding, run `combine`/`audit`/`validate`/`construct`,
+and assert every field a case carries (including `expectLineageIds`). A
+`construct` case expects your envelope constructor to refuse an off-ladder
+`source` or `confidence` with a message containing the pinned text (v0.12.0,
+#443). A port certified against schema version 2 before v0.12.0 must re-run:
+`construct` is a new requirement at the same schema version, signalled by the
+table's sha256 and its per-kind counts, not by a version number. A JS
 implementation can skip the port: pass its module to `runCases()` from
 `run-cases.mjs`.
