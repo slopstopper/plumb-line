@@ -73,9 +73,10 @@ model sampling, so a re-run is not guaranteed to reproduce the same rates.
 
 ## Status and honest caveats
 
-- `claude plugin eval` is early access and org-gated. This suite was authored
-  2026-08-18 against the harness format as reported that day and **has not yet
-  been executed** (enablement unconfirmed for this account, see #291). Field
+- `claude plugin eval` was early access and org-gated when this suite was
+  written; the owner's account has it as of 2026-09-28 (#291, Claude Code
+  2.1.283). The suite was authored 2026-08-18 against the harness format as
+  reported that day and **has not yet been executed**. Field
   names, `case.yaml` schema details, and scaffold path resolution may need
   adjustment on the first real run.
 - Until a green run is recorded in `docs/validation-results.md`, this suite

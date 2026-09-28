@@ -246,7 +246,13 @@ Version themes for the near-term releases, and the GitHub issues under each.
   deferral (GH #485); calibrate the audit to name a test that substitutes an
   unavailable dependency (GH #486, with a planted harness fixture so the
   calibration stays checked); and make the plugin trigger under pressure
-  (GH #487 — loaded in 90 spike runs, a skill invoked in 1). With them, the two
+  (GH #487 — loaded in 90 spike runs, a skill invoked in 1; the method is
+  skill-creator's description optimisation, measured with `claude plugin
+  eval`'s with/without-plugin runs, owner decision 2026-09-28). The
+  blind-validation harness becomes a `claude plugin eval` suite (GH #291,
+  moved from v0.14.0 on 2026-09-28 once the command proved enabled for this
+  account); a first real run comes first, and the manual protocol stays the
+  release gate until a green run is recorded. With them, the two
   refusals already scheduled here: pytest/vitest quarantine plugins (#30 /
   GH #123) and the egress guard `require()` (#27 / GH #120), with the
   primitive semantics `require()` depends on — `mark()` accepting a
@@ -282,9 +288,8 @@ Version themes for the near-term releases, and the GitHub issues under each.
   (GH #388), a lineage block in the SARIF log and summary (GH #399) with the
   `summary-format` v2 key list and validator that covers it (GH #398),
   append-only history enforced in the ratchet and baseline validators
-  (GH #394), and the blind-validation harness as a `claude plugin eval` suite
-  (GH #291 — gated on Anthropic enabling the feature for this account; the
-  suite can be authored and reviewed before then). Also here: a contract for
+  (GH #394). The blind-validation harness as a `claude plugin eval` suite
+  (GH #291) moved to v0.12.0 on 2026-09-28. Also here: a contract for
   the `report.mjs --json` verdict that records which build earned it
   (GH #448), a mined real-fix tier and a harder planted tier for the release
   harness (GH #442), and switching off GitHub Pages after 2026-12-23
