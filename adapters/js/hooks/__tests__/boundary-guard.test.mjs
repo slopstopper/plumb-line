@@ -84,7 +84,8 @@ describe("boundary-guard decide", () => {
         "PLUMBLINE_CFG to the project's layer names, top to bottom.",
     });
   });
-  it.each(["ui", 7, { ui: 1 }, [1], ["ui", ""], ["ui", null]])("blocks layers that are not a list of layer names, with its own reason (%j)", (layers) => {
+  // eslint-disable-next-line no-sparse-arrays -- a hole, which Array#every skips
+  it.each(["ui", 7, { ui: 1 }, [1], ["ui", ""], ["ui", null], ["ui", , "data"]])("blocks layers that are not a list of layer names, with its own reason (%j)", (layers) => {
     const r = decide({ filePath: "src/data/store.js", importPath: "src/ui/button.js", layers });
     expect(r).toEqual({ allow: false, reason: "blocked: layers must be a list of layer names." });
   });

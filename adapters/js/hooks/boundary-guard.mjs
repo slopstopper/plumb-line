@@ -85,7 +85,8 @@ export function decide({
   // non-array first. Its own reason, since layers were given (#516 review).
   // Entries too, as readConfig checks them: a non-string entry matched no
   // path, so it read as "same or unscoped layer" (#516 review).
-  if (!Array.isArray(layers) || !layers.every((l) => typeof l === "string" && l !== "")) {
+  // Array.from, not layers.every: every skips the holes of a sparse array.
+  if (!Array.isArray(layers) || !Array.from(layers).every((l) => typeof l === "string" && l !== "")) {
     return { allow: false, reason: LAYERS_TYPE_REASON };
   }
   const from = layerOf(filePath, layers);

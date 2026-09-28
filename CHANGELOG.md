@@ -26,9 +26,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   argument, so leaving it out is still a `TypeError`. Layers that are not a
   list of non-empty strings now block with their own reason, "layers must
   be a list of layer names". Before, a string such as `"ui"` was judged
-  character by character in Python and crashed in JS, and a non-string or
-  empty entry gave a false "same or unscoped layer" in JS and crashed or
-  allowed in Python. Python still accepts a tuple.
+  character by character in Python and crashed in JS. A non-string entry
+  crashed in Python and was skipped in JS, or crashed. An empty entry was
+  skipped in both, except on absolute paths. Either way, an import could
+  pass as "same or unscoped layer". Python still accepts a tuple, and checks
+  its entries the same way.
   Owner decision on #516; consistent with the pre-commit gate's "no gates
   configured" (#476).
 - **The hook case table is source truth**
