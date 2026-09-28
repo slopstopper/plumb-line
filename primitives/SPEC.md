@@ -103,7 +103,7 @@ parents. `makeMeta`/`make_meta`, `mark`, and any wrapper built on them for a
 leaf value MUST refuse when `source` is left out, with an error whose message
 contains `source is required (one of <the ladder, comma-separated>)`;
 `confidence` still defaults to `none`. `derive` is not a leaf constructor: its
-`source` comes from the combination law (§4), so a `derive` whose override
+`source` comes from the combination law (§3), so a `derive` whose override
 leaves `source` out MUST NOT refuse for that reason. Added
 in v0.12.0 (#177, ADR-0019 amendment). Before that, `source` defaulted to
 `derived`, which is untrue of a leaf with no parents and audits as

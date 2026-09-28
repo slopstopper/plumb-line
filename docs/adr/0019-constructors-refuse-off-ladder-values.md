@@ -92,8 +92,10 @@ recommendation's reasons:
   `source` is omitted, in both languages, with `cases.json` rows; the break
   is carried by the v0.12.0 minor and named in the CHANGELOG. The reason
   recorded there: the default `derived` goes because a leaf with no parents
-  is not derived from anything (such an envelope audited as
-  `unreproducible`). So the Decision's "Omitting the argument gives the
+  is not derived from anything. (The issue body, from the v0.7.3 review,
+  adds that such an envelope audited as `unreproducible`.)
+
+  *This record's reading:* the Decision's "Omitting the argument gives the
   default, as JS `undefined` does" stops being true for `source`; it still
   holds for `confidence`, which defaults to `none`.
 
