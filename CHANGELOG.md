@@ -33,18 +33,21 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   strict marker, the assertion unchanged, the reason in the marker (ideally
   citing a tracked issue), and the decision handed back in the final
   message. Forms: pytest `xfail(strict=True, raises=AssertionError, …)`,
-  vitest `it.fails` with the reason in its title, paired with a test of the
-  failure you can observe because `it.fails` accepts any error; skipping,
+  vitest `it.fails` with the reason in its title (shown by a verbose or
+  junit report), each paired with a test of the failure you can observe,
+  since `it.fails` accepts any error and `raises=` narrows only the type; skipping,
   `run=False` and an imperative `pytest.xfail()` are not deferrals.
   `plumb-line-remediate` offers the deferral for a blocked failing test and
   records an accepted one as `applied-judgment`. New worked example,
   `examples/honest-deferral/` (Python and JS), with
   `examples/test_honest_deferral.py` proving, in both languages, that the
   deferral is recorded as shipped, fails the suite once the requirement is
-  met, and cannot hide a crash in the code; CI installs the example's
+  met, and fails when the code crashes on the missing key (in JS through
+  the paired missing-key test, since `it.fails` accepts any error); CI installs the example's
   toolchain and fails if that proof skips. The skill's description is
-  unchanged here: until #487 reworks it, nothing prompts an agent mid-task to
-  invoke the skill (0 of 20 in #487's baseline).
+  unchanged here, and gives an agent mid-task no cue to invoke the skill:
+  #487's baseline measured 0 of 20 probes (10 pressure prompts, 2 runs
+  each). #487 reworks it.
 - **`scripts/trigger_check.py` can probe a checkout in isolation, and its
   record says what each probe loaded**
   ([#487](https://github.com/slopstopper/plumb-line/issues/487)).

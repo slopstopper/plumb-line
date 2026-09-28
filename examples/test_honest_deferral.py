@@ -3,16 +3,21 @@
 `examples/honest-deferral/` shows the one form of "make the failing test
 pass" that the method skill allows when the reason is outside the code: keep
 the assertion, mark the test as a *strict* expected failure with its reason,
-and hand the decision back. These tests prove the two properties the skill
+and hand the decision back. These tests prove the properties the skill
 relies on, in both languages:
 
 - as shipped, the requirement test is recorded as an expected failure and
-  the suite exits 0, while the test for the failure you can observe (the
-  carrier is unreachable, so the quote says so) passes;
-- the moment the requirement is met (simulated here by making the carrier
-  reachable in a copy, never in the example's own code), the strict marker
-  turns the unexpected pass into a failing suite, so the deferral cannot
-  outlive its reason unnoticed.
+  the suite exits 0, while the test for the failure you can observe (no
+  carrier key, so the quote says "unavailable") passes;
+- the moment the requirement is met (simulated in a copy by provisioning the
+  key and answering the request, never in the example's own code), the
+  strict marker turns the unexpected pass into a failing suite, so the
+  deferral cannot outlive its reason unnoticed;
+- if the code crashed on the missing key instead, the suite fails: in
+  Python through raises=AssertionError, in JS through the missing-key test,
+  since it.fails accepts any error;
+- the JS reason, which lives in the marker's title, shows in a verbose
+  report (the default reporter prints counts only).
 
 The JS half needs `npm ci` in examples/honest-deferral/js. Without it that
 half skips loudly locally; CI installs it and fails the examples step on any
@@ -120,6 +125,15 @@ def test_js_deferral_is_recorded_and_the_observable_failure_is_handled(tmp_path)
     out = r.stdout + r.stderr
     assert r.returncode == 0, out
     assert "1 passed" in out and "1 expected fail" in out, out
+
+
+def test_js_deferral_reason_shows_in_a_verbose_report(tmp_path):
+    # The default reporter prints counts only; the reason is in the marker's
+    # title, which the verbose (or junit) reporter prints.
+    r = _vitest(_copy_js(tmp_path), "--reporter=verbose")
+    out = r.stdout + r.stderr
+    assert r.returncode == 0, out
+    assert "not reachable from CI" in out and "EXAMPLE-1" in out, out
 
 
 def test_js_strict_marker_fails_the_suite_once_the_requirement_is_met(tmp_path):

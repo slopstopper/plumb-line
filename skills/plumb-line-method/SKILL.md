@@ -74,19 +74,23 @@ task, what the honest version of your next edit looks like.
    The forms, per language:
    - Python (pytest):
      `@pytest.mark.xfail(strict=True, raises=AssertionError, reason="… (#123)")`.
-     `strict=True` (or the project's `xfail_strict = true`) is what fails the
-     suite on an unexpected pass. `raises=AssertionError` makes only the unmet
-     assertion count as the expected failure; without it, a crash in the code
-     under test is absorbed as "expected" too. Not a deferral: `run=False`,
-     which never runs the test, and an imperative `pytest.xfail()` in the
-     test body, which cannot be strict.
+     `strict=True` is what fails the suite on an unexpected pass (a project
+     whose pytest config makes xfail strict by default gets the same).
+     `raises=AssertionError` stops a crash of another kind in the code under
+     test from being absorbed as "expected"; an `AssertionError` raised by
+     that code would still be absorbed. Not a deferral: `run=False`, which
+     never runs the test, and an imperative `pytest.xfail()` in the test
+     body, which cannot be strict.
    - JavaScript (vitest): `it.fails("deferred (#123): <reason> — <what the
-     test requires>", …)`, the reason in the title so the report carries it;
-     vitest reports an expected fail while it fails, and fails the suite once
-     it passes. Jest's equivalent is `test.failing`. Both accept any error as
-     the expected failure, so pair the deferral with a test of the failure you
-     can observe (step 1), run against the real code, so a crash cannot hide
-     behind it.
+     test requires>", …)`. The title is the marker's place for the reason;
+     the default reporter prints only counts ("1 expected fail"), so the
+     reason shows under `--reporter=verbose` or a junit report. vitest
+     reports an expected fail while it fails, and fails the suite once it
+     passes. Jest's equivalent is `test.failing`. Both accept any error as
+     the expected failure.
+   - In both languages, pair the deferral with a test of the failure you can
+     observe (step 1), run against the real code: that test, not the marker,
+     is what stops a crash from hiding behind the deferral.
    - Skipping is never a deferral: `pytest.mark.skip`, `skipif`, `it.skip`,
      `it.todo`, and a commented-out test are reported at most as skipped, and
      never fail once the requirement is met, whatever their reason says.

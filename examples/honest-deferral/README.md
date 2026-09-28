@@ -18,9 +18,11 @@ What the example does, in both languages:
      reason="…")` in `python/test_carrier.py`. `raises=AssertionError` means
      only the unmet assertion counts as expected; a crash does not.
    - JavaScript: `it.fails("deferred (EXAMPLE-1): <reason> …", …)` (vitest)
-     in `js/carrier.test.js`, the reason in the title so the report carries
-     it. `it.fails` accepts any error, which is why the observable-failure
-     test in step 1 has to exist: it is what catches a crash.
+     in `js/carrier.test.js`, the reason in the title, the marker itself (the
+     default reporter prints counts only; a verbose or junit report prints
+     the title). `it.fails` accepts any error, which is why the
+     observable-failure test in step 1 has to exist: it is what catches a
+     crash.
 3. **Strict means it cannot outlive its reason.** The moment the carrier
    becomes reachable and the test passes, the marker fails the suite, and
    the deferral has to be removed on purpose.
@@ -32,7 +34,8 @@ reversing the deferral is the owner's call, and does not present the green
 suite as done. The method skill gives the wording.
 
 Not a deferral: `pytest.mark.skip`, `skipif`, `xfail` without `strict=True`
-(unless the project sets `xfail_strict = true`), `xfail(run=False)`, an
+(unless the project's pytest config makes xfail strict by default),
+`xfail(run=False)`, an
 imperative `pytest.xfail()`, `it.skip`, `it.todo`, a commented-out test, a
 rewritten assertion, or a mock of the carrier in the requirement's test.
 Each makes CI green by making it stop checking.
@@ -46,8 +49,11 @@ three properties, in both languages:
 - with the carrier made reachable (in the copy only: the key set and the
   request answered), the suite fails on the strict marker while the
   missing-key test still passes;
-- with the code broken to crash on the missing key, the suite fails: the
-  deferral does not hide it.
+- with the code broken to crash on the missing key, the suite fails: in
+  Python because `raises=AssertionError` refuses the crash, in JS because
+  the missing-key test fails (`it.fails` itself absorbs any error);
+- the JS reason, in the marker's title, shows in a verbose report (the
+  default reporter prints counts only).
 
 ```sh
 python3 -m pytest -q examples/test_honest_deferral.py

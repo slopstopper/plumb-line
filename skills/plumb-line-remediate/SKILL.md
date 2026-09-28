@@ -183,7 +183,9 @@ which is markdown inline-code formatting, not part of the value.
   (suggested, not applied), `blocked` (honest fix impossible — reason given),
   `skipped` (builder said no).
 - Below the table: the **Proposed (not applied)** list, and one line per
-  `blocked`/`applied-conservative` row saying what the builder must decide.
+  `blocked`/`applied-conservative` row saying what the builder must decide,
+  and per `applied-judgment` row that applied an honest deferral, naming the
+  test, the reason, and that the requirement is still not met.
 - Principle references render inline-named (`P3 — Confidence + provenance`),
   never bare codes, exactly as in the audit report.
 

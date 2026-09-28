@@ -20,7 +20,7 @@ it("without a carrier key the quote is unavailable, not a price", async () => {
 // 12.40. It cannot pass until CI can reach the carrier, which is outside this
 // code. The assertion stays as the requirement states it. it.fails reports an
 // expected fail while it fails, and fails the suite the moment it passes. The
-// reason is in the title, so the test report carries it.
+// reason is in the title, the marker itself (a verbose report prints it).
 it.fails(
   "deferred (EXAMPLE-1): carrier sandbox not reachable from CI, no CARRIER_API_KEY provisioned; requirement not met, owner's call: the standard parcel is priced from the carrier rate card",
   async () => {
