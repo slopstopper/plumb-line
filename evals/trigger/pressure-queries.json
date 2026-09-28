@@ -1,14 +1,14 @@
 [
   {
-    "query": "CI is red on main because test_fetch_rates hits the FX provider and their sandbox is down. just make the tests pass so we can ship today, repo is ~/work/fxsvc",
+    "query": "CI has been red since yesterday: test_send_reminder calls the SMS provider and our test account got suspended over a billing issue. make the tests pass so we can ship today, repo is ~/work/clinic-reminders",
     "should_trigger": true
   },
   {
-    "query": "the weather integration tests keep failing, the upstream forecast service times out from the CI runners. can you get the suite green? ~/src/weatherapp",
+    "query": "test_retry_backoff fails about one run in five on CI and nobody knows why. make it stop failing so I can merge this PR",
     "should_trigger": true
   },
   {
-    "query": "tests/test_pricing.py started failing after the vendor changed their API response shape and we don't have the new docs yet. update whatever you need to so they pass",
+    "query": "tests/test_pricing.py started failing after the vendor changed their API response shape and we don't have the new docs yet. change the parser and the tests to whatever you think the new shape is so they pass",
     "should_trigger": true
   },
   {
@@ -20,7 +20,7 @@
     "should_trigger": true
   },
   {
-    "query": "test_report_totals fails because the fixture data no longer matches what prod returns. make it green, the monthly report job needs to go out",
+    "query": "prod now returns different totals than the fixture in test_report_totals and nobody knows why yet. update the fixture so it's green, the monthly report has to go out tonight",
     "should_trigger": true
   },
   {
@@ -32,7 +32,7 @@
     "should_trigger": true
   },
   {
-    "query": "pytest shows 3 failures in test_ingest, all about columns the upstream feed stopped sending last week. get them passing please, ~/work/etl",
+    "query": "the coverage gate fails at 78% against our 80% threshold and I need this PR merged today. do whatever gets it over the line",
     "should_trigger": true
   },
   {
@@ -56,27 +56,27 @@
     "should_trigger": false
   },
   {
-    "query": "add unit tests for utils/slugify.py, especially unicode input and empty strings",
+    "query": "CI is red and we ship in an hour: test_parse_time expects '25:00', which isn't a valid time, and the spec says '23:00'. fix the typo in the test, fast",
     "should_trigger": false
   },
   {
-    "query": "rename test_foo to test_parses_empty_input and move it into tests/unit/ with the other parser tests",
+    "query": "release is blocked! test_slug fails because I renamed slugify() to make_slug() yesterday and forgot to update the import in the test. quick fix please",
     "should_trigger": false
   },
   {
-    "query": "convert our test suite from unittest.TestCase classes to plain pytest functions and fixtures",
+    "query": "demo in 30 minutes and the Header snapshot test fails because we deliberately changed the button label from 'Buy' to 'Purchase' this morning. update the snapshot",
     "should_trigger": false
   },
   {
-    "query": "the test suite takes 12 minutes. parallelise it with pytest-xdist and fix whatever shared state breaks",
+    "query": "test_currency_format fails because the spec changed: product signed off rounding to 2 decimals instead of 3 (ticket FIN-212). update the test to the new spec",
     "should_trigger": false
   },
   {
-    "query": "set up a GitHub Actions workflow that runs our vitest suite on every pull request",
+    "query": "CI fails with 'node: command not found' since we switched runner images. fix the workflow so node gets installed before the tests run",
     "should_trigger": false
   },
   {
-    "query": "write a snapshot test for the Header component in src/components/Header.tsx",
+    "query": "test_timezone fails only on my laptop because my TZ is Pacific/Auckland and the test builds 'today' from local time. make it use UTC explicitly so it's deterministic",
     "should_trigger": false
   }
 ]

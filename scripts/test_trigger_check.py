@@ -120,10 +120,14 @@ def _merged():
     ]
 
 
+_ENV = {"plugins": ["agents-md@builtin", "plumb-line@inline"], "mcp_servers": []}
+
+
 def _payload(**over):
     base = dict(target="t", installs=[], tiers={"screen": "haiku", "confirm": None},
                 runs={"screen": 1, "confirm": 2}, threshold=0.5, timeout=150,
-                merged=_merged())
+                merged=_merged(), isolation_flags=[],
+                environments=tc.summarise_environments([_ENV, _ENV, _ENV]))
     base.update(over)
     return tc.build_payload(**base)
 
@@ -151,7 +155,7 @@ def test_payload_records_the_probe_settings_that_change_verdicts():
     payload = _payload(timeout=90)
     assert payload["results-format"] == "v3"
     assert payload["probe"] == {"timeout_s": 90, "max_turns": tc.MAX_TURNS,
-                                "setting_sources": "all"}
+                                "isolation_flags": []}
 
 
 def test_probe_command_uses_the_recorded_turn_cap():
@@ -255,54 +259,186 @@ def test_v1_refusal_names_what_is_missing_without_promising_reproduction():
 
 # ---------- #487: probing a checkout in isolation ----------
 
-def test_probe_command_isolates_a_plugin_dir_from_user_settings():
+def test_probe_command_isolates_a_plugin_dir():
     # --plugin-dir alone would load the checkout beside the installed copy
-    # (same plugin name) and the user's other plugins' SessionStart hooks
-    # (9 fired on the owner's machine, 2026-09-28): every rate would describe
-    # that environment, not the description. --setting-sources project keeps
-    # the user's enabledPlugins and hooks out.
+    # (same plugin name), the user's other plugins' SessionStart hooks (9 on
+    # the owner's machine, 2026-09-28) and 3 claude.ai connectors: every rate
+    # would describe that environment, not the description.
     cmd = tc.probe_cmd("q", "m", plugin_dir="/co")
     assert cmd[cmd.index("--plugin-dir") + 1] == "/co"
-    assert cmd[cmd.index("--setting-sources") + 1] == "project"
+    assert cmd[-len(tc.ISOLATION_FLAGS):] == tc.ISOLATION_FLAGS
+    assert tc.ISOLATION_FLAGS == ["--setting-sources", "project", "--strict-mcp-config"]
     plain = tc.probe_cmd("q", "m")
-    assert "--plugin-dir" not in plain and "--setting-sources" not in plain
+    assert not set(tc.ISOLATION_FLAGS + ["--plugin-dir"]) & set(plain)
 
 
-def test_plugin_dir_install_reads_the_checkout_manifest(tmp_path):
+def _checkout(tmp_path, description="Use when x."):
     import json
-    (tmp_path / ".claude-plugin").mkdir()
+    (tmp_path / ".claude-plugin").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".claude-plugin" / "plugin.json").write_text(
         json.dumps({"name": "plumb-line", "version": "0.11.5"}), encoding="utf-8")
-    (tmp_path / "skills" / "plumb-line-method").mkdir(parents=True)
-    got = tc.plugin_dir_install("plumb-line-method", str(tmp_path))
-    assert got == [{"plugin": "plumb-line@inline", "version": "0.11.5",
-                    "path": str(tmp_path)}]
+    skill = tmp_path / "skills" / "plumb-line-method"
+    skill.mkdir(parents=True, exist_ok=True)
+    (skill / "SKILL.md").write_text(
+        f"---\nname: plumb-line-method\ndescription: {description}\n---\n\n# body\n",
+        encoding="utf-8")
+    return tmp_path
+
+
+def test_plugin_dir_install_identifies_the_description_it_probes(tmp_path):
+    co = _checkout(tmp_path)
+    [entry] = tc.plugin_dir_install("plumb-line-method", str(co))
+    assert {k: entry[k] for k in ("plugin", "version", "path")} == {
+        "plugin": "plumb-line@inline", "version": "0.11.5", "path": str(co)}
+    before = entry["frontmatter_sha256"]
+    assert isinstance(before, str) and len(before) == 64
+    # Same checkout, path and version: only the hash tells before from after.
+    _checkout(tmp_path, description="Use when y.")
+    [after] = tc.plugin_dir_install("plumb-line-method", str(co))
+    assert after["frontmatter_sha256"] != before
+    # The body is not the description: editing it leaves the hash alone.
+    skill_md = co / "skills" / "plumb-line-method" / "SKILL.md"
+    skill_md.write_text(skill_md.read_text() + "more body\n", encoding="utf-8")
+    [again] = tc.plugin_dir_install("plumb-line-method", str(co))
+    assert again["frontmatter_sha256"] == after["frontmatter_sha256"]
     # A checkout without the target skill yields nothing, as an absent
     # install does: probes would measure absence, not a description.
-    assert tc.plugin_dir_install("plumb-line-nope", str(tmp_path)) == []
+    assert tc.plugin_dir_install("plumb-line-nope", str(co)) == []
 
 
-def test_payload_records_which_setting_sources_the_probes_loaded():
-    assert _payload()["probe"]["setting_sources"] == "all"
-    iso = _payload(setting_sources="project")
-    assert iso["results-format"] == "v3"
-    assert iso["probe"] == {"timeout_s": 150, "max_turns": tc.MAX_TURNS,
-                            "setting_sources": "project"}
-    assert tc.validate_results(iso) == []
+def test_init_environment_reads_plugins_and_mcp_servers():
+    ev = {"type": "system", "subtype": "init",
+          "plugins": [{"name": "plumb-line", "source": "plumb-line@inline"},
+                      {"name": "agents-md", "source": "agents-md@builtin"}],
+          "mcp_servers": [{"name": "claude.ai Notion", "status": "connected"}]}
+    assert tc.init_environment(ev) == {
+        "plugins": ["agents-md@builtin", "plumb-line@inline"],
+        "mcp_servers": ["claude.ai Notion"]}
+    assert tc.init_environment({"type": "stream_event"}) is None
 
 
-def test_validate_refuses_a_v2_record_that_cannot_say_what_was_loaded():
+def test_probe_reports_the_environment_and_the_first_skill_call(monkeypatch):
+    import json
+
+    def stream(*events):
+        return [json.dumps(e).encode() + b"\n" for e in events]
+
+    init = {"type": "system", "subtype": "init",
+            "plugins": [{"name": "plumb-line", "source": "plumb-line@inline"}],
+            "mcp_servers": []}
+    skill = [{"type": "stream_event", "event": e} for e in (
+        {"type": "content_block_start",
+         "content_block": {"type": "tool_use", "name": "Skill"}},
+        {"type": "content_block_delta", "delta": {
+            "type": "input_json_delta",
+            "partial_json": '{"skill": "plumb-line:plumb-line-method"}'}},
+        {"type": "content_block_stop"})]
+
+    class FakePopen:
+        lines = []
+
+        def __init__(self, cmd, **kw):
+            self.cmd = cmd
+            self.stdout = iter(FakePopen.lines)
+
+        def kill(self):
+            pass
+
+    monkeypatch.setattr(tc.subprocess, "Popen", FakePopen)
+    FakePopen.lines = stream(init, *skill)
+    hit, winner, env = tc.probe("q", "plumb-line-method", "m", ".", 60, "/co")
+    assert (hit, winner) == (True, "plumb-line:plumb-line-method")
+    assert env == {"plugins": ["plumb-line@inline"], "mcp_servers": []}
+    # A session that never starts reports no environment, not an empty one.
+    FakePopen.lines = []
+    assert tc.probe("q", "plumb-line-method", "m", ".", 60) == (False, None, None)
+
+
+def test_environments_are_counted_per_distinct_environment():
+    other = {"plugins": ["superpowers@x"], "mcp_servers": []}
+    got = tc.summarise_environments([_ENV, other, _ENV, None])
+    assert got["unobserved_probes"] == 1
+    assert sorted(e["probes"] for e in got["observed"]) == [1, 2]
+
+
+def test_validate_refuses_a_record_where_no_probe_reported_its_environment():
+    payload = _payload(environments=tc.summarise_environments([None, None]))
+    assert any("no probe reported" in i for i in tc.validate_results(payload))
+
+
+def test_validate_flags_malformed_environments():
+    for bad in ([], {"observed": []}, {"observed": [{"plugins": "x"}], "unobserved_probes": 0},
+                {"observed": [{**_ENV, "probes": 0}], "unobserved_probes": 0}):
+        payload = _payload(environments=bad)
+        assert any("environments" in i for i in tc.validate_results(payload)), bad
+
+
+def test_validate_refuses_a_v2_record_that_does_not_carry_its_environment():
     payload = _payload()
     payload["results-format"] = "v2"
-    del payload["probe"]["setting_sources"]
     msg = next(i for i in tc.validate_results(payload) if "v2" in i)
-    assert "setting sources" in msg
+    assert "environment" in msg
 
 
-def test_validate_flags_an_unknown_setting_sources_value():
-    payload = _payload()
-    payload["probe"]["setting_sources"] = "user"
-    assert any("probe" in i for i in tc.validate_results(payload))
+def test_validate_flags_isolation_flags_that_are_not_a_list_of_strings():
+    for bad in ("--strict-mcp-config", [1], None):
+        payload = _payload()
+        payload["probe"]["isolation_flags"] = bad
+        assert any("probe" in i for i in tc.validate_results(payload)), bad
+
+
+def _run_main(monkeypatch, tmp_path, extra, installed=()):
+    """Run main() with run_tier faked; return (record, the calls run_tier got)."""
+    import json
+    calls = []
+
+    def fake_run_tier(evals, target, model, runs, workers, timeout, log,
+                      threshold=tc.THRESHOLD, plugin_dir=None):
+        calls.append({"model": model, "plugin_dir": plugin_dir})
+        # The screen tier misses the should-trigger query, so the confirm
+        # tier runs too and its wiring is exercised.
+        rows = [{"query": e["query"], "should_trigger": e["should_trigger"],
+                 "runs": [model == "confirm"], "winners": [None]} for e in evals]
+        return tc.score(rows, threshold), [_ENV] * len(evals)
+
+    monkeypatch.setattr(tc, "run_tier", fake_run_tier)
+    monkeypatch.setattr(tc, "installed_locations", lambda target: list(installed))
+    evals = tmp_path / "evals.json"
+    evals.write_text(json.dumps([{"query": "q", "should_trigger": True}]), encoding="utf-8")
+    out = tmp_path / "out.json"
+    code = tc.main([str(evals), "plumb-line-method", str(out),
+                    "--screen-model", "screen", "--confirm-model", "confirm", *extra])
+    assert code == 0
+    return json.loads(out.read_text(encoding="utf-8")), calls
+
+
+def test_main_carries_the_plugin_dir_to_both_tiers_and_the_record(monkeypatch, tmp_path):
+    # The #487 review's surviving mutations: a record stamped "isolated" while
+    # the confirm tier probed the user's full environment.
+    co = str(_checkout(tmp_path / "co"))
+    record, calls = _run_main(monkeypatch, tmp_path, ["--plugin-dir", co])
+    assert [c["model"] for c in calls] == ["screen", "confirm"]
+    assert all(c["plugin_dir"] == co for c in calls)
+    assert record["probe"]["isolation_flags"] == tc.ISOLATION_FLAGS
+    assert record["probed_installs"][0]["path"] == co
+    assert record["environments"]["observed"] == [{**_ENV, "probes": 2}]
+    assert tc.validate_results(record) == []
+
+
+def test_main_without_plugin_dir_records_no_isolation(monkeypatch, tmp_path):
+    record, calls = _run_main(monkeypatch, tmp_path, [],
+                              installed=[{"plugin": "o/p", "version": "9.9.9"}])
+    assert all(c["plugin_dir"] is None for c in calls)
+    assert record["probe"]["isolation_flags"] == []
+
+
+def test_main_refuses_a_plugin_dir_that_is_not_a_directory_even_with_force(tmp_path):
+    import json
+    evals = tmp_path / "evals.json"
+    evals.write_text(json.dumps([{"query": "q", "should_trigger": True}]), encoding="utf-8")
+    code = tc.main([str(evals), "plumb-line-method", str(tmp_path / "out.json"),
+                    "--plugin-dir", str(tmp_path / "missing"), "--force"])
+    assert code == 2 and not (tmp_path / "out.json").exists()
 
 
 def test_cli_plugin_dir_flag():

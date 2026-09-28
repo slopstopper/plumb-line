@@ -89,10 +89,10 @@ refused.
 ## trigger/ — tiered trigger-quality checks (runnable today)
 
 `evals/trigger/` holds description trigger-quality query sets
-(`audit-queries.json`, `adopt-queries.json`: realistic should-trigger queries
-plus near-miss should-NOT-trigger queries), run by
-`scripts/trigger_check.py` against the *installed* plugin — no `claude plugin
-eval` needed. The harness is tiered by design: a small-model screen over every
+(`audit-queries.json`, `adopt-queries.json`, `pressure-queries.json`:
+realistic should-trigger queries plus near-miss should-NOT-trigger queries),
+run by `scripts/trigger_check.py` against the installed plugin, or a
+checkout with `--plugin-dir` — no `claude plugin eval` needed. The harness is tiered by design: a small-model screen over every
 query, then a session-tier confirm pass over only the contested ones, with
 every reported rate labeled by the model that measured it (a haiku-measured
 trigger rate is a haiku claim). Triggering is detected on the Skill tool's
@@ -110,24 +110,41 @@ python3 scripts/trigger_check.py --validate results.json
 ```
 
 By default the probes see what an interactive session sees: the user's
-settings, every installed plugin, and those plugins' SessionStart hooks. On
-the owner's machine that was 19 plugins and 9 hooks, one of which tells the
-model to invoke any skill that might apply (measured 2026-09-28, #487), so a
+settings, every installed plugin, their SessionStart hooks, and any MCP
+servers or claude.ai connectors. On the owner's machine (2026-09-28, #487)
+that was 19 plugins, 9 hooks and 3 connectors. One hook, superpowers', tells
+the model to invoke a skill if there is even a 1% chance it applies. A
 default-mode rate describes that environment as much as the description.
-`--plugin-dir PATH` probes a checkout instead, with `--setting-sources
-project`, so the user's plugins, hooks and installed copy of plumb-line stay
-out. Use it to compare descriptions before and after a change.
+
+`--plugin-dir PATH` probes a checkout instead, adding `--setting-sources
+project --strict-mcp-config` (the isolation the impossible-task spike used).
+Observed on the owner's machine: the checkout's plumb-line loaded, plus
+Claude Code's two built-in plugins (`agents-md@builtin`,
+`telemetry@builtin`); no user plugin, hook, MCP server or connector, and not
+the installed copy of plumb-line. Every record lists what its probe sessions
+reported loading, so this is checked per run rather than assumed.
+
+Isolated rates measure a description on its own. They do not show whether it
+wins against other skills a user may have installed, such as a debugging or
+testing skill that also claims a failing test; the 1-in-90 spike result
+(#487) came from sessions with other plugins loaded. Use isolated runs to
+compare descriptions before and after a change, and the spike's plugin arm
+(#462) for behaviour in a fuller environment.
 
 The results file is a contracted record (`results-format: v3`; v1 #317, v2
-#400, v3 #487). It records the probed installs, the models per tier, the
-per-tier run counts, the threshold, and the probe settings that change
-verdicts: the per-probe `timeout_s` (a timed-out run records as a
-non-trigger), the `max_turns` cap, and `setting_sources` (`all`, or
-`project` for an isolated `--plugin-dir` run). `--validate` re-derives every
-row's pass from its rate, the stamped threshold and its expectation, so a
-stored verdict is consistent with its own numbers rather than asserted. It
-refuses a v1 record, which does not say what the timeout or turn cap was, and
-a v2 record, which does not say which setting sources were loaded. The record does not capture `--workers`
+#400, v3 #487). It records the probed installs (for a checkout, with a hash
+of the target skill's frontmatter, so a before-record and an after-record of
+one checkout are told apart), the models per tier, the per-tier run counts,
+the threshold, and the probe settings that change verdicts: the per-probe
+`timeout_s` (a timed-out run records as a non-trigger), the `max_turns` cap,
+and `isolation_flags` (the flags above, or none). `environments` lists each
+distinct environment the probe sessions reported (plugins and MCP servers,
+with a probe count), and how many never reported one. `--validate` re-derives
+every row's pass from its rate, the stamped threshold and its expectation, so
+a stored verdict is consistent with its own numbers rather than asserted. It
+refuses a record in which no probe reported its environment, a v1 record,
+which does not say what the timeout or turn cap was, and a v2 record, which
+does not carry the environment. The record does not capture `--workers`
 (concurrency can push a probe past its timeout), the `claude` CLI version, or
 model sampling, so a re-run is not guaranteed to reproduce the same rates.
 

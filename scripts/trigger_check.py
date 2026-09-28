@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""trigger_check — tiered skill-trigger measurement against the installed plugin.
+"""trigger_check — tiered skill-trigger measurement against the installed plugin,
+or an isolated checkout (--plugin-dir).
 
 Measures whether a skill's description makes Claude consult it: each query runs
 through `claude -p` in a neutral empty directory, and a trigger is an invocation
@@ -30,9 +31,10 @@ Usage (from repo root):
         [--screen-runs 1] [--confirm-runs 2] [--workers 4] [--timeout 150] \
         [--plugin-dir .]
 
---plugin-dir probes that checkout, isolated from the user's settings
-(installed plugins and their SessionStart hooks), instead of the installed
-plugin; the record says so in `probe.setting_sources` (results-format v3).
+--plugin-dir probes that checkout instead of the installed plugin, with
+ISOLATION_FLAGS keeping the user's plugins, their SessionStart hooks and MCP
+servers out. The record carries the flags (`probe.isolation_flags`) and what
+each session reported loading (`environments`, results-format v3).
 
 Omitting --confirm-model skips the confirm tier: screen results stand, labeled
 as such. The eval-set JSON is a list of {"query": str, "should_trigger": bool}.
@@ -54,6 +56,7 @@ not record `--workers` (concurrency can push a probe past its timeout), the
 reproduce the same rates.
 """
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -73,16 +76,24 @@ THRESHOLD = 0.5
 #       tiers, runs, threshold, summary, results.
 #   v2  #400 — adds `probe`: {timeout_s, max_turns}, the two probe settings
 #       that change verdicts. v1 is refused: it cannot say what they were.
-#   v3  #487 — `probe` adds `setting_sources`: "all" (the user's settings,
-#       installed plugins and their hooks load) or "project" (--plugin-dir
-#       isolation). On the owner's machine the difference was 9 SessionStart
-#       hooks, one of which tells the model to invoke any skill that might
-#       apply. v2 is refused: it cannot say which were loaded.
+#   v3  #487 — `probe` adds `isolation_flags` (the CLI flags that kept the
+#       user's environment out, [] for none), and a new `environments` key
+#       records what each probe session reported loading (plugins and MCP
+#       servers, from its init event), so the record carries the observed
+#       environment, not only the flags asked for. On the owner's machine the
+#       default environment was 19 plugins, 9 SessionStart hooks (superpowers'
+#       tells the model to invoke a skill on even a 1% chance it applies) and
+#       3 claude.ai connectors. v2 is refused: it records neither.
 RESULTS_FORMAT = "v3"
 KNOWN_RESULTS_FORMATS = {"v3"}
-SETTING_SOURCES = {"all", "project"}
+
+# --plugin-dir isolation, as proven by the impossible-task spike
+# (docs/validation-results.md): user and local settings (enabledPlugins, their
+# hooks) and every MCP server or connector stay out. Claude Code's built-in
+# plugins (agents-md, telemetry) still load; `environments` shows them.
+ISOLATION_FLAGS = ["--setting-sources", "project", "--strict-mcp-config"]
 RESULTS_KEYS = ["results-format", "target", "probed_installs", "tiers", "runs",
-                "threshold", "probe", "summary", "results"]
+                "threshold", "probe", "environments", "summary", "results"]
 
 # Turn cap for each probe session. A Skill call must happen within it, so it
 # bounds what can count as a trigger; stamped into every results file.
@@ -147,9 +158,27 @@ def merge(screen, confirm, screen_model, confirm_model):
     return merged
 
 
+def summarise_environments(envs):
+    """Per-probe observed environments (None when a probe never reported
+    one) -> {"observed": [{plugins, mcp_servers, probes}], "unobserved_probes": n},
+    one entry per distinct environment, so a record whose probes ran in two
+    different environments says so instead of averaging over them."""
+    counts = {}
+    for env in envs:
+        if env is None:
+            continue
+        key = (tuple(env["plugins"]), tuple(env["mcp_servers"]))
+        counts[key] = counts.get(key, 0) + 1
+    return {"observed": [{"plugins": list(p), "mcp_servers": list(m), "probes": n}
+                         for (p, m), n in sorted(counts.items())],
+            "unobserved_probes": sum(1 for e in envs if e is None)}
+
+
 def build_payload(target, installs, tiers, runs, threshold, timeout, merged,
-                  setting_sources="all"):
-    """The results record, in RESULTS_KEYS order, contract key first."""
+                  isolation_flags, environments):
+    """The results record, in RESULTS_KEYS order, contract key first.
+    isolation_flags and environments have no defaults: a record that forgot
+    them would silently claim the wrong environment."""
     passed = sum(1 for r in merged if r["pass"])
     return {"results-format": RESULTS_FORMAT,
             "target": target,
@@ -158,9 +187,39 @@ def build_payload(target, installs, tiers, runs, threshold, timeout, merged,
             "runs": runs,
             "threshold": threshold,
             "probe": {"timeout_s": timeout, "max_turns": MAX_TURNS,
-                      "setting_sources": setting_sources},
+                      "isolation_flags": list(isolation_flags)},
+            "environments": environments,
             "summary": {"passed": passed, "total": len(merged)},
             "results": merged}
+
+
+def _environment_issues(envs):
+    """Shape of `environments`, and a record with no observed environment at
+    all: every probe failed to start or report, so its rates describe
+    nothing (a bad --plugin-dir, say, records silent non-triggers)."""
+    if envs is None:
+        return []  # a missing key is reported by the RESULTS_KEYS check
+    ok = (isinstance(envs, dict)
+          and set(envs) == {"observed", "unobserved_probes"}
+          and isinstance(envs["unobserved_probes"], int)
+          and not isinstance(envs["unobserved_probes"], bool)
+          and envs["unobserved_probes"] >= 0
+          and isinstance(envs["observed"], list)
+          and all(isinstance(e, dict)
+                  and set(e) == {"plugins", "mcp_servers", "probes"}
+                  and all(isinstance(e[k], list)
+                          and all(isinstance(x, str) for x in e[k])
+                          for k in ("plugins", "mcp_servers"))
+                  and isinstance(e["probes"], int)
+                  and not isinstance(e["probes"], bool) and e["probes"] > 0
+                  for e in envs["observed"]))
+    if not ok:
+        return ["environments must be {observed: [{plugins, mcp_servers, "
+                "probes}], unobserved_probes: n}, got " + repr(envs)]
+    if not envs["observed"]:
+        return ["environments: no probe reported the environment it ran in, "
+                "so the rates describe no known session"]
+    return []
 
 
 def validate_results(payload):
@@ -183,23 +242,25 @@ def validate_results(payload):
                       "turn cap, so the conditions its verdicts were measured "
                       f"under are unknown; re-run to get a {RESULTS_FORMAT} record")
     elif fmt == "v2":
-        issues.append("results-format 'v2' does not record which setting sources "
-                      "the probes loaded (the user's plugins and hooks, or an "
-                      "isolated checkout), so the environment its verdicts were "
-                      f"measured in is unknown; re-run to get a {RESULTS_FORMAT} record")
+        issues.append("results-format 'v2' does not record the environment its "
+                      "probes ran in (the plugins, hooks and MCP servers each "
+                      "session loaded), which moves trigger rates; re-run to "
+                      f"get a {RESULTS_FORMAT} record")
     elif fmt is not None and fmt not in KNOWN_RESULTS_FORMATS:
         issues.append(f"unknown results-format {fmt!r} "
                       f"(this harness models {sorted(KNOWN_RESULTS_FORMATS)})")
     probe = payload.get("probe")
     if probe is not None and not (
             isinstance(probe, dict)
-            and set(probe) == {"timeout_s", "max_turns", "setting_sources"}
+            and set(probe) == {"timeout_s", "max_turns", "isolation_flags"}
             and all(isinstance(probe[k], int) and not isinstance(probe[k], bool)
                     and probe[k] > 0 for k in ("timeout_s", "max_turns"))
-            and probe["setting_sources"] in SETTING_SOURCES):
-        issues.append("probe must be {timeout_s, max_turns, setting_sources}: "
-                      "two positive integers and one of "
-                      f"{sorted(SETTING_SOURCES)}, got {probe!r}")
+            and isinstance(probe["isolation_flags"], list)
+            and all(isinstance(f, str) for f in probe["isolation_flags"])):
+        issues.append("probe must be {timeout_s, max_turns, isolation_flags}: "
+                      "two positive integers and a list of strings, "
+                      f"got {probe!r}")
+    issues += _environment_issues(payload.get("environments"))
     threshold = payload.get("threshold")
     # bool is an int subclass: a hand-edited `"threshold": true` must not
     # validate as 1.
@@ -284,11 +345,28 @@ def stale_installs(installs, current_version):
             if (_semver(i.get("version")) or cur) < cur]
 
 
+def frontmatter_sha256(skill_md):
+    """sha256 of a SKILL.md's frontmatter (name and description), or None.
+    Two runs on one checkout share its path and version; this is what tells
+    a before-record from an after-record when only the description changed."""
+    try:
+        with open(skill_md, encoding="utf-8") as f:
+            text = f.read()
+    except OSError:
+        return None
+    parts = text.split("---", 2)
+    if len(parts) < 3 or parts[0].strip():
+        return None
+    return hashlib.sha256(parts[1].strip().encode("utf-8")).hexdigest()
+
+
 def plugin_dir_install(target, plugin_dir):
     """The checkout a --plugin-dir run probes, as a probed_installs entry:
-    [{plugin, version, path}], or [] when it has no skills/<target>, so the
-    same absence guard applies as for an installed plugin."""
-    if not os.path.isdir(os.path.join(plugin_dir, "skills", target)):
+    [{plugin, version, path, frontmatter_sha256}], or [] when it has no
+    skills/<target>, so the same absence guard applies as for an installed
+    plugin."""
+    skill_dir = os.path.join(plugin_dir, "skills", target)
+    if not os.path.isdir(skill_dir):
         return []
     try:
         with open(os.path.join(plugin_dir, ".claude-plugin", "plugin.json"),
@@ -297,7 +375,9 @@ def plugin_dir_install(target, plugin_dir):
     except (OSError, json.JSONDecodeError):
         manifest = {}
     return [{"plugin": f"{manifest.get('name', '?')}@inline",
-             "version": manifest.get("version"), "path": plugin_dir}]
+             "version": manifest.get("version"), "path": plugin_dir,
+             "frontmatter_sha256": frontmatter_sha256(
+                 os.path.join(skill_dir, "SKILL.md"))}]
 
 
 def repo_version():
@@ -320,18 +400,33 @@ def probe_cmd(query, model, plugin_dir=None):
     if plugin_dir:
         # Isolation is not optional here: without it the checkout loads
         # beside the installed copy of the same plugin, and the user's other
-        # plugins' SessionStart hooks run in every probe (#487).
-        cmd += ["--plugin-dir", plugin_dir, "--setting-sources", "project"]
+        # plugins' SessionStart hooks and connectors run in every probe (#487).
+        cmd += ["--plugin-dir", plugin_dir, *ISOLATION_FLAGS]
     return cmd
 
 
+def init_environment(ev):
+    """The environment a session reports in its system/init event:
+    {plugins: sorted plugin sources, mcp_servers: sorted names}, else None."""
+    if ev.get("type") != "system" or ev.get("subtype") != "init":
+        return None
+    def names(items, key):
+        return sorted(str(i.get(key) or i.get("name")) if isinstance(i, dict)
+                      else str(i) for i in items or [])
+    return {"plugins": names(ev.get("plugins"), "source"),
+            "mcp_servers": names(ev.get("mcp_servers"), "name")}
+
+
 def probe(query, target, model, workdir, timeout, plugin_dir=None):
+    """(hit, winner, environment): environment is what the session reported
+    loading, or None if it never reported (it failed to start, say)."""
     cmd = probe_cmd(query, model, plugin_dir)
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                          cwd=workdir, env=env)
     pending = False
     acc = ""
+    env_seen = None
     start = time.time()
     try:
         for raw in p.stdout:
@@ -344,6 +439,7 @@ def probe(query, target, model, workdir, timeout, plugin_dir=None):
                 ev = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            env_seen = env_seen or init_environment(ev)
             if ev.get("type") != "stream_event":
                 continue
             se = ev.get("event", {})
@@ -359,17 +455,19 @@ def probe(query, target, model, workdir, timeout, plugin_dir=None):
                     acc += d.get("partial_json", "")
             elif t == "content_block_stop" and pending:
                 # first Skill call decides; report who won either way
-                return skill_match(acc, target), skill_name(acc)
+                return skill_match(acc, target), skill_name(acc), env_seen
             elif t == "message_stop":
                 break
     finally:
         p.kill()
-    return False, None
+    return False, None, env_seen
 
 
 def run_tier(evals, target, model, runs, workers, timeout, log, threshold=THRESHOLD,
              plugin_dir=None):
+    """(scored rows, per-probe observed environments)."""
     workdir = tempfile.mkdtemp(prefix="trigger-check-")
+    envs = []
     rows = [{"query": e["query"], "should_trigger": e["should_trigger"],
              "runs": [], "winners": []} for e in evals]
     jobs = [(i, r) for i in range(len(evals)) for r in range(runs)]
@@ -378,14 +476,15 @@ def run_tier(evals, target, model, runs, workers, timeout, log, threshold=THRESH
                           workdir, timeout, plugin_dir): i for i, _ in jobs}
         for f in futs:
             i = futs[f]
-            hit, winner = f.result()
+            hit, winner, env = f.result()
+            envs.append(env)
             rows[i]["runs"].append(hit)
             rows[i]["winners"].append(winner)
             print(f"[{'TRIG' if hit else 'no  '}] {model} "
                   f"expected={evals[i]['should_trigger']} "
                   f"winner={winner or '-'}: "
                   f"{evals[i]['query'][:70]}", file=log, flush=True)
-    return score(rows, threshold)
+    return score(rows, threshold), envs
 
 
 def parse_args(argv=None):
@@ -404,9 +503,10 @@ def parse_args(argv=None):
                          f"(default {THRESHOLD}); stamped into the results")
     ap.add_argument("--plugin-dir", default=None,
                     help="probe this plugin checkout instead of the installed "
-                         "plugin, isolated from user settings (installed "
-                         "plugins and their hooks); recorded as "
-                         "setting_sources 'project'")
+                         "plugin, with " + " ".join(ISOLATION_FLAGS) + " so "
+                         "the user's plugins, hooks and MCP servers stay out; "
+                         "the record carries the flags and what each session "
+                         "reported loading")
     ap.add_argument("--force", action="store_true",
                     help="probe even if the target skill is not installed")
     ap.add_argument("--validate", metavar="RESULTS_JSON",
@@ -445,35 +545,46 @@ def main(argv=None):
 
     plugin_dir = os.path.abspath(args.plugin_dir) if args.plugin_dir else None
     if plugin_dir:
+        if not os.path.isdir(plugin_dir):
+            # Not overridable by --force: claude would fail to start and every
+            # probe would record a silent non-trigger.
+            print(f"ABORT: --plugin-dir {plugin_dir} is not a directory.",
+                  file=sys.stderr)
+            return 2
         installs = plugin_dir_install(args.target, plugin_dir)
-        where = f"the checkout {plugin_dir}"
+        fix = f"check that {plugin_dir}/skills/{args.target} exists"
     else:
         installs = installed_locations(args.target)
-        where = f"any plugin under {PLUGINS_ROOT}"
+        fix = "install or update the plugin"
     if not installs and not args.force:
-        print(f"ABORT: skill '{args.target}' is not in {where} — probes would "
-              f"measure its absence, not its description. Install/update the "
-              f"plugin, or pass --force to measure anyway.", file=sys.stderr)
+        print(f"ABORT: skill '{args.target}' is not in "
+              f"{'the checkout ' + plugin_dir if plugin_dir else 'any plugin under ' + PLUGINS_ROOT}"
+              f" — probes would measure its absence, not its description. "
+              f"{fix[0].upper() + fix[1:]}, or pass --force to measure anyway.",
+              file=sys.stderr)
         return 2
+    isolation = ISOLATION_FLAGS if plugin_dir else []
     print(f"probing installs: {installs or 'NONE (--force)'}"
-          f"{' (isolated: setting sources project)' if plugin_dir else ''}",
+          f"{' (isolated: ' + ' '.join(isolation) + ')' if isolation else ''}",
           file=sys.stderr)
     current = repo_version()
-    for s in (stale_installs(installs, current) if current and not plugin_dir else []):
+    for s in (stale_installs(installs, current) if current else []):
         print(f"WARNING: probing {s['plugin']}@{s['version']} but this repo "
               f"is at {current} — plugin updates are manual and easy to miss "
               f"(claude plugin update {s['plugin'].split('/')[-1]}); results "
               f"will describe the stale install (#295).", file=sys.stderr)
 
     evals = json.load(open(args.eval_set))
-    screen = run_tier(evals, args.target, args.screen_model, args.screen_runs,
-                      args.workers, args.timeout, sys.stderr, args.threshold,
-                      plugin_dir)
+    screen, envs = run_tier(evals, args.target, args.screen_model,
+                            args.screen_runs, args.workers, args.timeout,
+                            sys.stderr, args.threshold, plugin_dir)
     hot = contested(screen)
     if args.confirm_model and hot:
-        confirm = run_tier(hot, args.target, args.confirm_model,
-                           args.confirm_runs, args.workers, args.timeout,
-                           sys.stderr, args.threshold, plugin_dir)
+        confirm, confirm_envs = run_tier(hot, args.target, args.confirm_model,
+                                         args.confirm_runs, args.workers,
+                                         args.timeout, sys.stderr,
+                                         args.threshold, plugin_dir)
+        envs = envs + confirm_envs
         merged = merge(screen, confirm, args.screen_model, args.confirm_model)
     else:
         merged = [{**r, "measured_by": args.screen_model} for r in screen]
@@ -491,7 +602,14 @@ def main(argv=None):
                             {"screen": args.screen_runs,
                              "confirm": args.confirm_runs if (args.confirm_model and hot) else 0},
                             args.threshold, args.timeout, merged,
-                            "project" if plugin_dir else "all")
+                            isolation, summarise_environments(envs))
+    environments = payload["environments"]
+    if len(environments["observed"]) != 1 or environments["unobserved_probes"]:
+        print(f"WARNING: probes did not all report one environment "
+              f"({len(environments['observed'])} distinct, "
+              f"{environments['unobserved_probes']} unreported); see "
+              f"`environments` in the record before reading the rates.",
+              file=sys.stderr)
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=1)
     passed = payload["summary"]["passed"]
