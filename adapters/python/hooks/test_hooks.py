@@ -267,3 +267,27 @@ def test_hooks_exit_the_same_with_stderr_closed(script, stdin, env, code):
     r = subprocess.run(["sh", "-c", '"$0" "$1" 2>&-', sys.executable, path],
                        input=stdin, text=True, capture_output=False, env=full_env)
     assert r.returncode == code
+
+
+# --- #501 review: under an 8-bit locale (e.g. ISO-8859-1), os.environ decodes
+# every byte, so \xff arrives as "ÿ" and a valid "café" as "cafÃ©". The hooks
+# must judge the environment's bytes, as the JS twin does, not the locale's
+# reading of them. CI cannot rely on such a locale being installed, so this
+# simulates one: os.environ holds the Latin-1 reading, os.environb the bytes.
+
+def _latin1_environ(monkeypatch, name, raw):
+    monkeypatch.setattr(os, "environ", {name: raw.decode("latin-1")})
+    monkeypatch.setattr(os, "environb", {name.encode(): raw})
+
+
+@pytest.mark.parametrize("module", [branch_guard, boundary_guard, pre_commit_gate])
+def test_env_problem_reads_bytes_not_the_locale(monkeypatch, module):
+    _latin1_environ(monkeypatch, "PLUMBLINE_X", b"main\xff")
+    assert module._env_problem("PLUMBLINE_X").startswith("PLUMBLINE_X is not valid UTF-8")
+
+
+@pytest.mark.parametrize("module", [branch_guard, boundary_guard, pre_commit_gate])
+def test_env_value_is_the_bytes_read_as_utf8(monkeypatch, module):
+    _latin1_environ(monkeypatch, "PLUMBLINE_X", "caf\u00e9".encode("utf-8"))
+    assert module._env_problem("PLUMBLINE_X") is None
+    assert module._env("PLUMBLINE_X") == "caf\u00e9"

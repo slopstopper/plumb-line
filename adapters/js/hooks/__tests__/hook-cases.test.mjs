@@ -63,6 +63,7 @@ function typeProblems(c) {
         if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) problems.push(`envHex key ${JSON.stringify(k)} must be a variable name`);
         if (typeof v !== "string" || !/^(?:[0-9a-fA-F]{2})*$/.test(v)) problems.push(`envHex.${k} must be whole hex bytes`);
         else if (/0a$/i.test(v)) problems.push(`envHex.${k} must not end with a newline byte`);
+        else if ((v.match(/../g) ?? []).includes("00")) problems.push(`envHex.${k} must not contain a NUL byte`);
       }
     }
   }
@@ -135,6 +136,7 @@ describe("hook-cases.json — the runner interprets every field, kind and versio
     expect(typeProblems({ name: "x", expectExit: 0, envHex: { A: "ff0" } })).toEqual(["envHex.A must be whole hex bytes"]);
     expect(typeProblems({ name: "x", expectExit: 0, envHex: { A: "ff0a" } })).toEqual(["envHex.A must not end with a newline byte"]);
     expect(typeProblems({ name: "x", expectExit: 0, envHex: { "A B": "ff" } })).toEqual(["envHex key \"A B\" must be a variable name"]);
+    expect(typeProblems({ name: "x", expectExit: 0, envHex: { A: "610062" } })).toEqual(["envHex.A must not contain a NUL byte"]);
   });
   for (const hex of ["efbbb", "1g2c"]) {
     it(`a planted stdinHex that is not whole hex bytes fails (${hex})`, () => {

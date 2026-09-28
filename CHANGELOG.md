@@ -150,7 +150,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   different values. A `PLUMBLINE_TEST_CMD` of `test \xff = <U+FFFD>` passed
   the JS gate, where both sides read as U+FFFD, and failed in Python. Now
   `PLUMBLINE_BRANCH`, `PLUMBLINE_CFG` and `PLUMBLINE_TEST_CMD` block, with exit
-  2 and a reason naming the variable, when they are not valid UTF-8. **This
+  2 and a reason naming the variable, when they are not valid UTF-8, judged
+  from their bytes whatever the locale (Python no longer reads them through
+  the locale, which under an 8-bit one made a stray byte look valid). **This
   is stricter**, including for one legitimate case: a value holding the
   replacement character U+FFFD also blocks, because that is the only form in
   which the JS twin can see bytes that were not UTF-8. Blocking invalid

@@ -551,7 +551,9 @@
     {"name": "a non-ASCII path reads the same on stderr under an ASCII locale (#471 review)", "stdin": "{\"filePath\": \"src/caf\\u00e9.js\"}", "env": {"PLUMBLINE_BRANCH": "main", "PYTHONIOENCODING": "ascii"}, "cfg": {"protectedBranches": ["main"], "docsAllowlist": ["docs/"]}, "expectExit": 2, "expectStderr": "blocked: code edit to src/café.js on protected branch main. Branch first."},
     {"name": "a PLUMBLINE_BRANCH that is not valid UTF-8 blocks (#501)", "stdin": "{\"filePath\": \"src/app.js\"}", "envHex": {"PLUMBLINE_BRANCH": "6d61696eff"}, "cfg": {"protectedBranches": ["main"], "docsAllowlist": ["docs/"]}, "expectExit": 2, "expectStderr": "blocked: PLUMBLINE_BRANCH is not valid UTF-8"},
     {"name": "a PLUMBLINE_BRANCH holding U+FFFD blocks, since that is how invalid bytes reach the JS twin (#501)", "stdin": "{\"filePath\": \"docs/x.md\"}", "env": {"PLUMBLINE_BRANCH": "main�"}, "cfg": {"protectedBranches": ["main"], "docsAllowlist": ["docs/"]}, "expectExit": 2, "expectStderr": "blocked: PLUMBLINE_BRANCH is not valid UTF-8"},
-    {"name": "a PLUMBLINE_CFG that is not valid UTF-8 blocks, even a docs edit (#501)", "stdin": "{\"filePath\": \"docs/x.md\"}", "env": {"PLUMBLINE_BRANCH": "main"}, "envHex": {"PLUMBLINE_CFG": "7b2270726f7465637465644272616e63686573223a205b226d61696eff225d2c2022646f6373416c6c6f776c697374223a205b22646f63732f225d7d"}, "expectExit": 2, "expectStderr": "blocked: PLUMBLINE_CFG is not valid UTF-8"}
+    {"name": "a PLUMBLINE_CFG that is not valid UTF-8 blocks, even a docs edit (#501)", "stdin": "{\"filePath\": \"docs/x.md\"}", "env": {"PLUMBLINE_BRANCH": "main"}, "envHex": {"PLUMBLINE_CFG": "7b2270726f7465637465644272616e63686573223a205b226d61696eff225d2c2022646f6373416c6c6f776c697374223a205b22646f63732f225d7d"}, "expectExit": 2, "expectStderr": "blocked: PLUMBLINE_CFG is not valid UTF-8"},
+    {"name": "a PLUMBLINE_CFG holding U+FFFD blocks the branch guard (#501 review)", "stdin": "{\"filePath\": \"docs/x.md\"}", "env": {"PLUMBLINE_BRANCH": "main", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main�\"], \"docsAllowlist\": [\"docs/\"]}"}, "expectExit": 2, "expectStderr": "blocked: PLUMBLINE_CFG is not valid UTF-8"},
+    {"name": "with PLUMBLINE_BRANCH and PLUMBLINE_CFG both not valid UTF-8, the branch is named (#501 review)", "stdin": "{\"filePath\": \"docs/x.md\"}", "envHex": {"PLUMBLINE_BRANCH": "6d61696eff", "PLUMBLINE_CFG": "7b2278223a2022ff227d"}, "expectExit": 2, "expectStderr": "blocked: PLUMBLINE_BRANCH is not valid UTF-8"}
   ],
   "boundaryGuard": [
     {
@@ -925,7 +927,8 @@
     {"name": "a non-ASCII layer reads the same on stderr under an ASCII locale (#471 review)", "stdin": "{\"filePath\": \"src/ui/x.js\", \"importPath\": \"src/donn\\u00e9es/y.js\"}", "env": {"PYTHONIOENCODING": "ascii"}, "cfg": {"layers": ["données", "ui"], "direction": "downward"}, "expectExit": 2, "expectStderr": "boundary break: ui must not import données (downward)"},
     {"name": "a trailing newline is part of the last segment, in both twins (#471 re-review)", "stdin": "{\"filePath\": \"src/data/ui\\n\", \"importPath\": \"src/ui/x.js\"}", "cfg": {"layers": ["ui", "data"], "direction": "downward"}, "expectExit": 2, "expectStderr": "boundary break: data must not import ui (downward)"},
     {"name": "a trailing newline in importPath is part of its last segment (#471 re-review)", "stdin": "{\"filePath\": \"src/data/x.js\", \"importPath\": \"src/data/ui\\n\"}", "cfg": {"layers": ["ui", "data"], "direction": "downward"}, "expectExit": 0},
-    {"name": "a PLUMBLINE_CFG that is not valid UTF-8 blocks the boundary guard (#501)", "stdin": "{\"filePath\": \"src/ui/x.js\", \"importPath\": \"src/data/y.js\"}", "envHex": {"PLUMBLINE_CFG": "7b226c6179657273223a205b227569222c202264617461ff225d7d"}, "expectExit": 2, "expectStderr": "blocked: PLUMBLINE_CFG is not valid UTF-8"}
+    {"name": "a PLUMBLINE_CFG that is not valid UTF-8 blocks the boundary guard (#501)", "stdin": "{\"filePath\": \"src/ui/x.js\", \"importPath\": \"src/data/y.js\"}", "envHex": {"PLUMBLINE_CFG": "7b226c6179657273223a205b227569222c202264617461ff225d7d"}, "expectExit": 2, "expectStderr": "blocked: PLUMBLINE_CFG is not valid UTF-8"},
+    {"name": "a PLUMBLINE_CFG holding U+FFFD blocks the boundary guard (#501 review)", "stdin": "{\"filePath\": \"src/ui/x.js\", \"importPath\": \"src/data/y.js\"}", "env": {"PLUMBLINE_CFG": "{\"layers\": [\"ui\", \"data�\"]}"}, "expectExit": 2, "expectStderr": "blocked: PLUMBLINE_CFG is not valid UTF-8"}
   ],
   "preCommitGate": [
     {
@@ -1021,6 +1024,7 @@
       "expectExit": 0
     },
     {"name": "a PLUMBLINE_TEST_CMD that is not valid UTF-8 blocks: JS read it as U+FFFD and passed (#501)", "envHex": {"PLUMBLINE_TEST_CMD": "7465737420ff203d20efbfbd"}, "expectExit": 2, "expectStderr": "pre-commit blocked: PLUMBLINE_TEST_CMD is not valid UTF-8"},
-    {"name": "a valid non-ASCII PLUMBLINE_TEST_CMD still runs (#501)", "env": {"PLUMBLINE_TEST_CMD": "test café = café"}, "expectExit": 0}
+    {"name": "a valid non-ASCII PLUMBLINE_TEST_CMD still runs (#501)", "env": {"PLUMBLINE_TEST_CMD": "test café = café"}, "expectExit": 0},
+    {"name": "a PLUMBLINE_TEST_CMD holding U+FFFD blocks (#501 review)", "env": {"PLUMBLINE_TEST_CMD": "test � = �"}, "expectExit": 2, "expectStderr": "pre-commit blocked: PLUMBLINE_TEST_CMD is not valid UTF-8"}
   ]
 }

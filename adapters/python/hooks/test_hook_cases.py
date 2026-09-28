@@ -71,6 +71,8 @@ def _type_problems(c):
                     problems.append(f'envHex.{k} must be whole hex bytes')
                 elif v.lower().endswith('0a'):
                     problems.append(f'envHex.{k} must not end with a newline byte')
+                elif '00' in (v[i:i + 2] for i in range(0, len(v), 2)):
+                    problems.append(f'envHex.{k} must not contain a NUL byte')
     return problems
 
 
@@ -150,6 +152,8 @@ def test_a_planted_envhex_that_is_malformed_fails():
         'envHex.A must not end with a newline byte']
     assert _type_problems({'name': 'x', 'expectExit': 0, 'envHex': {'A B': 'ff'}}) == [
         'envHex key "A B" must be a variable name']
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'envHex': {'A': '610062'}}) == [
+        'envHex.A must not contain a NUL byte']
 
 
 @pytest.mark.parametrize('hex_', ['efbbb', '1g2c'])
