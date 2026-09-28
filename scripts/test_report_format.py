@@ -364,6 +364,8 @@ _PROSE = "\nscope note: the audit's {} is partial.\n"
     ("P1/P2 coverage", ["P1", "P2"]),
     ("P1/P2/P5 findings", ["P1", "P2", "P5"]),
     ("P6-adjacent advisory", ["P6"]),
+    ("finding, which is P6-adjacent.", ["P6"]),     # sentence end (#527 review)
+    ("P1/P2. Then", ["P1", "P2"]),
 ])
 def test_joined_principle_codes_are_bare_citations(phrase, codes):
     issues = _check(VALID_REPORT + _PROSE.format(phrase))
@@ -376,9 +378,19 @@ def test_joined_principle_codes_are_bare_citations(phrase, codes):
     "P3-loader.py module",            # a file name, unquoted
     "a/P1/b tree",                    # a code as one path segment
     "P1–P9 range",                    # a range, as before
+    "P3-loader-v2.py module",         # a many-hyphen file name (#527 review)
+    "P3-foo-bar.txt file",
+    "P1/P2.md file",                  # a relative path with an extension
+    "docs/P2-notes.md file",
 ])
 def test_path_shaped_joins_are_still_not_citations(phrase):
     assert _check(VALID_REPORT + _PROSE.format(phrase)) == []
+
+
+def test_joined_codes_are_bare_in_a_remediation_record_too():
+    # _check_principles is shared: remediation records get the same rule.
+    issues = _check(VALID_REMEDIATION + _PROSE.format("P1/P2 coverage"))
+    assert any(i.startswith("P1 is not inline-named (bare code)") for i in issues), issues
 
 
 def test_unreadable_path_fails_cleanly_without_a_traceback():

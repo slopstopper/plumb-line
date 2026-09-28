@@ -146,9 +146,12 @@ _PRINCIPLE_CODE = re.compile(r"(?<![\w/–—-])P([1-9])(?![\w/–—-])")
 # Two bare forms the exclusions above let through (#527). Codes joined only by
 # "/" and not part of a longer path: "P1/P2", but not "src/P1/P2/x.py". A code
 # followed by a hyphenated word that does not continue as a file name:
-# "P6-adjacent", but not "P3-loader.py".
-_JOINED_CODES = re.compile(r"(?<![\w/.–—-])P[1-9](?:/P[1-9])+(?![\w/–—-])")
-_HYPHENED_CODE = re.compile(r"(?<![\w/.–—-])P([1-9])-[A-Za-z][A-Za-z-]*(?![\w./])")
+# "P6-adjacent", but not "P3-loader.py". A "." ends the match only when a word
+# follows it (an extension): "is P6-adjacent." and "P1/P2." are citations,
+# "P1/P2.md" is a path. "-" in the lookahead stops backtracking into
+# "P3-loader-v2.py" (#527 review).
+_JOINED_CODES = re.compile(r"(?<![\w/.–—-])P[1-9](?:/P[1-9])+(?![\w/–—-]|\.\w)")
+_HYPHENED_CODE = re.compile(r"(?<![\w/.–—-])P([1-9])-[A-Za-z][A-Za-z-]*(?![\w/-]|\.\w)")
 
 # Inline code spans are masked before scanning: a path in backticks is a
 # quotation, not a citation, and must not be read as either.

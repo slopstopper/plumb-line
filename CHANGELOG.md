@@ -15,9 +15,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `scripts/check_report_format.py` excludes `/` and `-` around a code so
   that an unquoted path is not read as a citation. That let `P1/P2
   coverage` and `a P6-adjacent advisory` through as if they were fine,
-  although each is a bare citation. The audit skill itself modelled the
-  first (#514). Both are now rejected, while path shapes such as
-  `src/P1/P2/x.py`, `a/P1/b` and `P3-loader.py` still are not citations.
+  although each is a bare citation. The audit skill itself modelled both
+  (#514). Both forms are now rejected in audit reports and remediation
+  records, including at the end of a sentence (`P1/P2.`, `P6-adjacent.`).
+  Path shapes are still not citations: `src/P1/P2/x.py`, `a/P1/b`,
+  `P1/P2.md`, `P3-loader.py` and `P3-loader-v2.py`.
   **A report that passed before can now fail.** The checker is now v5, so
   a stored `format-validation: … v5 — clean` says which rule set it was
   earned under.
