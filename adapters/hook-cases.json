@@ -736,7 +736,7 @@
       "name": "with no PLUMBLINE_CFG there are no layers, so an import it would judge blocks (#516; was allowed as 'same or unscoped layer', #471)",
       "stdin": "{\"filePath\": \"src/data/store.js\", \"importPath\": \"src/ui/button.js\"}",
       "expectExit": 2,
-      "expectStderr": "blocked: no layers configured"
+      "expectStderr": "blocked: no layers configured, so this import cannot be judged. Set \"layers\" in PLUMBLINE_CFG to the project's layer names, top to bottom.\n"
     },
     {
       "name": "an explicit empty object gives the defaults: no layers, so an import blocks (#516)",
@@ -762,6 +762,11 @@
     {
       "name": "with no layers and no import there is still nothing to judge, so it allows (#516 keeps #471's rule)",
       "stdin": "{\"filePath\": \"src/ui/button.js\"}",
+      "expectExit": 0
+    },
+    {
+      "name": "with no layers and an empty importPath there is still nothing to judge, so it allows (#516)",
+      "stdin": "{\"filePath\": \"src/ui/button.js\", \"importPath\": \"\"}",
       "expectExit": 0
     },
     {

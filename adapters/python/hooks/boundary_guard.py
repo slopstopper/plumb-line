@@ -22,6 +22,9 @@ _IMPORT_PATH_REASON = ("blocked: importPath must be a string. Map the import bei
 # JS twin: NO_LAYERS_REASON.
 _NO_LAYERS_REASON = ('blocked: no layers configured, so this import cannot be judged. Set "layers" in '
                      "PLUMBLINE_CFG to the project's layer names, top to bottom.")
+# The reason for layers that are given but not a list (#516 review).
+# JS twin: LAYERS_TYPE_REASON.
+_LAYERS_TYPE_REASON = "blocked: layers must be a list of layer names."
 
 def decide(file_path, import_path, layers, direction="downward"):
     # No path to judge (an unmapped host payload) cannot be judged, so it
@@ -40,8 +43,13 @@ def decide(file_path, import_path, layers, direction="downward"):
     # An import to judge and no layers to judge it by is not a pass: it
     # blocks, as the gate blocks with no gates (#476) and an explicit empty
     # `layers` does (#471). Owner decision on #516. JS twin: NO_LAYERS_REASON.
-    if not isinstance(layers, list) or not layers:
+    if layers is None or (isinstance(layers, (list, tuple)) and not layers):
         return {"allow": False, "reason": _NO_LAYERS_REASON}
+    # Only a library caller can reach this: the CLI's _read_config rejects a
+    # non-list first. Its own reason, since layers were given (#516 review). A
+    # tuple is accepted, as before #516; JS has no tuple.
+    if not isinstance(layers, (list, tuple)):
+        return {"allow": False, "reason": _LAYERS_TYPE_REASON}
     src, dst = _layer_of(file_path, layers), _layer_of(import_path, layers)
     if not src or not dst or src == dst:
         return {"allow": True, "reason": "same or unscoped layer"}

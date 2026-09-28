@@ -19,6 +19,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   no import still allows, and an explicit `layers: []` still blocks as
   before (#471). **If you wire the boundary guard without layers, set
   `layers` in `PLUMBLINE_CFG`**, or every import it is given will block.
+  Called directly, the exported `decide()` is stricter too. With `layers`
+  empty it used to allow as "same or unscoped layer"; with `layers` missing
+  it used to crash. Both now block with "no layers configured". Layers that
+  are not a list block with their own reason, "layers must be a list of
+  layer names". Python still accepts a tuple.
   Owner decision on #516; consistent with the pre-commit gate's "no gates
   configured" (#476).
 - **The hook case table is source truth**

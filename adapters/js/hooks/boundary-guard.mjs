@@ -46,6 +46,9 @@ const IMPORT_PATH_REASON =
 const NO_LAYERS_REASON =
   'blocked: no layers configured, so this import cannot be judged. Set "layers" in ' +
   "PLUMBLINE_CFG to the project's layer names, top to bottom.";
+/** The reason for layers that are given but not a list (#516 review).
+ * Python twin: _LAYERS_TYPE_REASON. */
+const LAYERS_TYPE_REASON = "blocked: layers must be a list of layer names.";
 
 export function decide({
   filePath,
@@ -74,8 +77,13 @@ export function decide({
   // An import to judge and no layers to judge it by is not a pass: it
   // blocks, as the gate blocks with no gates (#476) and an explicit empty
   // `layers` does (#471). Owner decision on #516. Python twin: NO_LAYERS_REASON.
-  if (!Array.isArray(layers) || layers.length === 0) {
+  if (layers == null || (Array.isArray(layers) && layers.length === 0)) {
     return { allow: false, reason: NO_LAYERS_REASON };
+  }
+  // Only a library caller can reach this: the CLI's readConfig rejects a
+  // non-array first. Its own reason, since layers were given (#516 review).
+  if (!Array.isArray(layers)) {
+    return { allow: false, reason: LAYERS_TYPE_REASON };
   }
   const from = layerOf(filePath, layers);
   const to = layerOf(importPath, layers);

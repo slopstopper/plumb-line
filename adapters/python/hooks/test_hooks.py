@@ -248,6 +248,34 @@ def test_boundary_decide_blocks_an_import_path_that_is_not_a_string():
     assert r["reason"].startswith("blocked: importPath must be a string.")
 
 
+# #516: an import to judge with no layers blocks, for a caller of decide() as
+# for the CLI. JS twin: the #516 cases in boundary-guard.test.mjs.
+@pytest.mark.parametrize("layers", [None, [], ()])
+def test_boundary_decide_blocks_with_no_layers(layers):
+    r = boundary_guard.decide("src/data/store.py", "src/ui/view.py", layers)
+    assert r == {"allow": False,
+                 "reason": 'blocked: no layers configured, so this import cannot be judged. Set "layers" in '
+                           "PLUMBLINE_CFG to the project's layer names, top to bottom."}
+
+
+@pytest.mark.parametrize("layers", ["ui", 7, {"ui": 1}])
+def test_boundary_decide_blocks_layers_that_are_not_a_list(layers):
+    r = boundary_guard.decide("src/data/store.py", "src/ui/view.py", layers)
+    assert r == {"allow": False, "reason": "blocked: layers must be a list of layer names."}
+
+
+def test_boundary_decide_accepts_a_tuple_of_layers_as_a_list():
+    # A tuple judged correctly before #516; Python keeps accepting it (JS has no tuple).
+    r = boundary_guard.decide("src/data/store.py", "src/ui/view.py", ("ui", "engine", "services", "data"))
+    assert r == {"allow": False, "reason": "boundary break: data must not import ui (downward)"}
+
+
+def test_boundary_decide_with_no_layers_keeps_the_earlier_checks_first():
+    assert boundary_guard.decide("", "src/ui/view.py", [])["reason"].startswith("blocked: no file path to judge.")
+    assert boundary_guard.decide("src/x.py", "", []) == {"allow": True, "reason": "no import to judge"}
+    assert boundary_guard.decide("src/x.py", 7, [])["reason"].startswith("blocked: importPath must be a string.")
+
+
 # --- #471 re-review: with stderr closed (2>&-), sys.stderr is None. The
 # UTF-8 reconfigure must not crash the hook (exit 1): an allowed edit still
 # exits 0 and a blocked one exits 2, as in the JS twins. The shared table's
