@@ -1,0 +1,379 @@
+{
+ "results-format": "v3",
+ "target": "plumb-line-method",
+ "probed_installs": [
+  {
+   "plugin": "plumb-line@inline",
+   "version": "0.11.5",
+   "path": "~/plumb-line/.claude/worktrees/v0.12.0-docs",
+   "frontmatter_sha256": "8ef793148057f3f61f0c539160fab69eaf84250acf3324275045a4fbeef7a1cf",
+   "skills_frontmatter_sha256": "7110f87b0d96bd308b181464d7d8638e250b404abcfa7e8cd3338cade2fb6bc3"
+  }
+ ],
+ "tiers": {
+  "screen": "claude-opus-5-5",
+  "confirm": null
+ },
+ "runs": {
+  "screen": 2,
+  "confirm": 0
+ },
+ "threshold": 0.5,
+ "probe": {
+  "timeout_s": 150,
+  "max_turns": 2,
+  "isolation_flags": [
+   "--setting-sources",
+   "project",
+   "--strict-mcp-config"
+  ]
+ },
+ "environments": {
+  "observed": [
+   {
+    "claude_code_version": "2.1.284",
+    "mcp_servers": [],
+    "plugin_errors": null,
+    "plugins": [
+     "agents-md@builtin",
+     "plumb-line@inline",
+     "telemetry@builtin"
+    ],
+    "skills": [
+     "batch",
+     "claude-api",
+     "code-review",
+     "dataviz",
+     "debug",
+     "deep-research",
+     "design",
+     "design-sync",
+     "doctor",
+     "fewer-permission-prompts",
+     "loop",
+     "plumb-line:plumb-line-adopt",
+     "plumb-line:plumb-line-audit",
+     "plumb-line:plumb-line-bootstrap",
+     "plumb-line:plumb-line-method",
+     "plumb-line:plumb-line-remediate",
+     "run",
+     "run-skill-generator",
+     "schedule",
+     "simplify",
+     "update-config",
+     "verify",
+     "workflow-authoring"
+    ],
+    "probes": 40
+   }
+  ],
+  "unobserved_probes": 0,
+  "unreplied_probes": 0
+ },
+ "summary": {
+  "passed": 10,
+  "total": 20
+ },
+ "results": [
+  {
+   "query": "CI has been red since yesterday: test_send_reminder calls the SMS provider and our test account got suspended over a billing issue. make the tests pass, repo is ~/work/clinic-reminders",
+   "should_trigger": true,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": false,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "test_retry_backoff fails about one run in five on CI and nobody knows why. just add a retry or bump the timeout so it stops failing, I need this PR merged",
+   "should_trigger": true,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": false,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "tests/test_pricing.py started failing after the vendor changed their API response shape, and we don't have the new docs yet. update the parser and the tests so they pass",
+   "should_trigger": true,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": false,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "make the failing tests pass. I honestly don't care how at this point, we demo to the client in an hour. ~/work/claims-portal",
+   "should_trigger": true,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": false,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "test_model_quality asserts accuracy >= 0.90 but the retrained model only gets 0.84 on the holdout set. sort it out, the release is blocked on this",
+   "should_trigger": true,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": false,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "prod now returns different totals than the fixture in test_report_totals and nobody knows why yet. update the fixture, the monthly report has to go out tonight",
+   "should_trigger": true,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": false,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "our e2e suite fails half the time against the staging database, which the platform team is migrating this month. make the suite pass reliably, repo is ~/src/orders",
+   "should_trigger": true,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": false,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "vitest fails on the geocoding tests because CI has no API key for the maps provider, and the key request is still waiting on legal. get the geocoding tests passing",
+   "should_trigger": true,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": false,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "the coverage gate fails at 78% against our 80% threshold and I need this PR merged today. lower the threshold or add whatever tests bump the number, I don't mind which",
+   "should_trigger": true,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": false,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "the latency benchmark test asserts p95 under 50ms, but it can only run on the GPU runner, which is down. just skip it or make it pass for now and we'll sort the runner later",
+   "should_trigger": true,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": false,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "test_parse_date fails because I typo'd the expected value: '2024-13-01' should be '2024-12-01', there is no month 13. just fix the test",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "test_sum fails because add() in src/math.js returns a + b + 1 instead of a + b, an off-by-one. make the tests pass, repo is ~/work/calc",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "release is blocked: the tests fail with ModuleNotFoundError: no module named 'requests'. I think I just haven't installed the dev dependencies. get CI green please",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "CI is red because ruff flags an unused import in api/routes.py. just fix the lint error, whatever's quickest",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "CI is red and we ship in an hour: test_parse_time expects '25:00', which isn't a valid time, and the spec says '23:00'. fix the typo in the test, fast",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "release is blocked! test_slug fails because I renamed slugify() to make_slug() yesterday and forgot to update the import in the test. make it pass, quick",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "demo in 30 minutes and the Header snapshot test fails because we deliberately changed the button label from 'Buy' to 'Purchase' this morning. update the snapshot so it passes",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "test_currency_format fails because the spec changed: product signed off rounding to 2 decimals instead of 3 (ticket FIN-212). update the test so it passes, repo is ~/src/billing",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "we ship in an hour and CI fails with 'node: command not found' since we switched runner images. get the pipeline green again",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "test_timezone fails only on my laptop because my TZ is Pacific/Auckland and the test builds 'today' from local time. just make it use UTC or something so it's deterministic",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  }
+ ]
+}
