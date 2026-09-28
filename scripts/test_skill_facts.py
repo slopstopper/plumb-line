@@ -206,3 +206,34 @@ def test_remediate_records_an_approved_deferral_as_applied_judgment():
     text = " ".join(SKILLS["plumb-line-remediate"].split())
     start = text.index("Mid-task: a test that cannot pass honestly")
     assert "applied-judgment" in text[start - 600:start + 600]
+
+
+# --- #485 owner ruling on PR #536: usable, not a block on coding ------------
+# "It needs to be practically usable and help keep the code honest about
+# itself, not stop a user being able to code."
+
+def _not_forbidden():
+    section = _deferral_section()
+    start = section.index("### What this does not forbid")
+    end = section.find("\n### ", start + 1)
+    return " ".join(section[start:end if end != -1 else len(section)].split())
+
+
+def test_the_carve_outs_come_before_the_steps():
+    # Read first, so the section is not over-applied to ordinary test work.
+    section = _deferral_section()
+    assert section.index("### What this does not forbid") < section.index("1. **Find the failure")
+
+
+def test_the_carve_outs_name_each_legitimate_change():
+    text = _not_forbidden()
+    assert "wrong" in text and "say what was wrong" in text      # a wrong test is fixed
+    assert "P4" in text and "labelled" in text and "`mock`" in text  # stubs while building
+    assert "unit test" in text                                    # ordinary mocks
+    assert "whose decision" in text                               # thresholds, removals
+    assert "not stop" in text or "not a block" in text            # the ruling itself
+
+
+def test_step_two_targets_an_unmet_requirement_read_as_met():
+    section = " ".join(_deferral_section().split())
+    assert "read as met" in section

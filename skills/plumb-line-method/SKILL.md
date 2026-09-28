@@ -40,16 +40,47 @@ it erases that result where CI can no longer see it.
 This skill still edits nothing. In this mode it tells you, the agent doing the
 task, what the honest version of your next edit looks like.
 
+### What this does not forbid
+
+This is guidance for one moment, not a block on coding. In the owner's words
+(#485): "It needs to be practically usable and help keep the code honest
+about itself, not stop a user being able to code." Changing tests is normal
+work. All of these are fine; do them, and say what you did:
+
+- **A wrong test gets fixed.** A typo, a wrong expected value, a test that
+  contradicts a settled spec, a spec that changed with sign-off: change the
+  test, and say what was wrong and whose decision set the new expectation
+  (the spec, the ticket, the owner), never "whatever the code returns now".
+- **Stubs while building or prototyping.** A stand-in for a service that does
+  not exist yet is fine on the terms of P4 (Quarantined fakery): contained
+  and labelled, kept out of real outputs, the module's maturity stated as
+  `mock` (P6, Maturity vocabulary), and its test named as a test of the
+  stub. The real requirement is recorded as not met yet (planned, deferred
+  as below, or red), never claimed.
+- **Mocks in unit tests.** Mocking your own collaborators to test a unit's
+  logic is ordinary testing.
+- **Decided changes.** A threshold or gate moved by a decision, or a test
+  removed along with the behaviour it tested, is fine when the change says
+  whose decision it was.
+
+The line, every time: a change is honest when it says why and on whose
+decision; it is not when it makes an unmet requirement read as met without
+saying so.
+
+### When the requirement cannot be met
+
 1. **Find the failure you can actually observe**, and handle that one. If the
    service is unreachable, make the code say "unavailable" rather than crash
    or invent a value; do not write handling for a failure you imagined
    instead (empty data, say) while the real one still crashes.
-2. **Do not make the requirement's test pass by changing what it tests.**
-   Each of these makes the test truer about the code and the suite less true
-   about the project:
+2. **Do not make an unmet requirement read as met.** When the requirement's
+   test fails for a reason outside the code, each of these, with no decision
+   behind it (above), makes the test truer about the code and the suite less
+   true about the project:
    - rewriting the assertion to expect what the code now returns;
-   - mocking, stubbing or faking the unavailable dependency *in the test of
-     the requirement*, so it passes against a stand-in;
+   - replacing the unavailable dependency with a stand-in in the
+     requirement's own test, so a pass against the stand-in reads as the
+     requirement met;
    - skipping it, deleting it, or commenting it out;
    - loosening the threshold, lowering a coverage or quality gate, or adding
      retries and longer timeouts to hide a failure nobody has explained.

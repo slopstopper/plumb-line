@@ -26,9 +26,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   and marked it as a recorded expected failure; 63 went green by changing
   the test. The skill's new
   section, **Mid-task: a test that cannot pass honestly**, says to handle
-  the failure you can observe, never to make the requirement's test pass by
-  rewriting its assertion, mocking the missing dependency in it, skipping
-  it, or loosening a gate, and that staying red is always honest. A deferral
+  the failure you can observe, never to make an unmet requirement read as
+  met (by rewriting its test's assertion, replacing the missing dependency
+  with a stand-in in that test, skipping it, or loosening a gate, with no
+  decision behind the change), and that staying red is always honest. It opens
+  with what it does not forbid, on the owner's ruling that it must be
+  practically usable and not stop a user coding: a wrong test fixed with the
+  reason stated, stubs while building on P4 — Quarantined fakery's terms
+  (contained, labelled, the requirement recorded as not met), ordinary
+  unit-test mocks, and changes a decision stands behind. A deferral
   is allowed only on the four conditions the owner decided (option C): a
   strict marker, the assertion unchanged, the reason in the marker (ideally
   citing a tracked issue), and the decision handed back in the final
