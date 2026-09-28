@@ -21,7 +21,7 @@ const HOOKS = {
 
 // Every field, case kind and table version this runner interprets (#441).
 // Python twin: _MODEL in adapters/python/hooks/test_hook_cases.py.
-const ROW = ["name", "stdin", "stdinHex", "env", "envHex", "cfg", "expectExit", "expectStderr"];
+const ROW = ["name", "stdin", "stdinHex", "env", "envHex", "repeat", "cfg", "expectExit", "expectStderr"];
 const MODEL = {
   versions: [1],
   meta: ["_doc", "version"],
@@ -67,7 +67,61 @@ function typeProblems(c) {
       }
     }
   }
+  // repeat declares long strings instead of writing them out: every
+  // {{NAME}} in stdin, env, cfg or expectStderr becomes the string repeated.
+  // A token used but not declared, or declared but not used, is a table
+  // error, so a typo cannot silently test the literal token instead.
+  if ("repeat" in c) {
+    if (c.repeat === null || typeof c.repeat !== "object" || Array.isArray(c.repeat)) {
+      problems.push("repeat must be an object");
+    } else {
+      for (const [k, v] of Object.entries(c.repeat)) {
+        if (!/^[A-Z][A-Z0-9_]*$/.test(k)) problems.push(`repeat key ${JSON.stringify(k)} must be an upper-case name`);
+        if (!Array.isArray(v) || v.length !== 2 || typeof v[0] !== "string" || v[0] === ""
+            || !Number.isInteger(v[1]) || v[1] < 1 || v[1] > 1_000_000) {
+          problems.push(`repeat.${k} must be [a non-empty string, a count from 1 to 1000000]`);
+        }
+      }
+    }
+  }
+  const declared = c.repeat && typeof c.repeat === "object" && !Array.isArray(c.repeat) ? Object.keys(c.repeat) : [];
+  const used = new Set(repeatTokens(c));
+  for (const t of [...used].sort()) if (!declared.includes(t)) problems.push(`repeat token {{${t}}} is not declared`);
+  for (const k of declared) if (!used.has(k)) problems.push(`repeat.${k} is not used`);
   return problems;
+}
+
+/** Every string a repeat token may appear in: stdin, env values, cfg (deeply), expectStderr. */
+function repeatableStrings(c) {
+  const out = [];
+  const walk = (v) => {
+    if (typeof v === "string") out.push(v);
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v !== null && typeof v === "object") Object.values(v).forEach(walk);
+  };
+  walk([c.stdin, c.env, c.cfg, c.expectStderr]);
+  return out;
+}
+
+function repeatTokens(c) {
+  return repeatableStrings(c).flatMap((s) => [...s.matchAll(/\{\{([A-Z][A-Z0-9_]*)\}\}/g)].map((m) => m[1]));
+}
+
+/** The row with every declared {{NAME}} expanded. Python twin: _expand_repeat. */
+function expandRepeat(c) {
+  if (c.repeat === undefined) return c;
+  const expand = (v) => {
+    if (typeof v === "string") {
+      return v.replace(/\{\{([A-Z][A-Z0-9_]*)\}\}/g, (m, k) =>
+        Object.hasOwn(c.repeat, k) ? c.repeat[k][0].repeat(c.repeat[k][1]) : m);
+    }
+    if (Array.isArray(v)) return v.map(expand);
+    if (v !== null && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, expand(x)]));
+    return v;
+  };
+  const out = { ...c };
+  for (const f of ["stdin", "env", "cfg", "expectStderr"]) if (f in c) out[f] = expand(c[f]);
+  return out;
 }
 
 // Removed first so the caller's shell cannot leak in: every PLUMBLINE_*
@@ -76,7 +130,8 @@ function isCleared(k) {
   return k.startsWith("PLUMBLINE_") || k === "PYTHONIOENCODING";
 }
 
-function run(kind, c) {
+function run(kind, row) {
+  const c = expandRepeat(row);
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !isCleared(k)));
   if (c.cfg !== undefined) env.PLUMBLINE_CFG = JSON.stringify(c.cfg);
   for (const [k, v] of Object.entries(c.env ?? {})) {
@@ -138,6 +193,18 @@ describe("hook-cases.json — the runner interprets every field, kind and versio
     expect(typeProblems({ name: "x", expectExit: 0, envHex: { "A B": "ff" } })).toEqual(["envHex key \"A B\" must be a variable name"]);
     expect(typeProblems({ name: "x", expectExit: 0, envHex: { A: "610062" } })).toEqual(["envHex.A must not contain a NUL byte"]);
   });
+  it("repeat expands a declared token, and refuses one used but not declared or declared but not used", () => {
+    const row = { name: "x", expectExit: 0, repeat: { LONG: ["ab", 3] }, cfg: { layers: ["{{LONG}}"] }, expectStderr: "{{LONG}}!" };
+    expect(typeProblems(row)).toEqual([]);
+    expect(expandRepeat(row).cfg.layers).toEqual(["ababab"]);
+    expect(expandRepeat(row).expectStderr).toBe("ababab!");
+    expect(typeProblems({ name: "x", expectExit: 0, stdin: "{{LONG}}" })).toEqual(["repeat token {{LONG}} is not declared"]);
+    expect(typeProblems({ name: "x", expectExit: 0, repeat: { LONG: ["a", 2] } })).toEqual(["repeat.LONG is not used"]);
+    expect(typeProblems({ name: "x", expectExit: 0, repeat: { LONG: ["a", 0] }, stdin: "{{LONG}}" }))
+      .toEqual(["repeat.LONG must be [a non-empty string, a count from 1 to 1000000]"]);
+    expect(typeProblems({ name: "x", expectExit: 0, repeat: { long: ["a", 2] }, stdin: "{{long}}" }))
+      .toEqual(["repeat key \"long\" must be an upper-case name", "repeat.long is not used"]);
+  });
   for (const hex of ["efbbb", "1g2c"]) {
     it(`a planted stdinHex that is not whole hex bytes fails (${hex})`, () => {
       expect(typeProblems({ name: "x", expectExit: 0, stdinHex: hex })).toEqual(["stdinHex must be whole hex bytes"]);
@@ -190,9 +257,10 @@ for (const kind of Object.keys(HOOKS)) {
       it(c.name, () => {
         expect(typeProblems(c)).toEqual([]);
         const r = run(kind, c);
+        const ex = expandRepeat(c);
         expect(r.error, "the hook did not start, or timed out").toBeUndefined();
         expect(r.status, r.stderr).toBe(c.expectExit);
-        if (c.expectStderr !== undefined) expect(r.stderr).toContain(c.expectStderr);
+        if (ex.expectStderr !== undefined) expect(r.stderr).toContain(ex.expectStderr);
       });
     }
   });

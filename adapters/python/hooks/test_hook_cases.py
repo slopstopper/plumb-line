@@ -27,7 +27,7 @@ _HOOKS = {
 
 # Every field, case kind and table version this runner interprets (#441). JS
 # twin: MODEL in adapters/js/hooks/__tests__/hook-cases.test.mjs.
-_ROW = ['name', 'stdin', 'stdinHex', 'env', 'envHex', 'cfg', 'expectExit', 'expectStderr']
+_ROW = ['name', 'stdin', 'stdinHex', 'env', 'envHex', 'repeat', 'cfg', 'expectExit', 'expectStderr']
 _MODEL = {
     'versions': [1],
     'meta': ['_doc', 'version'],
@@ -73,7 +73,71 @@ def _type_problems(c):
                     problems.append(f'envHex.{k} must not end with a newline byte')
                 elif '00' in (v[i:i + 2] for i in range(0, len(v), 2)):
                     problems.append(f'envHex.{k} must not contain a NUL byte')
+    # repeat declares long strings instead of writing them out: every {{NAME}}
+    # in stdin, env, cfg or expectStderr becomes the string repeated. A token
+    # used but not declared, or declared but not used, is a table error, so a
+    # typo cannot silently test the literal token instead.
+    if 'repeat' in c:
+        if not isinstance(c['repeat'], dict):
+            problems.append('repeat must be an object')
+        else:
+            for k, v in c['repeat'].items():
+                if not re.fullmatch(r'[A-Z][A-Z0-9_]*', k):
+                    problems.append(f'repeat key {json.dumps(k)} must be an upper-case name')
+                count = v[1] if isinstance(v, list) and len(v) == 2 else None
+                if not (isinstance(v, list) and len(v) == 2 and isinstance(v[0], str) and v[0]
+                        and isinstance(count, int) and not isinstance(count, bool)
+                        and 1 <= count <= 1_000_000):
+                    problems.append(f'repeat.{k} must be [a non-empty string, a count from 1 to 1000000]')
+    declared = list(c['repeat']) if isinstance(c.get('repeat'), dict) else []
+    used = set(_repeat_tokens(c))
+    problems += [f'repeat token {{{{{t}}}}} is not declared' for t in sorted(used) if t not in declared]
+    problems += [f'repeat.{k} is not used' for k in declared if k not in used]
     return problems
+
+
+_TOKEN = re.compile(r'\{\{([A-Z][A-Z0-9_]*)\}\}')
+
+
+def _repeatable_strings(c):
+    """Every string a repeat token may appear in: stdin, env values, cfg
+    (deeply), expectStderr. JS twin: repeatableStrings."""
+    out = []
+
+    def walk(v):
+        if isinstance(v, str):
+            out.append(v)
+        elif isinstance(v, list):
+            for x in v:
+                walk(x)
+        elif isinstance(v, dict):
+            for x in v.values():
+                walk(x)
+
+    walk([c.get('stdin'), c.get('env'), c.get('cfg'), c.get('expectStderr')])
+    return out
+
+
+def _repeat_tokens(c):
+    return [m.group(1) for s in _repeatable_strings(c) for m in _TOKEN.finditer(s)]
+
+
+def _expand_repeat(c):
+    """The row with every declared {{NAME}} expanded. JS twin: expandRepeat."""
+    if 'repeat' not in c:
+        return c
+
+    def expand(v):
+        if isinstance(v, str):
+            return _TOKEN.sub(lambda m: c['repeat'][m.group(1)][0] * c['repeat'][m.group(1)][1]
+                              if m.group(1) in c['repeat'] else m.group(0), v)
+        if isinstance(v, list):
+            return [expand(x) for x in v]
+        if isinstance(v, dict):
+            return {k: expand(x) for k, x in v.items()}
+        return v
+
+    return {**c, **{f: expand(c[f]) for f in ('stdin', 'env', 'cfg', 'expectStderr') if f in c}}
 
 
 def _is_cleared(k):
@@ -82,7 +146,8 @@ def _is_cleared(k):
     return k.startswith('PLUMBLINE_') or k == 'PYTHONIOENCODING'
 
 
-def _run(kind, c):
+def _run(kind, row):
+    c = _expand_repeat(row)
     env = {k: v for k, v in os.environ.items() if not _is_cleared(k)}
     if 'cfg' in c:
         env['PLUMBLINE_CFG'] = json.dumps(c['cfg'])
@@ -156,6 +221,24 @@ def test_a_planted_envhex_that_is_malformed_fails():
         'envHex.A must not contain a NUL byte']
 
 
+def test_repeat_expands_a_declared_token_and_refuses_misuse():
+    row = {'name': 'x', 'expectExit': 0, 'repeat': {'LONG': ['ab', 3]},
+           'cfg': {'layers': ['{{LONG}}']}, 'expectStderr': '{{LONG}}!'}
+    assert _type_problems(row) == []
+    assert _expand_repeat(row)['cfg']['layers'] == ['ababab']
+    assert _expand_repeat(row)['expectStderr'] == 'ababab!'
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'stdin': '{{LONG}}'}) == [
+        'repeat token {{LONG}} is not declared']
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'repeat': {'LONG': ['a', 2]}}) == [
+        'repeat.LONG is not used']
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'repeat': {'LONG': ['a', 0]},
+                           'stdin': '{{LONG}}'}) == [
+        'repeat.LONG must be [a non-empty string, a count from 1 to 1000000]']
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'repeat': {'long': ['a', 2]},
+                           'stdin': '{{long}}'}) == [
+        'repeat key "long" must be an upper-case name', 'repeat.long is not used']
+
+
 @pytest.mark.parametrize('hex_', ['efbbb', '1g2c'])
 def test_a_planted_stdinhex_that_is_not_whole_hex_bytes_fails(hex_):
     assert _type_problems({'name': 'x', 'expectExit': 0, 'stdinHex': hex_}) == [
@@ -214,5 +297,6 @@ def test_hook_case(kind, c):
     r = _run(kind, c)
     stderr = r.stderr.decode('utf-8', 'replace')
     assert r.returncode == c['expectExit'], stderr
-    if 'expectStderr' in c:
-        assert c['expectStderr'] in stderr
+    expected = _expand_repeat(c).get('expectStderr')
+    if expected is not None:
+        assert expected in stderr
