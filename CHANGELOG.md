@@ -42,6 +42,24 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   also records three test uses of other layers that the ADR did not list:
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
+### Fixed
+- **The audit skill no longer models the bare principle codes its own report
+  contract rejects** ([#514](https://github.com/slopstopper/plumb-line/issues/514)).
+  Auditors copy the skill's wording into reports. Its prose said "the
+  audit's P1/P2 coverage is `partial`", and in the v0.11.5 harness 3 of 8
+  auditors failed their first format check on a paraphrase of it. Every
+  principle code in the skill's prose is now inline-named (`P1 — Source-truth
+  layer`): 30 codes on 23 lines. The only exceptions are the forms it quotes,
+  in code spans, as wrong. The remediate and adopt skills had the same
+  defect: a bare `(P8)`, a bare `P7`, and a wrong name, "P9 — the explanation
+  IS the fix". Remediation records are checked for principle names too.
+
+  A test in `scripts/test_skill_facts.py` now keeps all three skills that
+  way. It checks for the canonical name from
+  `reference/portable-principles.md`, as the checker does, and is stricter
+  than the checker on joined codes. The checker lets a slash- or
+  hyphen-joined code (`P1/P2`, `P6-adjacent`) through, because it excludes
+  `/` and `-` to avoid matching unquoted paths.
 
 ## [0.11.5] — 2026-09-28
 
