@@ -165,8 +165,9 @@ def _read_stdin():
 def _main():
     raw = _read_stdin()
     # Empty means JSON whitespace only, as in the JS twin: str.strip() also
-    # strips \x1c-\x1f, and JS trim() also strips a byte-order mark.
-    input_data = json.loads(raw) if raw.strip(" \t\n\r") else {}
+    # strips \x1c-\x1f, and JS trim() also strips a byte-order mark. NaN and
+    # Infinity are refused, as JSON.parse refuses them in the JS twin (#503).
+    input_data = json.loads(raw, parse_constant=_reject_constant) if raw.strip(" \t\n\r") else {}
     cfg, reason = _read_config(os.environ.get("PLUMBLINE_CFG"))
     if reason:
         return {"allow": False, "reason": reason}

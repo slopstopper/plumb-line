@@ -10,6 +10,12 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Fixed
+- **The branch guard's Python twin refuses `NaN` and `Infinity` on stdin, as
+  the JS twin does** ([#503](https://github.com/slopstopper/plumb-line/issues/503)).
+  They are not JSON, but `json.loads` accepted them, so
+  `{"filePath": "docs/x.md", "n": NaN}` on a protected branch with `docs/`
+  allowlisted was allowed by Python and blocked by JS. Both now block, with
+  exit 2.
 - **The branch guard reads stdin as strict UTF-8 in both twins**
   ([#475](https://github.com/slopstopper/plumb-line/issues/475)). The JS twin
   decoded bytes that are not UTF-8 lossily and judged the mangled path, so
