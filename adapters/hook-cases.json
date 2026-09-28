@@ -227,6 +227,30 @@
       "expectStderr": "the branch guard could not run"
     },
     {
+      "name": "NaN on stdin is not JSON, even beside an allowed docs path (#503)",
+      "stdin": "{\"filePath\": \"docs/x.md\", \"n\": NaN}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "the branch guard could not run"
+    },
+    {
+      "name": "-Infinity on stdin is not JSON (#503)",
+      "stdin": "{\"filePath\": \"docs/x.md\", \"n\": -Infinity}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "the branch guard could not run"
+    },
+    {
+      "name": "Infinity on stdin is not JSON (#503 review)",
+      "stdin": "{\"filePath\": \"docs/x.md\", \"n\": Infinity}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "the branch guard could not run"
+    },
+    {
       "name": "a filePath key in PLUMBLINE_CFG is an unknown key, so it blocks (v0.11.4 dogfood, #469)",
       "stdin": "{\"filePath\": \"src/app.js\"}",
       "env": { "PLUMBLINE_BRANCH": "main" },
@@ -564,6 +588,70 @@
     {
       "name": "a passing command is allowed",
       "env": { "PLUMBLINE_TEST_CMD": "true" },
+      "expectExit": 0
+    },
+    {
+      "name": "an empty quoted argument is an argument: test -n \"\" fails, so the gate blocks (#472)",
+      "env": { "PLUMBLINE_TEST_CMD": "test -n \"\"" },
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: test -n \"\" failed"
+    },
+    {
+      "name": "a double-quoted argument is one word: sh -c \"exit 0\" passes (#472)",
+      "env": { "PLUMBLINE_TEST_CMD": "sh -c \"exit 0\"" },
+      "expectExit": 0
+    },
+    {
+      "name": "a single-quoted argument is one word: sh -c 'exit 0' passes (#472)",
+      "env": { "PLUMBLINE_TEST_CMD": "sh -c 'exit 0'" },
+      "expectExit": 0
+    },
+    {
+      "name": "an unbalanced single quote cannot be split, so it blocks (#472)",
+      "env": { "PLUMBLINE_TEST_CMD": "echo 'unbalanced" },
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the test command could not be run (No closing quotation)"
+    },
+    {
+      "name": "an unbalanced double quote cannot be split, so it blocks (#472)",
+      "env": { "PLUMBLINE_TEST_CMD": "echo \"unbalanced" },
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the test command could not be run (No closing quotation)"
+    },
+    {
+      "name": "a trailing backslash cannot be split, so it blocks (#472)",
+      "env": { "PLUMBLINE_TEST_CMD": "true \\" },
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the test command could not be run (No escaped character)"
+    },
+    {
+      "name": "inside double quotes a backslash escapes a double quote (#472)",
+      "env": { "PLUMBLINE_TEST_CMD": "test \"a\\\"b\" = 'a\"b'" },
+      "expectExit": 0
+    },
+    {
+      "name": "inside double quotes a backslash before another character is kept (#472)",
+      "env": { "PLUMBLINE_TEST_CMD": "test \"a\\b\" = 'a\\b'" },
+      "expectExit": 0
+    },
+    {
+      "name": "outside quotes a backslash escapes a space (#472)",
+      "env": { "PLUMBLINE_TEST_CMD": "test a\\ b = \"a b\"" },
+      "expectExit": 0
+    },
+    {
+      "name": "empty quoted words are kept, not dropped (#472)",
+      "env": { "PLUMBLINE_TEST_CMD": "test '' = \"\"" },
+      "expectExit": 0
+    },
+    {
+      "name": "a # is an ordinary character, not a comment (#472)",
+      "env": { "PLUMBLINE_TEST_CMD": "test \"a#b\" = a#b" },
+      "expectExit": 0
+    },
+    {
+      "name": "a tab separates words, as a space does (#472)",
+      "env": { "PLUMBLINE_TEST_CMD": "test\ta = a" },
       "expectExit": 0
     }
   ]

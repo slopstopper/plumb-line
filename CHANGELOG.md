@@ -10,6 +10,12 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Fixed
+- **The branch guard's Python twin refuses `NaN` and `Infinity` on stdin, as
+  the JS twin does** ([#503](https://github.com/slopstopper/plumb-line/issues/503)).
+  They are not JSON, but `json.loads` accepted them, so
+  `{"filePath": "docs/x.md", "n": NaN}` on a protected branch with `docs/`
+  allowlisted was allowed by Python and blocked by JS. Both now block, with
+  exit 2.
 - **The branch guard reads stdin as strict UTF-8 in both twins**
   ([#475](https://github.com/slopstopper/plumb-line/issues/475)). The JS twin
   decoded bytes that are not UTF-8 lossily and judged the mangled path, so
@@ -71,6 +77,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `refs/heads/-x`) can still be printed, and now blocks. The table's rows
   are cross-checked against `git check-ref-format --branch` in both twins'
   suites.
+- **The JS pre-commit gate splits `PLUMBLINE_TEST_CMD` with shell-style
+  quoting, as the Python twin does**
+  ([#472](https://github.com/slopstopper/plumb-line/issues/472)). It split on
+  whitespace, so quote characters reached the command as text. `test -n ""`
+  passed `""` as two characters and **passed the gate while failing under
+  quoting** (a false pass, now blocked). An unbalanced quote or a trailing
+  backslash ran the command with a stray character; it now blocks, with the
+  same reason as Python ("No closing quotation", "No escaped character").
+  **One part is a loosening:** a correctly quoted command such as
+  `sh -c "exit 0"`, which the JS gate broke apart and blocked, now runs as
+  written and passes. The splitter is checked word for word against Python's
+  `shlex.split`. The Python twin is unchanged.
 - **The pre-commit gate's `decide()` passes a runner only when it returns
   `true`** ([#493](https://github.com/slopstopper/plumb-line/issues/493)).
   Both twins read a runner's result by truthiness, so a runner returning `1`

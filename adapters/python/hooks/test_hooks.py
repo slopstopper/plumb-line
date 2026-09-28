@@ -223,15 +223,4 @@ def test_branch_blank_means_ascii_whitespace_as_in_the_js_twin(branch):
 
 
 # --- CLI behaviour is in adapters/hook-cases.json, run against both twins by
-# test_hook_cases.py (#475). The CLI test below is a case where the twins
-# still diverge; it moves into the table with its fix.
-
-_GATE = os.path.join(os.path.dirname(__file__), "pre_commit_gate.py")
-
-
-def test_gate_cli_exits_2_on_an_unbalanced_quote():
-    # Python-only: the JS twin splits on whitespace. #472 settles one rule.
-    import subprocess
-    env = dict(os.environ, PLUMBLINE_TEST_CMD="echo 'unbalanced")
-    assert subprocess.run([sys.executable, _GATE], capture_output=True, text=True,
-                          env=env).returncode == 2
+# test_hook_cases.py (#475), including quoting in PLUMBLINE_TEST_CMD (#472).
