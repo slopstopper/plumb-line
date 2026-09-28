@@ -89,7 +89,9 @@ CLASSES = {"Mechanical", "Judgment"}
 #   v4  #432 — a `format-validation: ... — clean` line names the checker
 #       version that earned it (`check_report_format.py vN — clean`); a stamp
 #       newer than this checker is rejected, an older or missing one is noted
-CHECKER_VERSION = "4"
+#   v5  #527 — slash-joined codes (P1/P2) and a code with a hyphenated word
+#       (P6-adjacent) are bare citations; they passed before. Stricter
+CHECKER_VERSION = "5"
 
 # `format-validation: scripts/check_report_format.py [vN] — clean`. The stamp
 # says which rule set a stored "clean" was earned under (#432).
@@ -141,6 +143,12 @@ COMMIT_LITERALS = (_WORKING_TREE, _NO_REPOSITORY)
 # the bare citation the format forbids, and excluding "." created a hole in the
 # rule at its most common prose position.
 _PRINCIPLE_CODE = re.compile(r"(?<![\w/–—-])P([1-9])(?![\w/–—-])")
+# Two bare forms the exclusions above let through (#527). Codes joined only by
+# "/" and not part of a longer path: "P1/P2", but not "src/P1/P2/x.py". A code
+# followed by a hyphenated word that does not continue as a file name:
+# "P6-adjacent", but not "P3-loader.py".
+_JOINED_CODES = re.compile(r"(?<![\w/.–—-])P[1-9](?:/P[1-9])+(?![\w/–—-])")
+_HYPHENED_CODE = re.compile(r"(?<![\w/.–—-])P([1-9])-[A-Za-z][A-Za-z-]*(?![\w./])")
 
 # Inline code spans are masked before scanning: a path in backticks is a
 # quotation, not a citation, and must not be read as either.
@@ -481,6 +489,21 @@ def _check_principles(text, principles, glossary_required, issues):
         snippet = re.split(r"\s{2,}|[|)\n]", after)[0].strip()
         add(f"{code} has the wrong name: {snippet!r}, "
             f"ruleset says {canonical!r}")
+
+    # #527: _PRINCIPLE_CODE excludes "/" and "-" so a path is not read as a
+    # citation, which let two bare forms through. Codes joined only by "/"
+    # (P1/P2) and a code with a hyphenated word (P6-adjacent) are citations;
+    # a path shape (src/P1/P2/x.py, a/P1/b, P3-loader.py) still is not.
+    for m in _JOINED_CODES.finditer(text):
+        for code in m.group(0).split("/"):
+            cited.add(code)
+            add(f"{code} is not inline-named (bare code); "
+                f"render it as '{code} — {principles.get(code, '<name>')}'")
+    for m in _HYPHENED_CODE.finditer(text):
+        code = "P" + m.group(1)
+        cited.add(code)
+        add(f"{code} is not inline-named (bare code); "
+            f"render it as '{code} — {principles.get(code, '<name>')}'")
 
     if glossary_required:
         glossary = _glossary_codes(text)
