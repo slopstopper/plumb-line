@@ -157,10 +157,10 @@ found one runtime use the first draft missed, now listed).
       covers `adapters/` except that file. The table depends on nothing.
       The hook implementations, and every runner that reads it, are
       measured against it.
-    - The table, not the prose, is the source truth. The Hook I/O
-      convention's prose in `adapter-contract.md` describes the rows (the
-      table's own `_doc` says "This file, not prose, is the hook parity
-      contract").
+    - The table, not the prose, is the source truth. The Hook I/O prose in
+      `adapter-contract.md` describes the convention; where it and the
+      table disagree, the table holds (the table's own `_doc` says "This
+      file, not prose, is the hook parity contract").
     - Neither hook twin is the reference. A row's expected exit code or
       stderr reason is recorded only once both twins produce it, never
       pasted from one twin's output. Where a rule comes from outside both
@@ -171,7 +171,8 @@ found one runtime use the first draft missed, now listed).
     - Two outside rules are checked. Both runners check every branch-guard
       row whose reason shows how a named branch was read against
       `git check-ref-format --branch` (#474). The JS suite checks every
-      `preCommitGate` row's `PLUMBLINE_TEST_CMD` against `shlex.split`
+      `PLUMBLINE_TEST_CMD` a `preCommitGate` row sets in `env` against
+      `shlex.split`
       (`pre-commit-gate.test.mjs`, #472). Other outside rules the rows
       encode, such as JSON grammar and UTF-8 validity, are not checked
       against an outside implementation.
@@ -181,8 +182,8 @@ found one runtime use the first draft missed, now listed).
     - The three guards are `current` for this table, as for the other
       three. Both runners fail on a case field, case kind or table version
       they do not interpret, and each guard is proven by a planted test
-      (#441's pattern). CI runs both runners, so both twins satisfy every
-      row.
+      (#441's pattern). CI runs both runners on Ubuntu (Node 22 and 24;
+      Python 3.11–3.14), so both twins satisfy every row there.
   - **The fifth recorded test use of a consumer, and the first recorded
     from the adapters layer.**
     `adapters/js/hooks/__tests__/hook-cases.test.mjs` imports
@@ -200,7 +201,8 @@ found one runtime use the first draft missed, now listed).
       lints `examples/js-payments-service` against the boundary template
       (since 2026-06-28).
     - `adapters/sarif/test_run_checks.py` runs the Action's checks over the
-      `broken` trees of four example fixtures.
+      `broken` and `clean` trees of four example fixtures
+      (`test_end_to_end_over_the_planted_fixtures`).
 
     Both are test code only, the same kind of use as the primitives' tests
     that are already listed. No adapter runtime module reads `examples/`.
