@@ -135,10 +135,10 @@ Empty entries are rejected. (Earlier versions matched files exactly only; a bare
 ### Hook I/O contract (for wiring)
 
 Each hook is a stdin/exit-code CLI; exit 0 allows, exit 2 (with a message on
-stderr) blocks. A Claude Code hook treats only exit 2 as a block. The branch guard
-also exits 2 when it cannot read its input, and the pre-commit gate when
-`PLUMBLINE_TEST_CMD` is unset, blank or cannot be run; the boundary guard
-still exits 1 on input it cannot read (#471). Input is per hook (`adapter-contract.md`, "Hook I/O
+stderr) blocks. A Claude Code hook treats only exit 2 as a block. The branch and
+boundary guards also exit 2 when they cannot read their input or their
+`PLUMBLINE_CFG`, and the pre-commit gate when `PLUMBLINE_TEST_CMD` is unset,
+blank or cannot be run. Input is per hook (`adapter-contract.md`, "Hook I/O
 convention"):
 
 - **branch guard:** `{ "filePath": "..." }` on stdin; the branch from
@@ -146,7 +146,8 @@ convention"):
   `PLUMBLINE_CFG` (JSON).
 - **boundary guard:** `{ "filePath": "...", "importPath": "..." }` on stdin;
   `layers` / `direction` from `PLUMBLINE_CFG`. It needs the import being
-  added: given a file path alone it has nothing to judge and allows.
+  added: given a file path alone it has nothing to judge and allows. With no
+  file path it blocks.
 - **pre-commit gate:** no stdin; runs the command in `PLUMBLINE_TEST_CMD` and
   blocks when it fails or the variable is unset. The command is split into
   words with shell-style quoting (`'…'`, `"…"`, backslash escapes, as Python's
