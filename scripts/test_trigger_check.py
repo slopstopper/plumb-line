@@ -131,7 +131,8 @@ def _payload(**over):
                 tiers={"screen": "haiku", "confirm": None},
                 runs={"screen": 1, "confirm": 2}, threshold=0.5, timeout=150,
                 merged=_merged(), isolation_flags=[],
-                environments=tc.summarise_environments([_ENV, _ENV, _ENV]))
+                # two probes: _merged()'s two rows at one screen run each
+                environments=tc.summarise_environments([_ENV, _ENV]))
     base.update(over)
     return tc.build_payload(**base)
 
@@ -399,12 +400,34 @@ def test_probe_reports_the_environment_and_the_first_skill_call(monkeypatch):
 
     monkeypatch.setattr(tc.subprocess, "Popen", FakePopen)
     FakePopen.lines = stream(init, *skill)
-    hit, winner, env = tc.probe("q", "plumb-line-method", "m", ".", 60, "/co")
-    assert (hit, winner) == (True, "plumb-line:plumb-line-method")
+    hit, winner, env, replied = tc.probe("q", "plumb-line-method", "m", ".", 60, "/co")
+    assert (hit, winner, replied) == (True, "plumb-line:plumb-line-method", True)
     assert env["plugins"] == ["plumb-line@inline"] and env["mcp_servers"] == []
+    # A reply that began and ended without a Skill call is a real non-trigger.
+    reply = [{"type": "stream_event", "event": {"type": t}}
+             for t in ("message_start", "message_stop")]
+    FakePopen.lines = stream(init, *reply)
+    assert tc.probe("q", "plumb-line-method", "m", ".", 60)[2:] == (
+        tc.init_environment(init), True)
+    # A session that starts and then fails (usage limit, overload) reports
+    # an environment but no reply: its non-trigger measures the failure.
+    FakePopen.lines = stream(init, {"type": "result", "is_error": True})
+    assert tc.probe("q", "plumb-line-method", "m", ".", 60)[3] is False
     # A session that never starts reports no environment, not an empty one.
     FakePopen.lines = []
-    assert tc.probe("q", "plumb-line-method", "m", ".", 60) == (False, None, None)
+    assert tc.probe("q", "plumb-line-method", "m", ".", 60) == (False, None, None, False)
+
+
+def test_probe_times_out_a_cli_that_hangs_silently(monkeypatch):
+    # The read loop only checks the clock when a line arrives; a CLI that
+    # prints nothing must still be killed on time.
+    import sys
+    import time
+    monkeypatch.setattr(tc, "probe_cmd", lambda q, m, d=None: [
+        sys.executable, "-c", "import time; time.sleep(30)"])
+    start = time.time()
+    assert tc.probe("q", "t", "m", ".", 1) == (False, None, None, False)
+    assert time.time() - start < 10
 
 
 def test_environments_are_counted_per_distinct_environment():
@@ -444,20 +467,70 @@ def test_validate_refuses_a_record_where_the_target_skill_never_loaded():
                for i in _issues(tc.summarise_environments([unknown])))
 
 
-def test_validate_refuses_plugin_errors():
-    broken = {**_ENV, "plugin_errors": ["bad manifest"]}
-    assert any("plugin errors" in i for i in _issues(tc.summarise_environments([broken])))
+def test_validate_refuses_plugin_errors_in_an_isolated_run_only():
+    # In default mode one of the user's unrelated plugins may error; what
+    # matters there, that the target loaded, is checked separately.
+    envs = tc.summarise_environments([{**_ENV, "plugin_errors": ["bad manifest"]}] * 2)
+    assert _issues(envs) == []
+    assert any("plugin errors" in i
+               for i in _issues(envs, isolation_flags=tc.ISOLATION_FLAGS))
 
 
 def test_validate_refuses_mcp_servers_in_an_isolated_run_only():
     mcp = {**_ENV, "mcp_servers": ["claude.ai Notion (connected)"]}
-    envs = tc.summarise_environments([mcp])
+    envs = tc.summarise_environments([mcp, mcp])
     assert _issues(envs) == []                     # not isolated: recorded, allowed
     assert any("reported MCP servers" in i
                for i in _issues(envs, isolation_flags=tc.ISOLATION_FLAGS))
-    unknown = tc.summarise_environments([{**_ENV, "mcp_servers": None}])
-    assert any("reported MCP servers" in i
+    unknown = tc.summarise_environments([{**_ENV, "mcp_servers": None}] * 2)
+    assert any("did not report its MCP servers" in i
                for i in _issues(unknown, isolation_flags=tc.ISOLATION_FLAGS))
+
+
+def test_validate_refuses_probes_that_started_but_got_no_reply():
+    envs = tc.summarise_environments([_ENV, _ENV], unreplied=1)
+    assert any("no reply from the model" in i for i in _issues(envs))
+
+
+def test_default_mode_tolerates_connector_status_drift_isolated_does_not():
+    # A user's connector going from pending to connected mid-run must not
+    # void a paid-for default-mode run; any drift in an isolated run does.
+    a = {**_ENV, "mcp_servers": ["claude.ai Gmail (pending)"]}
+    b = {**_ENV, "mcp_servers": ["claude.ai Gmail (connected)"]}
+    envs = tc.summarise_environments([a, b])
+    assert _issues(envs) == []
+    newer = {**_ENV, "claude_code_version": "2.1.285"}
+    assert any("different environments" in i
+               for i in _issues(tc.summarise_environments([_ENV, newer])))
+    isolated = tc.summarise_environments([_ENV, {**_ENV, "plugin_errors": None}])
+    assert any("different environments" in i
+               for i in _issues(isolated, isolation_flags=tc.ISOLATION_FLAGS))
+
+
+def test_validate_refuses_a_target_that_names_no_skill():
+    for bad in (None, 3, ""):
+        assert any("target must name a skill" in i
+                   for i in _issues(tc.summarise_environments([_ENV, _ENV]), target=bad))
+
+
+def test_validate_refuses_an_isolated_record_whose_checkout_did_not_load():
+    installs = [{"plugin": "plumb-line@inline", "version": "0.11.5", "path": "/co"}]
+    envs = tc.summarise_environments([{**_ENV, "plugins": ["agents-md@builtin"]}] * 2)
+    assert any("probed checkout" in i for i in _issues(
+        envs, installs=installs, isolation_flags=tc.ISOLATION_FLAGS))
+    loaded = tc.summarise_environments(
+        [{**_ENV, "plugins": ["plumb-line@inline"]}] * 2)
+    assert _issues(loaded, installs=installs, isolation_flags=tc.ISOLATION_FLAGS) == []
+
+
+def test_validate_reconciles_probe_counts_with_the_runs():
+    # 2 rows at 1 screen run each imply 2 probes; a record claiming 1 was
+    # trimmed or edited.
+    assert any("imply 2" in i for i in _issues(tc.summarise_environments([_ENV])))
+    # A confirmed row adds its confirm runs.
+    payload = _payload(environments=tc.summarise_environments([_ENV] * 4))
+    payload["results"][1]["screen"] = {"trigger_rate": 1.0, "pass": False}
+    assert tc.validate_results(payload) == []
 
 
 def test_validate_accepts_a_clean_isolated_record():
@@ -466,15 +539,23 @@ def test_validate_accepts_a_clean_isolated_record():
 
 
 def test_validate_flags_malformed_environments():
-    one = {**_ENV, "probes": 1}
+    one = {**_ENV, "probes": 2}
+
+    def envs(observed=(one,), unobserved=0, unreplied=0):
+        return {"observed": list(observed), "unobserved_probes": unobserved,
+                "unreplied_probes": unreplied}
+
+    # Each bad case differs from a good one in exactly one place, so each
+    # check is exercised on its own.
+    assert _issues(envs()) == []
     for bad in ([], {"observed": []},
-                {"observed": [{"plugins": "x"}], "unobserved_probes": 0},
-                {"observed": [{**one, "probes": 0}], "unobserved_probes": 0},
-                {"observed": [{**one, "probes": True}], "unobserved_probes": 0},
-                {"observed": [one], "unobserved_probes": -1},
-                {"observed": [one], "unobserved_probes": False},
-                {"observed": [{**one, "skills": [1]}], "unobserved_probes": 0},
-                {"observed": [{**one, "claude_code_version": 2}], "unobserved_probes": 0}):
+                envs(observed=[{"plugins": "x"}]),
+                envs(observed=[{**one, "probes": 0}]),
+                envs(observed=[{**one, "probes": True}]),
+                envs(unobserved=-1), envs(unobserved=False),
+                envs(unreplied=-1), envs(unreplied=True),
+                envs(observed=[{**one, "skills": [1, "x"]}]),
+                envs(observed=[{**one, "claude_code_version": 2}])):
         assert any("environments must be" in i for i in _issues(bad)), bad
 
 
@@ -492,7 +573,8 @@ def test_validate_flags_isolation_flags_that_are_not_a_list_of_strings():
         assert any("probe" in i for i in tc.validate_results(payload)), bad
 
 
-def _run_main(monkeypatch, tmp_path, extra, installed=(), env=None, code=0):
+def _run_main(monkeypatch, tmp_path, extra, installed=(), env=None, code=0,
+              replied=lambda model: True):
     """Run main() with run_tier faked; return (record, the calls run_tier got)."""
     import json
     calls = []
@@ -503,8 +585,11 @@ def _run_main(monkeypatch, tmp_path, extra, installed=(), env=None, code=0):
         # The screen tier misses the should-trigger query, so the confirm
         # tier runs too and its wiring is exercised.
         rows = [{"query": e["query"], "should_trigger": e["should_trigger"],
-                 "runs": [model == "confirm"], "winners": [None]} for e in evals]
-        return tc.score(rows, threshold), [env or _ENV] * len(evals)
+                 "runs": [model == "confirm"] * runs, "winners": [None] * runs}
+                for e in evals]
+        probes = len(evals) * runs
+        return (tc.score(rows, threshold), [env or _ENV] * probes,
+                [replied(model)] * probes)
 
     monkeypatch.setattr(tc, "run_tier", fake_run_tier)
     monkeypatch.setattr(tc, "installed_locations", lambda target: list(installed))
@@ -526,7 +611,8 @@ def test_main_carries_the_plugin_dir_to_both_tiers_and_the_record(monkeypatch, t
     assert all(c["plugin_dir"] == co for c in calls)
     assert record["probe"]["isolation_flags"] == tc.ISOLATION_FLAGS
     assert record["probed_installs"][0]["path"] == co
-    assert record["environments"]["observed"] == [{**_ENV, "probes": 2}]
+    # 1 screen run + 2 confirm runs (the default) of the one query
+    assert record["environments"]["observed"] == [{**_ENV, "probes": 3}]
     assert tc.validate_results(record) == []
 
 
@@ -545,6 +631,17 @@ def test_main_exits_nonzero_when_its_own_record_fails_validation(monkeypatch, tm
     record, _ = _run_main(monkeypatch, tmp_path, ["--plugin-dir", co], env=gone, code=1)
     assert record["environments"]["observed"][0]["skills"] == gone["skills"]
     assert "did not load" in capsys.readouterr().err
+
+
+def test_main_records_and_refuses_confirm_tier_probes_that_got_no_reply(
+        monkeypatch, tmp_path, capsys):
+    # Only the confirm tier fails (a usage limit hit mid-run, say): its
+    # failures must reach the record, not only the screen tier's.
+    record, _ = _run_main(monkeypatch, tmp_path, [], code=1,
+                          installed=[{"plugin": "o/p", "version": "9.9.9"}],
+                          replied=lambda model: model != "confirm")
+    assert record["environments"]["unreplied_probes"] == 2
+    assert "no reply from the model" in capsys.readouterr().err
 
 
 def test_main_gives_no_update_advice_for_an_older_checkout(monkeypatch, tmp_path, capsys):

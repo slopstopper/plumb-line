@@ -33,10 +33,13 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   loading (Claude Code version, plugins, skills, MCP servers, plugin errors),
   and a checkout's entry carries hashes of the target's and every skill's
   frontmatter. `--validate` now **refuses** a record unless every probe
-  reported one and the same environment, the target skill loaded, no plugin
-  errored and, when isolated, no MCP server appeared; it also refuses v2
-  records, which carry no environment (none are committed). A run whose own
-  record fails validation exits 1. New query set:
+  reported an environment and got a reply from the model, the counts add up,
+  the probes shared one environment, and the target skill loaded; an
+  isolated run must also show no MCP server, no plugin error, and the probed
+  checkout among its plugins. It also refuses v2 records, which carry no
+  environment (none are committed). A run whose own record fails validation
+  exits 1, and a probe whose CLI hangs silently is now killed at its
+  timeout rather than blocking the run. New query set:
   `evals/trigger/pressure-queries.json`, for `plumb-line-method`.
 - **Harness scoring text, clarified:** `examples/AUDIT-EXPECTATIONS.md` now
   states that extra confirmed violations on a `broken/` fixture are

@@ -50,10 +50,11 @@ records as a non-trigger, and `max_turns`). Validate a stored file with:
 
 which re-derives every row's verdict from its rate, the stamped threshold and
 its expectation, so a stored verdict is consistent with its own numbers rather
-than asserted. The record carries the settings that decide a verdict; it does
-not record `--workers` (concurrency can push a probe past its timeout), the
-`claude` CLI version, or model sampling, so a re-run is not guaranteed to
-reproduce the same rates.
+than asserted, and checks the environment each probe reported (see
+_environment_issues). The record carries the settings that decide a verdict
+and the `claude` CLI version each probe reported; it does not record
+`--workers` (concurrency can push a probe past its timeout) or model
+sampling, so a re-run is not guaranteed to reproduce the same rates.
 """
 import argparse
 import hashlib
@@ -62,6 +63,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -160,11 +162,12 @@ def merge(screen, confirm, screen_model, confirm_model):
     return merged
 
 
-def summarise_environments(envs):
+def summarise_environments(envs, unreplied=0):
     """Per-probe observed environments (None when a probe never reported
-    one) -> {"observed": [{...environment, probes}], "unobserved_probes": n},
-    one entry per distinct environment, so a record whose probes ran in two
-    different environments says so instead of averaging over them."""
+    one) -> {"observed": [{...environment, probes}], "unobserved_probes": n,
+    "unreplied_probes": m}, one entry per distinct environment, so a record
+    whose probes ran in different environments says so instead of averaging
+    over them. unreplied counts probes whose model reply never began."""
     counts = {}
     for env in envs:
         if env is None:
@@ -173,7 +176,8 @@ def summarise_environments(envs):
         counts[key] = counts.get(key, 0) + 1
     return {"observed": [{**json.loads(k), "probes": n}
                          for k, n in sorted(counts.items())],
-            "unobserved_probes": sum(1 for e in envs if e is None)}
+            "unobserved_probes": sum(1 for e in envs if e is None),
+            "unreplied_probes": unreplied}
 
 
 def build_payload(target, installs, tiers, runs, threshold, timeout, merged,
@@ -210,48 +214,94 @@ def _env_shape_ok(e):
             and _count(e["probes"]) and e["probes"] > 0)
 
 
-def _environment_issues(envs, target, isolation_flags):
+def _environment_issues(envs, target, isolation_flags, installs=()):
     """What the probe sessions reported loading, checked rather than only
-    recorded. A rate is refused unless every probe reported one environment,
-    the target skill loaded in it without plugin errors, and an isolated run
-    shows no MCP server: otherwise its non-triggers may measure a skill that
-    never loaded (the 2026-08-18 failure) or an environment it did not claim."""
+    recorded. A rate is refused unless every probe reported an environment
+    and got a reply, the probes shared one environment, and the target skill
+    loaded in it; an isolated run must also show no MCP server, no plugin
+    error, and the probed checkout among its plugins. Otherwise a non-trigger
+    may measure a skill that never loaded (the 2026-08-18 failure), a session
+    that failed, or an environment the record does not claim.
+
+    Default mode compares only what decides a trigger (CLI version, plugins,
+    skills): a user's connector changing status mid-run, or an unrelated
+    plugin's error, is recorded but does not void a paid-for run."""
     if envs is None:
         return []  # a missing key is reported by the RESULTS_KEYS check
     if not (isinstance(envs, dict)
-            and set(envs) == {"observed", "unobserved_probes"}
-            and _count(envs["unobserved_probes"]) and envs["unobserved_probes"] >= 0
+            and set(envs) == {"observed", "unobserved_probes", "unreplied_probes"}
+            and all(_count(envs[k]) and envs[k] >= 0
+                    for k in ("unobserved_probes", "unreplied_probes"))
             and isinstance(envs["observed"], list)
             and all(_env_shape_ok(e) for e in envs["observed"])):
         return ["environments must be {observed: [{claude_code_version, "
                 "plugins, skills, mcp_servers, plugin_errors, probes}], "
-                "unobserved_probes: n}, got " + repr(envs)]
+                "unobserved_probes: n, unreplied_probes: n}, got " + repr(envs)]
     issues = []
     observed = envs["observed"]
     if not observed:
         return ["environments: no probe reported the environment it ran in, "
                 "so the rates describe no known session"]
+    if not isinstance(target, str) or not target:
+        issues.append(f"target must name a skill, got {target!r}")
     if envs["unobserved_probes"]:
         issues.append(f"environments: {envs['unobserved_probes']} probe(s) never "
                       "reported an environment, so their non-triggers may be "
                       "failures to start")
-    if len(observed) > 1:
+    if envs["unreplied_probes"]:
+        issues.append(f"environments: {envs['unreplied_probes']} probe(s) started "
+                      "but got no reply from the model (a usage limit, overload "
+                      "or expired login, say), so their non-triggers measure the "
+                      "failure, not the description")
+    decisive = (lambda e: {k: v for k, v in e.items() if k != "probes"}) \
+        if isolation_flags else \
+        (lambda e: (e["claude_code_version"], e["plugins"], e["skills"]))
+    if len({json.dumps(decisive(e), sort_keys=True) for e in observed}) > 1:
         issues.append(f"environments: probes ran in {len(observed)} different "
                       "environments, so one rate averages over them")
+    probed = [i.get("plugin") for i in installs
+              if isinstance(i, dict) and i.get("path")]
     for n, e in enumerate(observed, start=1):
         if e["skills"] is None:
             issues.append(f"environment {n}: the sessions did not report their "
                           "skills, so the target cannot be shown to have loaded")
-        elif isinstance(target, str) and not any(
+        elif isinstance(target, str) and target and not any(
                 s == target or s.endswith(":" + target) for s in e["skills"]):
             issues.append(f"environment {n}: the target skill {target!r} did not "
                           "load, so every non-trigger measures its absence")
+        if not isolation_flags:
+            continue
         if e["plugin_errors"]:
             issues.append(f"environment {n}: plugin errors {e['plugin_errors']}")
-        if isolation_flags and e["mcp_servers"] != []:
+        if e["mcp_servers"] is None:
+            issues.append(f"environment {n}: an isolated run did not report its "
+                          "MCP servers, so it cannot be shown to have none")
+        elif e["mcp_servers"]:
             issues.append(f"environment {n}: an isolated run reported MCP servers "
                           f"{e['mcp_servers']}")
+        missing = [p for p in probed if e["plugins"] is None or p not in e["plugins"]]
+        if missing:
+            issues.append(f"environment {n}: the probed checkout {missing} is not "
+                          "among the plugins the sessions loaded")
     return issues
+
+
+def _probe_count_issues(payload):
+    """The environments' probe counts must add up to the runs the record
+    implies, or a trimmed or edited record could claim every probe reported
+    when most never did."""
+    envs, runs, rows = (payload.get(k) for k in ("environments", "runs", "results"))
+    try:
+        expected = (runs["screen"] * len(rows)
+                    + runs["confirm"] * sum(1 for r in rows if "screen" in r))
+        counted = (sum(e["probes"] for e in envs["observed"])
+                   + envs["unobserved_probes"])
+    except (TypeError, KeyError):
+        return []  # malformed; reported by the shape checks
+    if counted != expected:
+        return [f"environments account for {counted} probes but the runs and "
+                f"rows imply {expected}"]
+    return []
 
 
 def validate_results(payload):
@@ -294,7 +344,9 @@ def validate_results(payload):
                       f"got {probe!r}")
     flags = probe.get("isolation_flags") if isinstance(probe, dict) else None
     issues += _environment_issues(payload.get("environments"),
-                                  payload.get("target"), flags)
+                                  payload.get("target"), flags,
+                                  payload.get("probed_installs") or [])
+    issues += _probe_count_issues(payload)
     threshold = payload.get("threshold")
     # bool is an int subclass: a hand-edited `"threshold": true` must not
     # validate as 1.
@@ -504,13 +556,24 @@ def init_environment(ev):
 
 
 def probe(query, target, model, workdir, timeout, plugin_dir=None):
-    """(hit, winner, environment): environment is what the session reported
-    loading, or None if it never reported (it failed to start, say)."""
+    """(hit, winner, environment, replied).
+
+    environment is what the session reported loading, or None if it never
+    reported (it failed to start). replied is whether the model's reply ever
+    began streaming: a session that starts and then fails (usage limit,
+    overload, expired login) reports an environment but no reply, and its
+    non-trigger measures the failure, not the description."""
     cmd = probe_cmd(query, model, plugin_dir)
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                          cwd=workdir, env=env)
+    # The loop below only checks the clock when a line arrives, so a CLI that
+    # hangs silently would block forever; the watchdog kills it on time.
+    watchdog = threading.Timer(timeout, p.kill)
+    watchdog.daemon = True
+    watchdog.start()
     pending = False
+    replied = False
     acc = ""
     env_seen = None
     start = time.time()
@@ -530,7 +593,9 @@ def probe(query, target, model, workdir, timeout, plugin_dir=None):
                 continue
             se = ev.get("event", {})
             t = se.get("type", "")
-            if t == "content_block_start":
+            if t == "message_start":
+                replied = True
+            elif t == "content_block_start":
                 cb = se.get("content_block", {})
                 if cb.get("type") == "tool_use" and cb.get("name") == "Skill":
                     pending = True
@@ -541,19 +606,21 @@ def probe(query, target, model, workdir, timeout, plugin_dir=None):
                     acc += d.get("partial_json", "")
             elif t == "content_block_stop" and pending:
                 # first Skill call decides; report who won either way
-                return skill_match(acc, target), skill_name(acc), env_seen
+                return skill_match(acc, target), skill_name(acc), env_seen, True
             elif t == "message_stop":
                 break
     finally:
+        watchdog.cancel()
         p.kill()
-    return False, None, env_seen
+    return False, None, env_seen, replied
 
 
 def run_tier(evals, target, model, runs, workers, timeout, log, threshold=THRESHOLD,
              plugin_dir=None):
-    """(scored rows, per-probe observed environments)."""
+    """(scored rows, per-probe observed environments, per-probe replied)."""
     workdir = tempfile.mkdtemp(prefix="trigger-check-")
     envs = []
+    replies = []
     rows = [{"query": e["query"], "should_trigger": e["should_trigger"],
              "runs": [], "winners": []} for e in evals]
     jobs = [(i, r) for i in range(len(evals)) for r in range(runs)]
@@ -562,15 +629,16 @@ def run_tier(evals, target, model, runs, workers, timeout, log, threshold=THRESH
                           workdir, timeout, plugin_dir): i for i, _ in jobs}
         for f in futs:
             i = futs[f]
-            hit, winner, env = f.result()
+            hit, winner, env, replied = f.result()
             envs.append(env)
+            replies.append(replied)
             rows[i]["runs"].append(hit)
             rows[i]["winners"].append(winner)
             print(f"[{'TRIG' if hit else 'no  '}] {model} "
                   f"expected={evals[i]['should_trigger']} "
                   f"winner={winner or '-'}: "
                   f"{evals[i]['query'][:70]}", file=log, flush=True)
-    return score(rows, threshold), envs
+    return score(rows, threshold), envs, replies
 
 
 def parse_args(argv=None):
@@ -663,16 +731,16 @@ def main(argv=None):
               f"will describe the stale install (#295).", file=sys.stderr)
 
     evals = json.load(open(args.eval_set))
-    screen, envs = run_tier(evals, args.target, args.screen_model,
-                            args.screen_runs, args.workers, args.timeout,
-                            sys.stderr, args.threshold, plugin_dir)
+    screen, envs, replies = run_tier(evals, args.target, args.screen_model,
+                                     args.screen_runs, args.workers, args.timeout,
+                                     sys.stderr, args.threshold, plugin_dir)
     hot = contested(screen)
     if args.confirm_model and hot:
-        confirm, confirm_envs = run_tier(hot, args.target, args.confirm_model,
-                                         args.confirm_runs, args.workers,
-                                         args.timeout, sys.stderr,
-                                         args.threshold, plugin_dir)
+        confirm, confirm_envs, confirm_replies = run_tier(
+            hot, args.target, args.confirm_model, args.confirm_runs,
+            args.workers, args.timeout, sys.stderr, args.threshold, plugin_dir)
         envs = envs + confirm_envs
+        replies = replies + confirm_replies
         merged = merge(screen, confirm, args.screen_model, args.confirm_model)
     else:
         merged = [{**r, "measured_by": args.screen_model} for r in screen]
@@ -690,7 +758,8 @@ def main(argv=None):
                             {"screen": args.screen_runs,
                              "confirm": args.confirm_runs if (args.confirm_model and hot) else 0},
                             args.threshold, args.timeout, merged,
-                            isolation, summarise_environments(envs))
+                            isolation, summarise_environments(
+                                envs, unreplied=sum(1 for r in replies if not r)))
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=1)
     passed = payload["summary"]["passed"]

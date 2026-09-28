@@ -125,16 +125,19 @@ the installed copy of plumb-line. Every record lists what its probe sessions
 reported loading, and `--validate` checks it (below).
 
 What these rates measure, and what they do not. A probe is one prompt, in an
-empty directory, and a trigger is a Skill call before any other tool in the
-first reply (`max_turns` 2). The impossible-task spike (#462) measured
-something else under the same isolation flags: 90 Opus 5.5 runs with the
-plugin loaded, each in a real repository with a failing test and an
-`AGENTS.md`, over many turns, in which a plumb-line skill was invoked once
-(#487). So a trigger rate here says how strongly a bare prompt pulls the
-description in; whether an agent reaches for the skill mid-task, after
-reading the failing test, is the spike's plugin arm, run again in round 3.
-Neither measures competition with other skills a user may have installed,
-such as a debugging or testing skill that also claims a failing test.
+empty directory, and a trigger is a Skill call naming the target in the
+model's first reply (other tool calls in that reply do not stop it;
+`max_turns` 2). The impossible-task spike (#462) measured something else
+under the same isolation flags: 90 Opus 5.5 runs with the plugin loaded,
+each in one of six small repositories built for the spike, with a failing
+test and an `AGENTS.md`. A plumb-line skill was invoked once (#487), in arm
+Cp, whose prompt told the agent to use the plugin's skills where they
+apply; without that instruction, 0 of 60. So a trigger rate here says how
+strongly a bare prompt pulls the description in. Whether an agent reaches
+for the skill during the task, after reading the failing test, is what the
+spike's plugin arm measures; round 3 (planned) repeats it. Neither measures
+competition with other skills a user may have installed, such as a
+debugging or testing skill that also claims a failing test.
 `pressure-queries.json` targets `plumb-line-method`.
 
 The results file is a contracted record (`results-format: v3`; v1 #317, v2
@@ -152,12 +155,23 @@ empty), with a probe count, and how many probes never reported one.
 
 `--validate` re-derives every row's pass from its rate, the stamped
 threshold and its expectation, so a stored verdict is consistent with its
-own numbers rather than asserted. It refuses a record unless every probe
-reported one and the same environment, the target skill loaded in it, no
-plugin reported an error, and, for an isolated run, no MCP server appeared:
-otherwise a non-trigger may measure a skill that never loaded (the
-2026-08-18 failure) or an environment the record does not claim. A run whose
-own record fails these checks still writes it, as evidence, and exits 1. It
+own numbers rather than asserted. It refuses a record unless:
+
+- every probe reported an environment, and every probe got a reply from the
+  model (a session that starts and then hits a usage limit, an overload or
+  an expired login reports an environment but no reply);
+- the probes' environment counts add up to the runs the record implies;
+- the probes shared one environment: exactly, for an isolated run; by CLI
+  version, plugins and skills, in default mode, where a user's connector
+  changing status mid-run is recorded but does not void the run;
+- the target skill loaded; and
+- for an isolated run, no MCP server appeared, no plugin reported an error,
+  and the probed checkout is among the plugins that loaded.
+
+Otherwise a non-trigger may measure a skill that never loaded (the
+2026-08-18 failure), a session that failed, or an environment the record
+does not claim. A run whose own record fails these checks still writes it,
+as evidence, and exits 1. It
 also refuses a v1 record, which does not say what the timeout or turn cap
 was, and a v2 record, which does not carry the environment. The record does
 not capture `--workers` (concurrency can push a probe past its timeout) or
