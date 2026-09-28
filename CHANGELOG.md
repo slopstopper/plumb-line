@@ -36,6 +36,42 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   this release must re-run**: `construct` is a new requirement at the same
   schema version. The JS runner now also fails a table missing a kind it
   models; before, it would have crashed.
+- **Stricter: the report checker rejects slash- or hyphen-joined principle
+  codes** ([#527](https://github.com/slopstopper/plumb-line/issues/527)).
+  `scripts/check_report_format.py` excludes `/` and `-` around a code so
+  that an unquoted path is not read as a citation. That let `P1/P2
+  coverage` and `a P6-adjacent advisory` through as if they were fine,
+  although each is a bare citation. The audit skill itself modelled both
+  (#514). Both forms are now rejected in audit reports and remediation
+  records, including at the end of a sentence (`P1/P2.`, `P6-adjacent.`).
+  Path shapes are still not citations: `src/P1/P2/x.py`, `a/P1/b`,
+  `P1/P2.md`, `P3-loader.py` and `P3-loader-v2.py`.
+  **A report that passed before can now fail.** The checker is now v5, so
+  a stored `format-validation: … v5 — clean` says which rule set it was
+  earned under.
+- **Stricter: the boundary guard blocks an import when no layers are
+  configured** ([#516](https://github.com/slopstopper/plumb-line/issues/516)).
+  With `PLUMBLINE_CFG` unset, `{}`, or holding only `direction` or the
+  branch guard's keys, it used to allow every import with the reason "same
+  or unscoped layer", the same reason a real pass gives. It now blocks, with
+  exit 2 and the reason "no layers configured", in both twins. An edit with
+  no import still allows, and an explicit `layers: []` still blocks as
+  before (#471). **If you wire the boundary guard without layers, set
+  `layers` in `PLUMBLINE_CFG`**, or every import it is given will block.
+  Called directly, the exported `decide()` is stricter too. With `layers`
+  empty it used to allow as "same or unscoped layer"; with `layers`
+  undefined or null (`None` in Python) it used to crash. Both now block
+  with "no layers configured". Python's `layers` is still a required
+  argument, so leaving it out is still a `TypeError`. Layers that are not a
+  list of non-empty strings now block with their own reason, "layers must
+  be a list of layer names". Before, a string such as `"ui"` was judged
+  character by character in Python and crashed in JS. A non-string entry
+  crashed in Python and was skipped in JS, or crashed. An empty entry was
+  skipped in both, except on absolute paths. Either way, an import could
+  pass as "same or unscoped layer". Python still accepts a tuple, and checks
+  its entries the same way.
+  Owner decision on #516; consistent with the pre-commit gate's "no gates
+  configured" (#476).
 - **The hook case table is source truth**
   ([#517](https://github.com/slopstopper/plumb-line/issues/517)). An
   ADR-0018 amendment declares `adapters/hook-cases.json` part of the
@@ -45,6 +81,24 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   also records three test uses of other layers that the ADR did not list:
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
+### Fixed
+- **The audit skill no longer models the bare principle codes its own report
+  contract rejects** ([#514](https://github.com/slopstopper/plumb-line/issues/514)).
+  Auditors copy the skill's wording into reports. Its prose said "the
+  audit's P1/P2 coverage is `partial`", and in the v0.11.5 harness 3 of 8
+  auditors failed their first format check on a paraphrase of it. Every
+  principle code in the skill's prose is now inline-named (`P1 — Source-truth
+  layer`): 30 codes on 23 lines. The only exceptions are the forms it quotes,
+  in code spans, as wrong. The remediate and adopt skills had the same
+  defect: a bare `(P8)`, a bare `P7`, and a wrong name, "P9 — the explanation
+  IS the fix". Remediation records are checked for principle names too.
+
+  A test in `scripts/test_skill_facts.py` now keeps all three skills that
+  way. It checks for the canonical name from
+  `reference/portable-principles.md`, as the checker does, and is stricter
+  than the checker on joined codes. The checker lets a slash- or
+  hyphen-joined code (`P1/P2`, `P6-adjacent`) through, because it excludes
+  `/` and `-` to avoid matching unquoted paths.
 
 ## [0.11.5] — 2026-09-28
 

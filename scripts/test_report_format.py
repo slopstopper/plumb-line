@@ -353,6 +353,46 @@ def test_principle_code_inside_an_identifier_is_not_a_citation():
     assert _check(text) == []
 
 
+# #527: "/" and "-" are excluded around a code so that a path is not read as a
+# citation, but that let two bare citations through: codes joined by "/"
+# (the audit skill's own "P1/P2 coverage", #514) and a code with a hyphenated
+# word ("P6-adjacent"). Each is a citation; a path shape still is not.
+_PROSE = "\nscope note: the audit's {} is partial.\n"
+
+
+@pytest.mark.parametrize("phrase,codes", [
+    ("P1/P2 coverage", ["P1", "P2"]),
+    ("P1/P2/P5 findings", ["P1", "P2", "P5"]),
+    ("P6-adjacent advisory", ["P6"]),
+    ("finding, which is P6-adjacent.", ["P6"]),     # sentence end (#527 review)
+    ("P1/P2. Then", ["P1", "P2"]),
+])
+def test_joined_principle_codes_are_bare_citations(phrase, codes):
+    issues = _check(VALID_REPORT + _PROSE.format(phrase))
+    for code in codes:
+        assert any(i.startswith(f"{code} is not inline-named (bare code)") for i in issues), (code, issues)
+
+
+@pytest.mark.parametrize("phrase", [
+    "src/P1/P2/x.py layout",          # a path, unquoted
+    "P3-loader.py module",            # a file name, unquoted
+    "a/P1/b tree",                    # a code as one path segment
+    "P1–P9 range",                    # a range, as before
+    "P3-loader-v2.py module",         # a many-hyphen file name (#527 review)
+    "P3-foo-bar.txt file",
+    "P1/P2.md file",                  # a relative path with an extension
+    "docs/P2-notes.md file",
+])
+def test_path_shaped_joins_are_still_not_citations(phrase):
+    assert _check(VALID_REPORT + _PROSE.format(phrase)) == []
+
+
+def test_joined_codes_are_bare_in_a_remediation_record_too():
+    # _check_principles is shared: remediation records get the same rule.
+    issues = _check(VALID_REMEDIATION + _PROSE.format("P1/P2 coverage"))
+    assert any(i.startswith("P1 is not inline-named (bare code)") for i in issues), issues
+
+
 def test_unreadable_path_fails_cleanly_without_a_traceback():
     assert crf.main(["/nonexistent/report.md"]) == 1
 
@@ -927,7 +967,12 @@ def _with_validation(line):
 
 
 def test_checker_version_is_bumped_for_the_stamp_rule():
-    assert crf.CHECKER_VERSION == "4"
+    assert int(crf.CHECKER_VERSION) >= 4
+
+
+def test_checker_version_is_bumped_for_joined_codes():
+    # #527 changes verdicts (stricter), so a stored stamp must say which rule set.
+    assert crf.CHECKER_VERSION == "5"
 
 
 def test_a_current_stamp_is_accepted_without_a_note():
