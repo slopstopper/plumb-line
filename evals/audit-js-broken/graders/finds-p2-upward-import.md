@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'rates\.js'
+pattern: '\|[^\n]*rates\.js[^\n]*P2 — One-way layering'
 match: contains
 target: last_message
 ---

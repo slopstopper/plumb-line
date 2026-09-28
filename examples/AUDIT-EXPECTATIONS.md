@@ -80,9 +80,12 @@ planted violation blocks the release.
 Scoring: **PASS** only if all three planted violations for a fixture appear as
 confirmed violations. The P8 row is the regression this harness exists to guard —
 a missing-lineage omission caught only by the skill's omission pass + the
-"declared adoption" calibration. Extra advisory/needs-review items are acceptable;
-a _missed_ planted violation or a planted violation downgraded to advisory is a
-FAIL.
+"declared adoption" calibration. Only the planted set decides the verdict: extra
+advisory/needs-review items are acceptable, and so are extra confirmed violations,
+since each broken fixture has more defects than the three planted (recorded
+harness runs have always scored these as PASS, e.g. "14 findings: 9
+violations"). A _missed_ planted violation or a planted violation downgraded to
+advisory is a FAIL.
 
 ### `clean/` — zero violations of adopted principles
 

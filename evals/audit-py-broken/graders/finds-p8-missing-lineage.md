@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'source\.py'
+pattern: '\|[^\n]*source\.py[^\n]*P8 — State-first lineage'
 match: contains
 target: last_message
 ---

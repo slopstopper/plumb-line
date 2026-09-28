@@ -3,6 +3,7 @@ name: audit-py-broken
 tags: [audit, blind-validation]
 plugins: ["../.."]
 runs: 3
+allowed_tools: [Read, Glob, Grep, Skill]
 max_turns: 40
 timeout_seconds: 600
 ---

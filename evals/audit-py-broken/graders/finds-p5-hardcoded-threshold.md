@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'SIGNAL_THRESHOLD|aggregate\.py'
+pattern: '\|[^\n]*aggregate\.py[^\n]*P5 — Injectable priors'
 match: contains
 target: last_message
 ---

@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'schema\.py'
+pattern: '\|[^\n]*schema\.py[^\n]*P2 — One-way layering'
 match: contains
 target: last_message
 ---

@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'gateway\.js'
+pattern: '\|[^\n]*gateway\.js[^\n]*P3 — Confidence \+ provenance'
 match: contains
 target: last_message
 ---

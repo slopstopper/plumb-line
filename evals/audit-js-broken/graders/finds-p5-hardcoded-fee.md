@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'pricing\.js'
+pattern: '\|[^\n]*pricing\.js[^\n]*P5 — Injectable priors'
 match: contains
 target: last_message
 ---

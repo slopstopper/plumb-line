@@ -24,19 +24,51 @@ case-insensitively, strip verified before dispatch). The scaffold scripts are
 plain bash and were tested directly on 2026-08-18; the planted violation lines
 survive the strip.
 
-Graders per case: `tool_used` (the audit skill was actually invoked), `regex`
-for the v3 report header (format FAIL is scored independently of findings, per
-the harness) and for each planted violation's file name, plus an `llm` judge
-holding the harness's scoring rule: a planted violation downgraded to advisory
-is a FAIL; on clean fixtures any confirmed violation is a FAIL.
+Graders per case:
+- `tool_used`: the audit skill was invoked. Under the default with/without
+  ablation this is a with-only indicator of whether the plugin fired, not part
+  of the score.
+- `tool_used`: the report-format checker actually ran, as every blind auditor
+  runs it in the manual harness. A report's own `format-validation:` line is
+  not taken on trust.
+- `regex`: the v3 report header. A format FAIL is scored independently of the
+  findings, per the harness.
+- `regex`, one per planted violation: the file **and** its principle's inline
+  name on one line, which is a findings-table row. A bare file-name pattern
+  would pass on a run that only listed the fixture's files. The first real run
+  did exactly that, crediting a run that had audited nothing (#291).
+- `llm` judge, holding the harness's scoring rule: a planted violation
+  downgraded to advisory is a FAIL, and on clean fixtures any confirmed
+  violation is a FAIL.
+
+Each case lists the tools the auditor may use in `prompt.md`
+(`allowed_tools`). The sandbox grants none by default. Without `Read`, the
+skill cannot read its own `reference/portable-principles.md`, and it rightly
+stops rather than audit from memory.
 
 ## Running
 
+The scaffolds stage the fixtures, so `--scaffold` is required: without it
+every case audits an empty directory.
+
+Running the checker needs Bash. Bash is a gated tool: it cannot go in
+`allowed_tools`, which takes read-only tools only, and without the operator
+grant it is removed from the session. The grant is bare `Bash`, because the
+skill first writes the report to a temp file, which a narrower pattern such
+as `Bash(python3 *)` does not cover. Under eval, every Bash command runs in
+the OS sandbox: writes are confined to the run's workspace, and the home
+directory and Claude Code configuration are unreadable.
+
 ```sh
-claude plugin eval                       # all cases
-claude plugin eval --case "audit-py-*"   # one fixture
-claude plugin eval --json results.json --report report.html
+claude plugin eval --scaffold --allow-tools Bash --no-publish \
+    --max-cost-usd 15 --json results.json --report report.html
+claude plugin eval --scaffold --allow-tools Bash --no-publish \
+    --case "audit-py-*"                  # one fixture
 ```
+
+`--no-publish` keeps the HTML report local; by default it is published to
+claude.ai. Pass `--trust-plugin` when there is no terminal to confirm the
+first-run trust prompt.
 
 ## trigger/ — tiered trigger-quality checks (runnable today)
 
@@ -74,12 +106,24 @@ model sampling, so a re-run is not guaranteed to reproduce the same rates.
 ## Status and honest caveats
 
 - `claude plugin eval` is early access and org-gated; it is enabled on the
-  owner's account as of 2026-09-28 (#291, Claude Code 2.1.283). The suite was authored 2026-08-18 against the harness format as
-  reported that day and **has not yet been executed**. Field
-  names, `case.yaml` schema details, and scaffold path resolution may need
-  adjustment on the first real run.
+  owner's account as of 2026-09-28 (#291, Claude Code 2.1.283). The suite
+  was authored 2026-08-18 against the harness format as reported that day.
+  Its first real run (2026-09-28, one run per case, with and without the
+  plugin, $1.34) found drift, fixed here:
+  - no tools were granted, so the skill could not read its principles file;
+  - `--scaffold` is needed;
+  - the file-name graders credited a bare file listing;
+  - Bash needs the operator grant, and a narrow pattern is not enough, so
+    the checker never ran;
+  - the judge criteria did not say that extra confirmed violations are
+    acceptable, which is how the manual harness has always scored them.
+
+  `context.add_dirs` cannot reach outside the case directory, so it cannot be
+  used to expose the plugin's own files. Read access alone was enough.
 - Until a green run is recorded in `docs/validation-results.md`, this suite
   supplements the manual protocol in `examples/AUDIT-EXPECTATIONS.md` and does
   not replace it. The manual protocol remains the release gate.
-- The eval sandbox runs read-only tools by default, which matches the audit
-  skill's read-only contract; no `--allow-tools` should be needed.
+- The auditor's grants are read-only tools plus sandboxed Bash for the
+  checker. The audit skill's contract is read-only toward the audited code,
+  and the sandbox confines writes to the run's workspace, where only the
+  staged fixture copy and the temp report live.
