@@ -54,4 +54,22 @@ describe("boundary-guard decide", () => {
     expect(exactMatch.allow).toBe(true);
     expect(exactMatch.reason).toMatch(/respects downward/);
   });
+
+  // #471: the CLI rows in adapters/hook-cases.json pin the same rules end to
+  // end; these pin decide() for a caller that imports it. Python twin:
+  // test_boundary_decide_* in adapters/python/hooks/test_hooks.py.
+  it.each([undefined, null, "", 7])("blocks with no file path to judge (%s)", (filePath) => {
+    const r = decide({ filePath, importPath: "src/ui/button.js", ...cfg });
+    expect(r.allow).toBe(false);
+    expect(r.reason).toMatch(/^blocked: no file path to judge\./);
+  });
+  it.each([undefined, null, ""])("allows a file path with no import to judge (%s)", (importPath) => {
+    const r = decide({ filePath: "src/data/store.js", importPath, ...cfg });
+    expect(r).toEqual({ allow: true, reason: "no import to judge" });
+  });
+  it("blocks an importPath that is not a string", () => {
+    const r = decide({ filePath: "src/data/store.js", importPath: 7, ...cfg });
+    expect(r.allow).toBe(false);
+    expect(r.reason).toMatch(/^blocked: importPath must be a string\./);
+  });
 });

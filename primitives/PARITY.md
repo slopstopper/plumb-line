@@ -62,17 +62,23 @@ fourth case file, `adapters/hook-cases.json`, with one kind per hook
 (`branchGuard`, `boundaryGuard`, `preCommitGate`). It is loaded by
 `adapters/js/hooks/__tests__/hook-cases.test.mjs` and
 `adapters/python/hooks/test_hook_cases.py`, which spawn each hook as a process
-(#475). One known divergence is not in it yet; it moves into the table with
-its fix, in v0.11.5 (planned): boundary-guard input it cannot read or judge,
-such as a null `filePath` (#471). The JS gate's command splitter is also
-checked word for word against Python's `shlex.split`
-(`pre-commit-gate.test.mjs`, #472). A few pathological `PLUMBLINE_CFG`
-inputs (an integer of thousands of digits, or nesting about a thousand levels
-or more, depending on the Python version) give the same exit 2 in both twins
-but differently worded reasons (found by review, 2026-09-27; not in the
-table). An environment value that is not valid UTF-8 is a real divergence:
-JS decodes it lossily and Python keeps the bytes, so the pre-commit gate can
+(#475). The JS gate's command splitter is also checked word for word against
+Python's `shlex.split` (`pre-commit-gate.test.mjs`, #472).
+An environment value that is not valid UTF-8 is a real divergence: JS
+decodes it lossily and Python keeps the bytes, so the pre-commit gate can
 exit 0 in JS and 2 in Python on the same command (#501, planned).
+
+**When parity is waived** (owner decision, #505). Parity is required for
+behaviour anyone relies on: what a hook allows, what it blocks, and why. It
+is not forced where a divergence comes from a runtime's own limits rather
+than from a rule, both twins either fail closed or judge correctly, and no
+real input reaches it. Copying such a limit into the other twin would make
+an accident part of the contract. A waived case is recorded here, with its
+waiver on the issue. Waived: a stdin or `PLUMBLINE_CFG` integer of more than
+4,300 digits, or JSON nested around 100,000 levels deep, hits Python's
+integer-conversion or recursion limit and blocks in Python, while JS judges
+it (#505). Nesting of about a thousand levels or more can also give a
+differently worded reason, depending on the Python version.
 
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |
