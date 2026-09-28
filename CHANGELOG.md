@@ -10,6 +10,29 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Changed
+- **Stricter: the boundary guard blocks an import when no layers are
+  configured** ([#516](https://github.com/slopstopper/plumb-line/issues/516)).
+  With `PLUMBLINE_CFG` unset, `{}`, or holding only `direction` or the
+  branch guard's keys, it used to allow every import with the reason "same
+  or unscoped layer", the same reason a real pass gives. It now blocks, with
+  exit 2 and the reason "no layers configured", in both twins. An edit with
+  no import still allows, and an explicit `layers: []` still blocks as
+  before (#471). **If you wire the boundary guard without layers, set
+  `layers` in `PLUMBLINE_CFG`**, or every import it is given will block.
+  Called directly, the exported `decide()` is stricter too. With `layers`
+  empty it used to allow as "same or unscoped layer"; with `layers`
+  undefined or null (`None` in Python) it used to crash. Both now block
+  with "no layers configured". Python's `layers` is still a required
+  argument, so leaving it out is still a `TypeError`. Layers that are not a
+  list of non-empty strings now block with their own reason, "layers must
+  be a list of layer names". Before, a string such as `"ui"` was judged
+  character by character in Python and crashed in JS. A non-string entry
+  crashed in Python and was skipped in JS, or crashed. An empty entry was
+  skipped in both, except on absolute paths. Either way, an import could
+  pass as "same or unscoped layer". Python still accepts a tuple, and checks
+  its entries the same way.
+  Owner decision on #516; consistent with the pre-commit gate's "no gates
+  configured" (#476).
 - **The hook case table is source truth**
   ([#517](https://github.com/slopstopper/plumb-line/issues/517)). An
   ADR-0018 amendment declares `adapters/hook-cases.json` part of the

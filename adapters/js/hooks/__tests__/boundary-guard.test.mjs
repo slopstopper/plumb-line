@@ -72,4 +72,27 @@ describe("boundary-guard decide", () => {
     expect(r.allow).toBe(false);
     expect(r.reason).toMatch(/^blocked: importPath must be a string\./);
   });
+
+  // #516: an import to judge with no layers blocks, for a caller of decide()
+  // as for the CLI. Python twin: the #516 tests in test_hooks.py.
+  it.each([undefined, null, []])("blocks an import with no layers configured (%s)", (layers) => {
+    const r = decide({ filePath: "src/data/store.js", importPath: "src/ui/button.js", layers });
+    expect(r).toEqual({
+      allow: false,
+      reason:
+        'blocked: no layers configured, so this import cannot be judged. Set "layers" in ' +
+        "PLUMBLINE_CFG to the project's layer names, top to bottom.",
+    });
+  });
+  // eslint-disable-next-line no-sparse-arrays -- a hole, which Array#every skips
+  it.each(["ui", 7, { ui: 1 }, [1], ["ui", ""], ["ui", null], ["ui", , "data"]])("blocks layers that are not a list of layer names, with its own reason (%j)", (layers) => {
+    const r = decide({ filePath: "src/data/store.js", importPath: "src/ui/button.js", layers });
+    expect(r).toEqual({ allow: false, reason: "blocked: layers must be a list of layer names." });
+  });
+  it("with no layers, the earlier checks keep their order and reasons", () => {
+    const base = { importPath: "src/ui/button.js", layers: [] };
+    expect(decide({ ...base, filePath: "" }).reason).toMatch(/^blocked: no file path to judge\./);
+    expect(decide({ ...base, filePath: "src/x.js", importPath: "" })).toEqual({ allow: true, reason: "no import to judge" });
+    expect(decide({ ...base, filePath: "src/x.js", importPath: 7 }).reason).toMatch(/^blocked: importPath must be a string\./);
+  });
 });
