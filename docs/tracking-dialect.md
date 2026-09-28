@@ -98,6 +98,31 @@ release or closed with a written waiver. No third option, no silent aging.
 Same shape as the provenance ratchet (#26) — don't demand zero, refuse
 regression. Stated in [`ROADMAP.md`](../ROADMAP.md).
 
+### A hold is recorded with its content (local rule)
+
+A decision to **hold** something is still a decision, and it is recorded at
+the moment it is made, **with what is being held**. A drafted table, numbers,
+proposed wording or an option list goes onto the issue as a comment marked
+`DRAFT, not adopted, on hold`. It sits beside the hold decision, its reason,
+and what lifts it: a revisit condition, as a deferral needs, not a wish.
+Holding means "don't adopt or implement yet". It never means "don't write it
+down".
+
+Why: on 2026-09-27 the owner held spike round 3's failure condition (#462)
+until the per-prompt design was fixed. Only the hold was recorded, so the
+drafted threshold table survived in a session transcript alone. It was
+recovered and posted a day later, while a second session recovered it at the
+same moment in reworded form, leaving two copies to reconcile. Owner decision
+2026-09-28.
+
+### Records attribute words to whoever said them (local rule)
+
+A record attributes to the owner only what the owner said: a summary under
+"Owner decision <date>", or a quotation where the wording matters. The
+agent's analysis or framing is labelled as the agent's. It is never
+presented as the owner's observation. #485 and a #462 comment did exactly
+that, and were corrected on 2026-09-28 (owner decision).
+
 ### Historical URLs are not updated
 
 The repo moved from `effythealien/plumb-line` to `slopstopper/plumb-line`.
