@@ -99,6 +99,50 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   an awaitable blocks with a reason saying the Python gate runs synchronous
   runners only. **This is stricter** for callers of the exported `decide()`
   (owner decision); the shipped CLI already returns booleans.
+- **The boundary guard fails closed on input or config it cannot judge, in
+  both twins** ([#471](https://github.com/slopstopper/plumb-line/issues/471)).
+  This is **stricter for adopters**: wiring or a config that used to be
+  ignored now blocks, with exit 2, until it is fixed. Empty stdin, `{}` or an
+  unmapped host payload (`{"tool_input": {"file_path": ...}}`) has no file
+  path to judge, and both twins allowed it, even where the real paths were a
+  data-to-ui boundary break. A null `filePath` or `importPath` crashed the
+  Python twin with exit 1 and was allowed by the JS twin. Stdin that is not
+  JSON, and a `PLUMBLINE_CFG` that is not valid JSON or not an object, exited
+  1, which a Claude Code hook does not treat as a block. Stdin that is not
+  valid UTF-8 crashed the Python twin or was read by the locale, and the JS
+  twin read it lossily and judged the mangled path. A `layer` typo was
+  ignored, so no layers were checked, and any `direction` but `"downward"`
+  was read as upward.
+  Now every failure exits 2 with a reason starting `blocked:`, in the same
+  words in both twins for every case the shared table pins. Stdin that is not
+  JSON gives one reason, "stdin is not valid JSON", instead of each parser's
+  own message, and the branch guard now does the same. The Python twins of
+  both guards write their reasons as UTF-8, as Node does, so a non-ASCII path
+  or layer reads the same under any locale (for valid text; a lone surrogate
+  is still escaped differently), and read a closed stdin as empty; a closed
+  stderr does not change the exit code.
+  `filePath` is required: missing, empty or not a string
+  blocks. `importPath` stays optional: missing or empty, there is nothing to
+  judge and the edit is allowed; present but not a string, it blocks. Stdin
+  is strict UTF-8 with a byte-order mark kept, and only JSON whitespace
+  counts as empty, as in the branch guard (#475). Set, `PLUMBLINE_CFG` must
+  be a JSON object: `layers` a non-empty array of non-empty strings,
+  `direction` exactly `"downward"` or `"upward"`. The branch guard's
+  `protectedBranches` and `docsAllowlist` are allowed without validation, the
+  mirror of the branch guard's rule (#469), and any key neither guard reads
+  blocks. Unset, the defaults still apply: no layers, so no import is judged,
+  and direction downward. **Three loosenings**, for a host that treats any
+  non-zero exit as a block: the JS twin with no `layers` configured crashed
+  with exit 1 on every input, and now allows an import it cannot judge (no
+  layers), as the Python twin did; and the Python twin under a
+  `PYTHONIOENCODING` or locale that could not decode a valid non-ASCII path
+  crashed with exit 1, and now judges the path; and a layer name of tens of
+  thousands of characters overflowed the JS twin's pattern matching (exit 2,
+  where Python judged it) and is now judged. A path ending in a newline is
+  now read the same way in both twins (Python's `$` matched before it). **Called directly**, the exported `decide()` now
+  blocks a missing or empty `filePath` in both twins (Python raised a
+  `TypeError` on `None`); it still reads any `direction` other than
+  `"downward"` as upward, since only the CLI validates the config.
 
 ### Changed
 - **One case table specifies the hook twins' CLIs**
