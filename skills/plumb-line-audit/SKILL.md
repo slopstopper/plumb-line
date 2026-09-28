@@ -31,7 +31,8 @@ config. If neither yields a source-truth layer and layer direction:
   correspondingly `partial`, which the coverage map must say.
 
 Never infer a source-truth layer the project did not declare — an invented
-layer would make findings under P1 — Source-truth layer and P2 — One-way layering artifacts of the audit's own assumptions.
+layer would turn findings under P1 — Source-truth layer and P2 — One-way
+layering into artifacts of the audit's own assumptions.
 
 **Coverage honesty (emit a traversal plan first).** Before reading, list the
 in-scope files — the diff's touched files, or the repo's source tree — and state

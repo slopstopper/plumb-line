@@ -16,10 +16,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   audit's P1/P2 coverage is `partial`", and in the v0.11.5 harness 3 of 8
   auditors failed their first format check on a paraphrase of it. Every
   principle code in the skill's prose is now inline-named (`P1 — Source-truth
-  layer`), about two dozen in all, except the two forms it quotes as wrong.
-  A test in `scripts/test_skill_facts.py` keeps it that way. The test is
-  stricter than the checker: the checker lets a slash-joined `P1/P2` through,
-  because it excludes `/` to avoid matching unquoted paths.
+  layer`): 30 codes on 23 lines. The only exceptions are the forms it quotes,
+  in code spans, as wrong. The remediate and adopt skills had the same
+  defect: a bare `(P8)`, a bare `P7`, and a wrong name, "P9 — the explanation
+  IS the fix". Remediation records are checked for principle names too.
+- A test in `scripts/test_skill_facts.py` now keeps all three skills that
+  way. It checks for the canonical name from
+  `reference/portable-principles.md`, as the checker does, and is stricter
+  than the checker on joined codes. The checker lets a slash- or
+  hyphen-joined code (`P1/P2`, `P6-adjacent`) through, because it excludes
+  `/` and `-` to avoid matching unquoted paths.
 
 ## [0.11.5] — 2026-09-28
 
