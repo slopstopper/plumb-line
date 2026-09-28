@@ -31,10 +31,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   with a stand-in in that test, skipping it, or loosening a gate, with no
   decision behind the change), and that staying red is always honest. It opens
   with what it does not forbid, on the owner's ruling that it must be
-  practically usable and not stop a user coding: a wrong test fixed with the
-  reason stated, stubs while building on P4 — Quarantined fakery's terms
-  (contained, labelled, the requirement recorded as not met), ordinary
-  unit-test mocks, and changes a decision stands behind. A deferral
+  practically usable and not stop a user coding: tests updated for
+  behaviour changed on purpose; a wrong test fixed, saying what was wrong
+  and whose decision set the new expectation; stubs while building on
+  P4 — Quarantined fakery's terms (contained, labelled, out of real outputs
+  unless the owner opts in, alongside the requirement's test, never in
+  place of it); ordinary unit-test mocks; and changes a decision stands
+  behind. A request to get CI green is not such a decision, and disclosing a
+  change that makes an unmet requirement read as met does not make it
+  honest. A deferral
   is allowed only on the four conditions the owner decided (option C): a
   strict marker, the assertion unchanged, the reason in the marker (ideally
   citing a tracked issue), and the decision handed back in the final

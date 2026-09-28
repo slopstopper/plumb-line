@@ -235,5 +235,24 @@ def test_the_carve_outs_name_each_legitimate_change():
 
 
 def test_step_two_targets_an_unmet_requirement_read_as_met():
-    section = " ".join(_deferral_section().split())
-    assert "read as met" in section
+    # Step 2 itself, not "read as met" anywhere in the section (#485 review).
+    assert "2. **Do not make an unmet requirement read as met.**" in _deferral_section()
+
+
+def test_the_carve_outs_close_the_loopholes_the_review_found():
+    text = _not_forbidden()
+    # Intended behaviour changes are outside the moment (snapshots, TDD).
+    assert "Behaviour you changed on purpose" in text
+    # B1: a request to get CI green is not a decision about the requirement,
+    # and disclosing a change that fakes the requirement does not make it honest.
+    assert "is not a decision" in text and "does not make it honest" in text
+    # B2, B3: stubs and unit-test mocks sit alongside the requirement's test,
+    # never in place of it.
+    assert text.count("in place of") >= 2
+    # A2: P4's own terms, including the owner's opt-in.
+    assert "opts in" in text
+
+
+def test_the_carve_outs_name_principles_in_house_style():
+    text = _not_forbidden()
+    assert "P4 — Quarantined fakery" in text and "P6 — Maturity vocabulary" in text

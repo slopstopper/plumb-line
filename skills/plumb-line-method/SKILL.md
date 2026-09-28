@@ -47,25 +47,39 @@ This is guidance for one moment, not a block on coding. In the owner's words
 about itself, not stop a user being able to code." Changing tests is normal
 work. All of these are fine; do them, and say what you did:
 
+- **Behaviour you changed on purpose.** A test that fails because the task
+  changed behaviour (a snapshot after an intended UI change, TDD going from
+  red to green, tests of a feature you removed) is outside this moment:
+  update it to the intended behaviour and say the change was intended.
 - **A wrong test gets fixed.** A typo, a wrong expected value, a test that
   contradicts a settled spec, a spec that changed with sign-off: change the
   test, and say what was wrong and whose decision set the new expectation
   (the spec, the ticket, the owner), never "whatever the code returns now".
-- **Stubs while building or prototyping.** A stand-in for a service that does
-  not exist yet is fine on the terms of P4 (Quarantined fakery): contained
-  and labelled, kept out of real outputs, the module's maturity stated as
-  `mock` (P6, Maturity vocabulary), and its test named as a test of the
-  stub. The real requirement is recorded as not met yet (planned, deferred
-  as below, or red), never claimed.
+- **Stubs while building or prototyping.** A stand-in for a service that
+  does not exist yet is fine on the terms of P4 — Quarantined fakery:
+  contained and labelled as a mock (as `mock`, where the project uses
+  P6 — Maturity vocabulary), and kept out of real outputs unless the owner
+  opts in. Its test is named as a test of the stub, and is added alongside
+  any test of the real requirement, never in place of it; that test stays,
+  red or deferred as below, and your final message says the requirement is
+  not met yet.
 - **Mocks in unit tests.** Mocking your own collaborators to test a unit's
-  logic is ordinary testing.
+  logic is ordinary testing: in a test of that unit, alongside the test that
+  states the requirement, not in place of it.
 - **Decided changes.** A threshold or gate moved by a decision, or a test
   removed along with the behaviour it tested, is fine when the change says
   whose decision it was.
 
-The line, every time: a change is honest when it says why and on whose
-decision; it is not when it makes an unmet requirement read as met without
-saying so.
+What counts as a decision (this skill's reading of option C, below, which
+leaves whether a requirement can wait to the owner): one the owner, a spec
+or a ticket made about *this* expectation. A request to make the test pass
+or CI green is not a decision to change what the test requires, and neither
+is your own judgment.
+
+The line, every time: a change is honest when it says why and, where it
+changes what counts as met, on whose decision. Disclosing a change that makes
+an unmet requirement read as met does not make it honest; only such a
+decision, or a deferral on the four conditions below, does.
 
 ### When the requirement cannot be met
 
