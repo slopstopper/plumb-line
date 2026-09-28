@@ -9,6 +9,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.11.5] — 2026-09-28
+
 ### Fixed
 - **The branch guard's Python twin refuses `NaN` and `Infinity` on stdin, as
   the JS twin does** ([#503](https://github.com/slopstopper/plumb-line/issues/503)).
@@ -139,7 +143,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   crashed with exit 1, and now judges the path; and a layer name of tens of
   thousands of characters overflowed the JS twin's pattern matching (exit 2,
   where Python judged it) and is now judged. A path ending in a newline is
-  now read the same way in both twins (Python's `$` matched before it).
+  now read the same way in both twins (Python's `# Changelog
+
+All notable changes to plumb-line are recorded here. The format follows
+[Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
+[Semantic Versioning](https://semver.org/).
+
+The version numbers below track the **packages and plugin**. The envelope wire
+format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
+
+ matched before it).
   **Called directly**, the exported `decide()` now blocks a missing or empty
   `filePath` in both twins (Python raised a `TypeError` on `None`); it still
   reads any `direction` other than `"downward"` as upward, since only the CLI
@@ -177,6 +190,13 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `PYTHONIOENCODING` or the locale could not decode it, or decoded it
   differently (for example under `ascii`, or a non-ASCII file entry under
   `latin-1`).
+- **The clean Python example fixture propagates confidence** (v0.11.5
+  release harness, owner ruling). `examples/python-data-pipeline/clean`'s
+  service replaced the engine's confidence with the flat `stub_confidence`,
+  so a measured "no signal" (engine 0.0) came out at 0.8, against P3. A blind
+  auditor confirmed it as a violation; the fixture now returns the engine's
+  confidence capped by `stub_confidence`, and two re-runs passed
+  (`docs/validation-results.md`, v0.11.5).
 
 ## [0.11.4] — 2026-09-26
 
@@ -1706,7 +1726,8 @@ These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes th
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.11.4...HEAD
+[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.11.5...HEAD
+[0.11.5]: https://github.com/slopstopper/plumb-line/compare/v0.11.4...v0.11.5
 [0.11.4]: https://github.com/slopstopper/plumb-line/compare/v0.11.3...v0.11.4
 [0.11.3]: https://github.com/slopstopper/plumb-line/compare/v0.11.2...v0.11.3
 [0.11.2]: https://github.com/slopstopper/plumb-line/compare/v0.11.1...v0.11.2
