@@ -33,7 +33,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   loading (Claude Code version, plugins, skills, MCP servers, plugin errors),
   and a checkout's entry carries hashes of the target's and every skill's
   frontmatter. `--validate` now **refuses** a record unless every probe
-  reported an environment and got a reply from the model, the counts add up,
+  reported an environment and completed its first reply, the counts add up,
   the probes shared one environment, and the target skill loaded; an
   isolated run must also show no MCP server, no plugin error, and the probed
   checkout among its plugins. It also refuses v2 records, which carry no

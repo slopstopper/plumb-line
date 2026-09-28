@@ -125,9 +125,9 @@ the installed copy of plumb-line. Every record lists what its probe sessions
 reported loading, and `--validate` checks it (below).
 
 What these rates measure, and what they do not. A probe is one prompt, in an
-empty directory, and a trigger is a Skill call naming the target in the
-model's first reply (other tool calls in that reply do not stop it;
-`max_turns` 2). The impossible-task spike (#462) measured something else
+empty directory, and a trigger is when the first Skill call in the model's
+first reply names the target (a Skill call to another skill first is a miss;
+other tool calls in that reply do not stop it; `max_turns` 2). The impossible-task spike (#462) measured something else
 under the same isolation flags: 90 Opus 5.5 runs with the plugin loaded,
 each in one of six small repositories built for the spike, with a failing
 test and an `AGENTS.md`. A plumb-line skill was invoked once (#487), in arm
@@ -146,9 +146,9 @@ the target skill's frontmatter and one over every skill's frontmatter, so a
 before-record and an after-record of one checkout are told apart even when
 only a competing sibling's description changed), the models per tier, the
 per-tier run counts, the threshold, and the probe settings that change
-verdicts: the per-probe `timeout_s` (a timed-out run records as a
-non-trigger), the `max_turns` cap, and `isolation_flags` (the flags above, or
-none). `environments` lists each distinct environment the probe sessions
+verdicts: the per-probe `timeout_s` (a probe killed at its timeout never
+completes its reply, which voids the record), the `max_turns` cap, and
+`isolation_flags` (the flags above, or none). `environments` lists each distinct environment the probe sessions
 reported (Claude Code version, plugins, skills, MCP servers with their
 status, plugin errors; a field the session did not report is `null`, not
 empty), with a probe count, and how many probes never reported one.
@@ -157,9 +157,10 @@ empty), with a probe count, and how many probes never reported one.
 threshold and its expectation, so a stored verdict is consistent with its
 own numbers rather than asserted. It refuses a record unless:
 
-- every probe reported an environment, and every probe got a reply from the
-  model (a session that starts and then hits a usage limit, an overload or
-  an expired login reports an environment but no reply);
+- every probe reported an environment, and every probe's first reply
+  completed (a session that hits a usage limit, an overload or an expired
+  login, before or partway through its reply, or is killed at its timeout,
+  reports an environment but no completed reply);
 - the probes' environment counts add up to the runs the record implies;
 - the probes shared one environment: exactly, for an isolated run; by CLI
   version, plugins and skills, in default mode, where a user's connector

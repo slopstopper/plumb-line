@@ -43,8 +43,9 @@ The results JSON is a durable measurement record and carries its contract
 (#317, #400): a `results-format` version key, the pass `threshold` the verdicts
 were derived under (`--threshold`, default 0.5 — a judgment call, so it is
 injected and stamped rather than buried), the per-tier `runs` counts, and the
-`probe` settings that change verdicts (`timeout_s`, since a timed-out run
-records as a non-trigger, and `max_turns`). Validate a stored file with:
+`probe` settings that change verdicts (`timeout_s`, since a probe killed at
+its timeout never completes its reply and voids the record, and `max_turns`).
+Validate a stored file with:
 
     python3 scripts/trigger_check.py --validate results.json
 
@@ -82,8 +83,9 @@ THRESHOLD = 0.5
 #       user's environment out, [] for none), and a new `environments` key
 #       records what each probe session reported loading (CLI version,
 #       plugins, skills, MCP servers and plugin errors, from its init event),
-#       and --validate checks it: the target loaded, no plugin errors, no MCP
-#       server in an isolated run, one environment, every probe reporting.
+#       and --validate checks it (_environment_issues): every probe reported
+#       and completed its reply, one environment, the target loaded; for an
+#       isolated run also no plugin error, no MCP server, the checkout loaded.
 #       On the owner's machine the
 #       default environment was 19 plugins, 9 SessionStart hooks (superpowers'
 #       tells the model to invoke a skill on even a 1% chance it applies) and
@@ -256,11 +258,15 @@ def _environment_issues(envs, target, isolation_flags, installs=()):
     decisive = (lambda e: {k: v for k, v in e.items() if k != "probes"}) \
         if isolation_flags else \
         (lambda e: (e["claude_code_version"], e["plugins"], e["skills"]))
-    if len({json.dumps(decisive(e), sort_keys=True) for e in observed}) > 1:
-        issues.append(f"environments: probes ran in {len(observed)} different "
+    distinct = {json.dumps(decisive(e), sort_keys=True) for e in observed}
+    if len(distinct) > 1:
+        issues.append(f"environments: probes ran in {len(distinct)} different "
                       "environments, so one rate averages over them")
     probed = [i.get("plugin") for i in installs
               if isinstance(i, dict) and i.get("path")]
+    if isolation_flags and not probed:
+        issues.append("an isolated record must name the checkout it probed "
+                      "(a probed_installs entry with a path)")
     for n, e in enumerate(observed, start=1):
         if e["skills"] is None:
             issues.append(f"environment {n}: the sessions did not report their "
@@ -559,10 +565,12 @@ def probe(query, target, model, workdir, timeout, plugin_dir=None):
     """(hit, winner, environment, replied).
 
     environment is what the session reported loading, or None if it never
-    reported (it failed to start). replied is whether the model's reply ever
-    began streaming: a session that starts and then fails (usage limit,
-    overload, expired login) reports an environment but no reply, and its
-    non-trigger measures the failure, not the description."""
+    reported (it failed to start). replied is whether the model's first reply
+    completed: it reached message_stop, or a Skill call decided the probe. A
+    session that starts and then fails (usage limit, overload, expired
+    login), before or partway through its reply, or is killed at its
+    timeout, reports an environment but no completed reply, and its
+    non-trigger would measure the failure, not the description."""
     cmd = probe_cmd(query, model, plugin_dir)
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
@@ -593,9 +601,7 @@ def probe(query, target, model, workdir, timeout, plugin_dir=None):
                 continue
             se = ev.get("event", {})
             t = se.get("type", "")
-            if t == "message_start":
-                replied = True
-            elif t == "content_block_start":
+            if t == "content_block_start":
                 cb = se.get("content_block", {})
                 if cb.get("type") == "tool_use" and cb.get("name") == "Skill":
                     pending = True
@@ -608,6 +614,7 @@ def probe(query, target, model, workdir, timeout, plugin_dir=None):
                 # first Skill call decides; report who won either way
                 return skill_match(acc, target), skill_name(acc), env_seen, True
             elif t == "message_stop":
+                replied = True
                 break
     finally:
         watchdog.cancel()
@@ -731,6 +738,13 @@ def main(argv=None):
               f"will describe the stale install (#295).", file=sys.stderr)
 
     evals = json.load(open(args.eval_set))
+    queries = [e["query"] for e in evals]
+    if len(set(queries)) != len(queries):
+        # merge() pairs tiers by query text, so a duplicate would be confirmed
+        # twice over and the record's counts would not add up.
+        print("ABORT: the eval set repeats a query; each query must be unique.",
+              file=sys.stderr)
+        return 2
     screen, envs, replies = run_tier(evals, args.target, args.screen_model,
                                      args.screen_runs, args.workers, args.timeout,
                                      sys.stderr, args.threshold, plugin_dir)

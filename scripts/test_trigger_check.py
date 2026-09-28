@@ -413,6 +413,11 @@ def test_probe_reports_the_environment_and_the_first_skill_call(monkeypatch):
     # an environment but no reply: its non-trigger measures the failure.
     FakePopen.lines = stream(init, {"type": "result", "is_error": True})
     assert tc.probe("q", "plumb-line-method", "m", ".", 60)[3] is False
+    # ...or partway through it: a reply that began but never completed
+    # (overloaded mid-stream, or killed at its timeout) is not a non-trigger.
+    FakePopen.lines = stream(init, {"type": "stream_event", "event": {"type": "message_start"}},
+                             {"type": "result", "is_error": True})
+    assert tc.probe("q", "plumb-line-method", "m", ".", 60)[3] is False
     # A session that never starts reports no environment, not an empty one.
     FakePopen.lines = []
     assert tc.probe("q", "plumb-line-method", "m", ".", 60) == (False, None, None, False)
@@ -499,9 +504,10 @@ def test_default_mode_tolerates_connector_status_drift_isolated_does_not():
     b = {**_ENV, "mcp_servers": ["claude.ai Gmail (connected)"]}
     envs = tc.summarise_environments([a, b])
     assert _issues(envs) == []
-    newer = {**_ENV, "claude_code_version": "2.1.285"}
-    assert any("different environments" in i
-               for i in _issues(tc.summarise_environments([_ENV, newer])))
+    # Three recorded environments, two that matter: the message counts two.
+    newer = {**a, "claude_code_version": "2.1.285"}
+    issues = _issues(tc.summarise_environments([a, b, newer]))
+    assert any("ran in 2 different environments" in i for i in issues), issues
     isolated = tc.summarise_environments([_ENV, {**_ENV, "plugin_errors": None}])
     assert any("different environments" in i
                for i in _issues(isolated, isolation_flags=tc.ISOLATION_FLAGS))
@@ -533,9 +539,21 @@ def test_validate_reconciles_probe_counts_with_the_runs():
     assert tc.validate_results(payload) == []
 
 
+_CHECKOUT = [{"plugin": "plumb-line@inline", "version": "0.11.5", "path": "/co"}]
+
+
 def test_validate_accepts_a_clean_isolated_record():
-    assert _issues(tc.summarise_environments([_ENV, _ENV]),
+    assert _issues(tc.summarise_environments([_ENV, _ENV]), installs=_CHECKOUT,
                    isolation_flags=tc.ISOLATION_FLAGS) == []
+
+
+def test_validate_refuses_an_isolated_record_that_names_no_checkout():
+    # Deleting the path would otherwise skip the "checkout loaded" check.
+    unnamed = [{"plugin": "plumb-line@inline", "version": "0.11.5"}]
+    for installs in ([], unnamed):
+        assert any("must name the checkout" in i for i in _issues(
+            tc.summarise_environments([_ENV, _ENV]), installs=installs,
+            isolation_flags=tc.ISOLATION_FLAGS))
 
 
 def test_validate_flags_malformed_environments():
@@ -655,6 +673,22 @@ def test_main_gives_no_update_advice_for_an_older_checkout(monkeypatch, tmp_path
     # ...while a stale *installed* plugin still gets the warning.
     _run_main(monkeypatch, tmp_path, [], installed=[{"plugin": "o/p", "version": "0.0.1"}])
     assert "claude plugin update" in capsys.readouterr().err
+
+
+def test_main_refuses_an_eval_set_that_repeats_a_query(monkeypatch, tmp_path):
+    import json
+
+    def must_not_probe(*a, **k):
+        raise AssertionError("probed an eval set with a repeated query")
+
+    monkeypatch.setattr(tc, "run_tier", must_not_probe)
+    monkeypatch.setattr(tc, "installed_locations",
+                        lambda target: [{"plugin": "o/p", "version": "9.9.9"}])
+    evals = tmp_path / "evals.json"
+    evals.write_text(json.dumps([{"query": "q", "should_trigger": True},
+                                 {"query": "q", "should_trigger": False}]),
+                     encoding="utf-8")
+    assert tc.main([str(evals), "plumb-line-method", str(tmp_path / "o.json")]) == 2
 
 
 def test_main_refuses_a_plugin_dir_that_is_not_a_directory_even_with_force(monkeypatch, tmp_path):
