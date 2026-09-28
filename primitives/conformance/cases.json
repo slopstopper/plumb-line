@@ -323,6 +323,21 @@
       "name": "with both off the ladder, source is reported first (#443)",
       "input": { "source": "bogus", "confidence": 0 },
       "expectError": "source must be one of unavailable, mock, inferred, fallback, semiReal, derived, real"
+    },
+    {
+      "name": "an omitted source is refused, not defaulted: a leaf declares where it came from (#177)",
+      "input": { "confidence": "low" },
+      "expectError": "source is required (one of unavailable, mock, inferred, fallback, semiReal, derived, real)"
+    },
+    {
+      "name": "an empty input is refused for its missing source (#177)",
+      "input": {},
+      "expectError": "source is required (one of unavailable, mock, inferred, fallback, semiReal, derived, real)"
+    },
+    {
+      "name": "an omitted confidence still defaults to none (#177 changes source only)",
+      "input": { "source": "real" },
+      "expect": { "source": "real", "confidence": "none", "derivedFromMock": false }
     }
   ]
 }

@@ -23,7 +23,8 @@ const OVERRIDE_KEYS = ["source", "confidence", "confidenceScore", "basis", "adap
  * The returned object is frozen; its `value` property holds the original value
  * and the remaining properties are the metadata envelope fields.
  * @param {*} value - Any value to track
- * @param {object} [metaInput={}] - Initial metadata; same options as {@link makeMeta}
+ * @param {object} metaInput - Initial metadata; same options as {@link makeMeta},
+ *   and `source` is required (#177)
  * @returns {Readonly<{value: *, source: string, confidence: string, derivedFromMock: boolean, lineage: object[]}>}
  */
 export function mark(value, metaInput = {}) {
@@ -71,6 +72,11 @@ export function derive(inputs, fn, metaOverride = {}) {
   for (const key of OVERRIDE_KEYS) {
     if (key in metaOverride) safeOverride[key] = metaOverride[key];
   }
+  // An undefined source is no override: derive's source comes from the law,
+  // and makeMeta's leaf rule (#177, source is required) is not for it. This
+  // covers source only; an undefined confidence still resets it to "none"
+  // (#533).
+  if (safeOverride.source === undefined) delete safeOverride.source;
   // Route the override through makeMeta so derive is never weaker than the
   // constructor: an out-of-range confidenceScore (or unrankable weakestSource)
   // is dropped by the same validation, not stored raw. derivedFromMock is

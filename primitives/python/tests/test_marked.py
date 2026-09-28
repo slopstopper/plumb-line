@@ -78,6 +78,15 @@ def test_mark_refuses_a_source_outside_status():
         m.mark(1, source='bogus')
 
 
+def test_mark_refuses_a_missing_source():
+    # #177: a leaf has no parents, so "derived" was never true of it.
+    import pytest
+    with pytest.raises(ValueError, match=r"^source is required \(one of unavailable, mock"):
+        m.mark(1)
+    with pytest.raises(ValueError, match=r"^source is required"):
+        m.mark(1, confidence='high')
+
+
 def test_a_derive_override_is_refused_the_same_way():
     import pytest
     a = m.mark(1, source='real', confidence='high')

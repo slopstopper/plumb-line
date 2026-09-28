@@ -20,12 +20,32 @@ def test_constants_order():
     assert p.STATUS == ['unavailable','mock','inferred','fallback','semiReal','derived','real']
     assert p.CONFIDENCE == ['none','low','medium','high']
 
-def test_make_meta_defaults():
-    m = p.make_meta()
-    assert m['source'] == 'derived'
+def test_make_meta_defaults_everything_but_source():
+    m = p.make_meta(source='real')
     assert m['confidence'] == 'none'
     assert m['derived_from_mock'] is False
     assert m['lineage'] == []
+
+def test_make_meta_refuses_a_missing_source():
+    # #177: a leaf has no parents, so "derived" was never true of it. The
+    # message is the JS twin's, word for word (cases.json "construct").
+    import pytest
+    msg = r"^source is required \(one of unavailable, mock, inferred, fallback, semiReal, derived, real\)$"
+    with pytest.raises(ValueError, match=msg):
+        p.make_meta()
+    with pytest.raises(ValueError, match=msg):
+        p.make_meta(confidence='low')
+
+def test_the_required_sentinel_survives_copy_and_pickle():
+    # The sentinel is checked by identity, so a copy must be the same object,
+    # or a copied default would read as an off-ladder source (#177 review).
+    # The pickle round-trip is of this in-process object only, never of
+    # outside data.
+    import copy
+    import pickle
+    assert copy.copy(p._REQUIRED) is p._REQUIRED
+    assert copy.deepcopy(p._REQUIRED) is p._REQUIRED
+    assert pickle.loads(pickle.dumps(p._REQUIRED)) is p._REQUIRED
 
 def test_make_meta_infers_mock():
     assert p.make_meta(source='mock')['derived_from_mock'] is True

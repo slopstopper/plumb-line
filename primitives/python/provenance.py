@@ -40,13 +40,36 @@ def _json(value):
         return repr(value)
 
 
-def make_meta(source='derived', confidence='none', confidence_score=None,
+class _Required:
+    """The default of an argument that has none (#177). A sentinel rather than
+    a bare required parameter, so that omitting ``source`` raises the same
+    ValueError, with the same message, as the JS twin's missing source."""
+
+    def __repr__(self):
+        return '<required>'
+
+    # Checked by identity, so every copy is the one instance.
+    def __copy__(self):
+        return self
+
+    def __deepcopy__(self, memo):
+        return self
+
+    def __reduce__(self):
+        return '_REQUIRED'
+
+
+_REQUIRED = _Required()
+
+
+def make_meta(source=_REQUIRED, confidence='none', confidence_score=None,
               derived_from_mock=None, lineage=None, weakest_source=None,
               basis=None, adapter=None):
     """Construct a provenance metadata dict.
 
     Args:
-        source: One of STATUS. Defaults to ``"derived"``.
+        source: One of STATUS. Required, with no default (#177): a leaf has
+            no parents, so it must say where it came from.
         confidence: One of CONFIDENCE. Defaults to ``"none"``.
         confidence_score: Numeric precision in [0, 1]; omitted when invalid.
         derived_from_mock: Defaults to ``source == "mock"``.
@@ -59,14 +82,19 @@ def make_meta(source='derived', confidence='none', confidence_score=None,
         dict: Provenance metadata envelope.
 
     Raises:
-        ValueError: source is not in STATUS, or confidence is not in CONFIDENCE.
+        ValueError: source is missing ("source is required", #177), source is
+            not in STATUS, or confidence is not in CONFIDENCE.
     """
     # An out-of-vocabulary rung or source is refused here, not flagged later
     # (#443, owner decision 2026-09-28; ADR-0019): stored, it passed audit_meta
     # silently and the law quietly read it as the weakest rung (SPEC §2). JS
     # twin: makeMeta; the message prefix is the same in both (cases.json
-    # "construct"). None is refused, not defaulted: omit the argument for the
-    # default, as JS gets it only for undefined.
+    # "construct"). None is refused, not defaulted, matching JS null. A missing
+    # source has no default either (#177, owner decision 2026-09-28): the old
+    # "derived" was untrue of a leaf, which has no parents, and audited as
+    # unreproducible. confidence still defaults to "none" when omitted.
+    if source is _REQUIRED:
+        raise ValueError(f"source is required (one of {', '.join(STATUS)})")
     if not _in_ladder(source, STATUS):
         raise ValueError(f"source must be one of {', '.join(STATUS)}; got {_json(source)}")
     if not _in_ladder(confidence, CONFIDENCE):

@@ -24,8 +24,21 @@ def test_construct_sets_meta_and_value():
 
 
 def test_construct_wrong_type_raises_typeerror():
-    with pytest.raises(TypeError):
-        frames.PlumbDataFrame({"a": [1]})  # a dict, not a DataFrame
+    with pytest.raises(TypeError, match="expects a pandas.DataFrame"):
+        frames.PlumbDataFrame({"a": [1]}, source="real")  # a dict, not a DataFrame
+
+
+def test_construct_refuses_a_missing_source():
+    # #177: a leaf frame declares where it came from; "derived" is not a default.
+    with pytest.raises(ValueError, match=r"^source is required \(one of unavailable"):
+        frames.PlumbDataFrame(_df(a=[1]))
+    with pytest.raises(ValueError, match=r"^source is required"):
+        frames.PlumbDataFrame(_df(a=[1]), confidence="high")
+
+
+def test_construct_keeps_positional_source_and_confidence():
+    pdf = frames.PlumbDataFrame(_df(a=[1]), "real", "high")
+    assert (pdf.meta["source"], pdf.meta["confidence"]) == ("real", "high")
 
 
 def test_clean_real_frame_audits_clean():

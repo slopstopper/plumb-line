@@ -6,11 +6,11 @@ operation on the values and the existing combination law on the metas. `numpy` i
 a guarded optional import (`pip install "plumb-line-provenance[numpy]"`); importing
 this module needs no third-party package."""
 try:  # installed as a package (plumb_line_provenance)
-    from .provenance import make_meta
+    from .provenance import make_meta, _REQUIRED
     from .marked import derive
     from .audit import audit_meta
 except ImportError:  # flat / copy-paste usage (modules on sys.path)
-    from provenance import make_meta
+    from provenance import make_meta, _REQUIRED
     from marked import derive
     from audit import audit_meta
 
@@ -24,7 +24,8 @@ class PlumbArray:
     type such as a scalar); `.meta` is the standard envelope
     (audit_meta/validate_envelope work on it)."""
 
-    def __init__(self, value, source='derived', confidence='none', **meta_input):
+    # source has no default (#177); make_meta raises when it is omitted.
+    def __init__(self, value, source=_REQUIRED, confidence='none', **meta_input):
         try:
             import numpy
         except ImportError as e:  # pragma: no cover - exercised in the no-extras CI guard

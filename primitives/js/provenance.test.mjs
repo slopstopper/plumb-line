@@ -39,12 +39,20 @@ describe("constants", () => {
 });
 
 describe("makeMeta", () => {
-  it("applies defaults", () => {
-    const m = makeMeta({});
-    expect(m.source).toBe("derived");
+  it("applies defaults to everything but source", () => {
+    const m = makeMeta({ source: "real" });
     expect(m.confidence).toBe("none");
     expect(m.derivedFromMock).toBe(false);
     expect(m.lineage).toEqual([]);
+  });
+  // A leaf has no parents, so "derived" was never true of it (#177).
+  it.each([
+    ["no options at all", undefined],
+    ["an empty options object", {}],
+    ["an explicit undefined source", { source: undefined, confidence: "low" }],
+  ])("refuses a missing source: %s", (_label, opts) => {
+    expect(() => makeMeta(opts)).toThrow(
+      "source is required (one of unavailable, mock, inferred, fallback, semiReal, derived, real)");
   });
   it("infers derivedFromMock from a mock source", () => {
     expect(makeMeta({ source: "mock" }).derivedFromMock).toBe(true);
