@@ -9,7 +9,17 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+- **The audit skill no longer models the bare principle codes its own report
+  contract rejects** ([#514](https://github.com/slopstopper/plumb-line/issues/514)).
+  Auditors copy the skill's wording into reports. Its prose said "the
+  audit's P1/P2 coverage is `partial`", and in the v0.11.5 harness 3 of 8
+  auditors failed their first format check on a paraphrase of it. Every
+  principle code in the skill's prose is now inline-named (`P1 — Source-truth
+  layer`), about two dozen in all, except the two forms it quotes as wrong.
+  A test in `scripts/test_skill_facts.py` keeps it that way. The test is
+  stricter than the checker: the checker lets a slash-joined `P1/P2` through,
+  because it excludes `/` to avoid matching unquoted paths.
 
 ## [0.11.5] — 2026-09-28
 
