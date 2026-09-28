@@ -40,7 +40,7 @@ A remediation run produces, in order:
 1. a **fix plan** — every finding classified before any edit,
 2. **per-finding diffs** — each shown before it is considered done,
 3. a **remediation record** — the finding→change table that gives the
-   remediation itself the lineage it demands of the code (P8),
+   remediation itself the lineage it demands of the code (P8 — State-first lineage),
 4. a **verification step** — the project's own enforcement, run, with output.
 
 Editing a file the builder never sees a diff for, or finishing without the
@@ -116,7 +116,8 @@ deadline, or a re-audit — by making the code *less* honest. Concretely, never:
 - drop a provenance, confidence, or lineage field because its honest value
   is embarrassing;
 - update a golden baseline without a recorded explanation of which input moved
-  (P9 — the explanation IS the fix; a silent update is the violation).
+  (P9 — Golden baseline + explain-the-drift: the explanation IS the fix; a
+  silent update is the violation).
 
 When the only change that would satisfy a finding, gate, or instruction is one
 of these, the finding is **blocked**, not fixable: record it as `blocked` with
