@@ -178,7 +178,9 @@ def _run(kind, row):
     c = _expand_repeat(row)
     env = {k: v for k, v in os.environ.items() if not _is_cleared(k)}
     if 'cfg' in c:
-        env['PLUMBLINE_CFG'] = json.dumps(c['cfg'])
+        # The same bytes the JS runner's JSON.stringify sends: compact and raw
+        # UTF-8, not ASCII-escaped (v0.11.5 dogfood).
+        env['PLUMBLINE_CFG'] = json.dumps(c['cfg'], ensure_ascii=False, separators=(',', ':'))
     for k, v in c.get('env', {}).items():
         if v is None:
             env.pop(k, None)

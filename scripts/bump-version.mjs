@@ -114,13 +114,16 @@ function promoteChangelog(v) {
   }
 
   const date = new Date().toISOString().slice(0, 10);
+  // Replacer functions, not replacement strings: in a string, `$`` `$&` `$'`
+  // and `$1` are patterns, so notes containing them were rewritten (the v0.11.5
+  // bump spliced the file header into an entry at a `$``).
   src = src.replace(
     secRe,
-    `## [Unreleased]\n\n_Nothing yet._\n\n## [${v}] — ${date}\n\n${body}\n\n${sm[2]}`,
+    () => `## [Unreleased]\n\n_Nothing yet._\n\n## [${v}] — ${date}\n\n${body}\n\n${sm[2]}`,
   );
   src = src.replace(
     linkRe,
-    `[Unreleased]: ${compareBase}v${v}...HEAD\n[${v}]: ${compareBase}v${prev}...v${v}`,
+    () => `[Unreleased]: ${compareBase}v${v}...HEAD\n[${v}]: ${compareBase}v${prev}...v${v}`,
   );
 
   writeFileSync(path, src);

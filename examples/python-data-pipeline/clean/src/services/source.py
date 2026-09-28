@@ -54,7 +54,10 @@ def load_and_aggregate(config):
         "signal_detected": aggregated["signal_detected"],
         "mean": aggregated["mean"],
         "provenance": f"stub source: {aggregated['provenance']}",
-        "confidence": config["stub_confidence"],  # injected prior — trust level for stub data
+        # The engine's confidence, capped by the injected trust level for stub
+        # data: simulated input can lower confidence, never raise it above what
+        # the engine measured (P3: uncertainty propagates, not discarded).
+        "confidence": min(aggregated["confidence"], config["stub_confidence"]),
         "data_status": "simulated",
         "lineage": lineage,
         "weights_version": aggregated["weights_version"],

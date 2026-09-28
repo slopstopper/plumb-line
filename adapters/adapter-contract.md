@@ -29,7 +29,7 @@ these files into the target repo.
 - Purpose: block the first code edit on a protected branch.
 - Provides: a hook script. JS `hooks/branch-guard.mjs`; Python `hooks/branch_guard.py`.
 - Parameterized by: PROTECTED_BRANCHES (default: main), and a docs-allowlist (paths that may be edited on a protected branch).
-- Allowlist entry forms (exactly three; empty entries are rejected): exact file (`README.md`), directory with trailing slash (`docs/`, matches everything under it), and extension glob (`*.md`, matches that extension at any depth). No other globbing is supported — paths are normalized and a candidate that escapes upward (`..`) never matches.
+- Allowlist entry forms (exactly three; empty entries are rejected): exact file (`README.md`), directory with trailing slash (`docs/`, matches everything under it), and extension glob (`*.md`, matches that extension at any depth). No other globbing is supported — paths are normalized and a candidate that escapes upward (`..`) never matches. Normalization is POSIX, exactly as Node's `path.posix.normalize`, in both twins (current, #515): a trailing slash is kept, so a bare directory (`docs`) or a path ending in `/` is not a file inside an allowlisted directory or the allowlisted file; and `\` is an ordinary character, as in git paths, never a separator.
 
 ## 5. Provenance-bypass lint
 

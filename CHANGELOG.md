@@ -9,6 +9,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.11.5] — 2026-09-28
+
 ### Fixed
 - **The branch guard's Python twin refuses `NaN` and `Infinity` on stdin, as
   the JS twin does** ([#503](https://github.com/slopstopper/plumb-line/issues/503)).
@@ -159,6 +163,25 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   values is the owner's decision; counting U+FFFD with them follows from it,
   and such values are vanishingly rare in a branch name, config or test
   command.
+- **The Python pre-commit gate keeps exit 2 with stderr closed, and writes
+  its reasons as UTF-8** (v0.11.5 dogfood self-audit). The guards got this
+  in #471; the gate did not, so with stderr closed (`2>&-`) a blocked commit
+  exited 1, which a Claude Code hook lets through, and under
+  `PYTHONIOENCODING=ascii` a non-ASCII command in the reason was escaped.
+- **The branch guard's Python twin normalises paths as the JS twin does**
+  ([#515](https://github.com/slopstopper/plumb-line/issues/515), found by
+  the v0.11.5 dogfood self-audit). It stripped a trailing slash and read a
+  backslash as a separator, so on a protected branch with `docs/` and
+  `README.md` allowlisted it allowed `docs`, `docs/.`, `README.md/`,
+  `docs\x.md` and `docs\..\..\etc\x.py`, a code file outside `docs/`, where
+  JS blocked them. Both twins now follow Node's `path.posix.normalize`: a
+  trailing slash is kept and `\` is an ordinary character (owner decision).
+  **This is stricter** for the Python twin: a backslash path from a host
+  that sends Windows-style paths now blocks there, as it already did in JS.
+  **One narrow loosening:** a path starting with `//` now normalises to `/…`,
+  as it always did in JS, so under an absolute allowlist entry such as
+  `/docs/` the Python twin now allows `//docs/x.md`, which it blocked.
+  The Python normaliser is checked against Node itself on 423 paths.
 
 ### Changed
 - **One case table specifies the hook twins' CLIs**
@@ -177,6 +200,19 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `PYTHONIOENCODING` or the locale could not decode it, or decoded it
   differently (for example under `ascii`, or a non-ASCII file entry under
   `latin-1`).
+- **The clean Python example fixture propagates confidence** (v0.11.5
+  release harness, owner ruling). `examples/python-data-pipeline/clean`'s
+  service replaced the engine's confidence with the flat `stub_confidence`,
+  so a measured "no signal" (engine 0.0) came out at 0.8, against P3. A blind
+  auditor confirmed it as a violation; the fixture now returns the engine's
+  confidence capped by `stub_confidence`, and two re-runs passed
+  (`docs/validation-results.md`, v0.11.5).
+- **`scripts/bump-version.mjs` promotes the Unreleased notes verbatim.** It
+  passed them to `String.replace` as a replacement string, where `` $` ``,
+  `$&`, `$'` and `$1` are patterns, so the 0.11.5 bump spliced the file
+  header into an entry that contained `` `$` ``. It now uses replacer
+  functions, and `scripts/test_bump_version.py` runs it on notes holding
+  every pattern (found by the independent review of the release PR).
 
 ## [0.11.4] — 2026-09-26
 
@@ -1706,7 +1742,8 @@ These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes th
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.11.4...HEAD
+[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.11.5...HEAD
+[0.11.5]: https://github.com/slopstopper/plumb-line/compare/v0.11.4...v0.11.5
 [0.11.4]: https://github.com/slopstopper/plumb-line/compare/v0.11.3...v0.11.4
 [0.11.3]: https://github.com/slopstopper/plumb-line/compare/v0.11.2...v0.11.3
 [0.11.2]: https://github.com/slopstopper/plumb-line/compare/v0.11.1...v0.11.2

@@ -219,19 +219,22 @@ Version themes for the near-term releases, and the GitHub issues under each.
   pulled in from v0.12.0); and the second marketplace copy of the plugin
   entry (GH #453). The harness record is in `docs/validation-results.md`.
 
-- **v0.11.5 — Hook twins parity** (patch, fix-only) · *created 2026-09-27
-  (owner decision).* The hook twins' gaps found in the v0.11.4 work, each a
-  place a guard fails open or reports a pass it did not earn: a string
-  `protectedBranches` failing open in Python (GH #469), the boundary guard
-  exiting 1 on input it cannot read, which a Claude Code hook does not treat
-  as a block (GH #471), a quoted argument letting the JS pre-commit gate pass
-  a failing command (GH #472), a value that cannot be a branch name read as a
-  named, unprotected branch (GH #474, decided without waiting for its
-  revisit condition, #464: such values count as unknown, so they block),
-  and `decide()` with no runners reporting "all gates passed" (GH #476); plus the shared hook case table
-  that runs both twins' CLIs from one table (GH #475; no contract-version
-  bump, since v1 versions the hook I/O shape only). Ships ahead of v0.12.0
-  so the known fail-open gaps are closed before anything is built on them.
+- ~~**v0.11.5 — Hook twins parity**~~ · **shipped 2026-09-28**
+  (patch, fix-only): one shared case table that runs both twins' CLIs
+  (GH #475; no contract-version bump, since v1 versions the hook I/O shape
+  only), and the places a guard failed open or reported a pass it did not
+  earn, closed in both twins (one found by the dogfood, GH #516, a boundary
+  guard with no layers configured, is deferred to v0.12.0): `PLUMBLINE_CFG` read strictly with one key
+  spelling and a shared-config rule (GH #469); the boundary guard failing
+  closed on input and config it cannot judge (GH #471); the JS gate splitting
+  commands as `shlex` does (GH #472); values that cannot be branch names read
+  as unknown (GH #474); `decide()` blocking with no runners (GH #476) and
+  passing only on `true` (GH #493); environment values that are not UTF-8
+  blocked (GH #501); `NaN` on stdin refused (GH #503); and path
+  normalisation matching in both twins (GH #515, found by the dogfood
+  self-audit and fixed before the tag). One divergence is waived with a
+  written rule (GH #505). The harness record is in
+  `docs/validation-results.md`.
 
 - **v0.12.0 — Honest red** (test theatre + runtime refusal) · *renumbered
   from v0.9.0, then from v0.10.0, then from v0.11.0 (see the numbering note);
@@ -456,8 +459,9 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
 7. ~~v0.11.1~~ — **shipped 2026-09-20** (the ratchet and
    Action hardening; harness record in `docs/validation-results.md`).
 8. ~~v0.11.2~~ and ~~v0.11.3~~ — **shipped 2026-09-25**, ~~v0.11.4~~ —
-   **shipped 2026-09-26** (harness records in `docs/validation-results.md`).
-   **Next:** the v0.11.5 patch (fix-only, the hook twins), then v0.12.0 —
+   **shipped 2026-09-26**, ~~v0.11.5~~ — **shipped 2026-09-28** (harness
+   records in `docs/validation-results.md`).
+   **Next:** v0.12.0 —
    Honest red, sequenced after wire v2 so the envelope fields it adds are
    settled, then v0.13.0 — Explain and v0.14.0 — Reproducible enforcement,
    both split from the old v0.12.0 (on 2026-09-27 and 2026-09-17).
