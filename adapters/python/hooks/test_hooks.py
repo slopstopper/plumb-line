@@ -345,3 +345,35 @@ def test_guards_block_with_stdin_closed(script):
     r = subprocess.run(["sh", "-c", '"$0" "$1" <&-', sys.executable, path],
                        capture_output=True, text=True, env=env)
     assert r.returncode == 2 and "no file path" in r.stderr
+
+
+# --- #515: the branch guard's path rule is Node's path.posix.normalize, in
+# both twins: a trailing slash is kept and "\\" is an ordinary character.
+# Python used os.path.normpath (which strips a trailing slash) and then turned
+# backslashes into "/", so it allowed paths the JS twin blocked. This checks
+# the Python normaliser against Node itself on fixed and seeded paths.
+def _seeded_paths(n):
+    alphabet = ["a", "b", ".", "..", "/", "//", "\\", "docs", "\u00e9", " "]
+    seed, out = 515, []
+    for _ in range(n):
+        parts = []
+        for _ in range(1 + seed % 7):
+            seed = (seed * 1103515245 + 12345) % 2 ** 31
+            parts.append(alphabet[seed % len(alphabet)])
+        out.append("".join(parts))
+    return out
+
+
+def test_normalize_path_matches_node_posix_normalize():
+    import json
+    import subprocess
+    paths = ["", ".", "./", "..", "../", "/", "//", "///a", "/..", "a/..", "a/../", "a/./b/",
+             "docs", "docs/.", "docs/", "README.md/", "docs\\x.md", "docs\\..\\src", "a//b",
+             "../a/", "a/b/../../..", "/a/b/../../..", "\u00e9/./\u00e9/"] + _seeded_paths(400)
+    node = subprocess.run(
+        ["node", "-e", "const p=require('path');process.stdout.write(JSON.stringify("
+                       "JSON.parse(require('fs').readFileSync(0,'utf8')).map((s)=>p.posix.normalize(s))))"],
+        input=json.dumps(paths), capture_output=True, text=True, check=True)
+    expected = json.loads(node.stdout)
+    got = [branch_guard._normalize_path(p) for p in paths]
+    assert [(p, g, e) for p, g, e in zip(paths, got, expected) if g != e] == []

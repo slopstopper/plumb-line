@@ -13,8 +13,32 @@ _EXTENSION_GLOB = re.compile(r"^\*\.[A-Za-z0-9.]+$")
 
 
 def _normalize_path(p):
-    """Collapse . and .. segments using os.path.normpath, then replace backslashes."""
-    return os.path.normpath(p).replace("\\", "/")
+    """Collapse "." and ".." segments as the JS twin's path.posix.normalize does
+    (#515): a trailing slash is kept, and a backslash is an ordinary character,
+    as in git paths. os.path.normpath stripped the trailing slash and the old
+    code turned backslashes into "/", so Python allowed "docs\\\\..\\\\src\\\\a.py"
+    and "README.md/" where JS blocked them. Checked against Node itself in
+    test_hooks.py."""
+    if p == "":
+        return "."
+    absolute = p.startswith("/")
+    parts = []
+    for segment in p.split("/"):
+        if segment in ("", "."):
+            continue
+        if segment == "..":
+            if parts and parts[-1] != "..":
+                parts.pop()
+            elif not absolute:
+                parts.append("..")
+        else:
+            parts.append(segment)
+    out = "/".join(parts)
+    if not out and not absolute:
+        out = "."
+    if out and p.endswith("/"):
+        out += "/"
+    return ("/" if absolute else "") + out
 
 
 def _matches_allowlist_entry(normalized_candidate, entry):

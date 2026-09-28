@@ -177,6 +177,17 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   in #471; the gate did not, so with stderr closed (`2>&-`) a blocked commit
   exited 1, which a Claude Code hook lets through, and under
   `PYTHONIOENCODING=ascii` a non-ASCII command in the reason was escaped.
+- **The branch guard's Python twin normalises paths as the JS twin does**
+  ([#515](https://github.com/slopstopper/plumb-line/issues/515), found by
+  the v0.11.5 dogfood self-audit). It stripped a trailing slash and read a
+  backslash as a separator, so on a protected branch with `docs/` and
+  `README.md` allowlisted it allowed `docs`, `docs/.`, `README.md/`,
+  `docs\x.md` and `docs\..\..\etc\x.py`, a code file outside `docs/`, where
+  JS blocked them. Both twins now follow Node's `path.posix.normalize`: a
+  trailing slash is kept and `\` is an ordinary character (owner decision).
+  **This is stricter** for the Python twin: a backslash path from a host
+  that sends Windows-style paths now blocks there, as it already did in JS.
+  The Python normaliser is checked against Node itself on 423 paths.
 
 ### Changed
 - **One case table specifies the hook twins' CLIs**
