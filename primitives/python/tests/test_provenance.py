@@ -41,7 +41,8 @@ def test_the_required_sentinel_survives_copy_and_pickle():
     # or a copied default would read as an off-ladder source (#177 review).
     # The pickle round-trip is of this in-process object only, never of
     # outside data.
-    import copy, pickle
+    import copy
+    import pickle
     assert copy.copy(p._REQUIRED) is p._REQUIRED
     assert copy.deepcopy(p._REQUIRED) is p._REQUIRED
     assert pickle.loads(pickle.dumps(p._REQUIRED)) is p._REQUIRED
