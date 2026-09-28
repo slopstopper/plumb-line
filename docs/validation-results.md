@@ -1865,7 +1865,7 @@ Method-surface diff since v0.11.4: milestone v0.11.5 (#469, #471, #472,
 #474, #475, #476, #493, #501, #503; #505 waived). That covers all three
 hook twins' CLIs in both languages, the shared hook case table
 (`adapters/hook-cases.json`) and its two runners, the table guards, the
-adapter contract, `primitives/PARITY.md`, and one sentence of the bootstrap
+adapter contract, `primitives/PARITY.md`, and two bullets of the bootstrap
 skill. **Part 1b did not run**: `skills/plumb-line-remediate/SKILL.md` did
 not change; nor did `skills/plumb-line-audit/SKILL.md`. Run at `cc3544b`
 (main after PR #513), before the bump commit.
@@ -1895,8 +1895,8 @@ the format checker itself.
 **The py-clean FAIL and the owner's ruling.** By the pre-fixed rule a
 confirmed violation on `clean/` is a FAIL, and the rule names two causes:
 the skill over-claimed, or the fixture regressed. Neither the audit skill
-nor the fixture changed in this release. An early harness run (the
-2026-06-28 notes above) called this same line noise, reasoning that the
+nor the fixture changed in this release. An early harness run (the v0.2.0
+calibration note, 2026-06-30, above) called this same line noise, reasoning that the
 clean fixture sets `stub_confidence` on purpose, and every py-clean run
 since held it at needs-review. The evaluator's labelled recommendation was
 that the finding is right on the merits: P3 says uncertainty propagates
@@ -1906,7 +1906,7 @@ it were being scored as over-claiming. **Owner ruling (2026-09-28, option
 A): fix the fixture, record the change, re-validate before tagging.** The
 clean service now returns `min(engine confidence, stub_confidence)`:
 simulated input can lower confidence, never raise it (commit `cf1cdd1`,
-recorded below). This supersedes the 2026-06-28 "noise" reading for the
+recorded below). This supersedes the v0.2.0 "noise" reading for the
 clean fixture. The broken fixture keeps its overwrite, which is not one of
 its planted violations; both py-broken runs this time classed it as a
 violation.
@@ -1965,4 +1965,4 @@ deferred to v0.12.0 with owner decisions recorded
 `check_version_prose` clean; `check-bundle-sync` in sync; bundle
 conformance CONFORMANT; `check-versions` at 0.11.5 after the bump. Full
 suites green on the release branch (JS adapters 682, Python adapters 340,
-examples and scripts 128); CI on the release PR.
+examples 50, scripts 305); CI on the release PR.

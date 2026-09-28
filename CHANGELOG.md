@@ -143,16 +143,7 @@ _Nothing yet._
   crashed with exit 1, and now judges the path; and a layer name of tens of
   thousands of characters overflowed the JS twin's pattern matching (exit 2,
   where Python judged it) and is now judged. A path ending in a newline is
-  now read the same way in both twins (Python's `# Changelog
-
-All notable changes to plumb-line are recorded here. The format follows
-[Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
-[Semantic Versioning](https://semver.org/).
-
-The version numbers below track the **packages and plugin**. The envelope wire
-format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
-
- matched before it).
+  now read the same way in both twins (Python's `$` matched before it).
   **Called directly**, the exported `decide()` now blocks a missing or empty
   `filePath` in both twins (Python raised a `TypeError` on `None`); it still
   reads any `direction` other than `"downward"` as upward, since only the CLI
@@ -187,6 +178,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   trailing slash is kept and `\` is an ordinary character (owner decision).
   **This is stricter** for the Python twin: a backslash path from a host
   that sends Windows-style paths now blocks there, as it already did in JS.
+  **One narrow loosening:** a path starting with `//` now normalises to `/…`,
+  as it always did in JS, so under an absolute allowlist entry such as
+  `/docs/` the Python twin now allows `//docs/x.md`, which it blocked.
   The Python normaliser is checked against Node itself on 423 paths.
 
 ### Changed
@@ -213,6 +207,12 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   auditor confirmed it as a violation; the fixture now returns the engine's
   confidence capped by `stub_confidence`, and two re-runs passed
   (`docs/validation-results.md`, v0.11.5).
+- **`scripts/bump-version.mjs` promotes the Unreleased notes verbatim.** It
+  passed them to `String.replace` as a replacement string, where `` $` ``,
+  `$&`, `$'` and `$1` are patterns, so the 0.11.5 bump spliced the file
+  header into an entry that contained `` `$` ``. It now uses replacer
+  functions, and `scripts/test_bump_version.py` runs it on notes holding
+  every pattern (found by the independent review of the release PR).
 
 ## [0.11.4] — 2026-09-26
 

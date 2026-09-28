@@ -222,8 +222,9 @@ Version themes for the near-term releases, and the GitHub issues under each.
 - ~~**v0.11.5 — Hook twins parity**~~ · **shipped 2026-09-28**
   (patch, fix-only): one shared case table that runs both twins' CLIs
   (GH #475; no contract-version bump, since v1 versions the hook I/O shape
-  only), and every place a guard failed open or reported a pass it did not
-  earn, closed in both twins: `PLUMBLINE_CFG` read strictly with one key
+  only), and the places a guard failed open or reported a pass it did not
+  earn, closed in both twins (one found by the dogfood, GH #516, a boundary
+  guard with no layers configured, is deferred to v0.12.0): `PLUMBLINE_CFG` read strictly with one key
   spelling and a shared-config rule (GH #469); the boundary guard failing
   closed on input and config it cannot judge (GH #471); the JS gate splitting
   commands as `shlex` does (GH #472); values that cannot be branch names read
