@@ -64,9 +64,9 @@ fourth case file, `adapters/hook-cases.json`, with one kind per hook
 `adapters/python/hooks/test_hook_cases.py`, which spawn each hook as a process
 (#475). The JS gate's command splitter is also checked word for word against
 Python's `shlex.split` (`pre-commit-gate.test.mjs`, #472).
-An environment value that is not valid UTF-8 is a real divergence: JS
-decodes it lossily and Python keeps the bytes, so the pre-commit gate can
-exit 0 in JS and 2 in Python on the same command (#501, planned).
+Environment values are read the same way in both twins: one that is not
+valid UTF-8, or holds U+FFFD, blocks (#501). Rows set such values as raw
+bytes with `envHex`.
 
 **When parity is waived** (owner decision, #505). Parity is required for
 behaviour anyone relies on: what a hook allows, what it blocks, and why. It

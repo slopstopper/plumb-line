@@ -174,6 +174,18 @@ function readConfig(raw) {
   return { config: cfg };
 }
 
+/**
+ * Why an environment variable cannot be used, or null (#501). Node replaces
+ * bytes that are not UTF-8 with U+FFFD before this code sees them, so U+FFFD
+ * counts as not valid, in both twins. Python twin: _env_problem.
+ */
+function envProblem(name) {
+  const value = process.env[name];
+  return value !== undefined && value.includes("\ufffd")
+    ? `${name} is not valid UTF-8 (or holds U+FFFD, which invalid bytes are replaced with). Set it to UTF-8 text.`
+    : null;
+}
+
 if (isMainModule()) {
   const chunks = [];
   process.stdin.on("data", (d) => chunks.push(d));
@@ -206,7 +218,10 @@ if (isMainModule()) {
       // Stdin that is not an object has no filePath, so decide() blocks it.
       const input =
         parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-      const { config, reason } = readConfig(process.env.PLUMBLINE_CFG);
+      const envReason = envProblem("PLUMBLINE_CFG");
+      const { config, reason } = envReason
+        ? { reason: `blocked: ${envReason}` }
+        : readConfig(process.env.PLUMBLINE_CFG);
       // Only the two documented config keys, never a spread, so no config
       // key can stand in for the stdin paths (as in the branch guard).
       r = reason

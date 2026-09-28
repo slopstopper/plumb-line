@@ -132,6 +132,41 @@ def _read_stdin():
         raise ValueError("stdin is not valid UTF-8") from None
 
 
+def _env_text(name):
+    """The variable read from its bytes as UTF-8, whatever the locale says. Under
+    an 8-bit locale, os.environ decodes each byte as one character, so a byte
+    that is not UTF-8 looks valid and valid non-ASCII text is garbled (#501
+    review). None when unset; a single U+FFFD for the whole value when it is
+    not UTF-8, which _env_problem reads as a reason to block."""
+    if os.supports_bytes_environ:
+        raw = os.environb.get(name.encode())
+    else:  # Windows: the environment is already text
+        value = os.environ.get(name)
+        raw = None if value is None else value.encode("utf-8", "surrogatepass")
+    if raw is None:
+        return None
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return "\ufffd"
+
+
+def _env(name):
+    """The variable as the hook reads it, after _env_problem has passed it."""
+    return _env_text(name)
+
+
+def _env_problem(name):
+    """Why an environment variable cannot be used, or None (#501). The JS twin
+    only sees bytes that are not UTF-8 as U+FFFD, so U+FFFD counts as not valid
+    here too. JS twin: envProblem."""
+    text = _env_text(name)
+    if text is not None and "\ufffd" in text:
+        return (f"{name} is not valid UTF-8 (or holds U+FFFD, which invalid bytes are "
+                "replaced with). Set it to UTF-8 text.")
+    return None
+
+
 def _main():
     raw = _read_stdin()
     # Empty means JSON whitespace only, as in the JS twin: str.strip() also
@@ -140,7 +175,10 @@ def _main():
     parsed = _parse_stdin(raw) if raw.strip(" \t\n\r") else {}
     # Stdin that is not an object has no filePath, so decide() blocks it.
     input_data = parsed if isinstance(parsed, dict) else {}
-    cfg, reason = _read_config(os.environ.get("PLUMBLINE_CFG"))
+    problem = _env_problem("PLUMBLINE_CFG")
+    if problem:
+        return {"allow": False, "reason": f"blocked: {problem}"}
+    cfg, reason = _read_config(_env("PLUMBLINE_CFG"))
     if reason:
         return {"allow": False, "reason": reason}
     if "importPath" in input_data and not isinstance(input_data["importPath"], str):

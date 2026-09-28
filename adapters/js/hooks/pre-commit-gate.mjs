@@ -89,6 +89,18 @@ export function splitCommand(cmd) {
   return words;
 }
 
+/**
+ * Why an environment variable cannot be used, or null (#501). Node replaces
+ * bytes that are not UTF-8 with U+FFFD before this code sees them, so U+FFFD
+ * counts as not valid, in both twins. Python twin: _env_problem.
+ */
+function envProblem(name) {
+  const value = process.env[name];
+  return value !== undefined && value.includes("\ufffd")
+    ? `${name} is not valid UTF-8 (or holds U+FFFD, which invalid bytes are replaced with). Set it to UTF-8 text.`
+    : null;
+}
+
 // CLI wrapper: reads PLUMBLINE_TEST_CMD from env; runs it via child_process.
 // Process-entry glue (env/spawn/exit); not exercised in-process. Excluded from
 // coverage — the pure decide() above is unit-tested.
@@ -101,8 +113,10 @@ if (isMainModule()) {
   const cmd = process.env.PLUMBLINE_TEST_CMD ?? "";
   let r;
   let argv = [];
+  const envReason = envProblem("PLUMBLINE_TEST_CMD");
+  if (envReason) r = { allow: false, reason: `pre-commit blocked: ${envReason}` };
   try {
-    argv = splitCommand(cmd);
+    if (!r) argv = splitCommand(cmd);
   } catch (e) {
     // An unbalanced quote or a trailing backslash: reported as the Python twin does.
     r = { allow: false, reason: `pre-commit blocked: the test command could not be run (${e.message})` };

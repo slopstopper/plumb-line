@@ -27,7 +27,7 @@ _HOOKS = {
 
 # Every field, case kind and table version this runner interprets (#441). JS
 # twin: MODEL in adapters/js/hooks/__tests__/hook-cases.test.mjs.
-_ROW = ['name', 'stdin', 'stdinHex', 'env', 'cfg', 'expectExit', 'expectStderr']
+_ROW = ['name', 'stdin', 'stdinHex', 'env', 'envHex', 'cfg', 'expectExit', 'expectStderr']
 _MODEL = {
     'versions': [1],
     'meta': ['_doc', 'version'],
@@ -57,6 +57,22 @@ def _type_problems(c):
         else:
             problems += [f'env.{k} must be a string or null'
                          for k, v in c['env'].items() if v is not None and not isinstance(v, str)]
+    # envHex sets a variable to raw bytes (#501). The JS twin passes it through
+    # sh and printf, whose $(...) strips a trailing newline, so a trailing 0a
+    # byte is refused in both twins.
+    if 'envHex' in c:
+        if not isinstance(c['envHex'], dict):
+            problems.append('envHex must be an object')
+        else:
+            for k, v in c['envHex'].items():
+                if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', k):
+                    problems.append(f'envHex key {json.dumps(k)} must be a variable name')
+                if not isinstance(v, str) or not re.fullmatch(r'(?:[0-9a-fA-F]{2})*', v):
+                    problems.append(f'envHex.{k} must be whole hex bytes')
+                elif v.lower().endswith('0a'):
+                    problems.append(f'envHex.{k} must not end with a newline byte')
+                elif '00' in (v[i:i + 2] for i in range(0, len(v), 2)):
+                    problems.append(f'envHex.{k} must not contain a NUL byte')
     return problems
 
 
@@ -76,6 +92,10 @@ def _run(kind, c):
         else:
             env[k] = v
     stdin = bytes.fromhex(c['stdinHex']) if 'stdinHex' in c else c.get('stdin', '').encode('utf-8')
+    if 'envHex' in c:
+        # Raw bytes (#501): an environment of bytes, which POSIX allows.
+        env = {os.fsencode(k): os.fsencode(v) for k, v in env.items()}
+        env.update({k.encode(): bytes.fromhex(v) for k, v in c['envHex'].items()})
     return subprocess.run([sys.executable, os.path.join(_HERE, _HOOKS[kind])], input=stdin,
                           capture_output=True, env=env,
                           timeout=30)  # a hook that hangs fails its row, not the suite
@@ -123,6 +143,17 @@ def test_a_planted_null_or_number_where_a_string_belongs_fails():
     assert _type_problems({'name': 'x', 'expectExit': '2'}) == ['expectExit must be an integer']
     assert _type_problems({'name': 'x', 'expectExit': 2.5}) == ['expectExit must be an integer']
     assert _type_problems({'name': 'x', 'expectExit': 2.0}) == []
+
+
+def test_a_planted_envhex_that_is_malformed_fails():
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'envHex': {'A': 'ff0'}}) == [
+        'envHex.A must be whole hex bytes']
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'envHex': {'A': 'ff0a'}}) == [
+        'envHex.A must not end with a newline byte']
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'envHex': {'A B': 'ff'}}) == [
+        'envHex key "A B" must be a variable name']
+    assert _type_problems({'name': 'x', 'expectExit': 0, 'envHex': {'A': '610062'}}) == [
+        'envHex.A must not contain a NUL byte']
 
 
 @pytest.mark.parametrize('hex_', ['efbbb', '1g2c'])

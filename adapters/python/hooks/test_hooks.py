@@ -267,3 +267,64 @@ def test_hooks_exit_the_same_with_stderr_closed(script, stdin, env, code):
     r = subprocess.run(["sh", "-c", '"$0" "$1" 2>&-', sys.executable, path],
                        input=stdin, text=True, capture_output=False, env=full_env)
     assert r.returncode == code
+
+
+# --- #501 review: under an 8-bit locale (e.g. ISO-8859-1), os.environ decodes
+# every byte, so \xff arrives as "ÿ" and a valid "café" as "cafÃ©". The hooks
+# must judge the environment's bytes, as the JS twin does, not the locale's
+# reading of them. CI cannot rely on such a locale being installed, so this
+# simulates one: os.environ holds the Latin-1 reading, os.environb the bytes.
+
+def _latin1_environ(monkeypatch, name, raw):
+    monkeypatch.setattr(os, "environ", {name: raw.decode("latin-1")})
+    monkeypatch.setattr(os, "environb", {name.encode(): raw})
+
+
+@pytest.mark.parametrize("module", [branch_guard, boundary_guard, pre_commit_gate])
+def test_env_problem_reads_bytes_not_the_locale(monkeypatch, module):
+    _latin1_environ(monkeypatch, "PLUMBLINE_X", b"main\xff")
+    assert module._env_problem("PLUMBLINE_X").startswith("PLUMBLINE_X is not valid UTF-8")
+
+
+@pytest.mark.parametrize("module", [branch_guard, boundary_guard, pre_commit_gate])
+def test_env_value_is_the_bytes_read_as_utf8(monkeypatch, module):
+    _latin1_environ(monkeypatch, "PLUMBLINE_X", "caf\u00e9".encode("utf-8"))
+    assert module._env_problem("PLUMBLINE_X") is None
+    assert module._env("PLUMBLINE_X") == "caf\u00e9"
+
+
+def test_gate_passes_the_command_to_the_process_as_utf8_bytes(monkeypatch):
+    # subprocess encodes str arguments by the locale; under an 8-bit one
+    # "caf\u00e9" would reach the command as other bytes than the JS twin sends
+    # (#501 re-review). On POSIX the gate passes the UTF-8 bytes itself.
+    _latin1_environ(monkeypatch, "PLUMBLINE_TEST_CMD", "grep caf\u00e9".encode("utf-8"))
+    seen = []
+
+    class _Done:
+        returncode = 0
+
+    monkeypatch.setattr(pre_commit_gate.subprocess, "run", lambda argv: seen.append(argv) or _Done())
+    assert pre_commit_gate._main()["allow"] is True
+    assert seen == [[b"grep", "caf\u00e9".encode("utf-8")]]
+
+
+def test_branch_guard_reads_its_branch_and_config_through_the_bytes(monkeypatch):
+    # The value decide() judges is the bytes read as UTF-8, not the locale's
+    # reading: "caf\u00e9" must match a protected "caf\u00e9" (#501 re-review).
+    import json
+    branch, cfg = "caf\u00e9".encode("utf-8"), json.dumps(
+        {"protectedBranches": ["caf\u00e9"]}, ensure_ascii=False).encode("utf-8")
+    monkeypatch.setattr(os, "environ", {"PLUMBLINE_BRANCH": branch.decode("latin-1"),
+                                        "PLUMBLINE_CFG": cfg.decode("latin-1")})
+    monkeypatch.setattr(os, "environb", {b"PLUMBLINE_BRANCH": branch, b"PLUMBLINE_CFG": cfg})
+    monkeypatch.setattr(branch_guard, "_read_stdin", lambda: '{"filePath": "src/app.py"}')
+    r = branch_guard._main()
+    assert r["allow"] is False and "on protected branch caf\u00e9" in r["reason"]
+
+
+@pytest.mark.parametrize("module", [branch_guard, boundary_guard, pre_commit_gate])
+def test_env_problem_without_a_bytes_environment_blocks_a_lone_surrogate(monkeypatch, module):
+    # Windows has no os.environb; a lone surrogate there is not UTF-8 either.
+    monkeypatch.setattr(os, "supports_bytes_environ", False)
+    monkeypatch.setattr(os, "environ", {"PLUMBLINE_X": "main\ud800"})
+    assert module._env_problem("PLUMBLINE_X").startswith("PLUMBLINE_X is not valid UTF-8")
