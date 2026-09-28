@@ -178,6 +178,7 @@ def _main():
     raw = _read_stdin()
     # Empty means JSON whitespace only, as in the JS twin: str.strip() also
     # strips \x1c-\x1f, and JS trim() also strips a byte-order mark.
+    # _parse_stdin refuses NaN and Infinity, as JSON.parse does (#503).
     input_data = _parse_stdin(raw) if raw.strip(" \t\n\r") else {}
     cfg, reason = _read_config(os.environ.get("PLUMBLINE_CFG"))
     if reason:

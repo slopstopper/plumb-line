@@ -62,10 +62,11 @@ fourth case file, `adapters/hook-cases.json`, with one kind per hook
 (`branchGuard`, `boundaryGuard`, `preCommitGate`). It is loaded by
 `adapters/js/hooks/__tests__/hook-cases.test.mjs` and
 `adapters/python/hooks/test_hook_cases.py`, which spawn each hook as a process
-(#475). One known divergence is not in it yet; it moves into the table with
-its fix, in v0.11.5 (planned): a quoted `PLUMBLINE_TEST_CMD` (#472). An
-environment value that is not valid UTF-8 is a real divergence, planned to
-be fixed (#501).
+(#475). The JS gate's command splitter is also checked word for word against
+Python's `shlex.split` (`pre-commit-gate.test.mjs`, #472).
+An environment value that is not valid UTF-8 is a real divergence: JS
+decodes it lossily and Python keeps the bytes, so the pre-commit gate can
+exit 0 in JS and 2 in Python on the same command (#501, planned).
 
 **When parity is waived** (owner decision, #505). Parity is required for
 behaviour anyone relies on: what a hook allows, what it blocks, and why. It
