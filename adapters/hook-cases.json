@@ -227,6 +227,30 @@
       "expectStderr": "the branch guard could not run"
     },
     {
+      "name": "NaN on stdin is not JSON, even beside an allowed docs path (#503)",
+      "stdin": "{\"filePath\": \"docs/x.md\", \"n\": NaN}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "the branch guard could not run"
+    },
+    {
+      "name": "-Infinity on stdin is not JSON (#503)",
+      "stdin": "{\"filePath\": \"docs/x.md\", \"n\": -Infinity}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "the branch guard could not run"
+    },
+    {
+      "name": "Infinity on stdin is not JSON (#503 review)",
+      "stdin": "{\"filePath\": \"docs/x.md\", \"n\": Infinity}",
+      "env": { "PLUMBLINE_BRANCH": "main" },
+      "cfg": { "protectedBranches": ["main"], "docsAllowlist": ["docs/"] },
+      "expectExit": 2,
+      "expectStderr": "the branch guard could not run"
+    },
+    {
       "name": "a filePath key in PLUMBLINE_CFG is an unknown key, so it blocks (v0.11.4 dogfood, #469)",
       "stdin": "{\"filePath\": \"src/app.js\"}",
       "env": { "PLUMBLINE_BRANCH": "main" },
