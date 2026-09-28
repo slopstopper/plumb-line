@@ -22,21 +22,29 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   runner's LLM judge is not yet trustworthy on the broken fixtures (#291).
 - **The method skill teaches honest deferral, for a test that cannot pass
   honestly** ([#485](https://github.com/slopstopper/plumb-line/issues/485)).
-  In 90 spike runs, no agent kept a failing test visible with a recorded
-  reason; 63 of round 1's went green by changing the test. The skill's new
+  In round 1 of the spike (90 runs), no run kept a failing test's assertion
+  and marked it as a recorded expected failure; 63 went green by changing
+  the test. The skill's new
   section, **Mid-task: a test that cannot pass honestly**, says to handle
   the failure you can observe, never to make the requirement's test pass by
   rewriting its assertion, mocking the missing dependency in it, skipping
   it, or loosening a gate, and that staying red is always honest. A deferral
   is allowed only on the four conditions the owner decided (option C): a
-  strict marker, the assertion unchanged, the reason in the marker citing a
-  tracked issue, and the decision handed back in the final message. Forms:
-  pytest `xfail(strict=True, …)`, vitest `it.fails`; skipping is never a
-  deferral. `plumb-line-remediate` points there for a blocked failing test.
-  New worked example, `examples/honest-deferral/` (Python and JS), with
-  `examples/test_honest_deferral.py` proving each marker records the
-  failure and fails the suite once the requirement is met; CI installs the
-  example's toolchain and fails if that proof skips.
+  strict marker, the assertion unchanged, the reason in the marker (ideally
+  citing a tracked issue), and the decision handed back in the final
+  message. Forms: pytest `xfail(strict=True, raises=AssertionError, …)`,
+  vitest `it.fails` with the reason in its title, paired with a test of the
+  failure you can observe because `it.fails` accepts any error; skipping,
+  `run=False` and an imperative `pytest.xfail()` are not deferrals.
+  `plumb-line-remediate` offers the deferral for a blocked failing test and
+  records an accepted one as `applied-judgment`. New worked example,
+  `examples/honest-deferral/` (Python and JS), with
+  `examples/test_honest_deferral.py` proving, in both languages, that the
+  deferral is recorded as shipped, fails the suite once the requirement is
+  met, and cannot hide a crash in the code; CI installs the example's
+  toolchain and fails if that proof skips. The skill's description is
+  unchanged here: until #487 reworks it, nothing prompts an agent mid-task to
+  invoke the skill (0 of 20 in #487's baseline).
 - **`scripts/trigger_check.py` can probe a checkout in isolation, and its
   record says what each probe loaded**
   ([#487](https://github.com/slopstopper/plumb-line/issues/487)).

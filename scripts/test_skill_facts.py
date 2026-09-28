@@ -177,3 +177,32 @@ def test_method_skill_forms_are_the_ones_the_example_runs():
 def test_remediate_points_to_the_method_skill_for_a_test_it_cannot_fix():
     text = " ".join(SKILLS["plumb-line-remediate"].split())  # prose wraps
     assert "Mid-task: a test that cannot pass honestly" in text
+
+
+def test_deferral_keeps_the_owners_wording_on_issues():
+    # Option C: "Reason stated in the marker, ideally citing a tracked issue".
+    assert "ideally" in _deferral_section()
+
+
+def test_deferral_forms_do_not_let_a_crash_pass_as_the_expected_failure():
+    # xfail and it.fails accept any failing test. pytest can be narrowed with
+    # raises=AssertionError; vitest cannot, so the skill must say so and pair
+    # it with a test of the observable failure (#485 review).
+    section = " ".join(_deferral_section().split())
+    py = _read(_EXAMPLE, "python", "test_carrier.py")
+    assert "raises=AssertionError" in section and "raises=AssertionError" in py
+    assert "any error" in section
+    # Markers that look strict but never run, or cannot be strict.
+    assert "run=False" in section and "pytest.xfail()" in section
+
+
+def test_js_deferral_reason_is_in_the_marker_not_a_comment():
+    js = _read(_EXAMPLE, "js", "carrier.test.js")
+    title = re.search(r'it\.fails\(\s*"([^"]+)"', js)
+    assert title and "not reachable" in title.group(1) and "EXAMPLE-1" in title.group(1)
+
+
+def test_remediate_records_an_approved_deferral_as_applied_judgment():
+    text = " ".join(SKILLS["plumb-line-remediate"].split())
+    start = text.index("Mid-task: a test that cannot pass honestly")
+    assert "applied-judgment" in text[start - 600:start + 600]

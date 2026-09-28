@@ -25,9 +25,14 @@ def fetch_quote(parcel):
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
-            return json.load(response)["price"]
-    except OSError as exc:
+            body = json.load(response)
+    except (OSError, ValueError) as exc:  # unreachable, or not JSON
         raise CarrierUnavailable(str(exc)) from exc
+    price = body.get("price") if isinstance(body, dict) else None
+    if not isinstance(price, (int, float)) or isinstance(price, bool):
+        # An answer without a price is not a price: never report it as "ok".
+        raise CarrierUnavailable(f"the carrier's answer carried no price: {body!r}")
+    return price
 
 
 def quote(parcel):

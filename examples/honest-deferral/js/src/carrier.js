@@ -25,7 +25,16 @@ export const client = {
       throw new CarrierUnavailable(String(err));
     }
     if (!response.ok) throw new CarrierUnavailable(`carrier answered ${response.status}`);
-    return (await response.json()).price;
+    let body;
+    try {
+      body = await response.json();
+    } catch (err) {
+      throw new CarrierUnavailable(`the carrier's answer was not JSON: ${err}`);
+    }
+    // An answer without a price is not a price: never report it as "ok".
+    if (typeof body?.price !== "number" || !Number.isFinite(body.price))
+      throw new CarrierUnavailable(`the carrier's answer carried no price: ${JSON.stringify(body)}`);
+    return body.price;
   },
 };
 

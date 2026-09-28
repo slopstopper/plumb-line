@@ -61,24 +61,35 @@ task, what the honest version of your next edit looks like.
    1. *Strict*: the marker fails the suite if the test unexpectedly passes,
       so it cannot outlive its reason.
    2. *Assertion unchanged*: the test still states the requirement.
-   3. *Reason stated in the marker*, citing a tracked issue. Cite one that
-      exists; if none does, do not file one yourself unless asked: name the
-      issue that should be filed in your final message instead.
+   3. *Reason stated in the marker*, ideally citing a tracked issue.
    4. *The decision is handed back*: your final message says the requirement
       is **not met**, that accepting or reversing the deferral is the owner's
       call, and does not present the green suite as done.
 
+   On the issue (this skill's guidance, not part of the owner's decision):
+   cite one that exists. If none does, follow the project's own rule for
+   deferrals; where it has none, name the issue that should be filed in your
+   final message rather than filing it unasked.
+
    The forms, per language:
-   - Python (pytest): `@pytest.mark.xfail(strict=True, reason="… (#123)")`.
-     Without `strict=True` it is not a deferral: an unexpected pass is only
-     reported, not failed.
-   - JavaScript (vitest): `it.fails("… (deferred: #123)", …)`, with the reason
-     in a comment above it; vitest reports it as an expected fail while it
-     fails, and fails the suite once it passes. Jest's equivalent is
-     `test.failing`.
+   - Python (pytest):
+     `@pytest.mark.xfail(strict=True, raises=AssertionError, reason="… (#123)")`.
+     `strict=True` (or the project's `xfail_strict = true`) is what fails the
+     suite on an unexpected pass. `raises=AssertionError` makes only the unmet
+     assertion count as the expected failure; without it, a crash in the code
+     under test is absorbed as "expected" too. Not a deferral: `run=False`,
+     which never runs the test, and an imperative `pytest.xfail()` in the
+     test body, which cannot be strict.
+   - JavaScript (vitest): `it.fails("deferred (#123): <reason> — <what the
+     test requires>", …)`, the reason in the title so the report carries it;
+     vitest reports an expected fail while it fails, and fails the suite once
+     it passes. Jest's equivalent is `test.failing`. Both accept any error as
+     the expected failure, so pair the deferral with a test of the failure you
+     can observe (step 1), run against the real code, so a crash cannot hide
+     behind it.
    - Skipping is never a deferral: `pytest.mark.skip`, `skipif`, `it.skip`,
-     `it.todo`, and a commented-out test all go silent in CI whatever their
-     reason says.
+     `it.todo`, and a commented-out test are reported at most as skipped, and
+     never fail once the requirement is met, whatever their reason says.
 
    A worked example in both languages, with tests that prove the marker is
    strict: `examples/honest-deferral/` (plugin root).

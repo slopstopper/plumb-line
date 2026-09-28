@@ -141,7 +141,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: "22"
-      - name: JS fixture toolchain (the end-to-end SARIF test runs real ESLint)
+      - name: JS fixture toolchain (real ESLint for the SARIF end-to-end test; vitest for the honest-deferral proof)
         # Both JS fixtures: js-payments-service (boundary) and
         # ratchet-adoption-js (#393, the output surface + ratchet). Neither
         # installs the plumb-line plugin — the configs reach it by relative

@@ -129,12 +129,14 @@ source-truth layer, that absence is the finding — here, if you cannot fix it
 honestly, that impossibility is the finding.
 
 When the blocked item is a failing test whose requirement cannot be met yet,
-the one allowed way to get CI green is an honest deferral, on the four
-conditions in `plumb-line-method`'s section **Mid-task: a test that cannot
-pass honestly** (a strict expected-failure marker, the assertion unchanged,
-the reason in the marker, the decision handed back). Apply it only with the
-builder's yes, record the row as `blocked`, and name the deferral in that
-row's line below the table.
+there is one more honest path, besides implementing the real thing or a
+written waiver: an honest deferral, on the four conditions in
+`plumb-line-method`'s section **Mid-task: a test that cannot pass
+honestly** (a strict expected-failure marker, the assertion unchanged, the
+reason in the marker, the decision handed back). Offer it; apply it only with
+the builder's yes, record that row as `applied-judgment`, and name the
+deferral, with its reason, in the row's line below the table. Declined, the
+row stays `blocked` and the test stays red.
 
 ## Step 4 — Verify with the project's own enforcement
 
@@ -226,6 +228,7 @@ the record's *shape*, and a shape violation is fixed by fixing the shape.
 | No audit report exists | Offer `plumb-line-audit` first, or accept pasted findings |
 | Fix needs an epistemic value nobody supplied | Conservative floor, `applied-conservative`, flag for review |
 | Only a dishonest edit would satisfy the finding/gate | `blocked` + honest paths out; leave code truthful |
+| A failing test's requirement cannot be met yet | Offer an honest deferral (method skill's four conditions); builder's yes → `applied-judgment`, else `blocked` |
 | Noticed an improvement no finding asked for | Record under Proposed (not applied) |
 | Your edit made a nearby comment/doc false | Correct it within the finding's diff; note in record |
 | Two findings' fixes conflict | Stop; surface the conflict |

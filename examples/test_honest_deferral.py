@@ -33,24 +33,42 @@ JS = os.path.join(EXAMPLE, "js")
 
 # Makes the carrier reachable for every test in the copy: the quote the
 # carrier's published rate card gives for the standard parcel.
+# "The carrier is reachable" is simulated where reality would change: the key
+# is provisioned and the carrier answers the request. The example's code runs
+# unchanged, and its missing-key test (which unsets the key) still applies.
 PY_REACHABLE = '''
+import io
+import json
+
 import pytest
+
 import carrier
+
+
+class _Answer(io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
 
 
 @pytest.fixture(autouse=True)
 def _carrier_reachable(monkeypatch):
-    monkeypatch.setattr(carrier, "fetch_quote", lambda parcel: 12.40)
+    monkeypatch.setenv("CARRIER_API_KEY", "sandbox-key")
+    monkeypatch.setattr(carrier.urllib.request, "urlopen",
+                        lambda request, timeout: _Answer(json.dumps({"price": 12.40}).encode()))
 '''
 
 JS_REACHABLE = '''
-import { client } from "./src/carrier.js";
-client.fetchQuote = async () => 12.4;
+process.env.CARRIER_API_KEY = "sandbox-key";
+globalThis.fetch = async () => new Response(JSON.stringify({ price: 12.4 }), { status: 200 });
 '''
 
 
 def _pytest(cwd):
-    env = {k: v for k, v in os.environ.items() if k != "CARRIER_API_KEY"}
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("CARRIER_API_KEY", "FORCE_COLOR")}
     return subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-rxX", "-p", "no:cacheprovider", "."],
         cwd=cwd, capture_output=True, text=True, env=env)
@@ -76,7 +94,8 @@ def test_python_strict_marker_fails_the_suite_once_the_requirement_is_met(tmp_pa
     (dst / "conftest.py").write_text(PY_REACHABLE, encoding="utf-8")
     r = _pytest(dst)
     assert r.returncode != 0, r.stdout
-    assert "XPASS(strict)" in r.stdout, r.stdout
+    # The failure is the strict marker's: the missing-key test still passes.
+    assert "XPASS(strict)" in r.stdout and "1 failed, 1 passed" in r.stdout, r.stdout
 
 
 def _vitest(cwd, *extra):
@@ -115,3 +134,44 @@ def test_js_strict_marker_fails_the_suite_once_the_requirement_is_met(tmp_path):
     # The failure must be the strict marker's, not a broken run: the
     # observable-failure test still passes and the deferred one fails.
     assert "1 failed" in out and "1 passed" in out, out
+
+
+# --- #485 review: a marker must not absorb a crash --------------------------
+# Both markers accept a failing test as expected. If the code crashed on the
+# missing key instead of answering "unavailable", a deferral that absorbed the
+# crash would hide exactly the regression the skill warns about. The
+# observable-failure test must catch it, running the real code with the key
+# unset; pytest's raises=AssertionError also refuses to count a crash.
+
+PY_CRASH = ('raise CarrierUnavailable("no CARRIER_API_KEY: the carrier sandbox cannot be reached")',
+            'raise KeyError("CARRIER_API_KEY")')
+JS_CRASH = ('throw new CarrierUnavailable("no CARRIER_API_KEY: the carrier sandbox cannot be reached")',
+            'throw new TypeError("CARRIER_API_KEY")')
+
+
+def _break(path, old_new):
+    old, new = old_new
+    text = path.read_text(encoding="utf-8")
+    assert text.count(old) == 1, f"{path.name} no longer has the line this test breaks"
+    path.write_text(text.replace(old, new), encoding="utf-8")
+
+
+def test_python_a_crash_on_the_missing_key_fails_the_suite(tmp_path):
+    dst = _copy(PY, tmp_path)
+    _break(dst / "carrier.py", PY_CRASH)
+    r = _pytest(dst)
+    assert r.returncode != 0, r.stdout
+    # Both tests fail: the observable one, and the deferred one, whose
+    # raises=AssertionError does not accept a KeyError as the expected failure.
+    assert "2 failed" in r.stdout, r.stdout
+
+
+def test_js_a_crash_on_the_missing_key_fails_the_suite(tmp_path):
+    dst = _copy_js(tmp_path)
+    _break(dst / "src" / "carrier.js", JS_CRASH)
+    r = _vitest(dst)
+    out = r.stdout + r.stderr
+    assert r.returncode != 0, out
+    # it.fails accepts any error, so the deferred test still reads as an
+    # expected fail; the observable-failure test is what catches the crash.
+    assert "1 failed" in out and "1 expected fail" in out, out
