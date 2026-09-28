@@ -89,6 +89,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `sh -c "exit 0"`, which the JS gate broke apart and blocked, now runs as
   written and passes. The splitter is checked word for word against Python's
   `shlex.split`. The Python twin is unchanged.
+- **The pre-commit gate's `decide()` passes a runner only when it returns
+  `true`** ([#493](https://github.com/slopstopper/plumb-line/issues/493)).
+  Both twins read a runner's result by truthiness, so a runner returning `1`
+  or `"ok"` passed the gate, and in Python an `async` runner passed without
+  ever running, because its un-awaited coroutine is truthy (the JS twin
+  awaits its runners). Now, in both twins, `false` is a failure and any other
+  result blocks with a reason naming the runner. A Python runner that returns
+  an awaitable blocks with a reason saying the Python gate runs synchronous
+  runners only. **This is stricter** for callers of the exported `decide()`
+  (owner decision); the shipped CLI already returns booleans.
 - **The boundary guard fails closed on input or config it cannot judge, in
   both twins** ([#471](https://github.com/slopstopper/plumb-line/issues/471)).
   This is **stricter for adopters**: wiring or a config that used to be

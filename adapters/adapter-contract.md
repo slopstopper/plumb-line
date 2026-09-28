@@ -22,6 +22,7 @@ these files into the target repo.
 
 - Purpose: block a commit if build/test/lint fail.
 - Provides: a hook script returning non-zero to block. JS `hooks/pre-commit-gate.mjs`; Python `hooks/pre_commit_gate.py`.
+- Both export `decide()`, which takes runners and blocks unless every runner returns exactly `true` (current, #493). `false` is a failure; any other result (`undefined`/`None`, a number, a string, an object) blocks as an answer the gate cannot read; no runners at all blocks too (#476). The JS gate awaits each runner; the Python gate runs synchronous runners only, and blocks on one that returns an awaitable. A boolean-like value that is not the language's own boolean (`np.bool_(True)`, `new Boolean(true)`) also blocks, so convert it first (`bool(...)` in Python).
 
 ## 4. Branch guard
 
