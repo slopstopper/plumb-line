@@ -128,6 +128,14 @@ metadata became honest. This mirrors bootstrap's rule: if you cannot name a
 source-truth layer, that absence is the finding — here, if you cannot fix it
 honestly, that impossibility is the finding.
 
+When the blocked item is a failing test whose requirement cannot be met yet,
+the one allowed way to get CI green is an honest deferral, on the four
+conditions in `plumb-line-method`'s section **Mid-task: a test that cannot
+pass honestly** (a strict expected-failure marker, the assertion unchanged,
+the reason in the marker, the decision handed back). Apply it only with the
+builder's yes, record the row as `blocked`, and name the deferral in that
+row's line below the table.
+
 ## Step 4 — Verify with the project's own enforcement
 
 After the last fix, run what the project already trusts, and show the output:

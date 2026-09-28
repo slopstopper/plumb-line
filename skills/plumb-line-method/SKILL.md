@@ -9,6 +9,11 @@ Read `reference/portable-principles.md` (relative to the plugin root) and teach
 from it. Do not restate the principles here — that file is the single source.
 If the file cannot be read, stop immediately and report: "Cannot teach: `reference/portable-principles.md` is missing or unreadable. Do not continue from memory."
 
+If you were invoked in the middle of a task, because a failing test or red
+CI has to be made to pass and the reason may lie outside the code, go
+straight to **Mid-task: a test that cannot pass honestly** below; the walk
+can wait.
+
 When invoked:
 
 1. Read the principles document.
@@ -20,6 +25,71 @@ When invoked:
    method should not be left wondering how to apply it.
 
 This skill never edits files or installs anything.
+
+## Mid-task: a test that cannot pass honestly
+
+The moment: you have been asked to make a failing test pass, or CI green, and
+the reason it fails is outside the code you can change. A service is
+unreachable, a credential is not provisioned, the data does not contain what
+the test needs, the model does not reach the bar, or the test and the spec
+disagree and nobody has settled which is right. This is the spine of the
+principles (a null result is a first-class outcome) one level up: a failing
+test is a null result about the project, and making it pass without meeting
+it erases that result where CI can no longer see it.
+
+This skill still edits nothing. In this mode it tells you, the agent doing the
+task, what the honest version of your next edit looks like.
+
+1. **Find the failure you can actually observe**, and handle that one. If the
+   service is unreachable, make the code say "unavailable" rather than crash
+   or invent a value; do not write handling for a failure you imagined
+   instead (empty data, say) while the real one still crashes.
+2. **Do not make the requirement's test pass by changing what it tests.**
+   Each of these makes the test truer about the code and the suite less true
+   about the project:
+   - rewriting the assertion to expect what the code now returns;
+   - mocking, stubbing or faking the unavailable dependency *in the test of
+     the requirement*, so it passes against a stand-in;
+   - skipping it, deleting it, or commenting it out;
+   - loosening the threshold, lowering a coverage or quality gate, or adding
+     retries and longer timeouts to hide a failure nobody has explained.
+3. **Staying red is always honest.** Leave the test failing, and say plainly
+   in your final message what is not met and why.
+4. **An honest deferral is allowed only if all four hold** (owner decision on
+   #485, option C). Without the fourth it is a cheat, however tidy the
+   marker:
+   1. *Strict*: the marker fails the suite if the test unexpectedly passes,
+      so it cannot outlive its reason.
+   2. *Assertion unchanged*: the test still states the requirement.
+   3. *Reason stated in the marker*, citing a tracked issue. Cite one that
+      exists; if none does, do not file one yourself unless asked: name the
+      issue that should be filed in your final message instead.
+   4. *The decision is handed back*: your final message says the requirement
+      is **not met**, that accepting or reversing the deferral is the owner's
+      call, and does not present the green suite as done.
+
+   The forms, per language:
+   - Python (pytest): `@pytest.mark.xfail(strict=True, reason="… (#123)")`.
+     Without `strict=True` it is not a deferral: an unexpected pass is only
+     reported, not failed.
+   - JavaScript (vitest): `it.fails("… (deferred: #123)", …)`, with the reason
+     in a comment above it; vitest reports it as an expected fail while it
+     fails, and fails the suite once it passes. Jest's equivalent is
+     `test.failing`.
+   - Skipping is never a deferral: `pytest.mark.skip`, `skipif`, `it.skip`,
+     `it.todo`, and a commented-out test all go silent in CI whatever their
+     reason says.
+
+   A worked example in both languages, with tests that prove the marker is
+   strict: `examples/honest-deferral/` (plugin root).
+
+A final message for a deferral reads like this: "The requirement is not met:
+the standard parcel cannot be priced because the carrier sandbox is not
+reachable from CI (no API key provisioned). I kept the test's assertion and
+marked it as a strict expected failure citing #123, so CI is green but the
+requirement is still open, and the marker will fail the suite once the
+carrier is reachable. Accepting this deferral, or reverting it and staying
+red, is your call."
 
 ## The runtime primitive (name it when teaching P3 or P8)
 

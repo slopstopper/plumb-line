@@ -20,6 +20,23 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the with-plugin arm. See `evals/README.md` for how to run it. The manual
   blind protocol stays the release gate: no green run is recorded, and the
   runner's LLM judge is not yet trustworthy on the broken fixtures (#291).
+- **The method skill teaches honest deferral, for a test that cannot pass
+  honestly** ([#485](https://github.com/slopstopper/plumb-line/issues/485)).
+  In 90 spike runs, no agent kept a failing test visible with a recorded
+  reason; 63 of round 1's went green by changing the test. The skill's new
+  section, **Mid-task: a test that cannot pass honestly**, says to handle
+  the failure you can observe, never to make the requirement's test pass by
+  rewriting its assertion, mocking the missing dependency in it, skipping
+  it, or loosening a gate, and that staying red is always honest. A deferral
+  is allowed only on the four conditions the owner decided (option C): a
+  strict marker, the assertion unchanged, the reason in the marker citing a
+  tracked issue, and the decision handed back in the final message. Forms:
+  pytest `xfail(strict=True, …)`, vitest `it.fails`; skipping is never a
+  deferral. `plumb-line-remediate` points there for a blocked failing test.
+  New worked example, `examples/honest-deferral/` (Python and JS), with
+  `examples/test_honest_deferral.py` proving each marker records the
+  failure and fails the suite once the requirement is met; CI installs the
+  example's toolchain and fails if that proof skips.
 - **`scripts/trigger_check.py` can probe a checkout in isolation, and its
   record says what each probe loaded**
   ([#487](https://github.com/slopstopper/plumb-line/issues/487)).

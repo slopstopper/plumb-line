@@ -142,3 +142,38 @@ def test_bare_code_scan_catches_the_forms_it_must():
     assert not _bare_codes("cite P3 —\nConfidence + provenance")
     assert not _bare_codes("P8 — State-first\n  lineage")                # wrapped, indented
     assert _bare_codes("```\na fenced example citing P3 bare\n```")   # examples get copied too
+
+
+# --- #485: honest deferral, as the method skill teaches it (option C) --------
+
+_EXAMPLE = os.path.join(_ROOT, "examples", "honest-deferral")
+
+
+def _deferral_section():
+    text = SKILLS["plumb-line-method"]
+    start = text.index("## Mid-task: a test that cannot pass honestly")
+    end = text.find("\n## ", start + 1)
+    return text[start:end if end != -1 else len(text)]
+
+
+def test_method_skill_states_all_four_deferral_conditions():
+    # Owner decision on #485, option C: all four, or it is a cheat.
+    section = _deferral_section().lower()
+    for condition in ("strict", "assertion unchanged", "reason", "not met"):
+        assert condition in section, f"the deferral section must state: {condition}"
+    assert "never a deferral" in section, "skipping must be named as never a deferral"
+
+
+def test_method_skill_forms_are_the_ones_the_example_runs():
+    # The skill teaches these spellings; the example (run by
+    # examples/test_honest_deferral.py) proves they behave as taught.
+    section = _deferral_section()
+    py = _read(_EXAMPLE, "python", "test_carrier.py")
+    js = _read(_EXAMPLE, "js", "carrier.test.js")
+    assert "pytest.mark.xfail(strict=True" in section and "pytest.mark.xfail(strict=True" in py
+    assert "it.fails(" in section and "it.fails(" in js
+
+
+def test_remediate_points_to_the_method_skill_for_a_test_it_cannot_fix():
+    text = " ".join(SKILLS["plumb-line-remediate"].split())  # prose wraps
+    assert "Mid-task: a test that cannot pass honestly" in text
