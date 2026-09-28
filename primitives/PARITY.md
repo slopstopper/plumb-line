@@ -75,10 +75,12 @@ than from a rule, both twins either fail closed or judge correctly, and no
 real input reaches it. Copying such a limit into the other twin would make
 an accident part of the contract. A waived case is recorded here, with its
 waiver on the issue. Waived: a stdin or `PLUMBLINE_CFG` integer of more than
-4,300 digits, or JSON nested around 100,000 levels deep, hits Python's
-integer-conversion or recursion limit and blocks in Python, while JS judges
-it (#505). Nesting of about a thousand levels or more can also give a
-differently worded reason, depending on the Python version.
+4,300 digits, or JSON nested deeply enough, hits Python's integer-conversion
+or recursion limit and blocks in Python, while JS judges it (#505). How deep
+depends on the Python version: the exit codes split from about 994 levels on
+Python 3.11 (the floor), 9,998 on 3.12 and 3.13, and 87,110 on 3.14 (measured
+on macOS by the v0.11.5 dogfood self-audit; JS judged 2,000,000 levels). No
+real hook payload or config nests near even the lowest of these.
 
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |

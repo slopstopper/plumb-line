@@ -172,6 +172,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   values is the owner's decision; counting U+FFFD with them follows from it,
   and such values are vanishingly rare in a branch name, config or test
   command.
+- **The Python pre-commit gate keeps exit 2 with stderr closed, and writes
+  its reasons as UTF-8** (v0.11.5 dogfood self-audit). The guards got this
+  in #471; the gate did not, so with stderr closed (`2>&-`) a blocked commit
+  exited 1, which a Claude Code hook lets through, and under
+  `PYTHONIOENCODING=ascii` a non-ASCII command in the reason was escaped.
 
 ### Changed
 - **One case table specifies the hook twins' CLIs**

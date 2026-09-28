@@ -258,6 +258,10 @@ def test_boundary_decide_blocks_an_import_path_that_is_not_a_string():
     ("branch_guard.py", '{"filePath": "src/app.py"}', {"PLUMBLINE_BRANCH": "main"}, 2),
     ("boundary_guard.py", '{"filePath": "src/ui/x.py"}', {}, 0),
     ("boundary_guard.py", "not json", {}, 2),
+    # The gate needs the same handling (v0.11.5 dogfood): it exited 1 here.
+    ("pre_commit_gate.py", "", {"PLUMBLINE_TEST_CMD": "true"}, 0),
+    ("pre_commit_gate.py", "", {"PLUMBLINE_TEST_CMD": "false"}, 2),
+    ("pre_commit_gate.py", "", {}, 2),
 ])
 def test_hooks_exit_the_same_with_stderr_closed(script, stdin, env, code):
     import subprocess
@@ -328,3 +332,16 @@ def test_env_problem_without_a_bytes_environment_blocks_a_lone_surrogate(monkeyp
     monkeypatch.setattr(os, "supports_bytes_environ", False)
     monkeypatch.setattr(os, "environ", {"PLUMBLINE_X": "main\ud800"})
     assert module._env_problem("PLUMBLINE_X").startswith("PLUMBLINE_X is not valid UTF-8")
+
+
+# --- v0.11.5 dogfood: a closed stdin (<&-) reads as empty in the Python
+# guards, as in the JS twins: no file path, so exit 2.
+@pytest.mark.parametrize("script", ["branch_guard.py", "boundary_guard.py"])
+def test_guards_block_with_stdin_closed(script):
+    import subprocess
+    path = os.path.join(os.path.dirname(__file__), script)
+    env = {k: v for k, v in os.environ.items() if not k.startswith("PLUMBLINE_")}
+    env["PLUMBLINE_BRANCH"] = "main"
+    r = subprocess.run(["sh", "-c", '"$0" "$1" <&-', sys.executable, path],
+                       capture_output=True, text=True, env=env)
+    assert r.returncode == 2 and "no file path" in r.stderr

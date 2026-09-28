@@ -93,12 +93,23 @@ def _main():
     return decide(runners=[(cmd, _runner)])
 
 
+def _say(text):
+    """Write a reason to stderr; with stderr closed the exit code still says it."""
+    if sys.stderr is not None:
+        sys.stderr.write(text)
+
+
 if __name__ == "__main__":
+    # Reasons are written as UTF-8, as Node writes them, whatever the locale
+    # or PYTHONIOENCODING says; a closed stderr (2>&-) must not turn a block
+    # into exit 1 (v0.11.5 dogfood, as #471 did for the guards).
+    if sys.stderr is not None:
+        sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
     try:
         r = _main()
     except Exception as e:  # noqa: BLE001 — fail closed on anything
         r = {"allow": False, "reason": f"pre-commit blocked: the test command could not be run ({e})"}
     if not r["allow"]:
-        sys.stderr.write(r["reason"] + "\n")
+        _say(r["reason"] + "\n")
         sys.exit(2)
     sys.exit(0)

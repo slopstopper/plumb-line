@@ -1026,6 +1026,7 @@
     },
     {"name": "a PLUMBLINE_TEST_CMD that is not valid UTF-8 blocks: JS read it as U+FFFD and passed (#501)", "envHex": {"PLUMBLINE_TEST_CMD": "7465737420ff203d20efbfbd"}, "expectExit": 2, "expectStderr": "pre-commit blocked: PLUMBLINE_TEST_CMD is not valid UTF-8"},
     {"name": "a valid non-ASCII PLUMBLINE_TEST_CMD still runs (#501)", "env": {"PLUMBLINE_TEST_CMD": "test café = café"}, "expectExit": 0},
-    {"name": "a PLUMBLINE_TEST_CMD holding U+FFFD blocks (#501 review)", "env": {"PLUMBLINE_TEST_CMD": "test � = �"}, "expectExit": 2, "expectStderr": "pre-commit blocked: PLUMBLINE_TEST_CMD is not valid UTF-8"}
+    {"name": "a PLUMBLINE_TEST_CMD holding U+FFFD blocks (#501 review)", "env": {"PLUMBLINE_TEST_CMD": "test � = �"}, "expectExit": 2, "expectStderr": "pre-commit blocked: PLUMBLINE_TEST_CMD is not valid UTF-8"},
+    {"name": "a non-ASCII gate reason reads the same under an ASCII locale (v0.11.5 dogfood)", "env": {"PLUMBLINE_TEST_CMD": "test café = cafe", "PYTHONIOENCODING": "ascii"}, "expectExit": 2, "expectStderr": "pre-commit blocked: test café = cafe failed"}
   ]
 }
