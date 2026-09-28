@@ -29,8 +29,12 @@ export async function decide({ runners }) {
   for (; !next.done; next = it.next()) {
     const { name, fn } = next.value;
     const ok = await fn();
-    if (!ok)
+    // Only true passes (#493): any other answer is one the gate cannot read,
+    // and reading it by truthiness let 1 or "ok" through. As in the Python twin.
+    if (ok === false)
       return { allow: false, reason: `pre-commit blocked: ${name} failed` };
+    if (ok !== true)
+      return { allow: false, reason: `pre-commit blocked: ${name} returned a result that is not true or false` };
   }
   return { allow: true, reason: "all gates passed" };
 }

@@ -242,7 +242,15 @@ if (isMainModule()) {
       }
       // Empty means JSON whitespace only, as in the Python twin: trim() also
       // strips a byte-order mark, and Python's strip() also strips \x1c-\x1f.
-      const input = /^[ \t\n\r]*$/.test(raw) ? {} : JSON.parse(raw);
+      let input = {};
+      if (!/^[ \t\n\r]*$/.test(raw)) {
+        try {
+          input = JSON.parse(raw);
+        } catch {
+          // One reason in both twins; each parser's own detail differs (#471 review).
+          throw new Error("stdin is not valid JSON");
+        }
+      }
       const { config, reason } = readConfig(process.env.PLUMBLINE_CFG);
       // Only the two documented config keys, never a spread: a spread let a
       // config `branch` or `filePath` override the real ones.

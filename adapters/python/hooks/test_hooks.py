@@ -105,6 +105,39 @@ def test_pre_commit_blocks_when_the_runners_are_an_empty_generator():
     r = pre_commit_gate.decide(runners=(x for x in ()))
     assert r == {"allow": False, "reason": "pre-commit blocked: no gates configured"}
 
+# #493 (owner decision): a runner passes only by returning True. Anything else
+# that is not False is an answer the gate cannot read, so it blocks, with the
+# same reason as the JS twin.
+@pytest.mark.parametrize("value", [1, "ok", None, {}])
+def test_pre_commit_blocks_a_runner_result_that_is_not_true_or_false(value):
+    r = pre_commit_gate.decide(runners=[("tests", lambda: value)])
+    assert r == {"allow": False,
+                 "reason": "pre-commit blocked: tests returned a result that is not true or false"}
+
+@pytest.mark.filterwarnings("error")
+def test_pre_commit_blocks_an_async_runner_it_cannot_await():
+    # An un-awaited coroutine is truthy, so this passed the gate (#493). The
+    # gate closes it, so no "coroutine was never awaited" warning is left.
+    import gc
+
+    async def runner():
+        return False
+
+    r = pre_commit_gate.decide(runners=[("tests", runner)])
+    gc.collect()
+    assert r == {"allow": False,
+                 "reason": "pre-commit blocked: tests returned an awaitable; "
+                           "the Python gate runs synchronous runners only"}
+
+def test_pre_commit_blocks_an_awaitable_that_is_not_a_coroutine():
+    import asyncio
+    loop = asyncio.new_event_loop()
+    try:
+        r = pre_commit_gate.decide(runners=[("tests", loop.create_future)])
+    finally:
+        loop.close()
+    assert r["allow"] is False and "returned an awaitable" in r["reason"]
+
 def test_boundary_allows_same_layer_import():
     # importPath resolves to the same layer as filePath — exercises the src == dst branch.
     r = boundary_guard.decide(
@@ -191,3 +224,46 @@ def test_branch_blank_means_ascii_whitespace_as_in_the_js_twin(branch):
 
 # --- CLI behaviour is in adapters/hook-cases.json, run against both twins by
 # test_hook_cases.py (#475), including quoting in PLUMBLINE_TEST_CMD (#472).
+
+
+# #471: the CLI rows in adapters/hook-cases.json pin the same rules end to end;
+# these pin decide() for a caller that imports it. JS twin: the #471 cases in
+# adapters/js/hooks/__tests__/boundary-guard.test.mjs.
+@pytest.mark.parametrize("file_path", [None, "", 7])
+def test_boundary_decide_blocks_with_no_file_path(file_path):
+    r = boundary_guard.decide(file_path=file_path, import_path="src/ui/view.py", **LAYERS)
+    assert r["allow"] is False
+    assert r["reason"].startswith("blocked: no file path to judge.")
+
+
+@pytest.mark.parametrize("import_path", [None, ""])
+def test_boundary_decide_allows_with_no_import_to_judge(import_path):
+    r = boundary_guard.decide(file_path="src/data/store.py", import_path=import_path, **LAYERS)
+    assert r == {"allow": True, "reason": "no import to judge"}
+
+
+def test_boundary_decide_blocks_an_import_path_that_is_not_a_string():
+    r = boundary_guard.decide(file_path="src/data/store.py", import_path=7, **LAYERS)
+    assert r["allow"] is False
+    assert r["reason"].startswith("blocked: importPath must be a string.")
+
+
+# --- #471 re-review: with stderr closed (2>&-), sys.stderr is None. The
+# UTF-8 reconfigure must not crash the hook (exit 1): an allowed edit still
+# exits 0 and a blocked one exits 2, as in the JS twins. The shared table's
+# runners cannot close a stream, so this is spawned through sh here.
+
+@pytest.mark.parametrize("script,stdin,env,code", [
+    ("branch_guard.py", '{"filePath": "src/app.py"}', {"PLUMBLINE_BRANCH": "feature/x"}, 0),
+    ("branch_guard.py", '{"filePath": "src/app.py"}', {"PLUMBLINE_BRANCH": "main"}, 2),
+    ("boundary_guard.py", '{"filePath": "src/ui/x.py"}', {}, 0),
+    ("boundary_guard.py", "not json", {}, 2),
+])
+def test_hooks_exit_the_same_with_stderr_closed(script, stdin, env, code):
+    import subprocess
+    path = os.path.join(os.path.dirname(__file__), script)
+    full_env = {k: v for k, v in os.environ.items() if not k.startswith("PLUMBLINE_")}
+    full_env.update(env)
+    r = subprocess.run(["sh", "-c", '"$0" "$1" 2>&-', sys.executable, path],
+                       input=stdin, text=True, capture_output=False, env=full_env)
+    assert r.returncode == code
