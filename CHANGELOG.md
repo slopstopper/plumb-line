@@ -10,6 +10,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Changed
+- **The `claude plugin eval` suite runs, after its first real run found it
+  measured nothing** ([#291](https://github.com/slopstopper/plumb-line/issues/291)).
+  The August suite granted no tools, so the audit skill could not read its
+  principles file. Its file-name graders credited a bare file listing. Its
+  checker grader could never pass. The suite now grants read-only tools per
+  case and sandboxed Bash for the checker. The finding graders require a
+  confirmed findings-table row, and the format graders are scored only in
+  the with-plugin arm. See `evals/README.md` for how to run it. The manual
+  blind protocol stays the release gate: no green run is recorded, and the
+  runner's LLM judge is not yet trustworthy on the broken fixtures (#291).
+- **Harness scoring text, clarified:** `examples/AUDIT-EXPECTATIONS.md` now
+  states that extra confirmed violations on a `broken/` fixture are
+  acceptable, and cites the recorded runs that scored them PASS. Its heading
+  no longer says "exactly the planted set".
 - **The hook case table is source truth**
   ([#517](https://github.com/slopstopper/plumb-line/issues/517)). An
   ADR-0018 amendment declares `adapters/hook-cases.json` part of the
