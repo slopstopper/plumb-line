@@ -206,10 +206,12 @@ Every envelope `makeMeta` builds is stamped with `provenanceVersion` (the
 current `PROVENANCE_VERSION`); callers do not pass it.
 
 A `source` outside `STATUS` or a `confidence` outside `CONFIDENCE` is refused
-(since v0.12.0, #443). JS throws an `Error` and Python raises `ValueError`, in
-both cases with the message
+(since v0.12.0, #443). JS throws an `Error` and Python raises `ValueError`.
+Both messages start the same way,
 `confidence must be one of none, low, medium, high; got 0` (or the `source`
-equivalent). This applies to `mark` and to a `derive` override, which build on
+equivalent), though the quoted value can differ in form between the two. In
+Python, `None` is refused rather than defaulted: omit the argument to get the
+default. This applies to `mark` and to a `derive` override, which build on
 `makeMeta`. A numeric certainty belongs in `confidenceScore`. Envelopes you are
 *handed*, such as parsed JSON, are not refused: `combineProvenance` and the
 audit still tolerate unknown values in them (SPEC §2).

@@ -14,20 +14,28 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   outside its ladder** ([#443](https://github.com/slopstopper/plumb-line/issues/443)).
   `mark(1, { source: "mock", confidence: 0 })` used to build an envelope
   whose rung no ladder contains. `auditMeta` returned no issue for it, and
-  the combination law's ordering was undefined for it. It now throws in JS
-  and raises `ValueError` in Python, with the same message in both
-  (`confidence must be one of none, low, medium, high; got 0`). The same
-  applies to a `source` outside `STATUS`, and to a `derive()` override.
+  the combination law quietly read it as the weakest rung. Only
+  `validateEnvelope` noticed, and only for a non-string: `"HIGH"` passed
+  both checkers. It now throws in JS and raises `ValueError` in Python. Both
+  messages start the same way,
+  `confidence must be one of none, low, medium, high; got 0`, though the
+  quoted value can differ in form between the two. The same applies to a
+  `source` outside `STATUS`, and to a `derive()` override. In Python, `None`
+  is refused rather than defaulted: omit the argument to get the default.
   **If you pass a number as `confidence`, move it to `confidenceScore` and
   give `confidence` a rung.** Envelopes you are handed, such as parsed JSON,
   are unaffected: `combineProvenance` and the audit still tolerate unknown
-  values in them (SPEC §2). Owner decision on #443. A minor can carry the
-  break under this project's pre-1.0 rule.
+  values in them (SPEC §2, pinned by a `combine` row). Owner decision on
+  #443, recorded in ADR-0019. A minor can carry the break under this
+  project's pre-1.0 rule.
 - **Conformance: a fourth case kind, `construct`**, pins what `makeMeta`
   accepts and refuses in both languages. The case table stays at version 1.
   A runner that does not interpret the new kind fails on it rather than
   skipping it (#369), so an implementation built to the old table is told,
-  not silently passed.
+  not silently passed. **A port certified against schema version 2 before
+  this release must re-run**: `construct` is a new requirement at the same
+  schema version. The JS runner now also fails a table missing a kind it
+  models; before, it would have crashed.
 
 ## [0.11.5] — 2026-09-28
 

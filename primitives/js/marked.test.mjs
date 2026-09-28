@@ -95,4 +95,17 @@ describe("mark / derive refuse an off-ladder confidence or source (#443)", () =>
     expect(() => derive([a], (x) => x, { confidence: 0.8 })).toThrow(
       "confidence must be one of none, low, medium, high; got 0.8");
   });
+  // A value JSON.stringify cannot write must not replace the refusal with a
+  // serialisation error, and NaN must not read as null (#443 review).
+  const cyclic = {};
+  cyclic.self = cyclic;
+  it.each([
+    [1n, "got 1"],
+    [cyclic, "got [object Object]"],
+    [NaN, "got NaN"],
+    [Infinity, "got Infinity"],
+  ])("the refusal message survives an unusual value (%s)", (confidence, tail) => {
+    expect(() => mark(1, { source: "real", confidence })).toThrow(
+      `confidence must be one of none, low, medium, high; ${tail}`);
+  });
 });

@@ -1,0 +1,78 @@
+# ADR-0019: Constructors refuse a source or confidence off its ladder; handed envelopes stay tolerated
+
+**Status:** Accepted · 2026-09-28 (owner decision on GH #443)
+
+## Context
+
+`mark(1, { source: "mock", confidence: 0 })` built an envelope whose
+`confidence` is not a rung of the certainty ladder. The remediate skill had
+taught agents to write exactly that (found by the 2026-09-25 staleness
+sweep). Nothing objected:
+- `auditMeta` returned no issue.
+- The combination law read the unknown rung as `none`, the weakest (SPEC §2).
+- Only `validateEnvelope`, a separate opt-in check, noticed, and only because
+  `0` is not a string. `confidence: "HIGH"` passed both checkers.
+
+The same gap existed for `source` against the status ladder. A numeric
+certainty has a home, `confidenceScore`; the rung is the ordinal the law
+propagates.
+
+The two options on #443:
+- **Reject at construction.** `makeMeta` / `make_meta`, and everything built
+  on them, refuse an off-ladder value. This breaks any caller passing a
+  number today.
+- **Flag in `auditMeta`.** Keep constructing, and add a logical-consistency
+  issue for an off-ladder value.
+
+## Decision
+
+**Reject at construction**, for `source` and `confidence` alike. On
+2026-09-28 the owner accepted the recommendation to reject at `mark()`,
+recorded on #443. The 2026-09-25 scheduling comment on #443 had already
+leaned that way, since a minor can carry the breaking choice.
+
+- `makeMeta` / `make_meta` throw (JS `Error`) or raise (Python `ValueError`)
+  when `source` is not in `STATUS` or `confidence` is not in `CONFIDENCE`.
+  That covers `mark` and a `derive` override, which build on them.
+- `source` is checked first. Both languages' messages start
+  `source must be one of <ladder>` or `confidence must be one of <ladder>`.
+  The quoted value after "got" is each language's JSON rendering and may
+  differ in form.
+- In Python, `None` is refused, not defaulted, matching JS `null`. Omitting
+  the argument gives the default, as JS `undefined` does.
+- **The refusal is scoped to construction.** Envelopes an implementation is
+  handed, such as parsed JSON or another producer's output, are not refused:
+  the combination law and the checkers keep reading unknown values as SPEC
+  §2 defines. Otherwise one foreign envelope with a stray rung would make
+  `combineProvenance` throw where it now degrades honestly to `none`.
+- **Pinned by conformance.** A fourth `cases.json` kind, `construct`, holds
+  what the constructor accepts and refuses. A `combine` row pins that a
+  handed off-ladder envelope still combines.
+
+## Consequences
+
+- **No wire bump.** No envelope field, type or combination result changes,
+  only what a constructor will build (SPEC §1, "Envelope versioning"). The
+  case table stays at version 1. An implementation built to the old table
+  fails on the unknown kind rather than passing silently (#369). But "conforms
+  to envelope schema version 2" now asks more at the same version, so a port
+  certified before v0.12.0 must re-run. The CHANGELOG and the conformance
+  README say so.
+- **Breaking for callers** that pass a number, a wrong-case rung, `null` or
+  `None`, or an unknown source. A minor carries it under the pre-1.0 rule.
+  The fix is to put the number in `confidenceScore`.
+- **The audit is unchanged.** It still ignores an unknown rung in a handed
+  envelope for its over-claim comparison. Whether it should also flag one is
+  a separate question, not decided here.
+- #177 (`source` required on leaf constructors) builds on this refusal path.
+
+## Alternatives considered
+
+- **Flag in `auditMeta` only.** Rejected by the owner. A value the law cannot
+  place honestly should not be constructible, and an advisory the builder
+  never runs protects no one: the case that prompted this came from an agent
+  following a skill.
+- **Refuse everywhere, including handed envelopes.** Rejected. SPEC §2
+  defines how the law reads an unknown value, and §5 requires the checkers to
+  be total. Refusing handed envelopes would contradict both, and would turn
+  one stray rung upstream into a crash downstream.

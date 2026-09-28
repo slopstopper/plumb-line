@@ -13,7 +13,7 @@ never hand-type it.)
 **Parity is enforced by data, not prose.** `primitives/conformance/cases.json` is
 a single language-neutral case table; `primitives/js/conformance.test.mjs` and
 `primitives/python/tests/test_conformance.py` both load it and assert identical
-combine/audit/validate results. Adding a row covers both languages at once, and a
+combine/audit/validate/construct results. Adding a row covers both languages at once, and a
 divergence fails one suite. The table below is the human-readable summary; the
 JSON is the contract.
 
@@ -21,7 +21,9 @@ The table has four case kinds: `combine` (the law), `audit` (logical
 consistency), `validate` (structural field-presence — the `validateEnvelope`
 / `validate_envelope` checker added in v0.4.0), and `construct` (what
 `makeMeta` / `make_meta` accepts and refuses, v0.12.0, #443; both languages
-word a refusal identically, the value quoted as JSON). Both checkers report the four
+refuse the same inputs, and the refusal message starts the same; the quoted
+value after "got" is each language's JSON rendering and can differ in form for
+floats, non-ASCII text and containers). Both checkers report the four
 required fields by their canonical camelCase names in both languages, so the
 conformance needles match verbatim.
 

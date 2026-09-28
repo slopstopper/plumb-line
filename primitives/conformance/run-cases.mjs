@@ -61,6 +61,10 @@ function runIssueList(issues, c) {
 // What makeMeta accepts and refuses (#443). A refusal throws; the case pins a
 // substring of the message, which both languages word identically.
 function runConstruct(impl, c) {
+  // Exactly one expectation: a row with neither would check nothing, and one
+  // with both would silently ignore `expect` (#443 review).
+  if (("expect" in c) === ("expectError" in c))
+    return "a construct case needs exactly one of expect or expectError";
   let out;
   try {
     out = impl.makeMeta(c.input);
@@ -71,7 +75,7 @@ function runConstruct(impl, c) {
       : `expected an error containing "${c.expectError}", got "${e.message}"`;
   }
   if (c.expectError !== undefined) return `expected an error containing "${c.expectError}", got an envelope`;
-  for (const [k, v] of Object.entries(c.expect || {})) {
+  for (const [k, v] of Object.entries(c.expect)) {
     if (!isDeepStrictEqual(out[k], v))
       return `expected ${k}=${JSON.stringify(v)}, got ${JSON.stringify(out[k])}`;
   }
@@ -116,7 +120,11 @@ export function runCases(impl, cases) {
   return [
     ...badVersion,
     ...Object.keys(RUN).flatMap((kind) =>
-      (cases[kind] || []).map((c) => ({ kind, name: c.name, error: unknownFields(kind, c) ?? RUN[kind](impl, c) })),
+      Array.isArray(cases[kind])
+        ? cases[kind].map((c) => ({ kind, name: c.name, error: unknownFields(kind, c) ?? RUN[kind](impl, c) }))
+        // A kind the runner models but the table lacks is a failure too: a
+        // table with a kind deleted must not certify (#443 review).
+        : [{ kind, name: "(whole kind)", error: `case kind ${kind} is missing from the table` }],
     ),
     ...unknownKinds,
   ];

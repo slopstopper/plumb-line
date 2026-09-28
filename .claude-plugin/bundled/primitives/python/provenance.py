@@ -31,7 +31,9 @@ def _in_ladder(value, ladder):
 
 
 def _json(value):
-    """The value as the JS twin's JSON.stringify writes it, for messages."""
+    """The refused value as a message fragment: JSON where it can be, repr
+    otherwise. The JS twin (quote) agrees on the message prefix; the quoted
+    value can differ in form (floats, non-ASCII text, containers)."""
     try:
         return json.dumps(value)
     except (TypeError, ValueError):
@@ -59,11 +61,12 @@ def make_meta(source='derived', confidence='none', confidence_score=None,
     Raises:
         ValueError: source is not in STATUS, or confidence is not in CONFIDENCE.
     """
-    # An out-of-vocabulary rung or source is refused here, not flagged later:
-    # the combination law orders by these ladders, so a value off them has no
-    # defined place in it (#443, owner decision 2026-09-28). JS twin: makeMeta;
-    # the message is the same in both (cases.json "construct"), json.dumps
-    # standing in for JSON.stringify.
+    # An out-of-vocabulary rung or source is refused here, not flagged later
+    # (#443, owner decision 2026-09-28; ADR-0019): stored, it passed audit_meta
+    # silently and the law quietly read it as the weakest rung (SPEC §2). JS
+    # twin: makeMeta; the message prefix is the same in both (cases.json
+    # "construct"). None is refused, not defaulted: omit the argument for the
+    # default, as JS gets it only for undefined.
     if not _in_ladder(source, STATUS):
         raise ValueError(f"source must be one of {', '.join(STATUS)}; got {_json(source)}")
     if not _in_ladder(confidence, CONFIDENCE):

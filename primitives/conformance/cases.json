@@ -3,6 +3,14 @@
   "version": 1,
   "combine": [
     {
+      "name": "a handed envelope with off-ladder values still combines: confidence read as none, source ignored (§2; #443 refuses only at construction)",
+      "inputs": [
+        { "source": "bogus", "confidence": "HIGH", "derivedFromMock": false, "lineage": [] }
+      ],
+      "expect": { "derivedFromMock": false, "confidence": "none", "source": "derived" },
+      "absent": ["weakestSource"]
+    },
+    {
       "name": "real + mock — taint, weakest confidence, weakest source, numeric floor",
       "inputs": [
         { "source": "real", "confidence": "high", "confidenceScore": 0.9, "derivedFromMock": false, "lineage": [] },
@@ -299,6 +307,21 @@
     {
       "name": "a non-string source is refused at construction (#443)",
       "input": { "source": 1, "confidence": "low" },
+      "expectError": "source must be one of unavailable, mock, inferred, fallback, semiReal, derived, real"
+    },
+    {
+      "name": "a null source is refused, not defaulted (#443)",
+      "input": { "source": null, "confidence": "low" },
+      "expectError": "source must be one of unavailable, mock, inferred, fallback, semiReal, derived, real"
+    },
+    {
+      "name": "an empty confidence is refused (#443)",
+      "input": { "source": "real", "confidence": "" },
+      "expectError": "confidence must be one of none, low, medium, high"
+    },
+    {
+      "name": "with both off the ladder, source is reported first (#443)",
+      "input": { "source": "bogus", "confidence": 0 },
       "expectError": "source must be one of unavailable, mock, inferred, fallback, semiReal, derived, real"
     }
   ]

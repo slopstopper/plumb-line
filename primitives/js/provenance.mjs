@@ -27,6 +27,21 @@ export function isScore(x) {
   return typeof x === "number" && Number.isFinite(x) && x >= 0 && x <= 1;
 }
 
+/** A refused value as a message fragment. JSON where it can be; never
+ * throws, so a BigInt or a cycle cannot replace the refusal with a
+ * serialisation error, and NaN/Infinity read as themselves, not "null".
+ * The Python twin (_json) agrees on the prefix of the message; the quoted
+ * value can differ in form (floats, non-ASCII text, containers). */
+function quote(value) {
+  if (typeof value === "number" && !Number.isFinite(value)) return String(value);
+  try {
+    const s = JSON.stringify(value);
+    return s === undefined ? String(value) : s;
+  } catch {
+    return String(value);
+  }
+}
+
 /**
  * Constructs a frozen provenance metadata envelope.
  * @param {object} [opts]
@@ -39,6 +54,9 @@ export function isScore(x) {
  * @param {*} [opts.basis] - Arbitrary domain metadata (passed through unchanged)
  * @param {*} [opts.adapter] - Adapter identifier (passed through unchanged)
  * @returns {Readonly<object>} Frozen envelope
+ * @throws {Error} When `source` is not in {@link STATUS} or `confidence` is
+ *   not in {@link CONFIDENCE} (#443); the message starts
+ *   "source must be one of" / "confidence must be one of".
  */
 export function makeMeta({
   source = "derived",
@@ -50,14 +68,15 @@ export function makeMeta({
   basis,
   adapter,
 } = {}) {
-  // An out-of-vocabulary rung or source is refused here, not flagged later:
-  // the combination law orders by these ladders, so a value off them has no
-  // defined place in it (#443, owner decision 2026-09-28). Python twin:
-  // make_meta; the message is the same in both (cases.json "construct").
+  // An out-of-vocabulary rung or source is refused here, not flagged later
+  // (#443, owner decision 2026-09-28; ADR-0019): stored, it passed auditMeta
+  // silently and the law quietly read it as the weakest rung (SPEC §2).
+  // Python twin: make_meta; the message prefix is the same in both
+  // (cases.json "construct").
   if (!STATUS.includes(source))
-    throw new Error(`source must be one of ${STATUS.join(", ")}; got ${JSON.stringify(source)}`);
+    throw new Error(`source must be one of ${STATUS.join(", ")}; got ${quote(source)}`);
   if (!CONFIDENCE.includes(confidence))
-    throw new Error(`confidence must be one of ${CONFIDENCE.join(", ")}; got ${JSON.stringify(confidence)}`);
+    throw new Error(`confidence must be one of ${CONFIDENCE.join(", ")}; got ${quote(confidence)}`);
   const meta = {
     provenanceVersion: PROVENANCE_VERSION,
     source,

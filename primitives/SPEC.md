@@ -85,8 +85,8 @@ MUST be ignored by the audit's over-claim comparison (§5). For `source`, unknow
 values are ignored when computing `weakestSource` (§4).
 
 That tolerance is for envelopes an implementation is **handed**, such as parsed
-JSON or another producer's output, where the combination law and the checkers
-must stay total. It does not extend to envelopes an implementation
+JSON or another producer's output. The combination law and the checkers MUST
+NOT refuse an unknown value there; they read it as above. It does not extend to envelopes an implementation
 **constructs**. `makeMeta`/`make_meta`, and every constructor built on it
 (`mark`, a `derive` override), MUST refuse a `source` not in the status ladder
 or a `confidence` not in the certainty ladder, with an error whose message
@@ -94,7 +94,7 @@ contains `source must be one of <the ladder, comma-separated>` or
 `confidence must be one of <the ladder, comma-separated>`. Refusing means the
 constructor throws (JS) or raises `ValueError` (Python); it does not return
 an envelope. A numeric `confidence` (`0`, `0.8`) is refused: the number
-belongs in `confidenceScore`. Added in v0.12.0 (#443). Before that, an
+belongs in `confidenceScore`. Added in v0.12.0 (#443, ADR-0019). Before that, an
 off-ladder value was stored silently, and only `validateEnvelope` noticed a
 non-string.
 

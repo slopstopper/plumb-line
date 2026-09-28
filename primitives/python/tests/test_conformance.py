@@ -98,6 +98,8 @@ def test_construct_cases():
     # pins a substring of the message, worded identically in both languages.
     # JS twin: runConstruct in primitives/conformance/run-cases.mjs.
     for c in CASES['construct']:
+        assert ('expect' in c) != ('expectError' in c), \
+            f"{c['name']}: a construct case needs exactly one of expect or expectError"
         kwargs = _to_snake(c['input'])
         if 'expectError' in c:
             try:
@@ -108,7 +110,7 @@ def test_construct_cases():
                 raise AssertionError(f"{c['name']}: expected an error containing {c['expectError']!r}")
         else:
             out = p.make_meta(**kwargs)
-            for k, v in c.get('expect', {}).items():
+            for k, v in c['expect'].items():
                 sk = _KEY.get(k, k)
                 assert out.get(sk) == v, f"{c['name']}: {sk} == {out.get(sk)!r}, expected {v!r}"
 
