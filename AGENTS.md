@@ -55,8 +55,9 @@ Work state lives in GitHub issues and milestones, not in prose files.
 - Deferral requires a filed issue. Handover files its debts before closing.
 Dialect and modules for this repo: [docs/tracking-dialect.md](docs/tracking-dialect.md)
 
-Two local rules go beyond the convention's baseline, both from
-[`ROADMAP.md`](ROADMAP.md):
+Two of the local rules that go beyond the convention's baseline come from
+[`ROADMAP.md`](ROADMAP.md) (the others are in
+[`docs/tracking-dialect.md`](docs/tracking-dialect.md)):
 
 - **Every open issue carries exactly one** of a release milestone
   (= scheduled) or a `track:*` label (= deliberately unscheduled). Neither
@@ -72,6 +73,9 @@ When one of these happens, this is what handles it:
 
 - postponing something → file an issue with `audit-deferral`; it must have a
   revisit condition, not a wish
+- holding a decision → record the hold **with what is held** (the draft,
+  numbers or wording) on the issue, marked on hold, with what lifts it
+  ([`docs/tracking-dialect.md`](docs/tracking-dialect.md))
 - an audit or dogfood pass produces a finding → file it with `gap`; work
   issues cite the gaps they close
 - closing a unit of work → `recursive-spine-handover` (files debts as
