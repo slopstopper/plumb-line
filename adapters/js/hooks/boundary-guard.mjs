@@ -46,7 +46,8 @@ const IMPORT_PATH_REASON =
 const NO_LAYERS_REASON =
   'blocked: no layers configured, so this import cannot be judged. Set "layers" in ' +
   "PLUMBLINE_CFG to the project's layer names, top to bottom.";
-/** The reason for layers that are given but not a list (#516 review).
+/** The reason for layers that are given but not a list of non-empty
+ * strings (#516 review).
  * Python twin: _LAYERS_TYPE_REASON. */
 const LAYERS_TYPE_REASON = "blocked: layers must be a list of layer names.";
 
@@ -82,7 +83,9 @@ export function decide({
   }
   // Only a library caller can reach this: the CLI's readConfig rejects a
   // non-array first. Its own reason, since layers were given (#516 review).
-  if (!Array.isArray(layers)) {
+  // Entries too, as readConfig checks them: a non-string entry matched no
+  // path, so it read as "same or unscoped layer" (#516 review).
+  if (!Array.isArray(layers) || !layers.every((l) => typeof l === "string" && l !== "")) {
     return { allow: false, reason: LAYERS_TYPE_REASON };
   }
   const from = layerOf(filePath, layers);

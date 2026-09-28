@@ -20,10 +20,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   before (#471). **If you wire the boundary guard without layers, set
   `layers` in `PLUMBLINE_CFG`**, or every import it is given will block.
   Called directly, the exported `decide()` is stricter too. With `layers`
-  empty it used to allow as "same or unscoped layer"; with `layers` missing
-  it used to crash. Both now block with "no layers configured". Layers that
-  are not a list block with their own reason, "layers must be a list of
-  layer names". Python still accepts a tuple.
+  empty it used to allow as "same or unscoped layer"; with `layers`
+  undefined or null (`None` in Python) it used to crash. Both now block
+  with "no layers configured". Python's `layers` is still a required
+  argument, so leaving it out is still a `TypeError`. Layers that are not a
+  list of non-empty strings now block with their own reason, "layers must
+  be a list of layer names". Before, a string such as `"ui"` was judged
+  character by character in Python and crashed in JS, and a non-string or
+  empty entry gave a false "same or unscoped layer" in JS and crashed or
+  allowed in Python. Python still accepts a tuple.
   Owner decision on #516; consistent with the pre-commit gate's "no gates
   configured" (#476).
 - **The hook case table is source truth**

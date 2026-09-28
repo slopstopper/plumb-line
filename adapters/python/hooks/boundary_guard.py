@@ -22,7 +22,8 @@ _IMPORT_PATH_REASON = ("blocked: importPath must be a string. Map the import bei
 # JS twin: NO_LAYERS_REASON.
 _NO_LAYERS_REASON = ('blocked: no layers configured, so this import cannot be judged. Set "layers" in '
                      "PLUMBLINE_CFG to the project's layer names, top to bottom.")
-# The reason for layers that are given but not a list (#516 review).
+# The reason for layers that are given but not a list of non-empty strings
+# (#516 review).
 # JS twin: LAYERS_TYPE_REASON.
 _LAYERS_TYPE_REASON = "blocked: layers must be a list of layer names."
 
@@ -48,7 +49,9 @@ def decide(file_path, import_path, layers, direction="downward"):
     # Only a library caller can reach this: the CLI's _read_config rejects a
     # non-list first. Its own reason, since layers were given (#516 review). A
     # tuple is accepted, as before #516; JS has no tuple.
-    if not isinstance(layers, (list, tuple)):
+    # Entries too, as _read_config checks them: a non-string entry crashed,
+    # and an empty one matched no path (#516 review).
+    if not isinstance(layers, (list, tuple)) or not all(isinstance(e, str) and e for e in layers):
         return {"allow": False, "reason": _LAYERS_TYPE_REASON}
     src, dst = _layer_of(file_path, layers), _layer_of(import_path, layers)
     if not src or not dst or src == dst:

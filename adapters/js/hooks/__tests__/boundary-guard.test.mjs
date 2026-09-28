@@ -74,7 +74,7 @@ describe("boundary-guard decide", () => {
   });
 
   // #516: an import to judge with no layers blocks, for a caller of decide()
-  // as for the CLI. Python twin: test_boundary_decide_*_layers in test_hooks.py.
+  // as for the CLI. Python twin: the #516 tests in test_hooks.py.
   it.each([undefined, null, []])("blocks an import with no layers configured (%s)", (layers) => {
     const r = decide({ filePath: "src/data/store.js", importPath: "src/ui/button.js", layers });
     expect(r).toEqual({
@@ -84,7 +84,7 @@ describe("boundary-guard decide", () => {
         "PLUMBLINE_CFG to the project's layer names, top to bottom.",
     });
   });
-  it.each(["ui", 7, { ui: 1 }])("blocks layers that are not a list, with its own reason (%s)", (layers) => {
+  it.each(["ui", 7, { ui: 1 }, [1], ["ui", ""], ["ui", null]])("blocks layers that are not a list of layer names, with its own reason (%j)", (layers) => {
     const r = decide({ filePath: "src/data/store.js", importPath: "src/ui/button.js", layers });
     expect(r).toEqual({ allow: false, reason: "blocked: layers must be a list of layer names." });
   });

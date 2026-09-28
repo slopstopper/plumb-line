@@ -258,7 +258,7 @@ def test_boundary_decide_blocks_with_no_layers(layers):
                            "PLUMBLINE_CFG to the project's layer names, top to bottom."}
 
 
-@pytest.mark.parametrize("layers", ["ui", 7, {"ui": 1}])
+@pytest.mark.parametrize("layers", ["ui", 7, {"ui": 1}, [1], ["ui", ""], ["ui", None]])
 def test_boundary_decide_blocks_layers_that_are_not_a_list(layers):
     r = boundary_guard.decide("src/data/store.py", "src/ui/view.py", layers)
     assert r == {"allow": False, "reason": "blocked: layers must be a list of layer names."}
