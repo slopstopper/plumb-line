@@ -120,11 +120,15 @@ def _merged():
     ]
 
 
-_ENV = {"plugins": ["agents-md@builtin", "plumb-line@inline"], "mcp_servers": []}
+_ENV = {"claude_code_version": "2.1.284",
+        "plugins": ["agents-md@builtin", "plumb-line@inline"],
+        "skills": ["plumb-line:plumb-line-audit", "plumb-line:plumb-line-method"],
+        "mcp_servers": [], "plugin_errors": []}
 
 
 def _payload(**over):
-    base = dict(target="t", installs=[], tiers={"screen": "haiku", "confirm": None},
+    base = dict(target="plumb-line-method", installs=[],
+                tiers={"screen": "haiku", "confirm": None},
                 runs={"screen": 1, "confirm": 2}, threshold=0.5, timeout=150,
                 merged=_merged(), isolation_flags=[],
                 environments=tc.summarise_environments([_ENV, _ENV, _ENV]))
@@ -306,15 +310,64 @@ def test_plugin_dir_install_identifies_the_description_it_probes(tmp_path):
     assert tc.plugin_dir_install("plumb-line-nope", str(co)) == []
 
 
-def test_init_environment_reads_plugins_and_mcp_servers():
-    ev = {"type": "system", "subtype": "init",
+def test_frontmatter_hash_edge_cases(tmp_path):
+    md = tmp_path / "SKILL.md"
+    md.write_text("---\nname: x\ndescription: Use when a.\n---\nbody\n", encoding="utf-8")
+    plain = tc.frontmatter_sha256(str(md))
+    # A leading BOM and CRLF endings are the same frontmatter.
+    md.write_bytes(b"\xef\xbb\xbf" + b"---\r\nname: x\r\ndescription: Use when a.\r\n---\r\nbody\r\n")
+    assert tc.frontmatter_sha256(str(md)) == plain
+    # A `---` inside a description line does not end the frontmatter.
+    md.write_text("---\nname: x\ndescription: a --- b\n---\n", encoding="utf-8")
+    one = tc.frontmatter_sha256(str(md))
+    md.write_text("---\nname: x\ndescription: a --- c\n---\n", encoding="utf-8")
+    assert tc.frontmatter_sha256(str(md)) != one
+    # Text before the opening fence means there is no frontmatter.
+    md.write_text("intro\n---\nname: x\n---\n", encoding="utf-8")
+    assert tc.frontmatter_sha256(str(md)) is None
+    assert tc.frontmatter_sha256(str(tmp_path / "missing.md")) is None
+
+
+def test_a_sibling_description_edit_changes_the_checkout_hash(tmp_path):
+    # adopt and method compete for the same queries: editing adopt changes
+    # what a method run measures, so the record must show it.
+    co = _checkout(tmp_path)
+    sib = co / "skills" / "plumb-line-adopt"
+    sib.mkdir()
+    (sib / "SKILL.md").write_text("---\nname: plumb-line-adopt\ndescription: A.\n---\n",
+                                  encoding="utf-8")
+    [before] = tc.plugin_dir_install("plumb-line-method", str(co))
+    (sib / "SKILL.md").write_text("---\nname: plumb-line-adopt\ndescription: B.\n---\n",
+                                  encoding="utf-8")
+    [after] = tc.plugin_dir_install("plumb-line-method", str(co))
+    assert after["frontmatter_sha256"] == before["frontmatter_sha256"]
+    assert after["skills_frontmatter_sha256"] != before["skills_frontmatter_sha256"]
+
+
+def test_init_environment_reads_what_the_session_loaded():
+    ev = {"type": "system", "subtype": "init", "claude_code_version": "2.1.284",
           "plugins": [{"name": "plumb-line", "source": "plumb-line@inline"},
-                      {"name": "agents-md", "source": "agents-md@builtin"}],
-          "mcp_servers": [{"name": "claude.ai Notion", "status": "connected"}]}
+                      {"name": "agents-md"}],
+          "skills": ["plumb-line:plumb-line-method"],
+          "mcp_servers": [{"name": "claude.ai Notion", "status": "needs-auth"}],
+          "plugin_errors": [{"plugin": "x", "error": "bad manifest"}]}
     assert tc.init_environment(ev) == {
-        "plugins": ["agents-md@builtin", "plumb-line@inline"],
-        "mcp_servers": ["claude.ai Notion"]}
+        "claude_code_version": "2.1.284",
+        # source first; name when a plugin carries no source
+        "plugins": ["agents-md", "plumb-line@inline"],
+        "skills": ["plumb-line:plumb-line-method"],
+        # a server's status is kept: a failed server is not a loaded one
+        "mcp_servers": ["claude.ai Notion (needs-auth)"],
+        "plugin_errors": ['{"error": "bad manifest", "plugin": "x"}']}
     assert tc.init_environment({"type": "stream_event"}) is None
+
+
+def test_init_environment_records_a_missing_or_odd_list_as_unknown():
+    # An older CLI without these keys must not read as "nothing loaded".
+    env = tc.init_environment({"type": "system", "subtype": "init",
+                               "plugins": "abc"})
+    assert env == {"claude_code_version": None, "plugins": None, "skills": None,
+                   "mcp_servers": None, "plugin_errors": None}
 
 
 def test_probe_reports_the_environment_and_the_first_skill_call(monkeypatch):
@@ -348,29 +401,81 @@ def test_probe_reports_the_environment_and_the_first_skill_call(monkeypatch):
     FakePopen.lines = stream(init, *skill)
     hit, winner, env = tc.probe("q", "plumb-line-method", "m", ".", 60, "/co")
     assert (hit, winner) == (True, "plumb-line:plumb-line-method")
-    assert env == {"plugins": ["plumb-line@inline"], "mcp_servers": []}
+    assert env["plugins"] == ["plumb-line@inline"] and env["mcp_servers"] == []
     # A session that never starts reports no environment, not an empty one.
     FakePopen.lines = []
     assert tc.probe("q", "plumb-line-method", "m", ".", 60) == (False, None, None)
 
 
 def test_environments_are_counted_per_distinct_environment():
-    other = {"plugins": ["superpowers@x"], "mcp_servers": []}
+    other = {**_ENV, "plugins": ["superpowers@x"]}
     got = tc.summarise_environments([_ENV, other, _ENV, None])
     assert got["unobserved_probes"] == 1
     assert sorted(e["probes"] for e in got["observed"]) == [1, 2]
 
 
+def _issues(envs, **over):
+    return tc.validate_results(_payload(environments=envs, **over))
+
+
 def test_validate_refuses_a_record_where_no_probe_reported_its_environment():
-    payload = _payload(environments=tc.summarise_environments([None, None]))
-    assert any("no probe reported" in i for i in tc.validate_results(payload))
+    assert any("no probe reported" in i
+               for i in _issues(tc.summarise_environments([None, None])))
+
+
+def test_validate_refuses_probes_that_never_reported():
+    assert any("never reported" in i
+               for i in _issues(tc.summarise_environments([_ENV, None])))
+
+
+def test_validate_refuses_a_mixed_environment():
+    other = {**_ENV, "plugins": ["superpowers@x", *_ENV["plugins"]]}
+    assert any("different environments" in i
+               for i in _issues(tc.summarise_environments([_ENV, other])))
+
+
+def test_validate_refuses_a_record_where_the_target_skill_never_loaded():
+    # A malformed plugin.json or SKILL.md passes the directory preflight but
+    # fails to load: every probe then records a silent non-trigger.
+    gone = {**_ENV, "skills": ["plumb-line:plumb-line-audit"]}
+    assert any("did not load" in i for i in _issues(tc.summarise_environments([gone])))
+    unknown = {**_ENV, "skills": None}
+    assert any("did not report their skills" in i
+               for i in _issues(tc.summarise_environments([unknown])))
+
+
+def test_validate_refuses_plugin_errors():
+    broken = {**_ENV, "plugin_errors": ["bad manifest"]}
+    assert any("plugin errors" in i for i in _issues(tc.summarise_environments([broken])))
+
+
+def test_validate_refuses_mcp_servers_in_an_isolated_run_only():
+    mcp = {**_ENV, "mcp_servers": ["claude.ai Notion (connected)"]}
+    envs = tc.summarise_environments([mcp])
+    assert _issues(envs) == []                     # not isolated: recorded, allowed
+    assert any("reported MCP servers" in i
+               for i in _issues(envs, isolation_flags=tc.ISOLATION_FLAGS))
+    unknown = tc.summarise_environments([{**_ENV, "mcp_servers": None}])
+    assert any("reported MCP servers" in i
+               for i in _issues(unknown, isolation_flags=tc.ISOLATION_FLAGS))
+
+
+def test_validate_accepts_a_clean_isolated_record():
+    assert _issues(tc.summarise_environments([_ENV, _ENV]),
+                   isolation_flags=tc.ISOLATION_FLAGS) == []
 
 
 def test_validate_flags_malformed_environments():
-    for bad in ([], {"observed": []}, {"observed": [{"plugins": "x"}], "unobserved_probes": 0},
-                {"observed": [{**_ENV, "probes": 0}], "unobserved_probes": 0}):
-        payload = _payload(environments=bad)
-        assert any("environments" in i for i in tc.validate_results(payload)), bad
+    one = {**_ENV, "probes": 1}
+    for bad in ([], {"observed": []},
+                {"observed": [{"plugins": "x"}], "unobserved_probes": 0},
+                {"observed": [{**one, "probes": 0}], "unobserved_probes": 0},
+                {"observed": [{**one, "probes": True}], "unobserved_probes": 0},
+                {"observed": [one], "unobserved_probes": -1},
+                {"observed": [one], "unobserved_probes": False},
+                {"observed": [{**one, "skills": [1]}], "unobserved_probes": 0},
+                {"observed": [{**one, "claude_code_version": 2}], "unobserved_probes": 0}):
+        assert any("environments must be" in i for i in _issues(bad)), bad
 
 
 def test_validate_refuses_a_v2_record_that_does_not_carry_its_environment():
@@ -387,7 +492,7 @@ def test_validate_flags_isolation_flags_that_are_not_a_list_of_strings():
         assert any("probe" in i for i in tc.validate_results(payload)), bad
 
 
-def _run_main(monkeypatch, tmp_path, extra, installed=()):
+def _run_main(monkeypatch, tmp_path, extra, installed=(), env=None, code=0):
     """Run main() with run_tier faked; return (record, the calls run_tier got)."""
     import json
     calls = []
@@ -399,16 +504,16 @@ def _run_main(monkeypatch, tmp_path, extra, installed=()):
         # tier runs too and its wiring is exercised.
         rows = [{"query": e["query"], "should_trigger": e["should_trigger"],
                  "runs": [model == "confirm"], "winners": [None]} for e in evals]
-        return tc.score(rows, threshold), [_ENV] * len(evals)
+        return tc.score(rows, threshold), [env or _ENV] * len(evals)
 
     monkeypatch.setattr(tc, "run_tier", fake_run_tier)
     monkeypatch.setattr(tc, "installed_locations", lambda target: list(installed))
     evals = tmp_path / "evals.json"
     evals.write_text(json.dumps([{"query": "q", "should_trigger": True}]), encoding="utf-8")
     out = tmp_path / "out.json"
-    code = tc.main([str(evals), "plumb-line-method", str(out),
-                    "--screen-model", "screen", "--confirm-model", "confirm", *extra])
-    assert code == 0
+    got = tc.main([str(evals), "plumb-line-method", str(out),
+                   "--screen-model", "screen", "--confirm-model", "confirm", *extra])
+    assert got == code
     return json.loads(out.read_text(encoding="utf-8")), calls
 
 
@@ -432,8 +537,36 @@ def test_main_without_plugin_dir_records_no_isolation(monkeypatch, tmp_path):
     assert record["probe"]["isolation_flags"] == []
 
 
-def test_main_refuses_a_plugin_dir_that_is_not_a_directory_even_with_force(tmp_path):
+def test_main_exits_nonzero_when_its_own_record_fails_validation(monkeypatch, tmp_path, capsys):
+    # The record is still written, as evidence, but a run in which the target
+    # never loaded is not a measurement and must not look like success.
+    co = str(_checkout(tmp_path / "co"))
+    gone = {**_ENV, "skills": ["plumb-line:plumb-line-audit"]}
+    record, _ = _run_main(monkeypatch, tmp_path, ["--plugin-dir", co], env=gone, code=1)
+    assert record["environments"]["observed"][0]["skills"] == gone["skills"]
+    assert "did not load" in capsys.readouterr().err
+
+
+def test_main_gives_no_update_advice_for_an_older_checkout(monkeypatch, tmp_path, capsys):
+    # An older --plugin-dir is a deliberate "before" run, not a stale install.
     import json
+    co = _checkout(tmp_path / "co")
+    (co / ".claude-plugin" / "plugin.json").write_text(
+        json.dumps({"name": "plumb-line", "version": "0.0.1"}), encoding="utf-8")
+    _run_main(monkeypatch, tmp_path, ["--plugin-dir", str(co)])
+    assert "claude plugin update" not in capsys.readouterr().err
+    # ...while a stale *installed* plugin still gets the warning.
+    _run_main(monkeypatch, tmp_path, [], installed=[{"plugin": "o/p", "version": "0.0.1"}])
+    assert "claude plugin update" in capsys.readouterr().err
+
+
+def test_main_refuses_a_plugin_dir_that_is_not_a_directory_even_with_force(monkeypatch, tmp_path):
+    import json
+
+    def must_not_probe(*a, **k):
+        raise AssertionError("probed a missing --plugin-dir")
+
+    monkeypatch.setattr(tc, "run_tier", must_not_probe)
     evals = tmp_path / "evals.json"
     evals.write_text(json.dumps([{"query": "q", "should_trigger": True}]), encoding="utf-8")
     code = tc.main([str(evals), "plumb-line-method", str(tmp_path / "out.json"),

@@ -122,30 +122,45 @@ Observed on the owner's machine: the checkout's plumb-line loaded, plus
 Claude Code's two built-in plugins (`agents-md@builtin`,
 `telemetry@builtin`); no user plugin, hook, MCP server or connector, and not
 the installed copy of plumb-line. Every record lists what its probe sessions
-reported loading, so this is checked per run rather than assumed.
+reported loading, and `--validate` checks it (below).
 
-Isolated rates measure a description on its own. They do not show whether it
-wins against other skills a user may have installed, such as a debugging or
-testing skill that also claims a failing test; the 1-in-90 spike result
-(#487) came from sessions with other plugins loaded. Use isolated runs to
-compare descriptions before and after a change, and the spike's plugin arm
-(#462) for behaviour in a fuller environment.
+What these rates measure, and what they do not. A probe is one prompt, in an
+empty directory, and a trigger is a Skill call before any other tool in the
+first reply (`max_turns` 2). The impossible-task spike (#462) measured
+something else under the same isolation flags: 90 Opus 5.5 runs with the
+plugin loaded, each in a real repository with a failing test and an
+`AGENTS.md`, over many turns, in which a plumb-line skill was invoked once
+(#487). So a trigger rate here says how strongly a bare prompt pulls the
+description in; whether an agent reaches for the skill mid-task, after
+reading the failing test, is the spike's plugin arm, run again in round 3.
+Neither measures competition with other skills a user may have installed,
+such as a debugging or testing skill that also claims a failing test.
+`pressure-queries.json` targets `plumb-line-method`.
 
 The results file is a contracted record (`results-format: v3`; v1 #317, v2
-#400, v3 #487). It records the probed installs (for a checkout, with a hash
-of the target skill's frontmatter, so a before-record and an after-record of
-one checkout are told apart), the models per tier, the per-tier run counts,
-the threshold, and the probe settings that change verdicts: the per-probe
-`timeout_s` (a timed-out run records as a non-trigger), the `max_turns` cap,
-and `isolation_flags` (the flags above, or none). `environments` lists each
-distinct environment the probe sessions reported (plugins and MCP servers,
-with a probe count), and how many never reported one. `--validate` re-derives
-every row's pass from its rate, the stamped threshold and its expectation, so
-a stored verdict is consistent with its own numbers rather than asserted. It
-refuses a record in which no probe reported its environment, a v1 record,
-which does not say what the timeout or turn cap was, and a v2 record, which
-does not carry the environment. The record does not capture `--workers`
-(concurrency can push a probe past its timeout), the `claude` CLI version, or
+#400, v3 #487). It records the probed installs (for a checkout, a hash of
+the target skill's frontmatter and one over every skill's frontmatter, so a
+before-record and an after-record of one checkout are told apart even when
+only a competing sibling's description changed), the models per tier, the
+per-tier run counts, the threshold, and the probe settings that change
+verdicts: the per-probe `timeout_s` (a timed-out run records as a
+non-trigger), the `max_turns` cap, and `isolation_flags` (the flags above, or
+none). `environments` lists each distinct environment the probe sessions
+reported (Claude Code version, plugins, skills, MCP servers with their
+status, plugin errors; a field the session did not report is `null`, not
+empty), with a probe count, and how many probes never reported one.
+
+`--validate` re-derives every row's pass from its rate, the stamped
+threshold and its expectation, so a stored verdict is consistent with its
+own numbers rather than asserted. It refuses a record unless every probe
+reported one and the same environment, the target skill loaded in it, no
+plugin reported an error, and, for an isolated run, no MCP server appeared:
+otherwise a non-trigger may measure a skill that never loaded (the
+2026-08-18 failure) or an environment the record does not claim. A run whose
+own record fails these checks still writes it, as evidence, and exits 1. It
+also refuses a v1 record, which does not say what the timeout or turn cap
+was, and a v2 record, which does not carry the environment. The record does
+not capture `--workers` (concurrency can push a probe past its timeout) or
 model sampling, so a re-run is not guaranteed to reproduce the same rates.
 
 ## Status and honest caveats

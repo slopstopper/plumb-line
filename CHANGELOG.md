@@ -29,11 +29,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   default environment held 19 plugins, 9 hooks and 3 connectors, one hook
   telling the model to invoke a skill on even a 1% chance it applies. The
   results record moves to `results-format: v3`: `probe.isolation_flags`
-  records the flags, `environments` records the plugins and MCP servers each
-  probe session reported loading, and a checkout's entry carries a hash of the
-  target skill's frontmatter. `--validate` now **refuses v2 records**, which
-  carry no environment, and a record in which no probe reported one; none
-  are committed. New query set: `evals/trigger/pressure-queries.json`.
+  records the flags, `environments` records what each probe session reported
+  loading (Claude Code version, plugins, skills, MCP servers, plugin errors),
+  and a checkout's entry carries hashes of the target's and every skill's
+  frontmatter. `--validate` now **refuses** a record unless every probe
+  reported one and the same environment, the target skill loaded, no plugin
+  errored and, when isolated, no MCP server appeared; it also refuses v2
+  records, which carry no environment (none are committed). A run whose own
+  record fails validation exits 1. New query set:
+  `evals/trigger/pressure-queries.json`, for `plumb-line-method`.
 - **Harness scoring text, clarified:** `examples/AUDIT-EXPECTATIONS.md` now
   states that extra confirmed violations on a `broken/` fixture are
   acceptable, and cites the recorded runs that scored them PASS. Its heading

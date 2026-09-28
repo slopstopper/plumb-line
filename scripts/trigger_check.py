@@ -78,16 +78,18 @@ THRESHOLD = 0.5
 #       that change verdicts. v1 is refused: it cannot say what they were.
 #   v3  #487 — `probe` adds `isolation_flags` (the CLI flags that kept the
 #       user's environment out, [] for none), and a new `environments` key
-#       records what each probe session reported loading (plugins and MCP
-#       servers, from its init event), so the record carries the observed
-#       environment, not only the flags asked for. On the owner's machine the
+#       records what each probe session reported loading (CLI version,
+#       plugins, skills, MCP servers and plugin errors, from its init event),
+#       and --validate checks it: the target loaded, no plugin errors, no MCP
+#       server in an isolated run, one environment, every probe reporting.
+#       On the owner's machine the
 #       default environment was 19 plugins, 9 SessionStart hooks (superpowers'
 #       tells the model to invoke a skill on even a 1% chance it applies) and
 #       3 claude.ai connectors. v2 is refused: it records neither.
 RESULTS_FORMAT = "v3"
 KNOWN_RESULTS_FORMATS = {"v3"}
 
-# --plugin-dir isolation, as proven by the impossible-task spike
+# --plugin-dir isolation, the flags the impossible-task spike used
 # (docs/validation-results.md): user and local settings (enabledPlugins, their
 # hooks) and every MCP server or connector stay out. Claude Code's built-in
 # plugins (agents-md, telemetry) still load; `environments` shows them.
@@ -160,17 +162,17 @@ def merge(screen, confirm, screen_model, confirm_model):
 
 def summarise_environments(envs):
     """Per-probe observed environments (None when a probe never reported
-    one) -> {"observed": [{plugins, mcp_servers, probes}], "unobserved_probes": n},
+    one) -> {"observed": [{...environment, probes}], "unobserved_probes": n},
     one entry per distinct environment, so a record whose probes ran in two
     different environments says so instead of averaging over them."""
     counts = {}
     for env in envs:
         if env is None:
             continue
-        key = (tuple(env["plugins"]), tuple(env["mcp_servers"]))
+        key = json.dumps(env, sort_keys=True)
         counts[key] = counts.get(key, 0) + 1
-    return {"observed": [{"plugins": list(p), "mcp_servers": list(m), "probes": n}
-                         for (p, m), n in sorted(counts.items())],
+    return {"observed": [{**json.loads(k), "probes": n}
+                         for k, n in sorted(counts.items())],
             "unobserved_probes": sum(1 for e in envs if e is None)}
 
 
@@ -193,33 +195,63 @@ def build_payload(target, installs, tiers, runs, threshold, timeout, merged,
             "results": merged}
 
 
-def _environment_issues(envs):
-    """Shape of `environments`, and a record with no observed environment at
-    all: every probe failed to start or report, so its rates describe
-    nothing (a bad --plugin-dir, say, records silent non-triggers)."""
+def _count(x):
+    return isinstance(x, int) and not isinstance(x, bool)
+
+
+def _env_shape_ok(e):
+    return (isinstance(e, dict)
+            and set(e) == {"claude_code_version", *ENV_LISTS, "probes"}
+            and (e["claude_code_version"] is None
+                 or isinstance(e["claude_code_version"], str))
+            and all(e[k] is None or (isinstance(e[k], list)
+                                     and all(isinstance(x, str) for x in e[k]))
+                    for k in ENV_LISTS)
+            and _count(e["probes"]) and e["probes"] > 0)
+
+
+def _environment_issues(envs, target, isolation_flags):
+    """What the probe sessions reported loading, checked rather than only
+    recorded. A rate is refused unless every probe reported one environment,
+    the target skill loaded in it without plugin errors, and an isolated run
+    shows no MCP server: otherwise its non-triggers may measure a skill that
+    never loaded (the 2026-08-18 failure) or an environment it did not claim."""
     if envs is None:
         return []  # a missing key is reported by the RESULTS_KEYS check
-    ok = (isinstance(envs, dict)
-          and set(envs) == {"observed", "unobserved_probes"}
-          and isinstance(envs["unobserved_probes"], int)
-          and not isinstance(envs["unobserved_probes"], bool)
-          and envs["unobserved_probes"] >= 0
-          and isinstance(envs["observed"], list)
-          and all(isinstance(e, dict)
-                  and set(e) == {"plugins", "mcp_servers", "probes"}
-                  and all(isinstance(e[k], list)
-                          and all(isinstance(x, str) for x in e[k])
-                          for k in ("plugins", "mcp_servers"))
-                  and isinstance(e["probes"], int)
-                  and not isinstance(e["probes"], bool) and e["probes"] > 0
-                  for e in envs["observed"]))
-    if not ok:
-        return ["environments must be {observed: [{plugins, mcp_servers, "
-                "probes}], unobserved_probes: n}, got " + repr(envs)]
-    if not envs["observed"]:
+    if not (isinstance(envs, dict)
+            and set(envs) == {"observed", "unobserved_probes"}
+            and _count(envs["unobserved_probes"]) and envs["unobserved_probes"] >= 0
+            and isinstance(envs["observed"], list)
+            and all(_env_shape_ok(e) for e in envs["observed"])):
+        return ["environments must be {observed: [{claude_code_version, "
+                "plugins, skills, mcp_servers, plugin_errors, probes}], "
+                "unobserved_probes: n}, got " + repr(envs)]
+    issues = []
+    observed = envs["observed"]
+    if not observed:
         return ["environments: no probe reported the environment it ran in, "
                 "so the rates describe no known session"]
-    return []
+    if envs["unobserved_probes"]:
+        issues.append(f"environments: {envs['unobserved_probes']} probe(s) never "
+                      "reported an environment, so their non-triggers may be "
+                      "failures to start")
+    if len(observed) > 1:
+        issues.append(f"environments: probes ran in {len(observed)} different "
+                      "environments, so one rate averages over them")
+    for n, e in enumerate(observed, start=1):
+        if e["skills"] is None:
+            issues.append(f"environment {n}: the sessions did not report their "
+                          "skills, so the target cannot be shown to have loaded")
+        elif isinstance(target, str) and not any(
+                s == target or s.endswith(":" + target) for s in e["skills"]):
+            issues.append(f"environment {n}: the target skill {target!r} did not "
+                          "load, so every non-trigger measures its absence")
+        if e["plugin_errors"]:
+            issues.append(f"environment {n}: plugin errors {e['plugin_errors']}")
+        if isolation_flags and e["mcp_servers"] != []:
+            issues.append(f"environment {n}: an isolated run reported MCP servers "
+                          f"{e['mcp_servers']}")
+    return issues
 
 
 def validate_results(payload):
@@ -243,8 +275,8 @@ def validate_results(payload):
                       f"under are unknown; re-run to get a {RESULTS_FORMAT} record")
     elif fmt == "v2":
         issues.append("results-format 'v2' does not record the environment its "
-                      "probes ran in (the plugins, hooks and MCP servers each "
-                      "session loaded), which moves trigger rates; re-run to "
+                      "probes ran in (the plugins, skills and MCP servers each "
+                      "session reported), which moves trigger rates; re-run to "
                       f"get a {RESULTS_FORMAT} record")
     elif fmt is not None and fmt not in KNOWN_RESULTS_FORMATS:
         issues.append(f"unknown results-format {fmt!r} "
@@ -260,7 +292,9 @@ def validate_results(payload):
         issues.append("probe must be {timeout_s, max_turns, isolation_flags}: "
                       "two positive integers and a list of strings, "
                       f"got {probe!r}")
-    issues += _environment_issues(payload.get("environments"))
+    flags = probe.get("isolation_flags") if isinstance(probe, dict) else None
+    issues += _environment_issues(payload.get("environments"),
+                                  payload.get("target"), flags)
     threshold = payload.get("threshold")
     # bool is an int subclass: a hand-edited `"threshold": true` must not
     # validate as 1.
@@ -345,26 +379,50 @@ def stale_installs(installs, current_version):
             if (_semver(i.get("version")) or cur) < cur]
 
 
+def _frontmatter(skill_md):
+    """A SKILL.md's frontmatter text (between the first two lines that are
+    exactly `---`), or None when the file is unreadable or has none. A
+    leading BOM is dropped; line endings are normalised."""
+    try:
+        with open(skill_md, encoding="utf-8-sig") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return None
+    if not lines or lines[0].strip() != "---":
+        return None
+    for end in range(1, len(lines)):
+        if lines[end].strip() == "---":
+            return "\n".join(lines[1:end]).strip()
+    return None
+
+
 def frontmatter_sha256(skill_md):
     """sha256 of a SKILL.md's frontmatter (name and description), or None.
     Two runs on one checkout share its path and version; this is what tells
     a before-record from an after-record when only the description changed."""
-    try:
-        with open(skill_md, encoding="utf-8") as f:
-            text = f.read()
-    except OSError:
-        return None
-    parts = text.split("---", 2)
-    if len(parts) < 3 or parts[0].strip():
-        return None
-    return hashlib.sha256(parts[1].strip().encode("utf-8")).hexdigest()
+    fm = _frontmatter(skill_md)
+    return None if fm is None else hashlib.sha256(fm.encode("utf-8")).hexdigest()
+
+
+def skills_frontmatter_sha256(plugin_dir):
+    """sha256 over every skill's frontmatter in a checkout, in name order.
+    Sibling descriptions compete for the same queries (adopt and method both
+    claim a mock near a production path), so a sibling's edit changes what a
+    run measures even when the target's own frontmatter is unchanged."""
+    root = os.path.join(plugin_dir, "skills")
+    h = hashlib.sha256()
+    for name in sorted(os.listdir(root)) if os.path.isdir(root) else []:
+        fm = _frontmatter(os.path.join(root, name, "SKILL.md"))
+        if fm is not None:
+            h.update(f"{name}\0{fm}\0".encode("utf-8"))
+    return h.hexdigest()
 
 
 def plugin_dir_install(target, plugin_dir):
     """The checkout a --plugin-dir run probes, as a probed_installs entry:
-    [{plugin, version, path, frontmatter_sha256}], or [] when it has no
-    skills/<target>, so the same absence guard applies as for an installed
-    plugin."""
+    [{plugin, version, path, frontmatter_sha256, skills_frontmatter_sha256}],
+    or [] when it has no skills/<target>, so the same absence guard applies
+    as for an installed plugin."""
     skill_dir = os.path.join(plugin_dir, "skills", target)
     if not os.path.isdir(skill_dir):
         return []
@@ -377,7 +435,8 @@ def plugin_dir_install(target, plugin_dir):
     return [{"plugin": f"{manifest.get('name', '?')}@inline",
              "version": manifest.get("version"), "path": plugin_dir,
              "frontmatter_sha256": frontmatter_sha256(
-                 os.path.join(skill_dir, "SKILL.md"))}]
+                 os.path.join(skill_dir, "SKILL.md")),
+             "skills_frontmatter_sha256": skills_frontmatter_sha256(plugin_dir)}]
 
 
 def repo_version():
@@ -405,16 +464,43 @@ def probe_cmd(query, model, plugin_dir=None):
     return cmd
 
 
+ENV_LISTS = ("plugins", "skills", "mcp_servers", "plugin_errors")
+
+
 def init_environment(ev):
-    """The environment a session reports in its system/init event:
-    {plugins: sorted plugin sources, mcp_servers: sorted names}, else None."""
+    """The environment a session reports in its system/init event, else None:
+    {claude_code_version, plugins, skills, mcp_servers, plugin_errors}. A list
+    the event does not carry, or carries in an unexpected shape, is None
+    (unknown), never [] (nothing loaded): an older CLI must not read as a
+    clean room."""
     if ev.get("type") != "system" or ev.get("subtype") != "init":
         return None
-    def names(items, key):
-        return sorted(str(i.get(key) or i.get("name")) if isinstance(i, dict)
-                      else str(i) for i in items or [])
-    return {"plugins": names(ev.get("plugins"), "source"),
-            "mcp_servers": names(ev.get("mcp_servers"), "name")}
+
+    def entries(items, render):
+        if not isinstance(items, list):
+            return None
+        return sorted(render(i) for i in items)
+
+    def plugin(i):
+        if isinstance(i, dict):
+            return str(i.get("source") or i.get("name") or json.dumps(i, sort_keys=True))
+        return str(i)
+
+    def server(i):
+        # A failed or unauthenticated server is not a loaded one: keep status.
+        if isinstance(i, dict):
+            return f"{i.get('name')} ({i.get('status', 'status unknown')})"
+        return str(i)
+
+    def as_json(i):
+        return i if isinstance(i, str) else json.dumps(i, sort_keys=True)
+
+    version = ev.get("claude_code_version")
+    return {"claude_code_version": version if isinstance(version, str) else None,
+            "plugins": entries(ev.get("plugins"), plugin),
+            "skills": entries(ev.get("skills"), as_json),
+            "mcp_servers": entries(ev.get("mcp_servers"), server),
+            "plugin_errors": entries(ev.get("plugin_errors"), as_json)}
 
 
 def probe(query, target, model, workdir, timeout, plugin_dir=None):
@@ -568,7 +654,9 @@ def main(argv=None):
           f"{' (isolated: ' + ' '.join(isolation) + ')' if isolation else ''}",
           file=sys.stderr)
     current = repo_version()
-    for s in (stale_installs(installs, current) if current else []):
+    # A checkout is chosen, not updated: an older --plugin-dir is a deliberate
+    # "before" run, and `claude plugin update` would be wrong advice for it.
+    for s in (stale_installs(installs, current) if current and not plugin_dir else []):
         print(f"WARNING: probing {s['plugin']}@{s['version']} but this repo "
               f"is at {current} — plugin updates are manual and easy to miss "
               f"(claude plugin update {s['plugin'].split('/')[-1]}); results "
@@ -603,20 +691,19 @@ def main(argv=None):
                              "confirm": args.confirm_runs if (args.confirm_model and hot) else 0},
                             args.threshold, args.timeout, merged,
                             isolation, summarise_environments(envs))
-    environments = payload["environments"]
-    if len(environments["observed"]) != 1 or environments["unobserved_probes"]:
-        print(f"WARNING: probes did not all report one environment "
-              f"({len(environments['observed'])} distinct, "
-              f"{environments['unobserved_probes']} unreported); see "
-              f"`environments` in the record before reading the rates.",
-              file=sys.stderr)
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=1)
     passed = payload["summary"]["passed"]
     print(f"{args.target}: {passed}/{len(merged)} pass at threshold "
           f"{args.threshold} ({len(hot)} went to confirm tier); "
           f"results-format {RESULTS_FORMAT} -> {args.out}", file=sys.stderr)
-    return 0
+    # The record is written either way, as evidence; but a run whose own
+    # record fails validation (the target never loaded, probes never started,
+    # a mixed environment) is not a measurement, and must not exit 0.
+    issues = validate_results(payload)
+    for issue in issues:
+        print(f"✗ {args.out}: {issue}", file=sys.stderr)
+    return 1 if issues else 0
 
 
 if __name__ == "__main__":
