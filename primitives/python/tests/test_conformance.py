@@ -93,13 +93,34 @@ def test_validate_cases():
                 assert any(needle in i for i in issues), f"{c['name']}: '{needle}' not in {issues}"
 
 
-# Every case field the three tests above interpret. A field added to cases.json
+def test_construct_cases():
+    # What make_meta accepts and refuses (#443). A refusal raises; the case
+    # pins a substring of the message, worded identically in both languages.
+    # JS twin: runConstruct in primitives/conformance/run-cases.mjs.
+    for c in CASES['construct']:
+        kwargs = _to_snake(c['input'])
+        if 'expectError' in c:
+            try:
+                p.make_meta(**kwargs)
+            except ValueError as e:
+                assert c['expectError'] in str(e), f"{c['name']}: error {str(e)!r}"
+            else:
+                raise AssertionError(f"{c['name']}: expected an error containing {c['expectError']!r}")
+        else:
+            out = p.make_meta(**kwargs)
+            for k, v in c.get('expect', {}).items():
+                sk = _KEY.get(k, k)
+                assert out.get(sk) == v, f"{c['name']}: {sk} == {out.get(sk)!r}, expected {v!r}"
+
+
+# Every case field the tests above interpret. A field added to cases.json
 # that this runner does not read would otherwise pass silently; the JS twin is
 # KNOWN_FIELDS in primitives/conformance/run-cases.mjs (#369).
 _KNOWN_FIELDS = {
     'combine': {'name', 'inputs', 'expect', 'absent', 'expectLineageIds'},
     'audit': {'name', 'meta', 'expectContains'},
     'validate': {'name', 'meta', 'expectContains'},
+    'construct': {'name', 'input', 'expect', 'expectError'},
 }
 
 

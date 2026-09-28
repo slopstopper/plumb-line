@@ -5,7 +5,7 @@
 // one and silently ignored by the other (#369). An alternative JS
 // implementation self-certifies by passing its own module as `impl`.
 //
-// impl: { combineProvenance, auditMeta, validateEnvelope, __resetStepCounter }
+// impl: { combineProvenance, makeMeta, auditMeta, validateEnvelope, __resetStepCounter }
 // Returns one { kind, name, error } per case; error is null on a pass.
 import { createHash } from "node:crypto";
 // Deep equality, as the Python runners' `==` has always been: JSON text
@@ -18,6 +18,7 @@ const KNOWN_FIELDS = {
   combine: new Set(["name", "inputs", "expect", "absent", "expectLineageIds"]),
   audit: new Set(["name", "meta", "expectContains"]),
   validate: new Set(["name", "meta", "expectContains"]),
+  construct: new Set(["name", "input", "expect", "expectError"]),
 };
 
 function unknownFields(kind, c) {
@@ -57,8 +58,29 @@ function runIssueList(issues, c) {
   return null;
 }
 
+// What makeMeta accepts and refuses (#443). A refusal throws; the case pins a
+// substring of the message, which both languages word identically.
+function runConstruct(impl, c) {
+  let out;
+  try {
+    out = impl.makeMeta(c.input);
+  } catch (e) {
+    if (c.expectError === undefined) return `expected an envelope, got an error: ${e.message}`;
+    return String(e.message).includes(c.expectError)
+      ? null
+      : `expected an error containing "${c.expectError}", got "${e.message}"`;
+  }
+  if (c.expectError !== undefined) return `expected an error containing "${c.expectError}", got an envelope`;
+  for (const [k, v] of Object.entries(c.expect || {})) {
+    if (!isDeepStrictEqual(out[k], v))
+      return `expected ${k}=${JSON.stringify(v)}, got ${JSON.stringify(out[k])}`;
+  }
+  return null;
+}
+
 const RUN = {
   combine: (impl, c) => runCombine(impl, c),
+  construct: (impl, c) => runConstruct(impl, c),
   audit: (impl, c) => runIssueList(impl.auditMeta(c.meta), c),
   validate: (impl, c) => runIssueList(impl.validateEnvelope(c.meta), c),
 };
@@ -94,7 +116,7 @@ export function runCases(impl, cases) {
   return [
     ...badVersion,
     ...Object.keys(RUN).flatMap((kind) =>
-      cases[kind].map((c) => ({ kind, name: c.name, error: unknownFields(kind, c) ?? RUN[kind](impl, c) })),
+      (cases[kind] || []).map((c) => ({ kind, name: c.name, error: unknownFields(kind, c) ?? RUN[kind](impl, c) })),
     ),
     ...unknownKinds,
   ];

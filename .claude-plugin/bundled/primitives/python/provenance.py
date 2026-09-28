@@ -1,6 +1,7 @@
 """provenance — the provenance/lineage law (single source). Mirror of provenance.mjs."""
 
 import hashlib
+import json
 import struct
 
 # Schema version of the provenance metadata envelope (Principle 7). Declared so
@@ -23,6 +24,20 @@ def is_score(x):
     return isinstance(x, (int, float)) and not isinstance(x, bool) and 0 <= x <= 1
 
 
+def _in_ladder(value, ladder):
+    """True when value is one of the ladder's strings. Strings only: a value
+    equal to a rung but of another type (there is none today) is not one."""
+    return isinstance(value, str) and value in ladder
+
+
+def _json(value):
+    """The value as the JS twin's JSON.stringify writes it, for messages."""
+    try:
+        return json.dumps(value)
+    except (TypeError, ValueError):
+        return repr(value)
+
+
 def make_meta(source='derived', confidence='none', confidence_score=None,
               derived_from_mock=None, lineage=None, weakest_source=None,
               basis=None, adapter=None):
@@ -40,7 +55,19 @@ def make_meta(source='derived', confidence='none', confidence_score=None,
 
     Returns:
         dict: Provenance metadata envelope.
+
+    Raises:
+        ValueError: source is not in STATUS, or confidence is not in CONFIDENCE.
     """
+    # An out-of-vocabulary rung or source is refused here, not flagged later:
+    # the combination law orders by these ladders, so a value off them has no
+    # defined place in it (#443, owner decision 2026-09-28). JS twin: makeMeta;
+    # the message is the same in both (cases.json "construct"), json.dumps
+    # standing in for JSON.stringify.
+    if not _in_ladder(source, STATUS):
+        raise ValueError(f"source must be one of {', '.join(STATUS)}; got {_json(source)}")
+    if not _in_ladder(confidence, CONFIDENCE):
+        raise ValueError(f"confidence must be one of {', '.join(CONFIDENCE)}; got {_json(confidence)}")
     meta = {
         'provenance_version': PROVENANCE_VERSION,
         'source': source,

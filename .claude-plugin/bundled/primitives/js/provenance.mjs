@@ -50,6 +50,14 @@ export function makeMeta({
   basis,
   adapter,
 } = {}) {
+  // An out-of-vocabulary rung or source is refused here, not flagged later:
+  // the combination law orders by these ladders, so a value off them has no
+  // defined place in it (#443, owner decision 2026-09-28). Python twin:
+  // make_meta; the message is the same in both (cases.json "construct").
+  if (!STATUS.includes(source))
+    throw new Error(`source must be one of ${STATUS.join(", ")}; got ${JSON.stringify(source)}`);
+  if (!CONFIDENCE.includes(confidence))
+    throw new Error(`confidence must be one of ${CONFIDENCE.join(", ")}; got ${JSON.stringify(confidence)}`);
   const meta = {
     provenanceVersion: PROVENANCE_VERSION,
     source,

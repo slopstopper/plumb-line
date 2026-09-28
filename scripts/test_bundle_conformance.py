@@ -107,12 +107,31 @@ def test_bundle_validate_cases():
                 assert any(needle in i for i in issues), f"{c['name']}: '{needle}' not in {issues}"
 
 
-# Every case field the three tests above interpret; mirrors
+def test_bundle_construct_cases():
+    # Mirrors test_construct_cases in primitives/python/tests/test_conformance.py (#443).
+    for c in CASES['construct']:
+        kwargs = _to_snake(c['input'])
+        if 'expectError' in c:
+            try:
+                p.make_meta(**kwargs)
+            except ValueError as e:
+                assert c['expectError'] in str(e), f"{c['name']}: error {str(e)!r}"
+            else:
+                raise AssertionError(f"{c['name']}: expected an error containing {c['expectError']!r}")
+        else:
+            out = p.make_meta(**kwargs)
+            for k, v in c.get('expect', {}).items():
+                sk = _KEY.get(k, k)
+                assert out.get(sk) == v, f"{c['name']}: {sk} == {out.get(sk)!r}, expected {v!r}"
+
+
+# Every case field the tests above interpret; mirrors
 # primitives/python/tests/test_conformance.py and run-cases.mjs (#369).
 _KNOWN_FIELDS = {
     'combine': {'name', 'inputs', 'expect', 'absent', 'expectLineageIds'},
     'audit': {'name', 'meta', 'expectContains'},
     'validate': {'name', 'meta', 'expectContains'},
+    'construct': {'name', 'input', 'expect', 'expectError'},
 }
 
 

@@ -269,5 +269,37 @@
       "meta": "not an envelope",
       "expectContains": ["not an envelope object"]
     }
+  ],
+  "construct": [
+    {
+      "name": "an in-ladder source and confidence construct an envelope",
+      "input": { "source": "real", "confidence": "high" },
+      "expect": { "source": "real", "confidence": "high", "derivedFromMock": false }
+    },
+    {
+      "name": "a numeric confidence is refused at construction (#443; the remediate skill once taught confidence: 0)",
+      "input": { "source": "mock", "confidence": 0 },
+      "expectError": "confidence must be one of none, low, medium, high"
+    },
+    {
+      "name": "a confidence outside the ladder is refused, case-sensitively (#443)",
+      "input": { "source": "real", "confidence": "HIGH" },
+      "expectError": "confidence must be one of none, low, medium, high"
+    },
+    {
+      "name": "a null confidence is refused, not defaulted (#443)",
+      "input": { "source": "real", "confidence": null },
+      "expectError": "confidence must be one of none, low, medium, high"
+    },
+    {
+      "name": "a source outside STATUS is refused at construction (#443)",
+      "input": { "source": "bogus", "confidence": "low" },
+      "expectError": "source must be one of unavailable, mock, inferred, fallback, semiReal, derived, real"
+    },
+    {
+      "name": "a non-string source is refused at construction (#443)",
+      "input": { "source": 1, "confidence": "low" },
+      "expectError": "source must be one of unavailable, mock, inferred, fallback, semiReal, derived, real"
+    }
   ]
 }

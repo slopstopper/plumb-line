@@ -79,3 +79,20 @@ describe("envelope immutability (F3)", () => {
     expect(d2.lineage[0].id).toBe(d1.lineage[0].id); // same recorded identity
   });
 });
+
+// #443: mark and a derive override build on makeMeta, so they refuse an
+// off-ladder rung or source too. Python twin: the #443 tests in test_marked.py.
+describe("mark / derive refuse an off-ladder confidence or source (#443)", () => {
+  it("mark refuses a numeric confidence", () => {
+    expect(() => mark(1, { source: "mock", confidence: 0 })).toThrow(
+      "confidence must be one of none, low, medium, high; got 0");
+  });
+  it("mark refuses a source outside STATUS", () => {
+    expect(() => mark(1, { source: "bogus" })).toThrow(/^source must be one of unavailable, mock/);
+  });
+  it("a derive override is refused the same way", () => {
+    const a = mark(1, { source: "real", confidence: "high" });
+    expect(() => derive([a], (x) => x, { confidence: 0.8 })).toThrow(
+      "confidence must be one of none, low, medium, high; got 0.8");
+  });
+});
