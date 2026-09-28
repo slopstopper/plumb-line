@@ -143,3 +143,36 @@ found one runtime use the first draft missed, now listed).
   `primitives/python/tests/case_table_guards.py`, which sits inside the
   primitives' own tests. Recorded here rather than by editing the lists,
   because this record is append-only.
+- **2026-09-28 (#517, v0.11.5 dogfood finding; owner decision).** Two
+  additions.
+  - **`adapters/hook-cases.json` is source truth** for the enforcement
+    hooks' CLI convention: stdin, environment, exit code, and the reason on
+    stderr, for `branchGuard`, `boundaryGuard` and `preCommitGate`.
+    `adapters/adapter-contract.md` already calls it that convention's parity
+    contract, and `primitives/PARITY.md` its fourth case file (#475). §1 did
+    not list it, so its rule did not formally reach the table. It does now.
+    - Neither hook twin is the reference. A row's expected exit code or
+      stderr reason is recorded only once both twins produce it, never
+      pasted from one twin's output.
+    - Where an outside reference exists, rows are checked against it too.
+      Both runners check every branch-guard row whose reason shows how a
+      named branch was read against `git check-ref-format --branch` (#474).
+    - The table sits under `adapters/`, but it belongs to the source-truth
+      layer and depends on nothing. The hook implementations, and every
+      runner that reads it, are measured against it.
+    - Its two runners already carry the three guards: they fail on a case
+      field, case kind or table version they do not interpret, and each
+      guard is proven by a planted test (#441's pattern). So this is
+      `current`, as the other three tables are.
+  - **A fifth test use of a consumer, from the adapters layer.**
+    `adapters/js/hooks/__tests__/hook-cases.test.mjs` imports
+    `primitives/conformance/table-guards.mjs`, the same guard helper the
+    primitives' tests use (#441). It is test code only, and no adapter
+    runtime module imports it. The Python twin,
+    `adapters/python/hooks/test_hook_cases.py`, imports
+    `primitives/python/tests/case_table_guards.py`. That is a primitives
+    test module, which the adapters layer's "primitives in tests" row
+    already allows.
+
+  Recorded here rather than by editing §1 or the lists, because this record
+  is append-only.
