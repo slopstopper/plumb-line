@@ -20,6 +20,27 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the with-plugin arm. See `evals/README.md` for how to run it. The manual
   blind protocol stays the release gate: no green run is recorded, and the
   runner's LLM judge is not yet trustworthy on the broken fixtures (#291).
+- **`scripts/trigger_check.py` can probe a checkout in isolation, and its
+  record says what each probe loaded**
+  ([#487](https://github.com/slopstopper/plumb-line/issues/487)).
+  `--plugin-dir PATH` probes that checkout with `--setting-sources project
+  --strict-mcp-config`, so the user's installed plugins, their SessionStart
+  hooks, MCP servers and connectors stay out. On the owner's machine the
+  default environment held 19 plugins, 9 hooks and 3 connectors, one hook
+  telling the model to invoke a skill on even a 1% chance it applies. The
+  results record moves to `results-format: v3`: `probe.isolation_flags`
+  records the flags, `environments` records what each probe session reported
+  loading (Claude Code version, plugins, skills, MCP servers, plugin errors),
+  and a checkout's entry carries hashes of the target's and every skill's
+  frontmatter. `--validate` now **refuses** a record unless every probe
+  reported an environment and completed its first reply, the counts add up,
+  the probes shared one environment, and the target skill loaded; an
+  isolated run must also show no MCP server, no plugin error, and the probed
+  checkout among its plugins. It also refuses v2 records, which carry no
+  environment (none are committed). A run whose own record fails validation
+  exits 1, and a probe whose CLI hangs silently is now killed at its
+  timeout rather than blocking the run. New query set:
+  `evals/trigger/pressure-queries.json`, for `plumb-line-method`.
 - **Harness scoring text, clarified:** `examples/AUDIT-EXPECTATIONS.md` now
   states that extra confirmed violations on a `broken/` fixture are
   acceptable, and cites the recorded runs that scored them PASS. Its heading
