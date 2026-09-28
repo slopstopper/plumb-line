@@ -143,3 +143,71 @@ found one runtime use the first draft missed, now listed).
   `primitives/python/tests/case_table_guards.py`, which sits inside the
   primitives' own tests. Recorded here rather than by editing the lists,
   because this record is append-only.
+- **2026-09-28 (#517, v0.11.5 dogfood finding; owner decision).** Two
+  additions, and two earlier uses recorded.
+  - **`adapters/hook-cases.json` is source truth** for the enforcement
+    hooks' CLI convention: stdin, environment, exit code, and the reason on
+    stderr, for `branchGuard`, `boundaryGuard` and `preCommitGate`.
+    `adapters/adapter-contract.md` already calls it that convention's parity
+    contract, and `primitives/PARITY.md` its fourth case file (#475). §1 did
+    not list it, so its rule did not formally reach the table. It does now.
+    - This extends §1 and §2. §1's two sets of source-truth files are now
+      three: the envelope, the method, and this table. §2's source-truth
+      row now includes `adapters/hook-cases.json`, and its adapters row
+      covers `adapters/` except that file. The table depends on nothing.
+      The hook implementations, and every runner that reads it, are
+      measured against it.
+    - The table, not the prose, is the source truth. The Hook I/O prose in
+      `adapter-contract.md` describes the convention; where it and the
+      table disagree, the table holds (the table's own `_doc` says "This
+      file, not prose, is the hook parity contract").
+    - Neither hook twin is the reference. A row's expected exit code or
+      stderr reason is recorded only once both twins produce it, never
+      pasted from one twin's output. Where a rule comes from outside both
+      twins, that outside rule is the reference. The gate's command
+      splitting follows the Python standard library's `shlex.split`, which
+      the Python twin calls directly, so the reference is `shlex`, not that
+      twin's behaviour.
+    - Two outside rules are checked. Both runners check every branch-guard
+      row whose reason shows how a named branch was read against
+      `git check-ref-format --branch` (#474). The JS suite checks every
+      `PLUMBLINE_TEST_CMD` a `preCommitGate` row sets in `env` against
+      `shlex.split`
+      (`pre-commit-gate.test.mjs`, #472). Other outside rules the rows
+      encode, such as JSON grammar and UTF-8 validity, are not checked
+      against an outside implementation.
+    - A divergence waived under PARITY.md's "When parity is waived" (#505)
+      is recorded there and has no row. That is consistent with the rule
+      above: a row records only what both twins produce.
+    - The three guards are `current` for this table, as for the other
+      three. Both runners fail on a case field, case kind or table version
+      they do not interpret, and each guard is proven by a planted test
+      (#441's pattern). CI runs both runners on Ubuntu (Node 22 and 24;
+      Python 3.11–3.14), so both twins satisfy every row there.
+  - **The fifth recorded test use of a consumer, and the first recorded
+    from the adapters layer.**
+    `adapters/js/hooks/__tests__/hook-cases.test.mjs` imports
+    `primitives/conformance/table-guards.mjs`, the guard helper the
+    primitives' tests use (#441). It is test code only, and no adapter
+    runtime module imports it. The Python twin,
+    `adapters/python/hooks/test_hook_cases.py`, imports
+    `primitives/python/tests/case_table_guards.py`, a primitives test
+    module, which §2's adapters row already allows ("primitives in tests
+    and docs").
+  - **Two earlier adapters-test uses of `examples/`, not recorded until
+    now.** §2's adapters row says the layer must not depend on examples.
+    Two adapter tests read example fixtures:
+    - `adapters/js/hooks/__tests__/boundary-lint.integration.test.mjs`
+      lints `examples/js-payments-service` against the boundary template
+      (since 2026-06-28).
+    - `adapters/sarif/test_run_checks.py` runs the Action's checks over the
+      `broken` and `clean` trees of four example fixtures
+      (`test_end_to_end_over_the_planted_fixtures`).
+
+    Both are test code only, the same kind of use as the primitives' tests
+    that are already listed. No adapter runtime module reads `examples/`.
+    The `planned` layering test must allow these uses by name, not by
+    exempting adapter tests as a class.
+
+  Recorded here rather than by editing §1, §2 or the lists, because this
+  record is append-only.

@@ -97,7 +97,7 @@ these files into the target repo.
 ## Hook I/O convention (shared)
 
 - Contract version: 1. The version covers the **shape**: what is read from stdin and the environment, and that exit 0 allows and exit 2 blocks. A behaviour change within that shape, stricter or looser, is recorded in the CHANGELOG, not versioned, and a change that allows something a guard used to block is named there as a loosening (owner decisions, #475): a stricter guard fails loudly, but a looser one lets something through that no one sees.
-- The cases in `adapters/hook-cases.json` are this convention's parity contract: both twins' CLIs run every row (#475). A CLI behaviour one twin's tests pin and the table does not is not yet a shared behaviour.
+- The cases in `adapters/hook-cases.json` are this convention's parity contract: both twins' CLIs run every row (#475). A CLI behaviour one twin's tests pin and the table does not is not yet a shared behaviour. The table is source truth (ADR-0018, amendment of 2026-09-28, #517): where it and this prose disagree, the table holds, and a row's expected result is recorded only once both twins produce it.
 - Input is per guard, read as JSON on stdin (the pre-commit gate takes no stdin):
   - `boundary-guard`: `{ "filePath": "...", "importPath": "..." }`
   - `branch-guard`: `{ "filePath": "..." }`

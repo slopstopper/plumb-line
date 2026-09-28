@@ -36,6 +36,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   this release must re-run**: `construct` is a new requirement at the same
   schema version. The JS runner now also fails a table missing a kind it
   models; before, it would have crashed.
+- **The hook case table is source truth**
+  ([#517](https://github.com/slopstopper/plumb-line/issues/517)). An
+  ADR-0018 amendment declares `adapters/hook-cases.json` part of the
+  source-truth layer for the hooks' CLI convention. The rule that a row's
+  expected result is recorded only once both twins produce it, never
+  pasted from one twin's output, now formally applies to it. The amendment
+  also records three test uses of other layers that the ADR did not list:
+  the JS hook runner's import of the table guards, and two adapter tests
+  that read `examples/` fixtures. No behaviour changes.
 
 ## [0.11.5] — 2026-09-28
 
