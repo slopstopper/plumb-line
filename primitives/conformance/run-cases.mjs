@@ -59,7 +59,7 @@ function runIssueList(issues, c) {
 }
 
 // What makeMeta accepts and refuses (#443). A refusal throws; the case pins a
-// substring of the message, which both languages word identically.
+// substring of the message, whose prefix both languages word identically.
 function runConstruct(impl, c) {
   // Exactly one expectation: a row with neither would check nothing, and one
   // with both would silently ignore `expect` (#443 review).
@@ -124,7 +124,9 @@ export function runCases(impl, cases) {
         ? cases[kind].map((c) => ({ kind, name: c.name, error: unknownFields(kind, c) ?? RUN[kind](impl, c) }))
         // A kind the runner models but the table lacks is a failure too: a
         // table with a kind deleted must not certify (#443 review).
-        : [{ kind, name: "(whole kind)", error: `case kind ${kind} is missing from the table` }],
+        : [{ kind, name: "(whole kind)", error: kind in cases
+            ? `case kind ${kind} is not a list of cases`
+            : `case kind ${kind} is missing from the table` }],
     ),
     ...unknownKinds,
   ];

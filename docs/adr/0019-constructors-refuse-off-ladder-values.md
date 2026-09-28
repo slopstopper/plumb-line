@@ -29,7 +29,11 @@ The two options on #443:
 **Reject at construction**, for `source` and `confidence` alike. On
 2026-09-28 the owner accepted the recommendation to reject at `mark()`,
 recorded on #443. The 2026-09-25 scheduling comment on #443 had already
-leaned that way, since a minor can carry the breaking choice.
+leaned that way, since a minor can carry the breaking choice. The
+recommendation's reasons:
+- #120's `require(x, { minConfidence })` compares rungs, so it needs a closed
+  ladder. That is why this was decided before #120.
+- A value the law cannot place honestly should not be constructible.
 
 - `makeMeta` / `make_meta` throw (JS `Error`) or raise (Python `ValueError`)
   when `source` is not in `STATUS` or `confidence` is not in `CONFIDENCE`.
@@ -65,13 +69,16 @@ leaned that way, since a minor can carry the breaking choice.
   envelope for its over-claim comparison. Whether it should also flag one is
   a separate question, not decided here.
 - #177 (`source` required on leaf constructors) builds on this refusal path.
+  When it lands, "omitting the argument gives the default" above stops being
+  true for `source`, and #177's ADR amendment says so.
 
 ## Alternatives considered
 
-- **Flag in `auditMeta` only.** Rejected by the owner. A value the law cannot
-  place honestly should not be constructible, and an advisory the builder
-  never runs protects no one: the case that prompted this came from an agent
-  following a skill.
+- **Flag in `auditMeta` only.** Not chosen: the owner accepted the
+  recommendation to refuse. The recommendation's reasoning was that an
+  advisory the builder never runs protects no one, since the case that
+  prompted this came from an agent following a skill. It also leaves #120's
+  `minConfidence` comparing against an open ladder.
 - **Refuse everywhere, including handed envelopes.** Rejected. SPEC §2
   defines how the law reads an unknown value, and §5 requires the checkers to
   be total. Refusing handed envelopes would contradict both, and would turn

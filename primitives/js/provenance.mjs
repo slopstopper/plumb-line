@@ -38,7 +38,12 @@ function quote(value) {
     const s = JSON.stringify(value);
     return s === undefined ? String(value) : s;
   } catch {
-    return String(value);
+    try {
+      return String(value);
+    } catch {
+      // A null-prototype object has no toString either.
+      return Object.prototype.toString.call(value);
+    }
   }
 }
 

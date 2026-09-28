@@ -95,7 +95,7 @@ def test_validate_cases():
 
 def test_construct_cases():
     # What make_meta accepts and refuses (#443). A refusal raises; the case
-    # pins a substring of the message, worded identically in both languages.
+    # pins a substring of the message, whose prefix both languages word identically.
     # JS twin: runConstruct in primitives/conformance/run-cases.mjs.
     for c in CASES['construct']:
         assert ('expect' in c) != ('expectError' in c), \
