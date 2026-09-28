@@ -35,6 +35,56 @@ export async function decide({ runners }) {
   return { allow: true, reason: "all gates passed" };
 }
 
+/**
+ * Split a command into words with shell-style quoting and no shell, as the
+ * Python twin's shlex.split does (#472): whitespace separates words; single
+ * quotes are literal; inside double quotes a backslash escapes only `"` and
+ * `\`; outside quotes it escapes any character; `#` is ordinary; an empty
+ * quoted word is kept. Splitting on whitespace alone passed `""` to the
+ * command as two characters, so `test -n ""` passed the gate. Throws with
+ * shlex's messages, so both twins give the same reason.
+ * @param {string} cmd
+ * @returns {string[]}
+ */
+export function splitCommand(cmd) {
+  const words = [];
+  let word = "";
+  let state = " "; // " " between words, "a" in a word, or the open quote
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i];
+    if (state === "'") {
+      if (ch === "'") state = "a";
+      else word += ch;
+    } else if (state === '"') {
+      if (ch === '"') {
+        state = "a";
+      } else if (ch === "\\") {
+        if (i + 1 === cmd.length) throw new Error("No escaped character");
+        const next = cmd[++i];
+        if (next !== '"' && next !== "\\") word += "\\";
+        word += next;
+      } else {
+        word += ch;
+      }
+    } else if (" \t\r\n".includes(ch)) {
+      if (state === "a") words.push(word);
+      word = "";
+      state = " ";
+    } else {
+      state = ch === "'" || ch === '"' ? ch : "a";
+      if (ch === "\\") {
+        if (i + 1 === cmd.length) throw new Error("No escaped character");
+        word += cmd[++i];
+      } else if (state === "a") {
+        word += ch;
+      }
+    }
+  }
+  if (state === "'" || state === '"') throw new Error("No closing quotation");
+  if (state === "a") words.push(word);
+  return words;
+}
+
 // CLI wrapper: reads PLUMBLINE_TEST_CMD from env; runs it via child_process.
 // Process-entry glue (env/spawn/exit); not exercised in-process. Excluded from
 // coverage — the pure decide() above is unit-tested.
@@ -45,11 +95,19 @@ if (isMainModule()) {
   // treats any non-zero exit as a block, so nothing changes there.
   const { spawnSync } = await import("child_process");
   const cmd = process.env.PLUMBLINE_TEST_CMD ?? "";
-  const [prog, ...args] = cmd.trim().split(/\s+/);
   let r;
-  if (!prog) {
+  let argv = [];
+  try {
+    argv = splitCommand(cmd);
+  } catch (e) {
+    // An unbalanced quote or a trailing backslash: reported as the Python twin does.
+    r = { allow: false, reason: `pre-commit blocked: the test command could not be run (${e.message})` };
+  }
+  if (!r && argv.length === 0) {
     r = { allow: false, reason: "pre-commit blocked: PLUMBLINE_TEST_CMD is not set" };
-  } else {
+  }
+  if (!r) {
+    const [prog, ...args] = argv;
     try {
       r = await decide({
         runners: [{
