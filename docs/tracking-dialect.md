@@ -89,7 +89,7 @@ Milestone namespace is **releases only** (`v0.9.0 — The front door`,
 `v0.11.0 — Honest over time`). A milestone means "these ship together, at
 a version", so a stalled release milestone is always a real signal.
 
-### The deferral outbox (local rule, stronger than principle 3)
+### The deferral outbox (stronger than principle 3)
 
 Principle 3 requires that deferral be *recorded*. This repo additionally
 requires that it *terminate*: at each release-scoping moment, every open
@@ -98,7 +98,7 @@ release or closed with a written waiver. No third option, no silent aging.
 Same shape as the provenance ratchet (#26) — don't demand zero, refuse
 regression. Stated in [`ROADMAP.md`](../ROADMAP.md).
 
-### A hold is recorded with its content (local rule)
+### A hold is recorded with its content
 
 A decision to **hold** something is still a decision, and it is recorded at
 the moment it is made, **with what is being held**. A drafted table, numbers,
@@ -115,7 +115,7 @@ recovered and posted a day later, while a second session recovered it at the
 same moment in reworded form, leaving two copies to reconcile. Owner decision
 2026-09-28.
 
-### Records attribute words to whoever said them (local rule)
+### Records attribute words to whoever said them
 
 A record attributes to the owner only what the owner said: a summary under
 "Owner decision <date>", or a quotation where the wording matters. The
