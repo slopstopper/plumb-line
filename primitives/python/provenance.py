@@ -48,6 +48,16 @@ class _Required:
     def __repr__(self):
         return '<required>'
 
+    # Checked by identity, so every copy is the one instance.
+    def __copy__(self):
+        return self
+
+    def __deepcopy__(self, memo):
+        return self
+
+    def __reduce__(self):
+        return '_REQUIRED'
+
 
 _REQUIRED = _Required()
 

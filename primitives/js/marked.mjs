@@ -73,7 +73,9 @@ export function derive(inputs, fn, metaOverride = {}) {
     if (key in metaOverride) safeOverride[key] = metaOverride[key];
   }
   // An undefined source is no override: derive's source comes from the law,
-  // and makeMeta's leaf rule (#177, source is required) is not for it.
+  // and makeMeta's leaf rule (#177, source is required) is not for it. This
+  // covers source only; an undefined confidence still resets it to "none"
+  // (#533).
   if (safeOverride.source === undefined) delete safeOverride.source;
   // Route the override through makeMeta so derive is never weaker than the
   // constructor: an out-of-range confidenceScore (or unrankable weakestSource)
