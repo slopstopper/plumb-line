@@ -21,7 +21,7 @@ const HOOKS = {
 
 // Every field, case kind and table version this runner interprets (#441).
 // Python twin: _MODEL in adapters/python/hooks/test_hook_cases.py.
-const ROW = ["name", "stdin", "stdinHex", "env", "cfg", "expectExit", "expectStderr"];
+const ROW = ["name", "stdin", "stdinHex", "env", "envHex", "cfg", "expectExit", "expectStderr"];
 const MODEL = {
   versions: [1],
   meta: ["_doc", "version"],
@@ -52,6 +52,20 @@ function typeProblems(c) {
       }
     }
   }
+  // envHex sets a variable to raw bytes (#501). The value reaches the hook
+  // through `sh` and printf here, whose $(...) strips a trailing newline, so
+  // a trailing 0a byte is refused in both twins.
+  if ("envHex" in c) {
+    if (c.envHex === null || typeof c.envHex !== "object" || Array.isArray(c.envHex)) {
+      problems.push("envHex must be an object");
+    } else {
+      for (const [k, v] of Object.entries(c.envHex)) {
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) problems.push(`envHex key ${JSON.stringify(k)} must be a variable name`);
+        if (typeof v !== "string" || !/^(?:[0-9a-fA-F]{2})*$/.test(v)) problems.push(`envHex.${k} must be whole hex bytes`);
+        else if (/0a$/i.test(v)) problems.push(`envHex.${k} must not end with a newline byte`);
+      }
+    }
+  }
   return problems;
 }
 
@@ -72,8 +86,15 @@ function run(kind, c) {
     ? Buffer.from(c.stdinHex, "hex")
     : Buffer.from(c.stdin ?? "", "utf8");
   const script = fileURLToPath(new URL(HOOKS[kind], import.meta.url));
-  // A hook that hangs fails its row instead of hanging the suite.
-  return spawnSync(process.execPath, [script], { input, env, encoding: "utf8", timeout: 30_000 });
+  const options = { input, env, encoding: "utf8", timeout: 30_000 }; // a hang fails its row
+  if (c.envHex === undefined) return spawnSync(process.execPath, [script], options);
+  // Node encodes every env value it passes as UTF-8, so raw bytes go through
+  // sh: printf writes each byte from an octal escape (#501).
+  const exports = Object.entries(c.envHex).map(([k, hex]) => {
+    const octal = (hex.match(/../g) ?? []).map((b) => "\\" + parseInt(b, 16).toString(8).padStart(3, "0")).join("");
+    return `${k}="$(printf '${octal}')"; export ${k}; `;
+  }).join("");
+  return spawnSync("sh", ["-c", `${exports}exec "$0" "$1"`, process.execPath, script], options);
 }
 
 describe("hook-cases.json — the runner interprets every field, kind and version", () => {
@@ -109,6 +130,11 @@ describe("hook-cases.json — the runner interprets every field, kind and versio
     expect(typeProblems({ name: "x", expectExit: "2" })).toEqual(["expectExit must be an integer"]);
     expect(typeProblems({ name: "x", expectExit: 2.5 })).toEqual(["expectExit must be an integer"]);
     expect(typeProblems(JSON.parse('{"name": "x", "expectExit": 2.0}'))).toEqual([]);
+  });
+  it("a planted envHex that is not whole hex bytes, ends in a newline or names no variable fails (#501)", () => {
+    expect(typeProblems({ name: "x", expectExit: 0, envHex: { A: "ff0" } })).toEqual(["envHex.A must be whole hex bytes"]);
+    expect(typeProblems({ name: "x", expectExit: 0, envHex: { A: "ff0a" } })).toEqual(["envHex.A must not end with a newline byte"]);
+    expect(typeProblems({ name: "x", expectExit: 0, envHex: { "A B": "ff" } })).toEqual(["envHex key \"A B\" must be a variable name"]);
   });
   for (const hex of ["efbbb", "1g2c"]) {
     it(`a planted stdinHex that is not whole hex bytes fails (${hex})`, () => {

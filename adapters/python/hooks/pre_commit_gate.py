@@ -38,7 +38,27 @@ def decide(runners):
 # CLI. Every way of not running the tests exits 2 (#467): a Claude Code hook
 # treats only exit 2 as a block, so exit 1 (or a traceback) let the commit
 # through. Git treats any non-zero exit as a block, so nothing changes there.
+def _env_problem(name):
+    """Why an environment variable cannot be used, or None (#501). The JS twin
+    only sees bytes that are not UTF-8 as U+FFFD, so U+FFFD counts as not valid
+    here too. JS twin: envProblem."""
+    value = os.environ.get(name)
+    if value is None:
+        return None
+    try:
+        text = value.encode("utf-8", "surrogateescape").decode("utf-8")
+    except UnicodeError:
+        text = "\ufffd"
+    if "\ufffd" in text:
+        return (f"{name} is not valid UTF-8 (or holds U+FFFD, which invalid bytes are "
+                "replaced with). Set it to UTF-8 text.")
+    return None
+
+
 def _main():
+    problem = _env_problem("PLUMBLINE_TEST_CMD")
+    if problem:
+        return {"allow": False, "reason": f"pre-commit blocked: {problem}"}
     cmd = os.environ.get("PLUMBLINE_TEST_CMD", "")
     argv = shlex.split(cmd)
     if not argv:

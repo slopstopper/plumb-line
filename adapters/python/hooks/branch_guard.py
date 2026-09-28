@@ -174,12 +174,32 @@ def _read_stdin():
         raise ValueError("stdin is not valid UTF-8") from None
 
 
+def _env_problem(name):
+    """Why an environment variable cannot be used, or None (#501). The JS twin
+    only sees bytes that are not UTF-8 as U+FFFD, so U+FFFD counts as not valid
+    here too. JS twin: envProblem."""
+    value = os.environ.get(name)
+    if value is None:
+        return None
+    try:
+        text = value.encode("utf-8", "surrogateescape").decode("utf-8")
+    except UnicodeError:
+        text = "\ufffd"
+    if "\ufffd" in text:
+        return (f"{name} is not valid UTF-8 (or holds U+FFFD, which invalid bytes are "
+                "replaced with). Set it to UTF-8 text.")
+    return None
+
+
 def _main():
     raw = _read_stdin()
     # Empty means JSON whitespace only, as in the JS twin: str.strip() also
     # strips \x1c-\x1f, and JS trim() also strips a byte-order mark.
     # _parse_stdin refuses NaN and Infinity, as JSON.parse does (#503).
     input_data = _parse_stdin(raw) if raw.strip(" \t\n\r") else {}
+    problem = _env_problem("PLUMBLINE_BRANCH") or _env_problem("PLUMBLINE_CFG")
+    if problem:
+        return {"allow": False, "reason": f"blocked: {problem}"}
     cfg, reason = _read_config(os.environ.get("PLUMBLINE_CFG"))
     if reason:
         return {"allow": False, "reason": reason}

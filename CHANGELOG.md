@@ -139,10 +139,24 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   crashed with exit 1, and now judges the path; and a layer name of tens of
   thousands of characters overflowed the JS twin's pattern matching (exit 2,
   where Python judged it) and is now judged. A path ending in a newline is
-  now read the same way in both twins (Python's `$` matched before it). **Called directly**, the exported `decide()` now
-  blocks a missing or empty `filePath` in both twins (Python raised a
-  `TypeError` on `None`); it still reads any `direction` other than
-  `"downward"` as upward, since only the CLI validates the config.
+  now read the same way in both twins (Python's `$` matched before it).
+  **Called directly**, the exported `decide()` now blocks a missing or empty
+  `filePath` in both twins (Python raised a `TypeError` on `None`); it still
+  reads any `direction` other than `"downward"` as upward, since only the CLI
+  validates the config.
+- **Every hook blocks on an environment variable that is not valid UTF-8, in
+  both twins** ([#501](https://github.com/slopstopper/plumb-line/issues/501)).
+  Node turns such bytes into U+FFFD and Python kept them, so the twins read
+  different values. A `PLUMBLINE_TEST_CMD` of `test \xff = <U+FFFD>` passed
+  the JS gate, where both sides read as U+FFFD, and failed in Python. Now
+  `PLUMBLINE_BRANCH`, `PLUMBLINE_CFG` and `PLUMBLINE_TEST_CMD` block, with exit
+  2 and a reason naming the variable, when they are not valid UTF-8. **This
+  is stricter**, including for one legitimate case: a value holding the
+  replacement character U+FFFD also blocks, because that is the only form in
+  which the JS twin can see bytes that were not UTF-8. Blocking invalid
+  values is the owner's decision; counting U+FFFD with them follows from it,
+  and such values are vanishingly rare in a branch name, config or test
+  command.
 
 ### Changed
 - **One case table specifies the hook twins' CLIs**
