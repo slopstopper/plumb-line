@@ -20,12 +20,21 @@ def test_constants_order():
     assert p.STATUS == ['unavailable','mock','inferred','fallback','semiReal','derived','real']
     assert p.CONFIDENCE == ['none','low','medium','high']
 
-def test_make_meta_defaults():
-    m = p.make_meta()
-    assert m['source'] == 'derived'
+def test_make_meta_defaults_everything_but_source():
+    m = p.make_meta(source='real')
     assert m['confidence'] == 'none'
     assert m['derived_from_mock'] is False
     assert m['lineage'] == []
+
+def test_make_meta_refuses_a_missing_source():
+    # #177: a leaf has no parents, so "derived" was never true of it. The
+    # message is the JS twin's, word for word (cases.json "construct").
+    import pytest
+    msg = r"^source is required \(one of unavailable, mock, inferred, fallback, semiReal, derived, real\)$"
+    with pytest.raises(ValueError, match=msg):
+        p.make_meta()
+    with pytest.raises(ValueError, match=msg):
+        p.make_meta(confidence='low')
 
 def test_make_meta_infers_mock():
     assert p.make_meta(source='mock')['derived_from_mock'] is True

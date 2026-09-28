@@ -42,14 +42,14 @@ only on breaking changes to the envelope shape or combination law (see SPEC §1)
 
 ## Core API
 
-### `mark(value, metaInput?)` / `mark(value, **meta_input)`
+### `mark(value, metaInput)` / `mark(value, **meta_input)`
 
 Wraps a value with provenance metadata and returns a marked object.
 
 | Parameter | Type | Description |
 |---|---|---|
 | `value` | any | The value to track |
-| `metaInput` / `**meta_input` | object / kwargs | Initial metadata; same options as [`makeMeta`](#makemetaopts--make_metakwargs) |
+| `metaInput` / `**meta_input` | object / kwargs | Initial metadata; same options as [`makeMeta`](#makemetaopts--make_metakwargs), so `source` is required |
 
 **Returns** a frozen object (JS) / dict (Python) with the value under the
 `value` key and all envelope fields at the top level (JS) or under a `meta`
@@ -187,13 +187,13 @@ These functions implement the combination law and envelope construction.
 They are exported for advanced use and testing; most callers should use
 `mark` / `derive` / `auditMeta` instead.
 
-### `makeMeta(opts?)` / `make_meta(**kwargs)`
+### `makeMeta(opts)` / `make_meta(**kwargs)`
 
 Constructs a provenance metadata envelope (JS: frozen object, Python: dict).
 
 | Field | Default | Description |
 |---|---|---|
-| `source` | `"derived"` | One of `STATUS`; anything else is refused |
+| `source` | none: required | One of `STATUS`; anything else, or leaving it out, is refused |
 | `confidence` | `"none"` | One of `CONFIDENCE`; anything else, including a number, is refused |
 | `confidenceScore` / `confidence_score` | — | Numeric `[0, 1]`; omitted if invalid |
 | `derivedFromMock` / `derived_from_mock` | `source === "mock"` | Mock-taint flag |
@@ -210,9 +210,17 @@ A `source` outside `STATUS` or a `confidence` outside `CONFIDENCE` is refused
 Both messages start the same way,
 `confidence must be one of none, low, medium, high; got 0` (or the `source`
 equivalent), though the quoted value can differ in form between the two. In
-Python, `None` is refused rather than defaulted: omit the argument to get the
-default. This applies to `mark` and to a `derive` override, which build on
-`makeMeta`. A numeric certainty belongs in `confidenceScore`. Envelopes you are
+Python, `None` is refused rather than defaulted, matching JS `null`. This
+applies to `mark` and to a `derive` override, which build on `makeMeta`. A
+numeric certainty belongs in `confidenceScore`.
+
+`source` has no default (since v0.12.0, #177). Leaving it out throws or raises
+`source is required (one of unavailable, mock, inferred, fallback, semiReal,
+derived, real)`, the same message in both languages. The old default,
+`"derived"`, was untrue of a leaf, which has no parents, and such an envelope
+audited as `unreproducible`. `confidence` still defaults to `"none"`. `derive`
+is not a leaf: its `source` comes from the combination law, and in JS an
+override of `source: undefined` counts as no override. Envelopes you are
 *handed*, such as parsed JSON, are not refused: `combineProvenance` and the
 audit still tolerate unknown values in them (SPEC §2).
 
@@ -422,9 +430,9 @@ causality, structural diffing inside a nested value and float tolerance are
 ## Dataframe and array wrappers (Python)
 
 Optional extras (`pip install "plumb-line-provenance[pandas]"` /
-`[numpy]`); ADR-0013. Declare the source when wrapping: the defaults are
-`source='derived', confidence='none'`, and a `derived` wrapper with no lineage
-audits as `unreproducible`, so pass a real `source=` for a leaf. Operations outside
+`[numpy]`); ADR-0013. Declare the source when wrapping: `source` is required
+(since v0.12.0, #177) and `confidence` defaults to `'none'`. A wrapper built
+without `source=` raises `ValueError`, as `make_meta` does. Operations outside
 the combinators work on `.value` and drop provenance until re-wrapped.
 
 ### `PlumbDataFrame(value, source=, confidence=, **meta)` / `PlumbArray(value, source=, confidence=, **meta)`

@@ -35,13 +35,30 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `confidence must be one of none, low, medium, high; got 0`, though the
   quoted value can differ in form between the two. The same applies to a
   `source` outside `STATUS`, and to a `derive()` override. In Python, `None`
-  is refused rather than defaulted: omit the argument to get the default.
+  is refused rather than defaulted: omit `confidence` to get its default.
+  (`source` no longer has one; see the #177 entry below.)
   **If you pass a number as `confidence`, move it to `confidenceScore` and
   give `confidence` a rung.** Envelopes you are handed, such as parsed JSON,
   are unaffected: `combineProvenance` and the audit still tolerate unknown
   values in them (SPEC §2, pinned by a `combine` row). Owner decision on
   #443, recorded in ADR-0019. A minor can carry the break under this
   project's pre-1.0 rule.
+- **Breaking: leaf constructors require `source`**
+  ([#177](https://github.com/slopstopper/plumb-line/issues/177)).
+  `mark(value)`, `makeMeta({})` / `make_meta()`, and the Python
+  `PlumbDataFrame(df)` / `PlumbArray(arr)` used to default `source` to
+  `"derived"`. A leaf has no parents, so that was untrue, and the envelope
+  failed its own audit as `unreproducible`: the laziest construction was
+  the dirty one. Leaving `source` out now throws in JS and raises
+  `ValueError` in Python, with the same message in both,
+  `source is required (one of unavailable, mock, inferred, fallback,
+  semiReal, derived, real)`. **Pass the `source` your value actually came
+  from.** `confidence` still defaults to `"none"`. `derive()` is not a leaf
+  and is unaffected, with one edge named here: in JS, an override of
+  `source: undefined` now counts as no override. `derive([], f, { source:
+  undefined })` therefore gives `"unavailable"`, as `derive([], f)` does,
+  where it used to give `"derived"`. Pinned by three `construct` rows.
+  Owner decision on #177, recorded as an ADR-0019 amendment.
 - **Conformance: a fourth case kind, `construct`**, pins what `makeMeta`
   accepts and refuses in both languages. The case table stays at version 1.
   A runner that does not interpret the new kind fails on it rather than

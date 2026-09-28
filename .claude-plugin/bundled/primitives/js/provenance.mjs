@@ -49,8 +49,9 @@ function quote(value) {
 
 /**
  * Constructs a frozen provenance metadata envelope.
- * @param {object} [opts]
- * @param {string} [opts.source="derived"] - One of {@link STATUS}
+ * @param {object} opts
+ * @param {string} opts.source - One of {@link STATUS}; required, with no
+ *   default (#177): a leaf has no parents, so it must say where it came from
  * @param {string} [opts.confidence="none"] - One of {@link CONFIDENCE}
  * @param {number} [opts.confidenceScore] - Numeric precision in [0, 1]; omitted when invalid
  * @param {boolean} [opts.derivedFromMock] - Defaults to `source === "mock"`
@@ -59,12 +60,13 @@ function quote(value) {
  * @param {*} [opts.basis] - Arbitrary domain metadata (passed through unchanged)
  * @param {*} [opts.adapter] - Adapter identifier (passed through unchanged)
  * @returns {Readonly<object>} Frozen envelope
- * @throws {Error} When `source` is not in {@link STATUS} or `confidence` is
- *   not in {@link CONFIDENCE} (#443); the message starts
- *   "source must be one of" / "confidence must be one of".
+ * @throws {Error} When `source` is missing ("source is required", #177), or
+ *   `source` is not in {@link STATUS} or `confidence` is not in
+ *   {@link CONFIDENCE} (#443; the message starts "source must be one of" /
+ *   "confidence must be one of").
  */
 export function makeMeta({
-  source = "derived",
+  source,
   confidence = "none",
   confidenceScore,
   derivedFromMock,
@@ -77,7 +79,11 @@ export function makeMeta({
   // (#443, owner decision 2026-09-28; ADR-0019): stored, it passed auditMeta
   // silently and the law quietly read it as the weakest rung (SPEC §2).
   // Python twin: make_meta; the message prefix is the same in both
-  // (cases.json "construct").
+  // (cases.json "construct"). A missing source has no default (#177, owner
+  // decision 2026-09-28): the old "derived" was untrue of a leaf, which has no
+  // parents, and audited as unreproducible.
+  if (source === undefined)
+    throw new Error(`source is required (one of ${STATUS.join(", ")})`);
   if (!STATUS.includes(source))
     throw new Error(`source must be one of ${STATUS.join(", ")}; got ${quote(source)}`);
   if (!CONFIDENCE.includes(confidence))

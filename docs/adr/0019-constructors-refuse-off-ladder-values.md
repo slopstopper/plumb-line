@@ -83,3 +83,22 @@ recommendation's reasons:
   defines how the law reads an unknown value, and §5 requires the checkers to
   be total. Refusing handed envelopes would contradict both, and would turn
   one stray rung upstream into a crash downstream.
+
+## Amendments
+
+- **2026-09-28 (#177, owner decision on the issue).** Leaf constructors
+  require `source`. The Decision's "Omitting the argument gives the default,
+  as JS `undefined` does" stops being true for `source`; it still holds for
+  `confidence`, which defaults to `none`. `makeMeta` / `make_meta`, `mark`,
+  and the Python `PlumbDataFrame` / `PlumbArray` throw (JS `Error`) or raise
+  (Python `ValueError`) when `source` is left out, with the same message in
+  both languages: `source is required (one of <the status ladder,
+  comma-separated>)`. The old default, `derived`, was untrue of a leaf, which
+  has no parents, and such an envelope audited as `unreproducible`. Python
+  uses a private sentinel default rather than a bare required parameter, so
+  that leaving `source` out raises the same `ValueError` as every other
+  refusal instead of a `TypeError`. `derive` is not a leaf: in JS, an
+  override of `source: undefined` counts as no override, so its source still
+  comes from the combination law. Pinned by three `construct` rows in
+  `cases.json`. Recorded here rather than by editing the Decision, because
+  this record is append-only.

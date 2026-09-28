@@ -98,6 +98,13 @@ belongs in `confidenceScore`. Added in v0.12.0 (#443, ADR-0019). Before that, an
 off-ladder value was stored silently, and only `validateEnvelope` noticed a
 non-string.
 
+`source` has no default at construction. A constructor called without one
+MUST refuse, with an error whose message contains `source is required (one of
+<the ladder, comma-separated>)`; `confidence` still defaults to `none`. Added
+in v0.12.0 (#177, ADR-0019 amendment). Before that, `source` defaulted to
+`derived`, which is untrue of a leaf with no parents and audits as
+`unreproducible` (§5).
+
 ---
 
 ## 3. The combination law

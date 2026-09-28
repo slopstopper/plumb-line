@@ -24,7 +24,7 @@ JSON is the contract.
 The table has four case kinds: `combine` (the law), `audit` (logical
 consistency), `validate` (structural field-presence — the `validateEnvelope`
 / `validate_envelope` checker added in v0.4.0), and `construct` (what
-`makeMeta` / `make_meta` accepts and refuses, v0.12.0, #443; both languages
+`makeMeta` / `make_meta` accepts and refuses, v0.12.0, #443 and #177; both languages
 refuse the same JSON-expressible inputs, and the refusal message starts the same; the quoted
 value after "got" is each language's JSON rendering and can differ in form for
 floats, non-ASCII text and containers). Both checkers report the four

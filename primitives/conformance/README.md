@@ -60,7 +60,9 @@ names to your language's binding, run `combine`/`audit`/`validate`/`construct`,
 and assert every field a case carries (including `expectLineageIds`). A
 `construct` case expects your envelope constructor to refuse an off-ladder
 `source` or `confidence` with a message containing the pinned text (v0.12.0,
-#443). A port certified against schema version 2 before v0.12.0 must re-run:
+#443), and to refuse a missing `source` rather than default it (v0.12.0,
+#177). JSON cannot write "left out", so those rows omit `source` from `input`;
+pass only the keys a row carries. A port certified against schema version 2 before v0.12.0 must re-run:
 `construct` is a new requirement at the same schema version, signalled by the
 table's sha256 and its per-kind counts, not by a version number. A JS
 implementation can skip the port: pass its module to `runCases()` from

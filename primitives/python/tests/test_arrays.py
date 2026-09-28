@@ -18,8 +18,21 @@ def test_construct_sets_meta_and_value():
 
 
 def test_construct_wrong_type_raises_typeerror():
-    with pytest.raises(TypeError):
-        arrays.PlumbArray([1, 2, 3])  # a list, not an ndarray
+    with pytest.raises(TypeError, match="expects a numpy.ndarray"):
+        arrays.PlumbArray([1, 2, 3], source="real")  # a list, not an ndarray
+
+
+def test_construct_refuses_a_missing_source():
+    # #177: a leaf array declares where it came from; "derived" is not a default.
+    with pytest.raises(ValueError, match=r"^source is required \(one of unavailable"):
+        arrays.PlumbArray(np.array([1]))
+    with pytest.raises(ValueError, match=r"^source is required"):
+        arrays.PlumbArray(np.array([1]), confidence="high")
+
+
+def test_construct_keeps_positional_source_and_confidence():
+    pa = arrays.PlumbArray(np.array([1]), "real", "high")
+    assert (pa.meta["source"], pa.meta["confidence"]) == ("real", "high")
 
 
 def test_concatenate_propagates_taint():

@@ -90,6 +90,18 @@ describe("mark / derive refuse an off-ladder confidence or source (#443)", () =>
   it("mark refuses a source outside STATUS", () => {
     expect(() => mark(1, { source: "bogus" })).toThrow(/^source must be one of unavailable, mock/);
   });
+  it("mark refuses a missing source (#177)", () => {
+    expect(() => mark(1)).toThrow(/^source is required \(one of unavailable/);
+    expect(() => mark(1, { confidence: "high" })).toThrow(/^source is required/);
+  });
+  it("an undefined source override on derive is no override (#177)", () => {
+    // derive is not a leaf: its source comes from the combination law, so an
+    // undefined override keeps it rather than tripping the leaf rule.
+    const a = mark(1, { source: "real", confidence: "high" });
+    const out = derive([a], (x) => x, { source: undefined });
+    expect(out.source).toBe("derived");
+    expect(derive([], () => 0, { source: undefined }).source).toBe("unavailable");
+  });
   it("a derive override is refused the same way", () => {
     const a = mark(1, { source: "real", confidence: "high" });
     expect(() => derive([a], (x) => x, { confidence: 0.8 })).toThrow(
