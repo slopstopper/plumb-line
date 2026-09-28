@@ -27,7 +27,12 @@ Usage (from repo root):
     python3 scripts/trigger_check.py evals/trigger/audit-queries.json \
         plumb-line-audit results.json \
         [--screen-model claude-haiku-4-5-20251001] [--confirm-model MODEL] \
-        [--screen-runs 1] [--confirm-runs 2] [--workers 4] [--timeout 150]
+        [--screen-runs 1] [--confirm-runs 2] [--workers 4] [--timeout 150] \
+        [--plugin-dir .]
+
+--plugin-dir probes that checkout, isolated from the user's settings
+(installed plugins and their SessionStart hooks), instead of the installed
+plugin; the record says so in `probe.setting_sources` (results-format v3).
 
 Omitting --confirm-model skips the confirm tier: screen results stand, labeled
 as such. The eval-set JSON is a list of {"query": str, "should_trigger": bool}.
@@ -68,8 +73,14 @@ THRESHOLD = 0.5
 #       tiers, runs, threshold, summary, results.
 #   v2  #400 — adds `probe`: {timeout_s, max_turns}, the two probe settings
 #       that change verdicts. v1 is refused: it cannot say what they were.
-RESULTS_FORMAT = "v2"
-KNOWN_RESULTS_FORMATS = {"v2"}
+#   v3  #487 — `probe` adds `setting_sources`: "all" (the user's settings,
+#       installed plugins and their hooks load) or "project" (--plugin-dir
+#       isolation). On the owner's machine the difference was 9 SessionStart
+#       hooks, one of which tells the model to invoke any skill that might
+#       apply. v2 is refused: it cannot say which were loaded.
+RESULTS_FORMAT = "v3"
+KNOWN_RESULTS_FORMATS = {"v3"}
+SETTING_SOURCES = {"all", "project"}
 RESULTS_KEYS = ["results-format", "target", "probed_installs", "tiers", "runs",
                 "threshold", "probe", "summary", "results"]
 
@@ -136,7 +147,8 @@ def merge(screen, confirm, screen_model, confirm_model):
     return merged
 
 
-def build_payload(target, installs, tiers, runs, threshold, timeout, merged):
+def build_payload(target, installs, tiers, runs, threshold, timeout, merged,
+                  setting_sources="all"):
     """The results record, in RESULTS_KEYS order, contract key first."""
     passed = sum(1 for r in merged if r["pass"])
     return {"results-format": RESULTS_FORMAT,
@@ -145,7 +157,8 @@ def build_payload(target, installs, tiers, runs, threshold, timeout, merged):
             "tiers": tiers,
             "runs": runs,
             "threshold": threshold,
-            "probe": {"timeout_s": timeout, "max_turns": MAX_TURNS},
+            "probe": {"timeout_s": timeout, "max_turns": MAX_TURNS,
+                      "setting_sources": setting_sources},
             "summary": {"passed": passed, "total": len(merged)},
             "results": merged}
 
@@ -169,16 +182,24 @@ def validate_results(payload):
         issues.append("results-format 'v1' does not record the probe timeout or "
                       "turn cap, so the conditions its verdicts were measured "
                       f"under are unknown; re-run to get a {RESULTS_FORMAT} record")
+    elif fmt == "v2":
+        issues.append("results-format 'v2' does not record which setting sources "
+                      "the probes loaded (the user's plugins and hooks, or an "
+                      "isolated checkout), so the environment its verdicts were "
+                      f"measured in is unknown; re-run to get a {RESULTS_FORMAT} record")
     elif fmt is not None and fmt not in KNOWN_RESULTS_FORMATS:
         issues.append(f"unknown results-format {fmt!r} "
                       f"(this harness models {sorted(KNOWN_RESULTS_FORMATS)})")
     probe = payload.get("probe")
     if probe is not None and not (
-            isinstance(probe, dict) and set(probe) == {"timeout_s", "max_turns"}
+            isinstance(probe, dict)
+            and set(probe) == {"timeout_s", "max_turns", "setting_sources"}
             and all(isinstance(probe[k], int) and not isinstance(probe[k], bool)
-                    and probe[k] > 0 for k in probe)):
-        issues.append("probe must be {timeout_s, max_turns}, both positive "
-                      f"integers, got {probe!r}")
+                    and probe[k] > 0 for k in ("timeout_s", "max_turns"))
+            and probe["setting_sources"] in SETTING_SOURCES):
+        issues.append("probe must be {timeout_s, max_turns, setting_sources}: "
+                      "two positive integers and one of "
+                      f"{sorted(SETTING_SOURCES)}, got {probe!r}")
     threshold = payload.get("threshold")
     # bool is an int subclass: a hand-edited `"threshold": true` must not
     # validate as 1.
@@ -263,6 +284,22 @@ def stale_installs(installs, current_version):
             if (_semver(i.get("version")) or cur) < cur]
 
 
+def plugin_dir_install(target, plugin_dir):
+    """The checkout a --plugin-dir run probes, as a probed_installs entry:
+    [{plugin, version, path}], or [] when it has no skills/<target>, so the
+    same absence guard applies as for an installed plugin."""
+    if not os.path.isdir(os.path.join(plugin_dir, "skills", target)):
+        return []
+    try:
+        with open(os.path.join(plugin_dir, ".claude-plugin", "plugin.json"),
+                  encoding="utf-8") as f:
+            manifest = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        manifest = {}
+    return [{"plugin": f"{manifest.get('name', '?')}@inline",
+             "version": manifest.get("version"), "path": plugin_dir}]
+
+
 def repo_version():
     """This repo's release version, from .claude-plugin/plugin.json."""
     manifest = os.path.join(os.path.dirname(os.path.dirname(
@@ -276,14 +313,20 @@ def repo_version():
 
 # ---------- probing ----------
 
-def probe_cmd(query, model):
-    return ["claude", "-p", query, "--output-format", "stream-json",
-            "--verbose", "--include-partial-messages", "--model", model,
-            "--max-turns", str(MAX_TURNS)]
+def probe_cmd(query, model, plugin_dir=None):
+    cmd = ["claude", "-p", query, "--output-format", "stream-json",
+           "--verbose", "--include-partial-messages", "--model", model,
+           "--max-turns", str(MAX_TURNS)]
+    if plugin_dir:
+        # Isolation is not optional here: without it the checkout loads
+        # beside the installed copy of the same plugin, and the user's other
+        # plugins' SessionStart hooks run in every probe (#487).
+        cmd += ["--plugin-dir", plugin_dir, "--setting-sources", "project"]
+    return cmd
 
 
-def probe(query, target, model, workdir, timeout):
-    cmd = probe_cmd(query, model)
+def probe(query, target, model, workdir, timeout, plugin_dir=None):
+    cmd = probe_cmd(query, model, plugin_dir)
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                          cwd=workdir, env=env)
@@ -324,14 +367,15 @@ def probe(query, target, model, workdir, timeout):
     return False, None
 
 
-def run_tier(evals, target, model, runs, workers, timeout, log, threshold=THRESHOLD):
+def run_tier(evals, target, model, runs, workers, timeout, log, threshold=THRESHOLD,
+             plugin_dir=None):
     workdir = tempfile.mkdtemp(prefix="trigger-check-")
     rows = [{"query": e["query"], "should_trigger": e["should_trigger"],
              "runs": [], "winners": []} for e in evals]
     jobs = [(i, r) for i in range(len(evals)) for r in range(runs)]
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futs = {ex.submit(probe, evals[i]["query"], target, model,
-                          workdir, timeout): i for i, _ in jobs}
+                          workdir, timeout, plugin_dir): i for i, _ in jobs}
         for f in futs:
             i = futs[f]
             hit, winner = f.result()
@@ -358,6 +402,11 @@ def parse_args(argv=None):
     ap.add_argument("--threshold", type=float, default=THRESHOLD,
                     help=f"pass threshold on the trigger rate, in (0, 1] "
                          f"(default {THRESHOLD}); stamped into the results")
+    ap.add_argument("--plugin-dir", default=None,
+                    help="probe this plugin checkout instead of the installed "
+                         "plugin, isolated from user settings (installed "
+                         "plugins and their hooks); recorded as "
+                         "setting_sources 'project'")
     ap.add_argument("--force", action="store_true",
                     help="probe even if the target skill is not installed")
     ap.add_argument("--validate", metavar="RESULTS_JSON",
@@ -394,16 +443,23 @@ def main(argv=None):
               file=sys.stderr)
         return 0
 
-    installs = installed_locations(args.target)
+    plugin_dir = os.path.abspath(args.plugin_dir) if args.plugin_dir else None
+    if plugin_dir:
+        installs = plugin_dir_install(args.target, plugin_dir)
+        where = f"the checkout {plugin_dir}"
+    else:
+        installs = installed_locations(args.target)
+        where = f"any plugin under {PLUGINS_ROOT}"
     if not installs and not args.force:
-        print(f"ABORT: skill '{args.target}' is not installed in any plugin "
-              f"under {PLUGINS_ROOT} — probes would measure its absence, not "
-              f"its description. Install/update the plugin, or pass --force "
-              f"to measure anyway.", file=sys.stderr)
+        print(f"ABORT: skill '{args.target}' is not in {where} — probes would "
+              f"measure its absence, not its description. Install/update the "
+              f"plugin, or pass --force to measure anyway.", file=sys.stderr)
         return 2
-    print(f"probing installs: {installs or 'NONE (--force)'}", file=sys.stderr)
+    print(f"probing installs: {installs or 'NONE (--force)'}"
+          f"{' (isolated: setting sources project)' if plugin_dir else ''}",
+          file=sys.stderr)
     current = repo_version()
-    for s in stale_installs(installs, current) if current else []:
+    for s in (stale_installs(installs, current) if current and not plugin_dir else []):
         print(f"WARNING: probing {s['plugin']}@{s['version']} but this repo "
               f"is at {current} — plugin updates are manual and easy to miss "
               f"(claude plugin update {s['plugin'].split('/')[-1]}); results "
@@ -411,12 +467,13 @@ def main(argv=None):
 
     evals = json.load(open(args.eval_set))
     screen = run_tier(evals, args.target, args.screen_model, args.screen_runs,
-                      args.workers, args.timeout, sys.stderr, args.threshold)
+                      args.workers, args.timeout, sys.stderr, args.threshold,
+                      plugin_dir)
     hot = contested(screen)
     if args.confirm_model and hot:
         confirm = run_tier(hot, args.target, args.confirm_model,
                            args.confirm_runs, args.workers, args.timeout,
-                           sys.stderr, args.threshold)
+                           sys.stderr, args.threshold, plugin_dir)
         merged = merge(screen, confirm, args.screen_model, args.confirm_model)
     else:
         merged = [{**r, "measured_by": args.screen_model} for r in screen]
@@ -433,7 +490,8 @@ def main(argv=None):
                             # does not imply a tier that did not run.
                             {"screen": args.screen_runs,
                              "confirm": args.confirm_runs if (args.confirm_model and hot) else 0},
-                            args.threshold, args.timeout, merged)
+                            args.threshold, args.timeout, merged,
+                            "project" if plugin_dir else "all")
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=1)
     passed = payload["summary"]["passed"]

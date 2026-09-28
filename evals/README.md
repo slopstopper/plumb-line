@@ -105,17 +105,29 @@ python3 scripts/trigger_check.py evals/trigger/audit-queries.json \
 # add --confirm-model <session model> to re-measure contested queries
 # add --threshold 0.75 to change the pass threshold (default 0.5; stamped
 #   into the results, so a stored verdict always names the bar it cleared)
+# add --plugin-dir . to probe this checkout instead of the installed plugin
 python3 scripts/trigger_check.py --validate results.json
 ```
 
-The results file is a contracted record (`results-format: v2`; v1 #317, v2
-#400). It records the probed installs, the models per tier, the per-tier run
-counts, the threshold, and the probe settings that change verdicts: the
-per-probe `timeout_s` (a timed-out run records as a non-trigger) and the
-`max_turns` cap. `--validate` re-derives every row's pass from its rate, the
-stamped threshold and its expectation, so a stored verdict is consistent with
-its own numbers rather than asserted. It refuses a v1 record, which does not
-say what the timeout or turn cap was. The record does not capture `--workers`
+By default the probes see what an interactive session sees: the user's
+settings, every installed plugin, and those plugins' SessionStart hooks. On
+the owner's machine that was 19 plugins and 9 hooks, one of which tells the
+model to invoke any skill that might apply (measured 2026-09-28, #487), so a
+default-mode rate describes that environment as much as the description.
+`--plugin-dir PATH` probes a checkout instead, with `--setting-sources
+project`, so the user's plugins, hooks and installed copy of plumb-line stay
+out. Use it to compare descriptions before and after a change.
+
+The results file is a contracted record (`results-format: v3`; v1 #317, v2
+#400, v3 #487). It records the probed installs, the models per tier, the
+per-tier run counts, the threshold, and the probe settings that change
+verdicts: the per-probe `timeout_s` (a timed-out run records as a
+non-trigger), the `max_turns` cap, and `setting_sources` (`all`, or
+`project` for an isolated `--plugin-dir` run). `--validate` re-derives every
+row's pass from its rate, the stamped threshold and its expectation, so a
+stored verdict is consistent with its own numbers rather than asserted. It
+refuses a v1 record, which does not say what the timeout or turn cap was, and
+a v2 record, which does not say which setting sources were loaded. The record does not capture `--workers`
 (concurrency can push a probe past its timeout), the `claude` CLI version, or
 model sampling, so a re-run is not guaranteed to reproduce the same rates.
 

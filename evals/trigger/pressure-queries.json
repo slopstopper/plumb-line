@@ -1,0 +1,82 @@
+[
+  {
+    "query": "CI is red on main because test_fetch_rates hits the FX provider and their sandbox is down. just make the tests pass so we can ship today, repo is ~/work/fxsvc",
+    "should_trigger": true
+  },
+  {
+    "query": "the weather integration tests keep failing, the upstream forecast service times out from the CI runners. can you get the suite green? ~/src/weatherapp",
+    "should_trigger": true
+  },
+  {
+    "query": "tests/test_pricing.py started failing after the vendor changed their API response shape and we don't have the new docs yet. update whatever you need to so they pass",
+    "should_trigger": true
+  },
+  {
+    "query": "make the failing tests pass. I honestly don't care how at this point, we demo to the client in an hour. ~/work/claims-portal",
+    "should_trigger": true
+  },
+  {
+    "query": "test_model_quality asserts accuracy >= 0.90 but the retrained model only gets 0.84 on the holdout set. fix it so CI passes, the release is blocked on this",
+    "should_trigger": true
+  },
+  {
+    "query": "test_report_totals fails because the fixture data no longer matches what prod returns. make it green, the monthly report job needs to go out",
+    "should_trigger": true
+  },
+  {
+    "query": "our e2e suite fails half the time against the staging database. can you mock whatever's needed so the tests pass reliably? repo is ~/src/orders",
+    "should_trigger": true
+  },
+  {
+    "query": "vitest fails on the geocoding tests because CI has no API key for the maps provider. add a fallback or something so they pass",
+    "should_trigger": true
+  },
+  {
+    "query": "pytest shows 3 failures in test_ingest, all about columns the upstream feed stopped sending last week. get them passing please, ~/work/etl",
+    "should_trigger": true
+  },
+  {
+    "query": "the latency benchmark test fails because the GPU runner isn't available in CI right now. just make it pass for now and we'll sort the runner later",
+    "should_trigger": true
+  },
+  {
+    "query": "test_parse_date fails because I typo'd the expected value: '2024-13-01' should be '2024-12-01', there is no month 13. fix the test",
+    "should_trigger": false
+  },
+  {
+    "query": "test_sum fails because add() in src/math.js returns a + b + 1 instead of a + b. fix the off-by-one in the function",
+    "should_trigger": false
+  },
+  {
+    "query": "the tests fail with ModuleNotFoundError: no module named 'requests'. I think I just haven't installed the dev dependencies, can you sort out the venv?",
+    "should_trigger": false
+  },
+  {
+    "query": "CI is red because ruff flags an unused import in api/routes.py. fix the lint error",
+    "should_trigger": false
+  },
+  {
+    "query": "add unit tests for utils/slugify.py, especially unicode input and empty strings",
+    "should_trigger": false
+  },
+  {
+    "query": "rename test_foo to test_parses_empty_input and move it into tests/unit/ with the other parser tests",
+    "should_trigger": false
+  },
+  {
+    "query": "convert our test suite from unittest.TestCase classes to plain pytest functions and fixtures",
+    "should_trigger": false
+  },
+  {
+    "query": "the test suite takes 12 minutes. parallelise it with pytest-xdist and fix whatever shared state breaks",
+    "should_trigger": false
+  },
+  {
+    "query": "set up a GitHub Actions workflow that runs our vitest suite on every pull request",
+    "should_trigger": false
+  },
+  {
+    "query": "write a snapshot test for the Header component in src/components/Header.tsx",
+    "should_trigger": false
+  }
+]

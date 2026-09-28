@@ -149,8 +149,9 @@ def test_payload_records_the_probe_settings_that_change_verdicts():
     # #400: a timed-out run records as a non-trigger, and the turn cap bounds
     # whether a Skill call can happen at all — both must be on the record.
     payload = _payload(timeout=90)
-    assert payload["results-format"] == "v2"
-    assert payload["probe"] == {"timeout_s": 90, "max_turns": tc.MAX_TURNS}
+    assert payload["results-format"] == "v3"
+    assert payload["probe"] == {"timeout_s": 90, "max_turns": tc.MAX_TURNS,
+                                "setting_sources": "all"}
 
 
 def test_probe_command_uses_the_recorded_turn_cap():
@@ -250,3 +251,61 @@ def test_v1_refusal_names_what_is_missing_without_promising_reproduction():
     payload["results-format"] = "v1"
     msg = next(i for i in tc.validate_results(payload) if "v1" in i)
     assert "cannot be reproduced" not in msg and "timeout" in msg
+
+
+# ---------- #487: probing a checkout in isolation ----------
+
+def test_probe_command_isolates_a_plugin_dir_from_user_settings():
+    # --plugin-dir alone would load the checkout beside the installed copy
+    # (same plugin name) and the user's other plugins' SessionStart hooks
+    # (9 fired on the owner's machine, 2026-09-28): every rate would describe
+    # that environment, not the description. --setting-sources project keeps
+    # the user's enabledPlugins and hooks out.
+    cmd = tc.probe_cmd("q", "m", plugin_dir="/co")
+    assert cmd[cmd.index("--plugin-dir") + 1] == "/co"
+    assert cmd[cmd.index("--setting-sources") + 1] == "project"
+    plain = tc.probe_cmd("q", "m")
+    assert "--plugin-dir" not in plain and "--setting-sources" not in plain
+
+
+def test_plugin_dir_install_reads_the_checkout_manifest(tmp_path):
+    import json
+    (tmp_path / ".claude-plugin").mkdir()
+    (tmp_path / ".claude-plugin" / "plugin.json").write_text(
+        json.dumps({"name": "plumb-line", "version": "0.11.5"}), encoding="utf-8")
+    (tmp_path / "skills" / "plumb-line-method").mkdir(parents=True)
+    got = tc.plugin_dir_install("plumb-line-method", str(tmp_path))
+    assert got == [{"plugin": "plumb-line@inline", "version": "0.11.5",
+                    "path": str(tmp_path)}]
+    # A checkout without the target skill yields nothing, as an absent
+    # install does: probes would measure absence, not a description.
+    assert tc.plugin_dir_install("plumb-line-nope", str(tmp_path)) == []
+
+
+def test_payload_records_which_setting_sources_the_probes_loaded():
+    assert _payload()["probe"]["setting_sources"] == "all"
+    iso = _payload(setting_sources="project")
+    assert iso["results-format"] == "v3"
+    assert iso["probe"] == {"timeout_s": 150, "max_turns": tc.MAX_TURNS,
+                            "setting_sources": "project"}
+    assert tc.validate_results(iso) == []
+
+
+def test_validate_refuses_a_v2_record_that_cannot_say_what_was_loaded():
+    payload = _payload()
+    payload["results-format"] = "v2"
+    del payload["probe"]["setting_sources"]
+    msg = next(i for i in tc.validate_results(payload) if "v2" in i)
+    assert "setting sources" in msg
+
+
+def test_validate_flags_an_unknown_setting_sources_value():
+    payload = _payload()
+    payload["probe"]["setting_sources"] = "user"
+    assert any("probe" in i for i in tc.validate_results(payload))
+
+
+def test_cli_plugin_dir_flag():
+    args = tc.parse_args(["e.json", "t", "o.json", "--plugin-dir", "."])
+    assert args.plugin_dir == "."
+    assert tc.parse_args(["e.json", "t", "o.json"]).plugin_dir is None
