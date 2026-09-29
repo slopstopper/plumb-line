@@ -192,15 +192,16 @@ output point writes `unwrap(guard(x))`. Otherwise it throws
 
 | Option | Default | Refuses when |
 |---|---|---|
-| `noMock` / `no_mock` | `true` / `True` | mock taint appears anywhere: `derivedFromMock`, `source`, `weakestSource` or any lineage step. On unless turned off (Principle 4's mock clause: excluded from outputs unless explicitly opted in; fallback, approximate and cached sources are not refused) |
+| `noMock` / `no_mock` | `true` / `True` | mock taint appears anywhere: `derivedFromMock`, `source`, `weakestSource` or any lineage step. On unless turned off (Principle 4's mock clause: excluded from outputs unless explicitly opted in; fallback and inferred sources, and cached data (which the HTTP adapter marks `real`) are not refused) |
 | `minConfidence` / `min_confidence` | `"none"` | the weakest confidence in the envelope *or its lineage* is below this level (a lineage step with no confidence counts as `none`) |
 
 It fails closed, whatever the options:
 - a value that is not marked (`42`, `null`, a list, a `Map`) is refused;
 - so is a malformed envelope: any `validateEnvelope` issue, a `source`,
   `confidence` or `weakestSource` off its ladder, a lineage step that is not
-  an object, or a step whose `source` or `confidence` is off its ladder or
-  whose `derivedFromMock` is not a boolean;
+  an object, a step whose `source` or `confidence` is off its ladder or
+  whose `derivedFromMock` is not a boolean, or a `confidenceScore` that is not
+  a number in `[0, 1]`;
 - and so is one the audit flags: any `auditMeta` issue except the
   `version-legacy:` and `version-future:` advisories. An envelope from an older
   or newer library is judged on what it carries (SPEC §5b).

@@ -515,6 +515,31 @@
       "meta": { "provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
       "options": { "minConfidence": 2 },
       "expectError": "guard: the minimum confidence must be one of none, low, medium, high"
+    },
+    {
+      "name": "a lineage step whose source is off the ladder is refused as malformed, so its taint cannot hide",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{ "id": "s1", "of": "input", "source": "Mock", "confidence": "high", "derivedFromMock": false }] },
+      "expectRefused": ["invalid envelope: lineage step 0 source"]
+    },
+    {
+      "name": "a lineage step whose confidence is off the ladder is refused as malformed",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{ "id": "s1", "of": "input", "source": "real", "confidence": "HIGH", "derivedFromMock": false }] },
+      "expectRefused": ["invalid envelope: lineage step 0 confidence"]
+    },
+    {
+      "name": "every structural issue is reported, a wrong type beside a missing field",
+      "meta": { "source": 5, "confidence": "high" },
+      "expectRefused": ["invalid envelope: field 'source' must be a string", "invalid envelope: missing required field: derivedFromMock", "invalid envelope: missing required field: lineage"]
+    },
+    {
+      "name": "a confidence score that is not a number in [0, 1] is refused as malformed",
+      "meta": { "provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [], "confidenceScore": "0.9" },
+      "expectRefused": ["invalid envelope: confidenceScore"]
+    },
+    {
+      "name": "a confidence score above one is refused as malformed",
+      "meta": { "provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [], "confidenceScore": 2 },
+      "expectRefused": ["invalid envelope: confidenceScore"]
     }
   ]
 }

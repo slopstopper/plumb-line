@@ -380,8 +380,9 @@ The audit reports; the **egress guard** refuses. `guard` takes a marked value
 and options and either returns that value unchanged or refuses it with a list
 of reasons, at the point where a value leaves the system (an export, a
 display, a publish). It enforces Principle 4's mock clause, "excluded from
-outputs unless explicitly opted in", at run time. It does not refuse
-fallback, approximate or cached sources, which Principle 4 also names.
+outputs unless explicitly opted in", at run time. It does not refuse the
+rest of what Principle 4 names: fallback and inferred sources, and cached data (which the HTTP adapter marks `real`)
+pass (#541).
 
 **Options.** `noMock` (a boolean, default **true**) and `minConfidence` (a
 level on the confidence ladder, default `none`). A default of true for
@@ -394,9 +395,12 @@ level on the confidence ladder, default `none`). A default of true for
 2. a malformed envelope, with one reason per issue prefixed
    `invalid envelope:`: any §5a structural issue; a `source`, `confidence` or
    (when present) `weakestSource` off its ladder (§2); a lineage step that is
-   not an object; or a step whose `source` or `confidence`, when present, is
-   off its ladder, or whose `derivedFromMock`, when present, is not a boolean.
-   The constructors refuse such values (§2, ADR-0019) and the law tolerates
+   not an object; a step whose `source` or `confidence`, when present, is off
+   its ladder, or whose `derivedFromMock`, when present, is not a boolean; or
+   a `confidenceScore` that is present and not a number in `[0, 1]`. The
+   ladder and score checks are made only on an envelope with no §5a issue, so
+   a structurally broken envelope reports its §5a issues alone. The
+   constructors refuse off-ladder values (§2, ADR-0019) and the law tolerates
    them in a handed envelope; an output point fails closed; and
 3. an envelope with any §5 audit issue other than the `version-legacy:` and
    `version-future:` advisories: one reason per issue, prefixed `audit:`. An

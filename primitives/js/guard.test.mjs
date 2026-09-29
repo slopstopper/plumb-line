@@ -82,6 +82,21 @@ describe("guard — the egress guard (#120)", () => {
     }
   });
 
+  it("refuses a value whose `value` or envelope fields are inherited, or that is a class instance", () => {
+    const envelope = { source: "real", confidence: "high", derivedFromMock: false, lineage: [] };
+    for (const x of [Object.assign(Object.create({ value: 1 }), envelope),
+      Object.assign(Object.create({ ...envelope, value: 1 }), {}),
+      Object.assign(new (class Marked {})(), { value: 1, ...envelope })]) {
+      expect(() => guard(x)).toThrow(ProvenanceRefused);
+    }
+  });
+
+  it("refuses a lineage step that is not a plain object, so taint in a Map cannot pass unseen", () => {
+    const x = { value: 1, provenanceVersion: 2, source: "derived", confidence: "high", derivedFromMock: false,
+      lineage: [new Map([["source", "mock"], ["derivedFromMock", true]])] };
+    expect(() => guard(x)).toThrow(/invalid envelope: lineage step 0 is not an object/);
+  });
+
   it("an undefined option is the default", () => {
     const m = mark(1, { source: "mock" });
     expect(() => guard(m, { noMock: undefined })).toThrow(ProvenanceRefused);

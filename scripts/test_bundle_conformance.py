@@ -148,6 +148,10 @@ def test_bundle_guard_cases():
         assert 'expectPass' not in c or c['expectPass'] is True, f"{name}: expectPass must be true"
         assert 'expectRefused' not in c or (isinstance(c['expectRefused'], list) and c['expectRefused']), \
             f"{name}: expectRefused must list at least one reason"
+        # An empty needle is in every string, so it would pin nothing.
+        needles = c.get('expectRefused', []) + c.get('expectAbsent', []) + ([c['expectError']] if 'expectError' in c else [])
+        assert all(isinstance(n, str) and n for n in needles), \
+            f"{name}: every expected reason or error text must be a non-empty string"
         raw = c['meta']
         x = {'value': 1, 'meta': _meta_to_snake(raw)} if isinstance(raw, dict) else raw
         kwargs = {_GUARD_OPTION.get(k, k): v for k, v in c.get('options', {}).items()}
@@ -164,6 +168,9 @@ def test_bundle_guard_cases():
                 assert not any(needle in r for r in reasons), f"{name}: {needle!r} in {reasons}"
         except (TypeError, ValueError) as e:
             assert 'expectError' in c, f"{name}: expected {expectations[0]}, got an error: {e}"
+            # SPEC §5c: never the refusal's type or a supertype of it, so a
+            # catch for refusals (a ValueError) cannot swallow a bad option.
+            assert not isinstance(e, ValueError), f"{name}: a bad option raised a ValueError: {e}"
             assert c['expectError'] in str(e), f"{name}: error {str(e)!r}"
         else:
             assert 'expectPass' in c, f"{name}: expected {expectations[0]}, got a pass"

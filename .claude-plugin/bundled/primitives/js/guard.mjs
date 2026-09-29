@@ -3,7 +3,7 @@
 // backs what the output claims. Fail closed: a value with no envelope, a
 // malformed one, or one the audit flags is refused, and taint and confidence
 // are judged from the whole lineage, not the headline fields alone.
-import { CONFIDENCE, STATUS, taints, weakestConfidence } from "./provenance.mjs";
+import { CONFIDENCE, STATUS, isScore, taints, weakestConfidence } from "./provenance.mjs";
 import { metaOf } from "./marked.mjs";
 import { auditMeta, validateEnvelope } from "./audit.mjs";
 
@@ -22,7 +22,6 @@ export class ProvenanceRefused extends Error {
 }
 
 const OPTIONS = ["noMock", "minConfidence"];
-const REQUIRED = ["source", "confidence", "derivedFromMock", "lineage"];
 // The audit's advisories about the version field that do not stop a value:
 // an envelope older or newer than this library is judged on what it carries
 // (SPEC §5b: a version exists to make drift legible, not to gate). A
@@ -79,8 +78,12 @@ function unreadable(meta) {
     issues.push(`confidence ${quote(meta.confidence)} is not on the confidence ladder`);
   if ("weakestSource" in meta && !STATUS.includes(meta.weakestSource))
     issues.push(`weakestSource ${quote(meta.weakestSource)} is not on the source ladder`);
+  if ("confidenceScore" in meta && !isScore(meta.confidenceScore))
+    issues.push(`confidenceScore ${quote(meta.confidenceScore)} is not a number in [0, 1]`);
   meta.lineage.forEach((step, i) => {
-    if (step === null || typeof step !== "object" || Array.isArray(step)) {
+    // A plain object, as derive() builds it: a Map or class instance could
+    // carry taint the field reads below would not see.
+    if (!isPlain(step)) {
       issues.push(`lineage step ${i} is not an object`);
       return;
     }
@@ -117,14 +120,12 @@ export function guard(x, options) {
   // `value` beside the envelope fields.
   if (!isPlain(x) || !Object.hasOwn(x, "value"))
     throw new ProvenanceRefused(["not a marked value: it carries no provenance envelope"]);
-  // Own fields only: validateEnvelope and the audit read with `in`, so an
-  // inherited field (a polluted prototype) must not reach them as the value's.
-  const missing = REQUIRED.filter((name) => !Object.hasOwn(x, name));
-  if (missing.length)
-    throw new ProvenanceRefused(missing.map((name) => `invalid envelope: missing required field: ${name}`));
-  const all = metaOf(x);
-  const meta = Object.fromEntries(Object.entries(all).filter(([key]) => Object.hasOwn(x, key)));
-  const invalid = validateEnvelope(meta);
+  // The value's own envelope fields only. validateEnvelope reads with `in`, so
+  // it is handed a null-prototype copy: an inherited field (a polluted
+  // prototype) cannot count as present. The audit wants a plain object.
+  const own = Object.fromEntries(Object.entries(metaOf(x)).filter(([key]) => Object.hasOwn(x, key)));
+  const meta = { ...own };
+  const invalid = validateEnvelope(Object.assign(Object.create(null), own));
   const malformed = invalid.length ? invalid : unreadable(meta);
   if (malformed.length) throw new ProvenanceRefused(malformed.map((issue) => `invalid envelope: ${issue}`));
   const reasons = auditMeta(meta)

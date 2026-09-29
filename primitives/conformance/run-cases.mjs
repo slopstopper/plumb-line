@@ -100,6 +100,10 @@ function runGuard(impl, c) {
   if ("expectPass" in c && c.expectPass !== true) return "expectPass must be true";
   if ("expectRefused" in c && !(Array.isArray(c.expectRefused) && c.expectRefused.length))
     return "expectRefused must list at least one reason";
+  // An empty needle is in every string, so it would pin nothing.
+  const needles = [...(c.expectRefused || []), ...(c.expectAbsent || []), ...("expectError" in c ? [c.expectError] : [])];
+  if (needles.some((n) => typeof n !== "string" || n === ""))
+    return "every expected reason or error text must be a non-empty string";
   const plain = c.meta !== null && typeof c.meta === "object" && !Array.isArray(c.meta);
   const x = plain ? { value: 1, ...c.meta } : c.meta;
   let out;
@@ -124,8 +128,12 @@ function runGuard(impl, c) {
       return null;
     }
     if (!("expectError" in c))
-      return `expected ${"expectPass" in c ? "a pass" : "a refusal"}, got an error: ${e.message}`;
-    return String(e.message).includes(c.expectError)
+      return `expected ${"expectPass" in c ? "a pass" : "a refusal"}, got an error: ${e?.message}`;
+    // SPEC §5c: a bad option's error type is neither the refusal's type nor a
+    // supertype of it, so a catch for one can never catch the other.
+    if (e !== null && typeof e === "object" && impl.ProvenanceRefused.prototype instanceof e.constructor)
+      return `a bad option's error must not be a supertype of the refusal, got ${e.constructor.name}`;
+    return String(e?.message).includes(c.expectError)
       ? null
       : `expected an error containing "${c.expectError}", got "${e.message}"`;
   }

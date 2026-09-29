@@ -134,6 +134,19 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
     const [r] = runCases(impl, guardRow({ name: "x", meta: clean, options: { minConfidence: "hi" }, expectError: "no-such-text" }));
     expect(r.error).toMatch(/expected an error containing "no-such-text"/);
   });
+  it("fails a guard case whose programmer error is a supertype of the refusal", () => {
+    const loose = { ...impl, guard: () => { throw new Error("guard: bad option"); } };
+    const [r] = runCases(loose, guardRow({ name: "x", meta: clean, expectError: "guard: bad option" }));
+    expect(r.error).toMatch(/must not be a supertype of the refusal/);
+  });
+  it.each([
+    { name: "x", meta: mockLeaf, expectRefused: [""] },
+    { name: "x", meta: mockLeaf, expectRefused: ["mock:"], expectAbsent: [""] },
+    { name: "x", meta: clean, options: { minConfidence: "hi" }, expectError: "" },
+  ])("fails a guard case with an empty needle (%#)", (c) => {
+    const [r] = runCases(impl, guardRow(c));
+    expect(r.error).toMatch(/non-empty string/);
+  });
   it("fails, rather than crashes, on an implementation without ProvenanceRefused", () => {
     const { ProvenanceRefused: _dropped, ...partial } = impl;
     const [r] = runCases(partial, guardRow({ name: "x", meta: mockLeaf, expectRefused: ["mock:"] }));

@@ -42,7 +42,7 @@ unwrap(guard(price, { minConfidence: "medium" }));   // refused below medium
 A refusal throws `ProvenanceRefused`, whose `reasons` list every reason; a
 display that should show "unavailable" instead catches it. Mock is refused
 unless `noMock: false` is passed (Principle 4's mock clause; fallback and
-cached sources are not refused). It fails closed: a value with no envelope, a
+inferred sources, and cached data, are not refused). It fails closed: a value with no envelope, a
 malformed one, or one the audit flags is refused, and taint and confidence are
 judged from the whole lineage. A bad option is a `TypeError`, never a refusal.
 

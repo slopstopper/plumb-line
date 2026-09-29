@@ -7,7 +7,7 @@ and taint and confidence are judged from the whole lineage, not the headline
 fields alone. JS twin: primitives/js/guard.mjs.
 """
 try:  # installed as a package (plumb_line_provenance)
-    from .provenance import CONFIDENCE, STATUS, taints, weakest_confidence, _json
+    from .provenance import CONFIDENCE, STATUS, is_score, taints, weakest_confidence, _json
     from .audit import audit_meta, validate_envelope
 except ImportError:  # flat / copy-paste usage (modules on sys.path)
     import provenance as _prov
@@ -17,8 +17,8 @@ except ImportError:  # flat / copy-paste usage (modules on sys.path)
             f"(loaded from {getattr(_prov, '__file__', '?')}); rename it or use the "
             "installed 'plumb_line_provenance' package"
         )
-    CONFIDENCE, STATUS, taints, weakest_confidence, _json = (
-        _prov.CONFIDENCE, _prov.STATUS, _prov.taints, _prov.weakest_confidence, _prov._json)
+    CONFIDENCE, STATUS, is_score, taints, weakest_confidence, _json = (
+        _prov.CONFIDENCE, _prov.STATUS, _prov.is_score, _prov.taints, _prov.weakest_confidence, _prov._json)
     from audit import audit_meta, validate_envelope
 
 # The audit's advisories about the version field that do not stop a value: an
@@ -59,6 +59,8 @@ def _unreadable(meta):
         issues.append(f"confidence {_json(meta['confidence'])} is not on the confidence ladder")
     if 'weakest_source' in meta and not _on(STATUS, meta['weakest_source']):
         issues.append(f"weakestSource {_json(meta['weakest_source'])} is not on the source ladder")
+    if 'confidence_score' in meta and not is_score(meta['confidence_score']):
+        issues.append(f"confidenceScore {_json(meta['confidence_score'])} is not a number in [0, 1]")
     for i, step in enumerate(meta['lineage']):
         if not isinstance(step, dict):
             issues.append(f'lineage step {i} is not an object')

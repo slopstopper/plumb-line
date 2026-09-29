@@ -17,8 +17,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   marked value unchanged, so an output point writes `unwrap(guard(x))`, or
   throws `ProvenanceRefused` (a `ValueError` in Python) listing every reason.
   - **Mock is refused unless turned off** (`noMock: false`), as Principle 4's
-    mock clause says. Fallback, approximate and cached sources, which
-    Principle 4 also names, are not refused.
+    mock clause says. The rest of what Principle 4 names is not refused:
+    fallback and inferred sources, and cached data, which the HTTP adapter
+    marks `real` (a source floor is #541).
   - **It fails closed.** A value with no envelope is refused, and so is a
     malformed envelope: any structural issue, a value off its ladder, a
     lineage step that is not an object, or a non-boolean taint flag on a
@@ -32,7 +33,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   The name, the throw, the default and fail-closed are the owner's decisions
   on #120; ADR-0020 records which details were then settled under them. The
   ROADMAP's working name was `require`, which clashes with CommonJS. The two
-  languages are pinned by 32 rows of a new `guard` kind in
+  languages are pinned by 37 rows of a new `guard` kind in
   `primitives/conformance/cases.json`; a port certified earlier must re-run.
   It is bundled with the plugin, and the bootstrap skill's vendoring list
   includes it.
