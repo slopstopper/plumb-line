@@ -56,6 +56,10 @@ describe("judgeCommit", () => {
       "blocked: code edit to src/a.js with the branch unknown (HEAD is not on a branch). Switch to a branch first.");
     expect(r.reason).not.toContain("PLUMBLINE_BRANCH");
   });
+  it("names HEAD for a branch git would not accept, even with no branch protected", () => {
+    expect(judgeCommit({ branch: "-x", paths: ["src/a.js"], config: { protectedBranches: [] } }).reason).toBe(
+      'blocked: code edit to src/a.js with the branch unknown (HEAD is on "-x", which is not a branch name). Switch to a branch first.');
+  });
   it("allows docs with HEAD on no branch, and nothing staged anywhere", () => {
     expect(judgeCommit({ branch: null, paths: ["docs/a.md"], config: docs }).allow).toBe(true);
     expect(judgeCommit({ branch: "main", paths: [], config: {} }).allow).toBe(true);
@@ -83,16 +87,18 @@ describe("the hook as bootstrap Step 4 wires it", () => {
     for (const f of ["branch-guard.mjs", "branch-guard-commit.mjs", "pre-commit-gate.mjs"]) {
       copyFileSync(path.join(HOOKS, f), path.join(repo, ".claude", "guards", f));
     }
+    writeFileSync(path.join(repo, ".claude", "guards", "branch-guard.json"),
+      '{"protectedBranches": ["main"], "docsAllowlist": ["docs/", "*.md"]}\n');
     const hooksDir = path.resolve(repo, git(repo, "rev-parse", "--git-path", "hooks").stdout.trim());
     mkdirSync(hooksDir, { recursive: true });
     const hook = path.join(hooksDir, "pre-commit");
     writeFileSync(hook, [
       "#!/bin/sh",
       "# plumb-line (bootstrap Step 4): the branch guard, then the test gate.",
-      `PLUMBLINE_CFG='{"protectedBranches": ["main"], "docsAllowlist": ["docs/", "*.md"]}'`,
+      'PLUMBLINE_CFG="$(cat .claude/guards/branch-guard.json)"',
       "export PLUMBLINE_CFG",
       `'${process.execPath}' .claude/guards/branch-guard-commit.mjs || exit 1`,
-      `PLUMBLINE_TEST_CMD="'${process.execPath}' -e ''" exec '${process.execPath}' .claude/guards/pre-commit-gate.mjs`,
+      `PLUMBLINE_TEST_CMD="'${process.execPath}' -e ''" '${process.execPath}' .claude/guards/pre-commit-gate.mjs`,
       "",
     ].join("\n"));
     chmodSync(hook, 0o755);

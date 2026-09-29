@@ -23,8 +23,9 @@ _HOOK = os.path.join(_HERE, 'branch_guard_commit.py')
 
 # Every field, case kind and table version this runner interprets (#441). JS
 # twin: MODEL in adapters/js/hooks/__tests__/commit-hook-cases.test.mjs.
-_ROW = ['name', 'repo', 'committed', 'branch', 'tags', 'headRef', 'remove', 'move', 'stage',
-        'stageHex', 'modify', 'env', 'commit', 'expectExit', 'expectStderr']
+_ROW = ['name', 'repo', 'committed', 'side', 'branch', 'tags', 'headRef', 'config', 'merge',
+        'remove', 'move', 'stage', 'stageHex', 'gitlink', 'stageCount', 'modify', 'env', 'commit',
+        'expectExit', 'expectStderr']
 _MODEL = {'versions': [1], 'meta': ['_doc', 'version'], 'fields': {'commitHook': _ROW}}
 
 
@@ -51,7 +52,7 @@ def _type_problems(c):
         problems.append('name must be a string')
     if 'repo' in c and c['repo'] is not False:
         problems.append('repo must be false when present')
-    for f in ('committed', 'tags', 'remove', 'stage', 'modify', 'commit'):
+    for f in ('committed', 'side', 'tags', 'merge', 'remove', 'stage', 'gitlink', 'modify', 'commit'):
         if f in c and not _is_strings(c[f]):
             problems.append(f'{f} must be an array of strings')
     if 'branch' in c and c['branch'] is not None and not isinstance(c['branch'], str):
@@ -60,9 +61,14 @@ def _type_problems(c):
         problems.append('headRef must be a string')
     if 'stageHex' in c and not (isinstance(c['stageHex'], list) and all(_is_hex(h) for h in c['stageHex'])):
         problems.append('stageHex must be an array of whole hex bytes')
-    if 'move' in c and not (isinstance(c['move'], list)
-                            and all(_is_strings(m) and len(m) == 2 for m in c['move'])):
-        problems.append('move must be an array of [from, to] pairs')
+    for f in ('move', 'config'):
+        if f in c and not (isinstance(c[f], list) and all(_is_strings(m) and len(m) == 2 for m in c[f])):
+            problems.append(f'{f} must be an array of pairs of strings')
+    if 'stageCount' in c:
+        sc = c['stageCount']
+        if not (isinstance(sc, list) and len(sc) == 2 and isinstance(sc[0], str) and sc[0]
+                and _is_int(sc[1]) and 1 <= sc[1] <= 20000):
+            problems.append('stageCount must be [a non-empty prefix, a count from 1 to 20000]')
     if 'env' in c:
         if not isinstance(c['env'], dict):
             problems.append('env must be an object')
@@ -74,9 +80,13 @@ def _type_problems(c):
         problems.append('expectExit must be an integer')
     if not isinstance(c.get('expectStderr'), str):
         problems.append('expectStderr must be a string')
-    # A detached HEAD, a tag or a HEAD ref needs a commit to stand on.
-    if 'committed' not in c and (('branch' in c and c['branch'] is None) or 'tags' in c or 'headRef' in c):
-        problems.append('branch null, tags and headRef need committed')
+    # A detached HEAD, a tag, a HEAD ref, a side branch or a gitlink needs a
+    # commit to stand on, and a merge needs the side branch.
+    if 'committed' not in c and (('branch' in c and c['branch'] is None)
+                                 or any(f in c for f in ('tags', 'headRef', 'side', 'gitlink'))):
+        problems.append('branch null, tags, headRef, side and gitlink need committed')
+    if 'merge' in c and 'side' not in c:
+        problems.append('merge needs side')
     return problems
 
 
@@ -114,6 +124,13 @@ def _build(c, repo):
             _write(repo, p, 'base\n')
         _git(repo, 'add', '--', *c['committed'])
         _git(repo, 'commit', '-q', '--no-verify', '-m', 'base')
+    if c.get('side'):
+        _git(repo, 'checkout', '-q', '-b', 'side')
+        for p in c['side']:
+            _write(repo, p, 'side\n')
+        _git(repo, 'add', '--', *c['side'])
+        _git(repo, 'commit', '-q', '--no-verify', '-m', 'side')
+        _git(repo, 'checkout', '-q', 'main')
     if 'branch' in c and c['branch'] is None:
         _git(repo, 'checkout', '-q', '--detach')
     elif c.get('branch') not in (None, 'main'):
@@ -122,6 +139,10 @@ def _build(c, repo):
         _git(repo, 'tag', t)
     if 'headRef' in c:
         _git(repo, 'symbolic-ref', 'HEAD', c['headRef'])
+    for k, v in c.get('config', []):
+        _git(repo, 'config', k, v)
+    if c.get('merge'):
+        _git(repo, 'merge', '-q', *c['merge'])
     for p in c.get('remove', []):
         _git(repo, 'rm', '-q', '--', p)
     for src, dst in c.get('move', []):
@@ -131,11 +152,19 @@ def _build(c, repo):
         _write(repo, p, 'staged\n')
     if c.get('stage'):
         _git(repo, 'add', '--', *c['stage'])
-    if c.get('stageHex'):
-        # Index only: a path that is not UTF-8 cannot be created on every
-        # filesystem (APFS refuses it), but git's index takes any bytes.
+    # Index only: a path that is not UTF-8 cannot be created on every
+    # filesystem (APFS refuses it), but git's index takes any bytes, and
+    # thousands of paths are staged without writing thousands of files.
+    index_only = [('100644', bytes.fromhex(h)) for h in c.get('stageHex', [])]
+    index_only += [('160000', p.encode()) for p in c.get('gitlink', [])]
+    if 'stageCount' in c:
+        prefix, n = c['stageCount']
+        index_only += [('100644', f'{prefix}{i}'.encode()) for i in range(int(n))]
+    if index_only:
         blob = _git(repo, 'hash-object', '-w', '--stdin', input=b'staged\n').decode().strip()
-        info = b''.join(f'100644 {blob}\t'.encode() + bytes.fromhex(h) + b'\0' for h in c['stageHex'])
+        head = _git(repo, 'rev-parse', 'HEAD').decode().strip() if c.get('gitlink') else ''
+        info = b''.join(f"{mode} {head if mode == '160000' else blob}\t".encode() + p + b'\0'
+                        for mode, p in index_only)
         _git(repo, 'update-index', '-z', '--add', '--index-info', input=info)
     for p in c.get('modify', []):
         _write(repo, p, 'modified\n')
@@ -163,7 +192,14 @@ def _run(c, tmp_path):
     with open(hook, 'w', encoding='utf-8') as f:
         f.write(f"#!/bin/sh\nexec '{sys.executable}' '{_HOOK}'\n")
     os.chmod(hook, 0o755)
-    return subprocess.run(['git', 'commit', '-q', '-m', 'case', *c['commit']], cwd=repo, **options)
+
+    def head():
+        return subprocess.run(['git', 'rev-parse', '-q', '--verify', 'HEAD'], cwd=repo, env=_BASE_ENV,
+                              capture_output=True).stdout
+    before = head()
+    r = subprocess.run(['git', 'commit', '-q', '-m', 'case', *c['commit']], cwd=repo, **options)
+    r.committed = head() != before
+    return r
 
 
 def test_the_shipped_table_has_nothing_this_runner_ignores():
@@ -191,11 +227,15 @@ def test_a_planted_wrong_type_fails():
     ok = {'name': 'x', 'expectExit': 0, 'expectStderr': ''}
     assert _type_problems({**ok, 'stage': 'src/a.js'}) == ['stage must be an array of strings']
     assert _type_problems({**ok, 'stageHex': ['ff0']}) == ['stageHex must be an array of whole hex bytes']
-    assert _type_problems({**ok, 'move': [['a']]}) == ['move must be an array of [from, to] pairs']
+    assert _type_problems({**ok, 'move': [['a']]}) == ['move must be an array of pairs of strings']
+    assert _type_problems({**ok, 'config': [['a', 1]]}) == ['config must be an array of pairs of strings']
+    assert _type_problems({**ok, 'stageCount': ['p', 0]}) == [
+        'stageCount must be [a non-empty prefix, a count from 1 to 20000]']
+    assert _type_problems({**ok, 'committed': [], 'merge': ['side']}) == ['merge needs side']
     assert _type_problems({**ok, 'branch': 1}) == ['branch must be a string or null']
     assert _type_problems({**ok, 'repo': True}) == ['repo must be false when present']
     assert _type_problems({**ok, 'env': {'A': 1}}) == ['env.A must be a string or null']
-    assert _type_problems({**ok, 'branch': None}) == ['branch null, tags and headRef need committed']
+    assert _type_problems({**ok, 'branch': None}) == ['branch null, tags, headRef, side and gitlink need committed']
     assert _type_problems({'name': 'x', 'expectExit': 2.5}) == [
         'expectExit must be an integer', 'expectStderr must be a string']
     assert _type_problems({**ok, 'expectExit': 2.0}) == []
@@ -216,3 +256,6 @@ def test_commit_hook_case(c, tmp_path):
     stderr = r.stderr.decode('utf-8')
     assert r.returncode == c['expectExit'], stderr
     assert stderr == c['expectStderr']
+    # A commit row that passes made a commit; one that blocks made none.
+    if 'commit' in c:
+        assert r.committed == (c['expectExit'] == 0), 'a commit was made'

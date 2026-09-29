@@ -17,8 +17,9 @@ const HOOK = fileURLToPath(new URL("../branch-guard-commit.mjs", import.meta.url
 
 // Every field, case kind and table version this runner interprets (#441).
 // Python twin: _MODEL in adapters/python/hooks/test_commit_hook_cases.py.
-const ROW = ["name", "repo", "committed", "branch", "tags", "headRef", "remove", "move", "stage",
-  "stageHex", "modify", "env", "commit", "expectExit", "expectStderr"];
+const ROW = ["name", "repo", "committed", "side", "branch", "tags", "headRef", "config", "merge",
+  "remove", "move", "stage", "stageHex", "gitlink", "stageCount", "modify", "env", "commit",
+  "expectExit", "expectStderr"];
 const MODEL = { versions: [1], meta: ["_doc", "version"], fields: { commitHook: ROW } };
 
 const isStrings = (v) => Array.isArray(v) && v.every((s) => typeof s === "string");
@@ -30,7 +31,7 @@ function typeProblems(c) {
   const problems = [];
   if (typeof c.name !== "string") problems.push("name must be a string");
   if ("repo" in c && c.repo !== false) problems.push("repo must be false when present");
-  for (const f of ["committed", "tags", "remove", "stage", "modify", "commit"]) {
+  for (const f of ["committed", "side", "tags", "merge", "remove", "stage", "gitlink", "modify", "commit"]) {
     if (f in c && !isStrings(c[f])) problems.push(`${f} must be an array of strings`);
   }
   if ("branch" in c && c.branch !== null && typeof c.branch !== "string") problems.push("branch must be a string or null");
@@ -38,8 +39,15 @@ function typeProblems(c) {
   if ("stageHex" in c && !(Array.isArray(c.stageHex) && c.stageHex.every(isHex))) {
     problems.push("stageHex must be an array of whole hex bytes");
   }
-  if ("move" in c && !(Array.isArray(c.move) && c.move.every((m) => isStrings(m) && m.length === 2))) {
-    problems.push("move must be an array of [from, to] pairs");
+  for (const f of ["move", "config"]) {
+    if (f in c && !(Array.isArray(c[f]) && c[f].every((m) => isStrings(m) && m.length === 2))) {
+      problems.push(`${f} must be an array of pairs of strings`);
+    }
+  }
+  if ("stageCount" in c && !(Array.isArray(c.stageCount) && c.stageCount.length === 2
+      && typeof c.stageCount[0] === "string" && c.stageCount[0] !== ""
+      && Number.isInteger(c.stageCount[1]) && c.stageCount[1] >= 1 && c.stageCount[1] <= 20000)) {
+    problems.push("stageCount must be [a non-empty prefix, a count from 1 to 20000]");
   }
   if ("env" in c) {
     if (c.env === null || typeof c.env !== "object" || Array.isArray(c.env)) problems.push("env must be an object");
@@ -49,10 +57,12 @@ function typeProblems(c) {
   }
   if (!Number.isInteger(c.expectExit)) problems.push("expectExit must be an integer");
   if (typeof c.expectStderr !== "string") problems.push("expectStderr must be a string");
-  // A detached HEAD, a tag or a HEAD ref needs a commit to stand on.
-  if (!("committed" in c) && (c.branch === null || "tags" in c || "headRef" in c)) {
-    problems.push("branch null, tags and headRef need committed");
+  // A detached HEAD, a tag, a HEAD ref, a side branch or a gitlink needs a
+  // commit to stand on, and a merge needs the side branch.
+  if (!("committed" in c) && (c.branch === null || ["tags", "headRef", "side", "gitlink"].some((f) => f in c))) {
+    problems.push("branch null, tags, headRef, side and gitlink need committed");
   }
+  if ("merge" in c && !("side" in c)) problems.push("merge needs side");
   return problems;
 }
 
@@ -90,10 +100,19 @@ function build(c) {
     git(repo, ["add", "--", ...c.committed]);
     git(repo, ["commit", "-q", "--no-verify", "-m", "base"]);
   }
+  if (c.side) {
+    git(repo, ["checkout", "-q", "-b", "side"]);
+    for (const p of c.side) write(repo, p, "side\n");
+    git(repo, ["add", "--", ...c.side]);
+    git(repo, ["commit", "-q", "--no-verify", "-m", "side"]);
+    git(repo, ["checkout", "-q", "main"]);
+  }
   if (c.branch === null) git(repo, ["checkout", "-q", "--detach"]);
   else if (c.branch !== undefined && c.branch !== "main") git(repo, ["checkout", "-q", "-b", c.branch]);
   for (const t of c.tags ?? []) git(repo, ["tag", t]);
   if (c.headRef !== undefined) git(repo, ["symbolic-ref", "HEAD", c.headRef]);
+  for (const [k, v] of c.config ?? []) git(repo, ["config", k, v]);
+  if (c.merge) git(repo, ["merge", "-q", ...c.merge]);
   for (const p of c.remove ?? []) git(repo, ["rm", "-q", "--", p]);
   for (const [from, to] of c.move ?? []) {
     mkdirSync(path.dirname(path.join(repo, to)), { recursive: true });
@@ -101,12 +120,21 @@ function build(c) {
   }
   for (const p of c.stage ?? []) write(repo, p, "staged\n");
   if (c.stage?.length) git(repo, ["add", "--", ...c.stage]);
-  if (c.stageHex?.length) {
-    // Index only: a path that is not UTF-8 cannot be created on every
-    // filesystem (APFS refuses it), but git's index takes any bytes.
+  // Index only: a path that is not UTF-8 cannot be created on every
+  // filesystem (APFS refuses it), but git's index takes any bytes, and
+  // thousands of paths are staged without writing thousands of files.
+  const indexOnly = [
+    ...(c.stageHex ?? []).map((h) => ["100644", Buffer.from(h, "hex")]),
+    ...(c.gitlink ?? []).map((p) => ["160000", Buffer.from(p)]),
+  ];
+  if (c.stageCount) {
+    for (let i = 0; i < c.stageCount[1]; i++) indexOnly.push(["100644", Buffer.from(`${c.stageCount[0]}${i}`)]);
+  }
+  if (indexOnly.length) {
     const blob = git(repo, ["hash-object", "-w", "--stdin"], "staged\n").toString().trim();
-    const info = Buffer.concat(c.stageHex.map((h) =>
-      Buffer.concat([Buffer.from(`100644 ${blob}\t`), Buffer.from(h, "hex"), Buffer.from([0])])));
+    const head = c.gitlink ? git(repo, ["rev-parse", "HEAD"]).toString().trim() : "";
+    const info = Buffer.concat(indexOnly.map(([mode, p]) =>
+      Buffer.concat([Buffer.from(`${mode} ${mode === "160000" ? head : blob}\t`), p, Buffer.from([0])])));
     git(repo, ["update-index", "-z", "--add", "--index-info"], info);
   }
   for (const p of c.modify ?? []) write(repo, p, "modified\n");
@@ -130,7 +158,10 @@ function run(c) {
   const hook = path.join(repo, ".git", "hooks", "pre-commit");
   writeFileSync(hook, `#!/bin/sh\nexec '${process.execPath}' '${HOOK}'\n`);
   chmodSync(hook, 0o755);
-  return spawnSync("git", ["commit", "-q", "-m", "case", ...c.commit], { ...options, cwd: repo });
+  const head = () => spawnSync("git", ["rev-parse", "-q", "--verify", "HEAD"], { cwd: repo, env: BASE_ENV, encoding: "utf8" }).stdout;
+  const before = head();
+  const r = spawnSync("git", ["commit", "-q", "-m", "case", ...c.commit], { ...options, cwd: repo });
+  return { ...r, committed: head() !== before };
 }
 
 describe("commit-hook-cases.json — the runner interprets every field, kind and version", () => {
@@ -156,11 +187,15 @@ describe("commit-hook-cases.json — the runner interprets every field, kind and
     const ok = { name: "x", expectExit: 0, expectStderr: "" };
     expect(typeProblems({ ...ok, stage: "src/a.js" })).toEqual(["stage must be an array of strings"]);
     expect(typeProblems({ ...ok, stageHex: ["ff0"] })).toEqual(["stageHex must be an array of whole hex bytes"]);
-    expect(typeProblems({ ...ok, move: [["a"]] })).toEqual(["move must be an array of [from, to] pairs"]);
+    expect(typeProblems({ ...ok, move: [["a"]] })).toEqual(["move must be an array of pairs of strings"]);
+    expect(typeProblems({ ...ok, config: [["a", 1]] })).toEqual(["config must be an array of pairs of strings"]);
+    expect(typeProblems({ ...ok, stageCount: ["p", 0] }))
+      .toEqual(["stageCount must be [a non-empty prefix, a count from 1 to 20000]"]);
+    expect(typeProblems({ ...ok, committed: [], merge: ["side"] })).toEqual(["merge needs side"]);
     expect(typeProblems({ ...ok, branch: 1 })).toEqual(["branch must be a string or null"]);
     expect(typeProblems({ ...ok, repo: true })).toEqual(["repo must be false when present"]);
     expect(typeProblems({ ...ok, env: { A: 1 } })).toEqual(["env.A must be a string or null"]);
-    expect(typeProblems({ ...ok, branch: null })).toEqual(["branch null, tags and headRef need committed"]);
+    expect(typeProblems({ ...ok, branch: null })).toEqual(["branch null, tags, headRef, side and gitlink need committed"]);
     expect(typeProblems({ name: "x", expectExit: 2.5 }))
       .toEqual(["expectExit must be an integer", "expectStderr must be a string"]);
   });
@@ -182,6 +217,8 @@ describe("commit hook cases — JS wrapper in a real git repository", () => {
       expect(r.error, "the hook did not start, or timed out").toBeUndefined();
       expect(r.status, r.stderr).toBe(c.expectExit);
       expect(r.stderr).toBe(c.expectStderr);
+      // A commit row that passes made a commit; one that blocks made none.
+      if (c.commit !== undefined) expect(r.committed, "a commit was made").toBe(c.expectExit === 0);
     });
   }
 });

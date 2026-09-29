@@ -1,5 +1,5 @@
 {
-  "_doc": "Cases for the branch guard's git commit hook (#464), run against a real temporary git repository by both twins: adapters/js/hooks/__tests__/commit-hook-cases.test.mjs and adapters/python/hooks/test_commit_hook_cases.py. Each row builds the repository in this order: `git init` on an unborn main; `committed` paths committed as the base (absent: main stays unborn); `branch` checked out as a new branch (null: HEAD detached at the base; \"main\": stay); `tags` created at HEAD; `headRef` given to `git symbolic-ref HEAD`; `remove` and `move` applied with `git rm` and `git mv`; `stage` paths written and added; `stageHex` paths (hex bytes, which need not be UTF-8) added to the index only; `modify` paths rewritten without staging. Then the wrapper runs in the repository with `env` applied (null unsets) and every PLUMBLINE_* variable cleared first, or, when `commit` is present, a pre-commit hook that runs the wrapper is installed and `git commit` runs with those arguments. `repo: false` runs the wrapper outside any repository instead. `expectStderr` is compared exactly.",
+  "_doc": "Cases for the branch guard's git commit hook (#464), run against a real temporary git repository by both twins: adapters/js/hooks/__tests__/commit-hook-cases.test.mjs and adapters/python/hooks/test_commit_hook_cases.py. Each row builds the repository in this order: `git init` on an unborn main; `committed` paths committed as the base (absent: main stays unborn); `side` paths committed on a branch named side, made from the base, then main checked out again; `branch` checked out as a new branch (null: HEAD detached at the base; \"main\": stay); `tags` created at HEAD; `headRef` given to `git symbolic-ref HEAD`; `config` pairs set with `git config`; `merge` arguments given to `git merge`; `remove` and `move` applied with `git rm` and `git mv`; `stage` paths written and added; `stageHex` paths (hex bytes, which need not be UTF-8) added to the index only; `gitlink` paths added to the index as submodule commits (HEAD's); `stageCount` [prefix, n] adds n index-only paths prefix0 to prefix(n-1); `modify` paths rewritten without staging. Then the wrapper runs in the repository with `env` applied (null unsets) and every PLUMBLINE_* variable cleared first, or, when `commit` is present, a pre-commit hook that runs the wrapper is installed and `git commit` runs with those arguments, and a commit must be made exactly when `expectExit` is 0. `repo: false` runs the wrapper outside any repository instead. `expectStderr` is compared exactly.",
   "version": 1,
   "commitHook": [
     {
@@ -217,6 +217,41 @@
       "expectStderr": ""
     },
     {
+      "name": "a submodule bump on a protected branch blocks, even with diff.ignoreSubmodules=all",
+      "committed": ["README.md"],
+      "branch": "main",
+      "config": [["diff.ignoreSubmodules", "all"]],
+      "gitlink": ["lib/sub"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to lib/sub on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "more than 1 MiB of staged paths on an unprotected branch passes (no output limit)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stageCount": ["vendor/a-long-directory-name-to-make-each-path-over-one-hundred-bytes-long/and-then-some-more/file-", 12000],
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "HEAD on a new branch whose name git would not accept (-x) is unknown, and the reason names HEAD (the whole index is new there)",
+      "committed": ["README.md"],
+      "branch": "main",
+      "headRef": "refs/heads/-x",
+      "stage": ["src/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to README.md with the branch unknown (HEAD is on \"-x\", which is not a branch name). Switch to a branch first.\n"
+    },
+    {
+      "name": "git that cannot be run blocks, naming the error code",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["docs/guide.md"],
+      "env": {"PATH": "/nonexistent-plumb-line-path"},
+      "expectExit": 2,
+      "expectStderr": "blocked: the branch guard's commit hook could not run git (ENOENT).\n"
+    },
+    {
       "name": "outside a git repository the hook blocks: it cannot read the branch",
       "repo": false,
       "expectExit": 2,
@@ -257,6 +292,45 @@
       "modify": ["docs/guide.md"],
       "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"docs/\"]}"},
       "commit": ["--", "docs/guide.md"],
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "through git commit: a --no-commit merge into a protected branch is judged, every path it brings in",
+      "committed": ["README.md"],
+      "side": ["src/a.js"],
+      "branch": "main",
+      "merge": ["--no-commit", "--no-ff", "side"],
+      "commit": [],
+      "expectExit": 1,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "through git commit: a --squash merge into a protected branch is judged",
+      "committed": ["README.md"],
+      "side": ["src/a.js"],
+      "branch": "main",
+      "merge": ["--squash", "side"],
+      "commit": [],
+      "expectExit": 1,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "through git commit: a docs-only merge into a protected branch is committed",
+      "committed": ["README.md"],
+      "side": ["docs/guide.md"],
+      "branch": "main",
+      "merge": ["--no-commit", "--no-ff", "side"],
+      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"docs/\"]}"},
+      "commit": [],
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "through git commit --amend: judged by what is staged against HEAD, so an amend with nothing staged passes",
+      "committed": ["README.md", "src/a.js"],
+      "branch": "main",
+      "commit": ["--amend"],
       "expectExit": 0,
       "expectStderr": ""
     },

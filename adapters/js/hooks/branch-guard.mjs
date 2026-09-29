@@ -47,7 +47,7 @@ const BAD_REF_CHARS = /[\x00-\x20\x7f~^:?*[\\]/;
  * `refs/heads/<name>` (#474). The table's rows are cross-checked against
  * `git check-ref-format --branch`. Python twin: _is_branch_name.
  */
-function isBranchName(name) {
+export function isBranchName(name) {
   if (name === "HEAD" || name.startsWith("-")) return false;
   if (BAD_REF_CHARS.test(name) || name.includes("..") || name.includes("@{") || name.endsWith(".")) {
     return false;

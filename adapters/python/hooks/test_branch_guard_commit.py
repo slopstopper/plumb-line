@@ -59,6 +59,24 @@ def test_judge_commit_names_head_not_plumbline_branch_when_head_is_on_no_branch(
     assert "PLUMBLINE_BRANCH" not in r["reason"]
 
 
+def test_judge_commit_names_head_for_a_branch_git_would_not_accept():
+    r = judge_commit("-x", ["src/a.js"], {"protectedBranches": []})
+    assert r["reason"] == ('blocked: code edit to src/a.js with the branch unknown '
+                           '(HEAD is on "-x", which is not a branch name). Switch to a branch first.')
+
+
+def test_the_wrapper_imports_its_guard_under_python_dash_p(tmp_path):
+    """-P (PYTHONSAFEPATH) leaves the script's directory off sys.path; the
+    wrapper names it itself, so it runs and judges rather than failing to
+    import (exit 1)."""
+    env = dict(_ENV, GIT_CEILING_DIRECTORIES=str(tmp_path))
+    r = subprocess.run([sys.executable, "-P", os.path.join(_HERE, "branch_guard_commit.py")],
+                       cwd=tmp_path, env=env, capture_output=True, text=True)
+    assert r.returncode == 2
+    assert r.stderr == ("blocked: the branch guard's commit hook could not read the branch "
+                        "(git symbolic-ref exited 128).\n")
+
+
 def test_judge_commit_allows_docs_on_no_branch_and_nothing_staged_anywhere():
     assert judge_commit(None, ["docs/a.md"], {"docsAllowlist": ["docs/"]})["allow"] is True
     assert judge_commit("main", [], {})["allow"] is True
@@ -100,14 +118,16 @@ def _wired_repo(tmp_path):
     os.makedirs(guards)
     for f in ("branch_guard.py", "branch_guard_commit.py", "pre_commit_gate.py"):
         shutil.copy(os.path.join(_HERE, f), guards)
+    with open(os.path.join(guards, "branch-guard.json"), "w", encoding="utf-8") as f:
+        f.write('{"protectedBranches": ["main"], "docsAllowlist": ["docs/", "*.md"]}\n')
     py = sys.executable
     _write_hook(repo, "\n".join([
         "#!/bin/sh",
         "# plumb-line (bootstrap Step 4): the branch guard, then the test gate.",
-        """PLUMBLINE_CFG='{"protectedBranches": ["main"], "docsAllowlist": ["docs/", "*.md"]}'""",
+        'PLUMBLINE_CFG="$(cat .claude/guards/branch-guard.json)"',
         "export PLUMBLINE_CFG",
         f"'{py}' .claude/guards/branch_guard_commit.py || exit 1",
-        f"""PLUMBLINE_TEST_CMD="'{py}' -c pass" exec '{py}' .claude/guards/pre_commit_gate.py""",
+        f"""PLUMBLINE_TEST_CMD="'{py}' -c pass" '{py}' .claude/guards/pre_commit_gate.py""",
         "",
     ]))
     _stage(repo, "README.md")

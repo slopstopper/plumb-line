@@ -10,7 +10,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { configFromEnv, decide } from "./branch-guard.mjs";
+import { configFromEnv, decide, isBranchName } from "./branch-guard.mjs";
 
 /**
  * The branch HEAD names, from `git symbolic-ref HEAD`'s full ref, or null when
@@ -43,13 +43,16 @@ export function stagedPaths(output) {
 
 /**
  * Judge a commit: every staged path through decide(), stopping at the first
- * block. `branch` null is a HEAD on no branch: unknown, so only a path allowed
- * on every branch passes (#449). With the config already checked and a
- * non-empty path, decide()'s only block on an unknown branch is the code edit,
- * so that reason is replaced with one naming HEAD rather than
- * PLUMBLINE_BRANCH, which this hook never reads.
+ * block. The branch is unknown when HEAD is on no branch (`branch` null) or on
+ * one git would not accept as a branch name, such as `-x`, which
+ * `git symbolic-ref` can still point HEAD at: then only a path allowed on
+ * every branch passes (#449). With the config already checked and a non-empty
+ * path, decide()'s only block on an unknown branch is the code edit, so that
+ * reason is replaced with one naming HEAD rather than PLUMBLINE_BRANCH, which
+ * this hook never reads.
  */
 export function judgeCommit({ branch, paths, config }) {
+  const known = branch !== null && isBranchName(branch);
   for (const filePath of paths) {
     const r = decide({
       filePath,
@@ -58,10 +61,13 @@ export function judgeCommit({ branch, paths, config }) {
       docsAllowlist: config.docsAllowlist,
     });
     if (r.allow) continue;
-    if (branch !== null) return r;
+    if (known) return r;
+    const why = branch === null
+      ? "HEAD is not on a branch"
+      : `HEAD is on ${JSON.stringify(branch)}, which is not a branch name`;
     return {
       allow: false,
-      reason: `blocked: code edit to ${filePath} with the branch unknown (HEAD is not on a branch). Switch to a branch first.`,
+      reason: `blocked: code edit to ${filePath} with the branch unknown (${why}). Switch to a branch first.`,
     };
   }
   return { allow: true, reason: "no staged path is blocked" };
@@ -77,10 +83,16 @@ function isMainModule() {
   }
 }
 
-/** Run git; its stdout as bytes, or throw with the reason to block. */
+/**
+ * Run git; the finished process, or throw with the reason to block. No output
+ * limit: Node's default of 1 MiB blocked a large commit (vendored files) on
+ * any branch, where the Python twin read it all. Reasons match the twin's:
+ * the errno name when git cannot start, the signal's name when it is killed.
+ */
 function git(args, what, okStatuses = [0]) {
-  const r = spawnSync("git", args, { stdio: ["ignore", "pipe", "pipe"] });
+  const r = spawnSync("git", args, { stdio: ["ignore", "pipe", "pipe"], maxBuffer: Infinity });
   if (r.error) throw new Error(`the branch guard's commit hook could not run git (${r.error.code ?? r.error.message}).`);
+  if (r.signal) throw new Error(`the branch guard's commit hook could not ${what} (git ${args[0]} was killed by ${r.signal}).`);
   if (!okStatuses.includes(r.status)) {
     throw new Error(`the branch guard's commit hook could not ${what} (git ${args[0]} exited ${r.status}).`);
   }
@@ -101,7 +113,10 @@ function main() {
   // that is the temporary index GIT_INDEX_FILE names. --no-renames: a rename
   // is listed as the path it leaves and the path it makes, so moving a code
   // file into docs/ is judged by the code path it deletes.
-  const diff = git(["diff", "--cached", "--name-only", "-z", "--no-renames"], "list the staged files");
+  // --ignore-submodules=none: diff.ignoreSubmodules or a submodule's
+  // `ignore` setting would otherwise hide a staged submodule bump.
+  const diff = git(["diff", "--cached", "--name-only", "-z", "--no-renames", "--ignore-submodules=none"],
+    "list the staged files");
   return judgeCommit({ branch, paths: stagedPaths(diff.stdout), config });
 }
 

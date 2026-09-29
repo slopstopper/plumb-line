@@ -90,7 +90,7 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
   blocks every docs edit is the other. Then verify the git wiring the same
   way, through git itself: on the protected branch, stage a scratch code file,
   run `git commit`, and confirm it is refused with the branch guard's reason
-  and `git rev-parse HEAD` has not moved; unstage and delete the file after.
+  and `git log` shows no new commit; unstage and delete the file after.
 
 ### JS boundary zones — get the direction right (easy to invert silently)
 
@@ -169,27 +169,36 @@ not git hooks on their own. The pre-commit gate needs only
 works. The branch guard runs from git through its commit-hook wrapper, which
 reads the branch from git (a detached HEAD is an unknown branch, so a code
 commit there blocks) and judges every staged path, a rename as both of its
-paths. Write the hook to `$(git rev-parse --git-path hooks)/pre-commit`,
-which honours `core.hooksPath`, and make it executable. If the project
-already has a pre-commit hook or a hook manager, add these lines to it
-rather than replacing it; never overwrite one silently. For the JS adapter,
-with the builder's protected branches and docs allowlist in `PLUMBLINE_CFG`:
+paths. Keep the builder's protected branches and docs allowlist in one
+committed file, such as `.claude/guards/branch-guard.json`, and read it into
+`PLUMBLINE_CFG` in every wiring (this hook and the PreToolUse hook below), so
+the two cannot protect different branches; a missing file leaves the
+variable empty, which blocks as not JSON. Write the hook to
+`$(git rev-parse --git-path hooks)/pre-commit`, which honours
+`core.hooksPath`, and make it executable. If the project already has a
+pre-commit hook or a hook manager, add these lines to it rather than
+replacing it; never overwrite one silently. For the JS adapter:
 
 ```sh
 #!/bin/sh
 # plumb-line: the branch guard, then the test gate.
-PLUMBLINE_CFG='{"protectedBranches": ["main"], "docsAllowlist": ["docs/", "*.md"]}'
+PLUMBLINE_CFG="$(cat .claude/guards/branch-guard.json)"
 export PLUMBLINE_CFG
 node .claude/guards/branch-guard-commit.mjs || exit 1
-PLUMBLINE_TEST_CMD='npm test' exec node .claude/guards/pre-commit-gate.mjs
+PLUMBLINE_TEST_CMD='npm test' node .claude/guards/pre-commit-gate.mjs
 ```
 
 For Python, run `python3 .claude/guards/branch_guard_commit.py` and
 `python3 .claude/guards/pre_commit_gate.py` instead, with the project's test
-command. Git runs the hook from the repository root, and only for
-`git commit` itself: not for a rebase, a cherry-pick or a merge.
-`git commit --no-verify` skips it, so it catches an accident rather than
-locking anything.
+command. Git runs the hook from the repository root, for `git commit`
+itself: not for the commits a rebase, a cherry-pick, a revert or a clean
+merge makes. A merge that stops (a conflict, `--no-commit`, `--squash`) is
+finished with `git commit`, so the hook judges everything it brings in, and
+a merge of code into a protected branch is refused there. A commit made by
+hand at a rebase stop (`git commit --amend` at an `edit`) has HEAD detached,
+so it blocks on a code path even on a feature branch; `--no-verify` is the
+way through. `git commit --no-verify` skips the hook in general, so it
+catches an accident rather than locking anything.
 
 The commit hook judges a commit; to stop the edit itself, before it is made,
 also wire the branch guard as a Claude Code PreToolUse hook: map the host's tool
@@ -201,7 +210,8 @@ unstripped path blocks every docs edit. For example:
 
 ```sh
 jq -c --arg root "$CLAUDE_PROJECT_DIR/" '{filePath: (.tool_input.file_path | ltrimstr($root))}' \
-  | PLUMBLINE_BRANCH="$(git branch --show-current)" node .claude/guards/branch-guard.mjs
+  | PLUMBLINE_BRANCH="$(git branch --show-current)" PLUMBLINE_CFG="$(cat .claude/guards/branch-guard.json)" \
+    node .claude/guards/branch-guard.mjs
 ```
 
 `$CLAUDE_PROJECT_DIR` is the directory Claude Code was started in, spelled
