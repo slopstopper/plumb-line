@@ -13,6 +13,7 @@ try:  # installed as a package
     )
     from .marked import mark, unwrap, meta_of, derive
     from .audit import audit_meta, validate_envelope
+    from .guard import guard, ProvenanceRefused
     # baseline's names resolve lazily (__getattr__ below): imported here, the
     # module was already in sys.modules when `python -m
     # plumb_line_provenance.baseline` ran it as a script, and runpy printed a
@@ -27,6 +28,7 @@ except ImportError:  # flat usage (modules on sys.path)
     )
     from marked import mark, unwrap, meta_of, derive
     from audit import audit_meta, validate_envelope
+    from guard import guard, ProvenanceRefused
     from baseline import (
         check, assert_baseline, update, list_baselines, show, validate_baseline,
     )
@@ -67,6 +69,7 @@ __all__ = [
     'make_meta', 'weakest_confidence', 'weakest_source',
     'is_score', 'combine_confidence_score', 'taints', 'combine_provenance',
     'mark', 'unwrap', 'meta_of', 'derive', 'audit_meta', 'validate_envelope',
+    'guard', 'ProvenanceRefused',
     'check', 'assert_baseline', 'update', 'list_baselines', 'show', 'validate_baseline',
 ]
 # reset_step_counter is intentionally excluded from __all__: it is test-only

@@ -30,6 +30,7 @@ sys.path.insert(0, os.path.join(
     '.claude-plugin', 'bundled', 'primitives', 'python'))
 import provenance as p
 from audit import audit_meta, validate_envelope
+from guard import guard, ProvenanceRefused
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _CASES = os.path.join(_ROOT, 'primitives', 'conformance', 'cases.json')
@@ -127,6 +128,56 @@ def test_bundle_construct_cases():
                 assert out.get(sk) == v, f"{c['name']}: {sk} == {out.get(sk)!r}, expected {v!r}"
 
 
+_GUARD_OPTION = {'noMock': 'no_mock', 'minConfidence': 'min_confidence'}
+
+
+def test_bundle_guard_cases():
+    # The egress guard (#120). JS twin: runGuard in
+    # primitives/conformance/run-cases.mjs. A row's `meta` becomes a marked
+    # value ({'value', 'meta'}, as mark() builds it); a non-dict `meta` is
+    # passed as is, to pin that a value with no envelope is refused.
+    for c in CASES['guard']:
+        name = c['name']
+        expectations = [k for k in ('expectPass', 'expectRefused', 'expectError') if k in c]
+        assert len(expectations) == 1, \
+            f"{name}: a guard case needs exactly one of expectPass, expectRefused or expectError"
+        assert 'expectAbsent' not in c or 'expectRefused' in c, \
+            f"{name}: expectAbsent is read only beside expectRefused"
+        # As in the JS twin: these would otherwise be read as a pass, or as
+        # any refusal at all.
+        assert 'expectPass' not in c or c['expectPass'] is True, f"{name}: expectPass must be true"
+        for key in ('expectRefused', 'expectAbsent'):
+            assert key not in c or (isinstance(c[key], list) and c[key]), \
+                f"{name}: {key} must list at least one reason"
+        # An empty needle is in every string, so it would pin nothing.
+        needles = c.get('expectRefused', []) + c.get('expectAbsent', []) + ([c['expectError']] if 'expectError' in c else [])
+        assert all(isinstance(n, str) and n for n in needles), \
+            f"{name}: every expected reason or error text must be a non-empty string"
+        raw = c['meta']
+        x = {'value': 1, 'meta': _meta_to_snake(raw)} if isinstance(raw, dict) else raw
+        kwargs = {_GUARD_OPTION.get(k, k): v for k, v in c.get('options', {}).items()}
+        try:
+            out = guard(x, **kwargs)
+        except ProvenanceRefused as e:
+            reasons = e.reasons
+            assert isinstance(reasons, list) and all(isinstance(r, str) for r in reasons), \
+                f"{name}: a refusal must carry reasons as a list of strings, got {reasons!r}"
+            assert 'expectRefused' in c, f"{name}: expected {expectations[0]}, got a refusal: {reasons}"
+            for needle in c['expectRefused']:
+                assert any(needle in r for r in reasons), f"{name}: {needle!r} not in {reasons}"
+            for needle in c.get('expectAbsent', []):
+                assert not any(needle in r for r in reasons), f"{name}: {needle!r} in {reasons}"
+        except (TypeError, ValueError) as e:
+            assert 'expectError' in c, f"{name}: expected {expectations[0]}, got an error: {e}"
+            # SPEC §5c: never the refusal's type or a supertype of it, so a
+            # catch for refusals (a ValueError) cannot swallow a bad option.
+            assert not isinstance(e, ValueError), f"{name}: a bad option raised a ValueError: {e}"
+            assert c['expectError'] in str(e), f"{name}: error {str(e)!r}"
+        else:
+            assert 'expectPass' in c, f"{name}: expected {expectations[0]}, got a pass"
+            assert out is x, f"{name}: a pass must return the marked value it was given"
+
+
 # Every case field the tests above interpret; mirrors
 # primitives/python/tests/test_conformance.py and run-cases.mjs (#369).
 _KNOWN_FIELDS = {
@@ -134,6 +185,7 @@ _KNOWN_FIELDS = {
     'audit': {'name', 'meta', 'expectContains'},
     'validate': {'name', 'meta', 'expectContains'},
     'construct': {'name', 'input', 'expect', 'expectError'},
+    'guard': {'name', 'meta', 'options', 'expectPass', 'expectRefused', 'expectAbsent', 'expectError'},
 }
 
 

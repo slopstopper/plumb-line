@@ -255,8 +255,9 @@ Version themes for the near-term releases, and the GitHub issues under each.
   account); a first real run comes first, and the manual protocol stays the
   release gate until a green run is recorded. With them, the two
   refusals already scheduled here: pytest/vitest quarantine plugins (#30 /
-  GH #123) and the egress guard `require()` (#27 / GH #120), with the
-  primitive semantics `require()` depends on — `mark()` accepting a
+  GH #123) and the egress guard `guard()` (#27 / GH #120; working name
+  `require()`, renamed on the owner's decision), with the primitive
+  semantics `guard()` depends on — `mark()` accepting a
   non-level confidence (GH #443) and the wrapper/`mark` default
   `source='derived'` producing an audit-dirty leaf (GH #177, inherited from
   the primitive's own default; at the v0.11.5 scoping it was the deferral
@@ -936,7 +937,7 @@ site-marker extraction, in the Action's CI matrix.
 
 ---
 
-### 27. Egress guard — `require(x, { noMock, minConfidence })`
+### 27. Egress guard — `guard(x, { noMock, minConfidence })`
 
 **Priority: high** · Milestone: v0.12.0 · GitHub: #120
 

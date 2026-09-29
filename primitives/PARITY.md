@@ -21,9 +21,10 @@ combine/audit/validate/construct results. Adding a row covers both languages at 
 divergence fails one suite. The table below is the human-readable summary; the
 JSON is the contract.
 
-The table has four case kinds: `combine` (the law), `audit` (logical
+The table has five case kinds: `combine` (the law), `audit` (logical
 consistency), `validate` (structural field-presence — the `validateEnvelope`
-/ `validate_envelope` checker added in v0.4.0), and `construct` (what
+/ `validate_envelope` checker added in v0.4.0), `guard` (what the egress
+guard passes and refuses, v0.12.0, #120; SPEC §5c), and `construct` (what
 `makeMeta` / `make_meta` accepts and refuses, v0.12.0, #443 and #177; both languages
 refuse the same JSON-expressible inputs, and the refusal message starts the same; the quoted
 value after "got" is each language's JSON rendering and can differ in form for

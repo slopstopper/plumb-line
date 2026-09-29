@@ -181,6 +181,80 @@ validateEnvelope({ source: "real" });
 
 ---
 
+### `guard(x, options?)` / `guard(x, *, no_mock=True, min_confidence='none')`
+
+The egress guard (since v0.12.0, #120; ADR-0020). `auditMeta` reports a
+problem after the fact; `guard` stops a value at an output point (an export,
+a display, a publish) unless its envelope backs what the output claims
+(SPEC §5c). On success it returns the value it was given, unchanged, so the
+output point writes `unwrap(guard(x))`. Otherwise it throws
+[`ProvenanceRefused`](#provenancerefused) listing every reason.
+
+| Option | Default | Refuses when |
+|---|---|---|
+| `noMock` / `no_mock` | `true` / `True` | mock taint appears anywhere: `derivedFromMock`, `source`, `weakestSource` or any lineage step. On unless turned off (Principle 4's mock clause: excluded from outputs unless explicitly opted in. Fallback data, cached data (which the HTTP adapter marks `real`) and approximate data (no rung of its own) are not refused, nor are `inferred`, `semiReal` or `unavailable` sources; #541) |
+| `minConfidence` / `min_confidence` | `"none"` | the weakest confidence in the envelope *or its lineage* is below this level (a lineage step with no confidence counts as `none`) |
+
+It fails closed, whatever the options:
+- a value that is not marked (`42`, `null`, a list, a `Map`) is refused;
+- so is a malformed envelope: any `validateEnvelope` issue, a `source`,
+  `confidence` or `weakestSource` off its ladder, a lineage step that is not
+  a plain object (a Python dict), a step whose `source` or `confidence` is
+  off its ladder or whose `derivedFromMock` is not a boolean, or a
+  `confidenceScore`, top-level or on a step, that is not a number in `[0, 1]`;
+- and so is one the audit flags: any `auditMeta` issue except the
+  `version-legacy:` and `version-future:` advisories. An envelope from an older
+  or newer library is judged on what it carries (SPEC §5b).
+
+A bad option is a programmer error, a `TypeError` in both languages, raised
+before the value is looked at and never a `ProvenanceRefused`: options that
+are not a plain object (JS), an unknown option, a non-boolean `noMock`, or a
+`minConfidence` off the ladder. Its message starts `guard: `. Because a
+refusal is a `ValueError` in Python and a bad option never is, catching one
+cannot swallow the other. In Python, `min_confidence=None` is an error rather
+than the default, as `make_meta` refuses `None`.
+
+```js
+// JavaScript
+const total = derive([mark(100, { source: "real", confidence: "high" }),
+                      mark(1.17, { source: "mock", confidence: "low" })], (a, r) => a * r);
+guard(total);                                  // throws ProvenanceRefused: mock: …
+unwrap(guard(total, { noMock: false }));       // 117 — mock explicitly allowed
+guard(total, { noMock: false, minConfidence: "medium" });
+// throws: confidence: low is below the required medium
+```
+
+```python
+# Python
+total = derive([mark(100, source="real", confidence="high"),
+                mark(1.17, source="mock", confidence="low")], lambda a, r: a * r)
+guard(total)                                   # raises ProvenanceRefused: mock: …
+unwrap(guard(total, no_mock=False))            # 117.0 — mock explicitly allowed
+```
+
+The refusals are pinned for both languages by the `guard` kind in
+[`primitives/conformance/cases.json`](../primitives/conformance/cases.json).
+
+---
+
+### `ProvenanceRefused`
+
+What `guard` throws (JS: an `Error` subclass) or raises (Python: a
+`ValueError` subclass) when a value may not leave. `reasons` lists every
+reason, each prefixed with its class — `not a marked value`,
+`invalid envelope:`, `audit:`, `mock:`, `confidence:` — and the message is
+`provenance refused: ` followed by the reasons joined with `; `, the same in
+both languages. A display that should show "unavailable" instead of failing
+catches it:
+
+```js
+let shown;
+try { shown = unwrap(guard(price, { minConfidence: "medium" })); }
+catch (e) { if (e instanceof ProvenanceRefused) shown = "unavailable"; else throw e; }
+```
+
+---
+
 ## Low-level API
 
 These functions implement the combination law and envelope construction.

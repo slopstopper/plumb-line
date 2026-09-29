@@ -374,6 +374,69 @@ unrecognized version is accepted (not rejected) so that consumers built against
 an older checker keep working against newer producers — the version field
 exists to make drift *legible*, not to gate interoperability.
 
+### 5c. The egress guard (#120, ADR-0020)
+
+The audit reports; the **egress guard** refuses. `guard` takes a marked value
+and options and either returns that value unchanged or refuses it with a list
+of reasons, at the point where a value leaves the system (an export, a
+display, a publish). It enforces Principle 4's mock clause, "excluded from
+outputs unless explicitly opted in", at run time. It does not refuse the
+rest of what Principle 4 names: fallback data (source `fallback`) and cached
+data (which the HTTP adapter marks `real`) pass, and approximate data has no
+rung of its own. Nor are `inferred`, `semiReal` or `unavailable` sources
+refused. A source floor is #541.
+
+**Options.** `noMock` (a boolean, default **true**) and `minConfidence` (a
+level on the confidence ladder, default `none`). A default of true for
+`noMock` is normative: mock is excluded unless the caller opts in.
+
+**Refusals.** A conforming guard refuses, whatever the options:
+
+1. a value that is not a marked value (it carries no envelope): reason
+   prefixed `not a marked value`;
+2. a malformed envelope, with one reason per issue prefixed `invalid
+   envelope:`: any §5a structural issue; a `source`, `confidence` or (when
+   present) `weakestSource` off its ladder (§2); a lineage step that is not
+   a plain object (a JS object literal or null-prototype object; a Python
+   dict or dict subclass, judged on its contents); a step whose `source` or
+   `confidence`, when present, is off its ladder, or whose
+   `derivedFromMock`, when present, is not a boolean; or a
+   `confidenceScore`, top-level or on a step, that is present and not a
+   number in `[0, 1]`. The ladder and score checks are made only on an
+   envelope with no §5a issue, so a structurally broken envelope reports its
+   §5a issues alone. The constructors refuse off-ladder values (§2,
+   ADR-0019) and the law tolerates them in a handed envelope; an output
+   point fails closed; and
+3. an envelope with any §5 audit issue other than the `version-legacy:` and
+   `version-future:` advisories: one reason per issue, prefixed `audit:`. An
+   envelope older or newer than the implementation is judged on what it
+   carries, as §5b requires; `version-malformed:` is refused.
+
+With `noMock` true it refuses, with a reason prefixed `mock:`, an envelope
+with taint anywhere: `derivedFromMock` true, `source` `mock`, `weakestSource`
+`mock`, or any lineage step with `derivedFromMock` true or `source` `mock`.
+With `minConfidence` above `none`, it refuses, with a reason prefixed
+`confidence:`, when the weakest of the top-level `confidence` and every lineage
+step's `confidence` ranks below `minConfidence`. A step with no `confidence`
+counts as `none` here (the audit skips it; the guard vouches only for what the
+lineage states). Taint and confidence are judged from the lineage as well as
+the headline fields, so a headline the lineage contradicts cannot pass.
+
+Reasons from (3), `mock:` and `confidence:` accumulate; (1) and (2) are
+returned alone, since a missing or malformed envelope cannot be judged
+further. The refusal's message is `provenance refused: ` followed by the
+reasons joined with `; `.
+
+**Programmer errors.** An unknown option, a non-boolean `noMock`, or a
+`minConfidence` off the ladder MUST raise an error, before the value is
+examined, with a message starting `guard: ` (an unknown option's naming it:
+`guard: unknown option <name>`). Its type MUST NOT be the refusal's type, or a
+supertype or subtype of it, so a caller catching one can never catch the
+other: a bad option must never be read as a refused value, or a refused value
+as a bad option. Where the refusal is a subtype of a standard error callers
+catch (Python's `ValueError`), the bad option's error MUST NOT be one either,
+so an `except ValueError` written for refusals cannot catch it.
+
 ---
 
 ## 6. Static enforcement (review-time)
@@ -422,7 +485,10 @@ An implementation **conforms to envelope schema version 2** if, for every case i
 - each `validate` case's issue list contains the expected substrings (or is empty
   when none are expected), and
 - each `construct` case either builds an envelope with the expected fields or
-  is refused with an error containing the expected substring (§2).
+  is refused with an error containing the expected substring (§2), and
+- each `guard` case passes (returning the value it was given), is refused with
+  reasons containing the expected substrings and none of the `expectAbsent`
+  ones, or raises a programmer error containing the expected substring (§5c).
 
 Conformance is verifiable mechanically — see [`conformance/`](conformance/) and
 the report tool documented there. New behavior MUST be added to `cases.json`

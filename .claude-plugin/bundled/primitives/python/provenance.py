@@ -36,8 +36,13 @@ def _json(value):
     value can differ in form (floats, non-ASCII text, containers)."""
     try:
         return json.dumps(value)
-    except (TypeError, ValueError):
+    except Exception:  # not JSON: a set, a cycle, too deep, a raising default
+        pass
+    try:
         return repr(value)
+    except Exception:  # a __repr__ that raises must not replace the refusal
+        # A constant: even a type name can raise (a hostile metaclass). As JS.
+        return '<unprintable>'
 
 
 class _Required:
