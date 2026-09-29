@@ -167,3 +167,27 @@ describe("derive refuses an input that is not a marked value (#550)", () => {
     expect(derive([{ value: 2 }], (v) => v).lineage[0].source).toBe(null);
   });
 });
+
+describe("derive reads its inputs once, as a list (#550 review)", () => {
+  const mock = mark(41, { source: "mock", confidence: "low" });
+  const clean = mark(1, { source: "real", confidence: "high" });
+  it("a generator of marked values keeps their taint (it was combined as zero inputs)", () => {
+    function* gen() { yield mock; }
+    const out = derive(gen(), (v) => v + 1);
+    expect(out.value).toBe(42);
+    expect(out.derivedFromMock).toBe(true);
+    expect(out.source).toBe("derived");
+  });
+  it("a hole in a sparse array is refused like undefined", () => {
+    // eslint-disable-next-line no-sparse-arrays
+    expect(() => derive([, clean], () => 0)).toThrow("derive: input 0 is not a marked value (mark it first)");
+  });
+  it("a Set is read in order, naming the real position", () => {
+    expect(() => derive(new Set([clean, 3]), () => 0)).toThrow("derive: input 1 is not a marked value (mark it first)");
+  });
+  for (const [label, inputs] of [["a number", 3], ["null", null], ["a string", "ab"], ["a plain object", { a: clean }]]) {
+    it(`refuses ${label} as the inputs`, () => {
+      expect(() => derive(inputs, () => 0)).toThrow(new TypeError("derive: inputs must be a list of marked values"));
+    });
+  }
+});

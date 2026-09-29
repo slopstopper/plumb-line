@@ -412,7 +412,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
 - **`derive` refuses an input that is not a marked value, in both
-  languages (breaking for JS callers who passed one)**
+  languages (breaking for callers who passed one)**
   ([#550](https://github.com/slopstopper/plumb-line/issues/550); SPEC §2).
   JS used to combine an unmarked object or `null` as an unknown input, giving
   a result whose headline `derivedFromMock` was `false`. It threw an
@@ -420,7 +420,13 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `KeyError` or `TypeError` on all three. Both now throw the same
   `TypeError`, `derive: input N is not a marked value (mark it first)`,
   before the function runs. A marked value is the shape the egress guard
-  reads.
+  reads. So JS callers who passed a `Map`, a `Date` or a class instance
+  holding `value`, and Python callers who passed a `Mapping` that is not a
+  `dict` (`MappingProxyType`), are refused too. `derive` now reads `inputs`
+  once into a list. Before, a generator was combined as zero inputs, so a
+  mock value from a generator came out labelled `unavailable` and passed
+  the egress guard, in both languages. `inputs` that are not a list of
+  values are refused with `derive: inputs must be a list of marked values`.
 - **`combine` agrees across languages on handed envelopes that are not
   well formed** ([#525](https://github.com/slopstopper/plumb-line/issues/525);
   SPEC §3, §4; `primitives/PARITY.md`). The same inputs gave different results

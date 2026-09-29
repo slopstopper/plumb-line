@@ -120,9 +120,13 @@ the function, with a `TypeError` whose message is `derive: input <position>
 is not a marked value (mark it first)`, counting from 0. A marked value has
 the shape the egress guard reads (§5c): in JavaScript a plain object holding
 `value`, in Python a dict holding `value` and `meta`. An unmarked input has no
-provenance to combine, and `derive` is where values are built, so unknown
-provenance is kept out there. The law itself (`combine`) still accepts any
-input (§3). Added in v0.12.0 (#550); before that, JavaScript combined an
+provenance envelope to combine, and `derive` is where values are built, so it
+is kept out there. A marked value whose envelope is empty still combines, as
+an unknown input the audit names (§5). `derive` also refuses `inputs` that
+are not a list of values (a non-iterable, a string, a mapping), with the
+message `derive: inputs must be a list of marked values`, and reads any other
+iterable once, so a generator's inputs are all checked and combined. The law
+itself (`combine`) still accepts any input (§3). Added in v0.12.0 (#550); before that, JavaScript combined an
 unmarked object or `null` as an unknown input, and Python raised an
 unrelated error.
 
