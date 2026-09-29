@@ -298,14 +298,6 @@ _CLAIMS = {"fallback": "fallback", "baseline": "baseline", "inconclusive": "inco
            "failing test": "a test that cannot pass"}
 
 
-def test_every_moment_the_description_claims_is_taught_in_the_body():
-    desc = _method_description()
-    body = " ".join(SKILLS["plumb-line-method"].split("\n---", 1)[1].split()).lower()
-    for claim, taught in _CLAIMS.items():
-        if claim in desc:
-            assert taught in body, f"description claims {claim!r}; the body does not teach it"
-
-
 def test_adopt_mid_task_says_yes_and_with_tracking_short_of_the_primitive():
     # Owner, #487: "add the mock but here's how we can keep track of it".
     text = SKILLS["plumb-line-adopt"]
@@ -319,3 +311,59 @@ def test_adopt_mid_task_says_yes_and_with_tracking_short_of_the_primitive():
 def test_adopt_description_claims_building_with_a_stand_in():
     front = SKILLS["plumb-line-adopt"].split("\n---", 1)[0].lower()
     assert "stand-in" in front and "keep track" in front
+
+
+def _mid_task_sections():
+    # Both in-task sections, not the whole body: "provenance" and "layer"
+    # also appear in the runtime-primitive and next-steps sections, which
+    # would let a claim pass with the table deleted (#487 review).
+    text = SKILLS["plumb-line-method"]
+    start = text.index("## Mid-task: a test that cannot pass honestly")
+    end = text.index("## The runtime primitive")
+    return " ".join(text[start:end].split()).lower()
+
+
+def test_every_moment_the_description_claims_is_taught_in_a_mid_task_section():
+    desc = _method_description()
+    body = _mid_task_sections()
+    claimed = [c for c in _CLAIMS if c in desc]
+    assert len(claimed) >= 6, f"the description should claim the moments; found {claimed}"
+    for claim in claimed:
+        assert _CLAIMS[claim] in body, f"description claims {claim!r}; no mid-task section teaches it"
+
+
+def _row(keyword):
+    # One table line of "Mid-task: other moments"; the first cell names the moment.
+    text = SKILLS["plumb-line-method"]
+    start = text.index("## Mid-task: other moments")
+    lines = text[start:text.index("\n## ", start + 1)].splitlines()
+    rows = [ln for ln in lines if ln.startswith("| ") and keyword in ln.split("|")[1].lower()]
+    assert len(rows) == 1, f"expected one table row for {keyword}, found {len(rows)}"
+    return rows[0].lower()
+
+
+def test_the_baseline_row_needs_a_decision_and_sends_unexplained_drift_to_the_test_section():
+    row = _row("baseline")
+    assert "on whose decision" in row and "own judgment" in row
+    assert "failing test" in row
+
+
+def test_the_layer_row_never_widens_or_bypasses_the_boundary_check():
+    row = _row("layer")
+    assert "composition root" in row and "never widen or bypass" in row
+
+
+def test_the_fixture_row_keeps_stand_in_data_out_of_the_real_store():
+    row = _row("fixture")
+    assert "out of the real store" in row and "p1 — source-truth layer" in row
+
+
+def test_the_fallback_row_is_about_passing_a_stand_in_off_as_real():
+    assert "passed off as real" in _row("fallback").split("|")[1]
+
+
+def test_adopt_says_the_task_agent_adds_the_stand_in_and_adopt_edits_nothing():
+    text = SKILLS["plumb-line-adopt"]
+    start = text.index("## Surfacing mid-task")
+    section = " ".join(text[start:].split("\n## ")[0].split()).lower()
+    assert "edits nothing" in section and "not a routing report" in section

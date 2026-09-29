@@ -169,10 +169,13 @@ recommendation is a valid ending.
 
 This skill may fire while the builder is doing something else — writing a
 fallback branch, loading a fixture into a pipeline. In that case: be
-brief, point at the one matching profile, show the one-line integration
-for the code on screen, and offer to continue or get out of the way. Do
-not run the full scan-and-interview over an interruption; the full
-routing is for when the builder asks for it.
+brief; where a fit-map profile matches, point at it and show the one-line
+integration for the code on screen; and offer to continue or get out of
+the way. Do not run the full scan-and-interview over an interruption; the
+full routing is for when the builder asks for it. A brief mid-task answer
+is not a routing report, so it does not carry the `routing-format` header.
+This skill still edits nothing: it tells the agent doing the task, or the
+builder, how to keep the stand-in tracked, and they make the edit.
 
 The answer to building with a stand-in is yes, and: a stub for a service
 that is not built yet, a fallback to cached or last-known values, generated

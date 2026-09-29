@@ -144,10 +144,11 @@ agent to check that a description generalises beyond the queries it was
 tuned on. `breadth-queries.json` covers the moments beyond tests and names,
 per query, the skill that should win (`expected_skill`; `null` for a
 near-miss that should trigger none). Run it with any plumb-line skill as the
-target (derive `should_trigger` from `expected_skill` for that target):
-trigger_check records the winner of every probe, and
-`scripts/breadth_routing.py <queries> <record>` reads the routing across all
-five skills. Measured records, before and after description changes, are in
+target: `scripts/breadth_routing.py --derive <skill> <queries>` writes the
+eval set trigger_check reads for that target, trigger_check records the
+winner of every probe, and `scripts/breadth_routing.py <queries> <record>`
+reads the routing across all five skills (a query routes when its skill wins
+at least half its probes; a near-miss only when no probe triggers any skill). Measured records, before and after description changes, are in
 `results/` (#487).
 
 The results file is a contracted record (`results-format: v3`; v1 #317, v2

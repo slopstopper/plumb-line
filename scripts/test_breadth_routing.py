@@ -48,3 +48,21 @@ def test_a_query_missing_from_the_record_is_an_error(tmp_path):
     other.write_text(json.dumps({"results": []}), encoding="utf-8")
     with pytest.raises(KeyError):
         br.route(q, str(other))
+
+
+def test_derive_writes_the_eval_set_trigger_check_reads_for_one_target(tmp_path):
+    # The committed breadth set carries expected_skill, not should_trigger;
+    # derive() is the one reproducible step between them (#487 review).
+    q, _ = _files(tmp_path, [("a", "plumb-line-method", []), ("b", None, []),
+                             ("c", "plumb-line-adopt", [])])
+    assert br.derive(q, "plumb-line-method") == [
+        {"query": "a", "should_trigger": True},
+        {"query": "b", "should_trigger": False},
+        {"query": "c", "should_trigger": False}]
+
+
+def test_a_query_with_no_probes_is_an_error_not_a_vacuous_route(tmp_path):
+    import pytest
+    q, r = _files(tmp_path, [("a", "plumb-line-method", [])])
+    with pytest.raises(ValueError):
+        br.route(q, r)

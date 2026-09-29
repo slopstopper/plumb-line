@@ -13,10 +13,24 @@ when no probe triggers any skill.
 
 Usage (from repo root):
 
+    # the eval set trigger_check reads, for one target skill
+    python3 scripts/breadth_routing.py --derive plumb-line-method \\
+        evals/trigger/breadth-queries.json > breadth-method.json
+    python3 scripts/trigger_check.py breadth-method.json plumb-line-method \\
+        RECORD.json --plugin-dir . --screen-model claude-opus-5-5 --screen-runs 2
+    # the routing across all five skills
     python3 scripts/breadth_routing.py evals/trigger/breadth-queries.json RECORD.json
 """
 import json
 import sys
+
+
+def derive(queries_path, target):
+    """The breadth set as trigger_check's eval set for one target skill."""
+    with open(queries_path, encoding="utf-8") as f:
+        queries = json.load(f)
+    return [{"query": q["query"], "should_trigger": q["expected_skill"] == target}
+            for q in queries]
 
 
 def route(queries_path, record_path):
@@ -31,6 +45,8 @@ def route(queries_path, record_path):
     rows, by_skill = [], {}
     for q in queries:
         winners = [(w or "").split(":")[-1] or None for w in by_query[q["query"]]["winners"]]
+        if not winners:
+            raise ValueError(f"no probes recorded for {q['query'][:60]!r}")
         expected = q["expected_skill"]
         if expected is None:
             routed = all(w is None for w in winners)
@@ -46,6 +62,9 @@ def route(queries_path, record_path):
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
+    if len(argv) == 3 and argv[0] == "--derive":
+        print(json.dumps(derive(argv[2], argv[1]), indent=1, ensure_ascii=False))
+        return 0
     if len(argv) != 2:
         print(__doc__, file=sys.stderr)
         return 2

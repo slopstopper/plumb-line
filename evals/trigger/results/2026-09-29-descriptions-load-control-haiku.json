@@ -1,0 +1,105 @@
+{
+ "results-format": "v3",
+ "target": "plumb-line-method",
+ "probed_installs": [
+  {
+   "plugin": "plumb-line@inline",
+   "version": "0.11.5",
+   "path": "~/plumb-line/.claude/worktrees/v0.12.0-docs",
+   "frontmatter_sha256": "510b019ca0a4e6eeb927c1818a01eda1346243873b15efd5f4b52e557089841e",
+   "skills_frontmatter_sha256": "755f824ba7c7d72221da186dfa382dec13eb42382f9546084dabc02379ff77c8"
+  }
+ ],
+ "tiers": {
+  "screen": "claude-haiku-4-5-20251001",
+  "confirm": null
+ },
+ "runs": {
+  "screen": 1,
+  "confirm": 0
+ },
+ "threshold": 0.5,
+ "probe": {
+  "timeout_s": 120,
+  "max_turns": 2,
+  "isolation_flags": [
+   "--setting-sources",
+   "project",
+   "--strict-mcp-config"
+  ]
+ },
+ "environments": {
+  "observed": [
+   {
+    "claude_code_version": "2.1.284",
+    "mcp_servers": [],
+    "plugin_errors": null,
+    "plugins": [
+     "agents-md@builtin",
+     "plumb-line@inline",
+     "telemetry@builtin"
+    ],
+    "skills": [
+     "batch",
+     "claude-api",
+     "code-review",
+     "dataviz",
+     "debug",
+     "deep-research",
+     "design",
+     "design-sync",
+     "doctor",
+     "fewer-permission-prompts",
+     "loop",
+     "plumb-line:plumb-line-adopt",
+     "plumb-line:plumb-line-audit",
+     "plumb-line:plumb-line-bootstrap",
+     "plumb-line:plumb-line-method",
+     "plumb-line:plumb-line-remediate",
+     "run",
+     "run-skill-generator",
+     "schedule",
+     "simplify",
+     "update-config",
+     "verify",
+     "workflow-authoring"
+    ],
+    "probes": 2
+   }
+  ],
+  "unobserved_probes": 0,
+  "unreplied_probes": 0
+ },
+ "summary": {
+  "passed": 2,
+  "total": 2
+ },
+ "results": [
+  {
+   "query": "i want to learn the plumb-line method, explain the nine principles",
+   "should_trigger": true,
+   "runs": [
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-haiku-4-5-20251001"
+  },
+  {
+   "query": "write a snapshot test for the Header component in src/components/Header.tsx",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-haiku-4-5-20251001"
+  }
+ ]
+}

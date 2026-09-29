@@ -167,14 +167,14 @@ known cause, or a decision behind it, needs nothing from this section.
 
 | The edit asked for | Yes, and | The only no |
 | --- | --- | --- |
-| A **fallback** that fills a gap when the real source fails | Fill it visibly: "unavailable", or the stand-in labelled as a fallback | The stand-in passed off as the real value |
+| A **fallback** value passed off as real when the source fails | Fill the gap visibly: "unavailable", or the stand-in labelled as a fallback (P4 — Quarantined fakery) | The stand-in shown as the real value |
 | A **hardcoded** threshold or constant that "looked about right" | Use it, as a named config value noting where it came from (eyeballed, not measured), so it can be tuned (P5 — Injectable priors) | The guess buried in logic as if measured |
-| Calling a stub **production-ready**, done or live | State what it is: `mock` (stubbed, returns success without doing the work), `planned` for when (P6 — Maturity vocabulary) | "Done" for a stub |
-| **Fixture**, sample or **generated** data in a real output, "so it looks complete" | Show it as sample or generated: a labelled layer, a flag, a demo environment | Stand-in data counted or shown as real |
-| Dropping a confidence or **provenance** field to slim a payload | Slim the response for that client; keep the field where it is stored | Deleting the record of how sure a value is (P3 — Confidence + provenance) |
-| Regenerating a golden **baseline** without looking into the drift | Regenerate, and record what moved and why it is accepted (P9 — Golden baseline + explain-the-drift) | A silent overwrite |
-| A **layer** shortcut: an import across a boundary to get it working | Take the proper route if it is small; if not, mark the shortcut as a known exception (P2 — One-way layering) | A silent boundary breach |
-| An **inconclusive** or empty result turned into a number (0%, a default) | Show it as inconclusive, with the reason ("n=12") or a dash and a legend | A made-up number that reads as measured (the spine) |
+| Calling a stub **production-ready**, done or live | State what it is: `mock` (stubbed, returns success without doing the work), and when the real one is due if known (P6 — Maturity vocabulary) | "Done" for a stub |
+| **Fixture**, sample or **generated** data in a real output, "so it looks complete" | Keep it out of the real store; show it as a separate, labelled sample layer, or in a demo environment (P1 — Source-truth layer; P4 — Quarantined fakery) | Stand-in data counted or shown as real |
+| Dropping a confidence or **provenance** field to slim a payload | Slim the response for a client that does not decide on the value; keep the field where it is stored, and for any client that acts on it (P3 — Confidence + provenance) | Deleting the record of how sure a value is |
+| Regenerating a golden **baseline** without looking into the drift | Regenerate, recording what moved, why, and on whose decision: an explicit instruction, a spec or a ticket counts, your own judgment does not. Drift nobody can explain is a failing test (the section above), or a bug (P9 — Golden baseline + explain-the-drift) | A silent overwrite, or "drift accepted" on your own say-so |
+| A **layer** shortcut: an import across a boundary to get it working | Take the proper route if it is small. If not, leave the import as a tracked violation (a comment and an issue) and say so. The only sanctioned exception is the composition root: never widen or bypass the boundary check to make it pass (P2 — One-way layering) | A silent boundary breach, or the check loosened |
+| An **inconclusive** or empty result turned into a number (0%, a default) | Every cell can still carry something: the point estimate with its n and a low-sample marker, or "inconclusive (n=12)" | A number shown as measured when it is not (the spine) |
 
 Hand-offs, so the honest version is also the easy one:
 
