@@ -18,13 +18,16 @@ const NO_TAINT = "no mock taint may reach a golden output";
 const TAINTED = "mock taint was expected to reach this value";
 
 // A marked value, not data that happens to have a `value` key: a plain
-// object whose envelope fields form a valid envelope (SPEC §5a). Python's
-// twin makes the same judgement on {'value', 'meta'}.
+// object whose own envelope fields form a structurally valid envelope
+// (SPEC §5a), read as guard reads them, so an inherited field cannot make
+// data look marked. Python's twin makes the same judgement on {'value', 'meta'}.
 function isMarked(value) {
   if (value === null || typeof value !== "object" || Array.isArray(value) || !Object.hasOwn(value, "value"))
     return false;
   const proto = Object.getPrototypeOf(value);
-  return (proto === Object.prototype || proto === null) && validateEnvelope(metaOf(value)).length === 0;
+  if (proto !== Object.prototype && proto !== null) return false;
+  const own = Object.entries(metaOf(value)).filter(([key]) => Object.hasOwn(value, key));
+  return validateEnvelope(Object.assign(Object.create(null), Object.fromEntries(own))).length === 0;
 }
 
 /**

@@ -469,9 +469,9 @@ bundle is the dependency-free runtime.
 go to `pytest.fixture`. A generator fixture's yielded value is marked and its
 teardown still runs; one that never yields reports it as pytest does. A
 fixture that returns an already-marked value raises `TypeError` (marking it
-again would nest it, or hide a `real` label behind `mock`); "already marked"
-means a real envelope, so ordinary data with `value` and `meta` keys is marked
-like any other. An async fixture is refused at decoration. Import it from
+again would nest it, or hide a `real` label behind `mock`). "Already marked"
+means its envelope is structurally valid (SPEC §5a), whatever its source, so
+ordinary data with `value` and `meta` keys is marked like any other. An async fixture is refused at decoration. Import it from
 `plumb_line_provenance.pytest_plugin`. The package registers that module as a
 pytest plugin through its `pytest11` entry point, under the module's own name,
 so naming it in `pytest_plugins` or `-p` as well is harmless. It adds no hooks,

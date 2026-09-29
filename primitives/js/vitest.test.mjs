@@ -26,10 +26,21 @@ describe("markFixture — opt-in per fixture (#123)", () => {
     [{ value: 42, label: "x" }],
     [{ value: 3, meta: { page: 1 } }],
     [new (class Box { constructor() { this.value = 1; } })()],
+    [{ value: 1, meta: "not an envelope" }],
   ])("marks ordinary fixture data shaped like a marked value, rather than refuse it (%#)", (data) => {
     const marked = markFixture(data);
     expect(unwrap(marked)).toBe(data);
     expect(metaOf(marked).source).toBe("mock");
+  });
+
+  it("reads the value's own fields only, as guard does, so a polluted prototype cannot make data look marked", () => {
+    const fields = { source: "real", confidence: "high", derivedFromMock: false, lineage: [] };
+    try {
+      Object.assign(Object.prototype, fields);
+      expect(metaOf(markFixture({ value: 1 })).source).toBe("mock");
+    } finally {
+      for (const k of Object.keys(fields)) delete Object.prototype[k];
+    }
   });
 
   it("refuses a value that is already marked, rather than nest or relabel it", () => {

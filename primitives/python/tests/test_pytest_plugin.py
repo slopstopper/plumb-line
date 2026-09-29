@@ -175,10 +175,16 @@ def test_the_plugin_loads_under_its_published_name():
 
 # --- "already marked" means a real envelope: mirrored in vitest.test.mjs ---
 
+class _Box:
+    def __init__(self):
+        self.value = 1
+
+
 @pytest.mark.parametrize("data", [
     {"value": 42, "label": "x"},                 # an option-list entry
     {"value": 3, "meta": {"page": 1}},           # a paged JSON payload
     {"value": 1, "meta": "not an envelope"},
+    _Box(),                                      # an object with a `value` field
 ])
 def test_ordinary_fixture_data_shaped_like_a_marked_value_is_marked_not_refused(data):
     from pytest_plugin import _quarantine
@@ -240,4 +246,85 @@ def test_assert_tainted_fails_a_value_guard_refuses_for_another_reason(output):
 def test_assert_tainted_fails_a_clean_value():
     with pytest.raises(AssertionError, match="^mock taint was expected to reach this value: guard let it through"):
         assert_tainted(mark(1, source="real", confidence="high"))
+
+
+def test_a_renamed_fixture_that_never_yields_is_reported_by_its_fixture_name(pytester):
+    result = _session(pytester, '''
+from pytest_plugin import plumb_mock_fixture
+
+@plumb_mock_fixture(name="named")
+def _never():
+    if False:
+        yield
+
+def test_it(named):
+    pass
+''')
+    result.assert_outcomes(errors=1)
+    result.stdout.fnmatch_lines(["*named did not yield a value*"])
+
+
+def test_a_fixture_that_yields_twice_is_reported_with_its_own_source(pytester):
+    result = _session(pytester, '''
+from pytest_plugin import plumb_mock_fixture
+
+@plumb_mock_fixture
+def twice():
+    yield 1
+    yield 2
+
+def test_it(twice):
+    pass
+''')
+    result.stdout.fnmatch_lines(["*fixture function has more than one 'yield'*"])
+    result.stdout.fnmatch_lines(["*yield 2*"])
+    result.stdout.no_fnmatch_line("*yield from gen*")
+
+
+def test_the_fixture_cleanup_runs_at_once_when_marking_fails_and_its_error_does_not_hide_the_cause(pytester):
+    result = _session(pytester, '''
+from pytest_plugin import plumb_mock_fixture
+from marked import mark
+
+CLEANED = []
+
+@plumb_mock_fixture
+def already():
+    try:
+        yield mark(1, source="real", confidence="high")
+    finally:
+        CLEANED.append(True)
+        raise OSError("cleanup boom")
+
+def test_it(already):
+    pass
+
+def test_cleaned_at_once():
+    assert CLEANED == [True]
+''')
+    result.assert_outcomes(passed=1, errors=1)
+    result.stdout.fnmatch_lines(["*TypeError: plumb_mock_fixture: the fixture returned a marked value*"])
+
+
+def test_assert_tainted_is_reported_at_the_test_not_in_the_plugin(pytester):
+    result = _session(pytester, '''
+from pytest_plugin import assert_tainted
+from marked import mark
+
+def test_it():
+    assert_tainted(mark(1, source="real", confidence="high"))
+''')
+    result.assert_outcomes(failed=1)
+    result.stdout.no_fnmatch_line("*pytest_plugin.py:*")
+
+
+def test_already_marked_reads_the_dicts_own_contents_as_guard_does():
+    from pytest_plugin import _is_marked
+
+    class Hide(dict):
+        def __contains__(self, key):
+            return key != "source" and dict.__contains__(self, key)
+
+    meta = mark(1, source="real", confidence="high")["meta"]
+    assert _is_marked({"value": 1, "meta": Hide(meta)})
 

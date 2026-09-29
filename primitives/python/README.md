@@ -51,8 +51,8 @@ never a refusal.
 ## Test fixtures (pytest)
 
 Tests are where fake data is supposed to live; this makes the quarantine
-explicit there (#123). The package registers a pytest plugin, inert unless a
-test uses it. Decorate a fixture with `plumb_mock_fixture` (a drop-in for
+explicit there (#123). The package registers a pytest plugin that adds no
+hooks, fixtures or options. Decorate a fixture with `plumb_mock_fixture` (a drop-in for
 `pytest.fixture`, keyword arguments included) and its value reaches the test
 marked `source='mock'`; `assert_no_taint` fails a test when a golden output
 still carries the taint. The check is `guard` with its defaults, so an

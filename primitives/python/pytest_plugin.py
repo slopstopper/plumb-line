@@ -4,11 +4,12 @@ Tests are where fake data is supposed to live; this makes the quarantine
 explicit there. A fixture decorated with :func:`plumb_mock_fixture` hands the
 test its value marked ``source='mock'``, so anything derived from it carries
 the taint; :func:`assert_no_taint` fails a test when a golden output still
-carries it.
+carries it, and :func:`assert_tainted` checks that the taint did reach a
+value.
 
 Owner decisions on #123: marking is opt-in per fixture; the plugin registers
-itself through the package's ``pytest11`` entry point and is inert unless a
-test uses it; the assertion takes a marked value only (#544). The assertion is
+itself through the package's ``pytest11`` entry point and adds no hooks,
+fixtures or options; the assertion takes a marked value only (#544). The assertion is
 the egress guard (#120, SPEC §5c) with its defaults. JS twin:
 primitives/js/vitest.mjs.
 
@@ -37,13 +38,17 @@ _TAINTED = 'mock taint was expected to reach this value'
 
 def _is_marked(value):
     # A marked value, not data that happens to have 'value' and 'meta' keys:
-    # its meta must be a valid envelope (SPEC §5a). The JS twin makes the same
-    # judgement on a plain object's envelope fields.
-    return (isinstance(value, dict) and 'value' in value and 'meta' in value
-            and not validate_envelope(value['meta']))
+    # its meta must be a structurally valid envelope (SPEC §5a), read from the
+    # dict's own storage as guard reads it. The JS twin makes the same
+    # judgement on a plain object's own envelope fields.
+    if not (isinstance(value, dict) and 'value' in value and 'meta' in value):
+        return False
+    meta = value['meta']
+    return not validate_envelope(dict(dict.items(meta)) if isinstance(meta, dict) else meta)
 
 
 def _quarantine(value):
+    __tracebackhide__ = True
     # A marked value is refused, not re-marked: marking it again would nest it,
     # and marking a value someone labelled `real` as mock would hide that label.
     if _is_marked(value):
@@ -52,30 +57,51 @@ def _quarantine(value):
     return mark(value, source='mock')
 
 
-def _marking(fn):
+def _source(fn):
+    try:
+        return inspect.getsource(fn)
+    except (OSError, TypeError):
+        return fn.__name__
+
+
+def _marking(fn, name):
+    # `name` is the fixture's name (pytest.fixture's `name=`, else the
+    # function's), which pytest's own messages use.
     if inspect.iscoroutinefunction(fn) or inspect.isasyncgenfunction(fn):
         raise TypeError('plumb_mock_fixture does not support async fixtures')
     if inspect.isgeneratorfunction(fn):
         @functools.wraps(fn)
         def yielding(*args, **kwargs):
+            __tracebackhide__ = True
             gen = fn(*args, **kwargs)
             try:
                 value = next(gen)
             except StopIteration:
-                # pytest's own wording, not "generator raised StopIteration".
-                raise ValueError(f'{fn.__name__} did not yield a value') from None
+                # pytest's own wording, not a bare StopIteration.
+                raise ValueError(f'{name} did not yield a value') from None
             try:
                 marked = _quarantine(value)
             except BaseException:
-                gen.close()  # run the fixture's own cleanup now, not at collection
+                # Run the fixture's own cleanup now, not at collection; a
+                # failing cleanup must not replace the reason marking failed.
+                try:
+                    gen.close()
+                except Exception:
+                    pass
                 raise
             yield marked
-            # The rest of the fixture is its teardown.
-            yield from gen
+            # The rest of the fixture is its teardown, run as pytest runs it:
+            # a second yield is reported with the fixture's own source.
+            try:
+                next(gen)
+            except StopIteration:
+                return
+            pytest.fail(f"fixture function has more than one 'yield':\n\n{_source(fn)}", pytrace=False)
         return yielding
 
     @functools.wraps(fn)
     def returning(*args, **kwargs):
+        __tracebackhide__ = True
         return _quarantine(fn(*args, **kwargs))
     return returning
 
@@ -89,7 +115,7 @@ def plumb_mock_fixture(fixture_function=None, **fixture_kwargs):
     value already marked is an error.
     """
     def decorate(fn):
-        return pytest.fixture(**fixture_kwargs)(_marking(fn))
+        return pytest.fixture(**fixture_kwargs)(_marking(fn, fixture_kwargs.get('name') or fn.__name__))
     return decorate(fixture_function) if fixture_function is not None else decorate
 
 
