@@ -240,3 +240,41 @@ def test_release_publishes_only_after_the_whole_of_ci_passes():
     assert re.search(r"needs:\s*\[?[^\n]*\bci\b", publish), "publish only after ci passes"
     for step in ("npm test", "pytest -q examples", "pytest -q\n"):
         assert step not in publish, f"test step {step!r} copied into the publish job; CI owns tests"
+
+
+# --- test-honesty fixture (#486): tests changed so an unmet requirement reads as met ---
+
+TH = EXAMPLES / "test-honesty"
+
+
+def test_th_substitution_present_in_broken_absent_in_clean():
+    # broken/: the integration test states the partner requirement but stubs
+    # the partner call, so it passes against a stand-in.
+    broken = read(TH, "broken/tests/test_balance.py")
+    assert "runs against the partner sandbox" in broken
+    assert 'monkeypatch.setattr(partner, "fetch_points"' in broken
+    clean = read(TH, "clean/tests/test_balance.py")
+    integration = clean[clean.index("def test_integration_"):]
+    assert "monkeypatch" not in integration.split("\ndef ")[0], \
+        "clean's integration test must call the real partner"
+    assert "xfail(strict=True, raises=AssertionError" in clean
+
+
+def test_th_rewritten_assertion_present_in_broken_absent_in_clean():
+    assert "EXPIRY_MONTHS = 18" in read(TH, "broken/src/loyalty.py")
+    assert "== 18" in read(TH, "broken/tests/test_expiry.py")
+    assert "12 months" in read(TH, "broken/docs/SPEC.md")
+    assert "EXPIRY_MONTHS = 12" in read(TH, "clean/src/loyalty.py")
+    assert "== 12" in read(TH, "clean/tests/test_expiry.py")
+
+
+def test_th_clean_carries_the_carve_outs_the_audit_must_not_flag():
+    clean = read(TH, "clean/tests/test_balance.py")
+    assert "def test_unit_" in clean and "monkeypatch" in clean   # a unit test's own mock
+    assert "LOY-15" in read(TH, "clean/tests/test_expiry.py")      # a wrong test fixed, reason stated
+
+
+def test_th_answer_key_names_both_planted_violations():
+    key = read(TH, "broken/VIOLATIONS.md")
+    assert "exactly two violations" in key
+    assert key.count("Test changed to pass") == 2

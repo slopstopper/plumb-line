@@ -389,3 +389,45 @@ def test_adopt_contract_names_the_mid_task_exception_and_keeps_the_citation():
     assert "brief mid-task answer" in contract
     mid = " ".join(text[text.index("## Surfacing mid-task"):].split()).lower()
     assert "cite what you saw" in mid
+
+
+# --- #486: the audit names a test changed so an unmet requirement reads as met ---
+# Owner decisions 2026-09-29 (#485, #486): one finding class, the method
+# skill's line (flag only when nothing records why or on whose decision),
+# never the method skill's carve-outs.
+
+def _audit_check_10():
+    text = SKILLS["plumb-line-audit"]
+    start = text.index("10. Test changed to pass")
+    end = text.index("\n## Method", start)
+    return " ".join(text[start:end].split())
+
+
+def test_audit_catalogue_has_the_test_changed_to_pass_check():
+    check = _audit_check_10().lower()
+    for form in ("substitut", "skipped", "rewritten", "threshold", "retries"):
+        assert form in check, f"check 10 must name the form: {form}"
+    assert "spine" in check and "p4 — quarantined fakery" in check
+
+
+def test_audit_check_10_uses_the_method_skills_line_and_carve_outs():
+    check = _audit_check_10().lower()
+    assert "whose decision" in check and "nothing records" in check
+    for carve_out in ("on purpose", "wrong test", "labelled stub", "unit test"):
+        assert carve_out in check, f"check 10 must exempt: {carve_out}"
+
+
+def test_audit_check_10_does_not_excuse_a_double_for_being_in_a_test_file():
+    # Four spike audits called the test double acceptable (#486).
+    assert "not acceptable because it sits in a test file" in _audit_check_10().lower()
+
+
+def test_audit_check_10_names_itself_and_the_honest_paths():
+    check = _audit_check_10().lower()
+    assert "not as evidence for a product defect" in check
+    assert "strict" in check and "stay red" in check
+
+
+def test_audit_reads_the_tests_that_state_requirements():
+    text = " ".join(SKILLS["plumb-line-audit"].split()).lower()
+    assert "test files are in scope" in text

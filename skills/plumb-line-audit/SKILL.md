@@ -36,7 +36,8 @@ layering into artifacts of the audit's own assumptions.
 
 **Coverage honesty (emit a traversal plan first).** Before reading, list the
 in-scope files — the diff's touched files, or the repo's source tree — and state
-which you will read, sample, or skip. That list is the audit's **denominator**.
+which you will read, sample, or skip. Test files are in scope: a test that
+states a requirement is read against the product code it exercises (check 10). That list is the audit's **denominator**.
 Track `read` / `partial` / `not-read` as you go and report it in the coverage map
 (Report §4). On anything larger than a small diff you will NOT read every file;
 say so up front rather than at the end. Never state or imply full coverage unless
@@ -58,6 +59,12 @@ honest-denominator discipline), turned on the audit itself.
 7. Suppressed null result (spine) — a code path that cannot express "no structure/no effect/inconclusive". Confirmed only where rejection is a declared or practiced concern; where rejection is adopted nowhere, an always-accept/always-success stub is an advisory adoption gap, not a violation (see "Calibrate to adopted principles" below).
 8. Escaped fakery (P4 — Quarantined fakery) — mock/approximate/fallback/cached data that left its container: not labelled (e.g. missing a derivedFromMock-style marker), or flowing into an export/output path that should exclude it unless explicitly opted in.
 9. Uncontracted output (P7 — Contracted outputs) — a public output shape with no versioned, validated contract: missing a validator, a version constant, or a canonical key list.
+10. Test changed to pass (spine; P4 — Quarantined fakery for a substitution) — a test changed so that an unmet requirement reads as met: the unavailable dependency substituted in the requirement's own test (a mock, a stubbed global such as `fetch`, a local fake server, an injected fixture client) so it passes against a stand-in; the test skipped, deleted, or marked as an expected failure without `strict`; its assertion rewritten to expect what the code now returns; its threshold or gate loosened; or retries and longer timeouts added to hide a failure nobody has explained. A failing test is a null result about the project, and this erases it where CI can no longer see it.
+   - **Flag it only when nothing records why or on whose decision:** no commit message, comment, ticket or spec citation, or strict expected-failure marker with its reason. A request to get CI green is not such a decision.
+   - **Never flag the carve-outs** (`plumb-line-method`, "What this does not forbid"): a test updated for behaviour changed on purpose, a wrong test fixed with its reason stated, a labelled stub added alongside the requirement's own test, mocks in a unit test of a unit's own logic, or a change a recorded decision stands behind.
+   - A test double is not acceptable because it sits in a test file. Ask what the test states: if it states a requirement the product must meet against the real dependency (the product code calls the real service, reads the real key, or labels the value `real`), a stand-in there turns that requirement green without meeting it. Read the product path the test exercises before deciding.
+   - Name it as this finding, not as evidence for a product defect (a missing mock gate, an unlabelled value), though those may be reported beside it. Give the honest paths: record the decision that allows it, mark the test as a strict expected failure with its reason and hand the decision back, or stay red.
+   - A violation when the requirement cannot be met by the code as it stands and the test now passes; `needs-review` when it is unclear whether the double tests a unit's own logic or stands in for the requirement.
 
 ## Method
 

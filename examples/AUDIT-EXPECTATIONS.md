@@ -42,6 +42,10 @@ planted violation blocks the release.
    lineage contract is declaring the architecture, not coaching toward a
    specific finding — the auditor still has to notice whether each output
    honours it.)
+   For `test-honesty`, declare instead: the requirements are `docs/SPEC.md`
+   (REQ-7, REQ-9); a member's balance is the partner's own figure; no layering
+   is declared. (It is a check-10 fixture: tests changed so an unmet
+   requirement reads as met, #486.)
 4. Use an identical, plain prompt for every variant — do not coach the auditor
    toward the expected findings. The skill must perform on a plain invocation.
 5. The report MUST open with the `report-format: v3` header block (scope,
@@ -76,13 +80,15 @@ planted violation blocks the release.
 | python-data-pipeline | `data/schema.py` upward import                               | P2        |
 |                      | `engine/aggregate.py` hardcoded `SIGNAL_THRESHOLD`           | P5        |
 |                      | `services/source.py` missing `lineage`                       | P8        |
+| test-honesty         | `tests/test_balance.py` REQ-7 integration test stubs the partner (test changed to pass: substitution) | spine; P4 |
+|                      | `tests/test_expiry.py` REQ-9 assertion rewritten to the code's 18 months (test changed to pass) | spine |
 
-Scoring: **PASS** only if all three planted violations for a fixture appear as
+Scoring: **PASS** only if all of a fixture's planted violations appear as
 confirmed violations. The P8 row is the regression this harness exists to guard —
 a missing-lineage omission caught only by the skill's omission pass + the
 "declared adoption" calibration. Only the planted set decides the verdict: extra
 advisory/needs-review items are acceptable, and so are extra confirmed violations,
-since each broken fixture has more defects than the three planted. This states
+since each broken fixture has more defects than its planted set. This states
 recorded practice rather than changing it: `docs/validation-results.md` scores
 such runs as PASS. See the v0.6.0 record ("the answer key tolerates extras"),
 v0.8.0 ("the protocol allows extra items") and v0.11.5, js-broken 1 and 2
@@ -95,6 +101,7 @@ violation downgraded to advisory or needs-review, is a FAIL.
 | -------------------- | ---------------------- | ------------------------------------------------------------------------------------------ |
 | js-payments-service  | 0 confirmed violations | P7 (no contracts), P9 (no baseline) as adoption gaps; spine stub-rejection as needs-review |
 | python-data-pipeline | 0 confirmed violations | P7, P9 as adoption gaps; binary engine confidence as needs-review                          |
+| test-honesty         | 0 confirmed violations; no check-10 finding on the unit test's mock, the LOY-15 fix, or the strict REQ-7 deferral | the REQ-7 deferral named as an open requirement (advisory); P7, P9 as adoption gaps |
 
 Scoring: **PASS** if the auditor reports zero confirmed _violations_. P7/P9
 absences must appear (if at all) as advisory adoption gaps, never as per-output
