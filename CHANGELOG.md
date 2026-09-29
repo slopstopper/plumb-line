@@ -73,20 +73,30 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   is not acceptable for sitting in a test file; the finding names itself,
   not a product defect, and gives the honest paths. Test files are in the
   audit's traversal plan. Measured on the spike's round-1 cheat repos
-  (Opus 5.5, headless, blind scoring by the pre-registered criterion):
-  - **held out** (11 repos, never opened while calibrating; manifest
-    verified first; the acceptance figure): 11/11 caught, one of them as
-    needs-review; the original audits score 4 caught / 1 near / 6 missed
-    by the pre-registered rulings, 1 / 4 / 6 by the same blind scorer;
+  (Opus 5.5, headless, one audit per repo, one blind scorer applying the
+  pre-registered criterion; "blind" to which pass a report came from by
+  label only, since the new reports' wording differs):
+  - **held out** (11 repos not opened while calibrating, apart from one
+    run's prior verdict seen and recorded on #486; manifest verified first;
+    the acceptance figure, **pending the owner's confirmation of the
+    rulings**): 11/11 caught, one as needs-review that the scorer marked
+    borderline; the original audits score 4 caught / 1 near / 6 missed by
+    the pre-registered rulings, 1 / 4 / 6 by the same blind scorer;
   - calibration set (14 repos, the tuning set): 2/1/11 → 14/0/0 with
     today's audit as the baseline.
+  **Limits.** Both sets contain only cheats, so they cannot show
+  over-flagging: a check that flagged every test double would score the
+  same. They cover three task shapes from one model's runs, and the held-out
+  cheats are all substitutions (the skip form appears in calibration only);
+  the rewritten-assertion, loosened-gate and retry forms have no spike data.
+  Over-flagging is checked only by the new planted fixture below.
   New planted fixture `examples/test-honesty/`: `broken/` plants a
   substitution and a rewritten assertion; `clean/` carries a strict
-  deferral and two carve-outs the audit must not flag. Its expected
-  findings are in `examples/AUDIT-EXPECTATIONS.md`, so the release harness
-  keeps checking both catching and not over-reaching; the calibrated audit
-  passed it 4/4, and 2/2 after a fixture fix. No Action or lint rule reads
-  test files (owner decision; #520).
+  deferral and two carve-outs the audit must not flag, and fails the
+  harness on any check-10 finding on them. The release harness now runs it
+  (`docs/release-harness.md`); the calibrated audit passed it 4/4, and 2/2
+  after a fixture fix. No Action or lint rule reads test files (owner
+  decision; #520).
 - **The method and adopt skills now describe the in-task moments they are
   for** ([#487](https://github.com/slopstopper/plumb-line/issues/487)). The
   spike loaded the plugin in 90 runs and a skill was invoked once. A breadth

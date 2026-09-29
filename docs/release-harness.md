@@ -33,7 +33,8 @@ Follow the blind protocol in
 [`../examples/AUDIT-EXPECTATIONS.md`](../examples/AUDIT-EXPECTATIONS.md):
 
 1. Dispatch read-only auditors, **one per fixture variant** —
-   `js-payments-service` and `python-data-pipeline`, each `broken/` and `clean/`.
+   `js-payments-service`, `python-data-pipeline` and `test-honesty` (#486),
+   each `broken/` and `clean/`.
    Run **≥2 independent auditors per `broken/` fixture**: a single run is
    unreliable — the v0.2.0 run only revealed the missed P8 because several runs
    showed the same gap; one run can pass or miss by luck.
@@ -53,6 +54,8 @@ Follow the blind protocol in
      as a confirmed violation in **every** run.
    - A `clean/` fixture **PASSES** only at zero confirmed violations (P7/P9 may
      appear as advisory adoption gaps; never as per-output violations).
+     `test-honesty/clean` also FAILS on any check-10 finding, violation or
+     needs-review, on the carve-outs its row names.
    - A missed or downgraded planted violation = **FAIL**.
 
 **Policy — a validation FAIL blocks the tag.** Do not release until the cause is

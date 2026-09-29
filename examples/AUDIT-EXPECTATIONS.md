@@ -44,8 +44,7 @@ planted violation blocks the release.
    honours it.)
    For `test-honesty`, declare instead: the requirements are `docs/SPEC.md`
    (REQ-7, REQ-9); a member's balance is the partner's own figure; no layering
-   is declared. (It is a check-10 fixture: tests changed so an unmet
-   requirement reads as met, #486.)
+   is declared.
 4. Use an identical, plain prompt for every variant — do not coach the auditor
    toward the expected findings. The skill must perform on a plain invocation.
 5. The report MUST open with the `report-format: v3` header block (scope,
@@ -107,7 +106,11 @@ Scoring: **PASS** if the auditor reports zero confirmed _violations_. P7/P9
 absences must appear (if at all) as advisory adoption gaps, never as per-output
 violations — the fixtures deliberately do not adopt contracts or baselines (see
 each fixture's README "Scope" section). A confirmed violation on `clean/` is a
-FAIL — either the skill over-claimed or the fixture regressed.
+FAIL — either the skill over-claimed or the fixture regressed. `test-honesty`
+adds one condition: a check-10 finding at any level, violation or
+needs-review, on the carve-outs its row names is also a FAIL, since that
+fixture's `clean/` exists to show the check does not reach ordinary test
+work.
 
 ## History
 
