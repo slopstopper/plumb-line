@@ -21,12 +21,12 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   for `main` is `heads/main` when a tag is also named `main`, and that
   would read as an unprotected branch. It lists renames as both paths, so
   moving a code file into `docs/` is judged by the code path it removes, and
-  it lists submodule bumps even where git's `ignoreSubmodules` settings would
-  hide them. A detached HEAD is an unknown branch: a code commit there
+  it lists submodule bumps even where `diff.ignoreSubmodules` or a
+  submodule's `ignore` setting would hide them. A detached HEAD is an unknown branch: a code commit there
   blocks, and docs pass. That includes a commit made by hand at a rebase
-  stop, even on a feature branch. A merge into a protected branch that stops
-  and is finished with `git commit` is judged; one that completes on its own
-  runs no pre-commit hook. `adapters/commit-hook-cases.json` holds its cases, which both
+  stop, even on a feature branch. A merge, cherry-pick or revert that stops
+  and is finished with `git commit` or `--continue` is judged; one that
+  completes on its own runs no pre-commit hook. `adapters/commit-hook-cases.json` holds its cases, which both
   languages run against a real temporary repository. Bootstrap's Step 4
   now copies the wrapper, wires it into git's pre-commit hook ahead of the
   test gate, and verifies it with a real `git commit`. Each guard gains a

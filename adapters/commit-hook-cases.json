@@ -1,5 +1,5 @@
 {
-  "_doc": "Cases for the branch guard's git commit hook (#464), run against a real temporary git repository by both twins: adapters/js/hooks/__tests__/commit-hook-cases.test.mjs and adapters/python/hooks/test_commit_hook_cases.py. Each row builds the repository in this order: `git init` on an unborn main; `committed` paths committed as the base (absent: main stays unborn); `side` paths committed on a branch named side, made from the base, then main checked out again; `branch` checked out as a new branch (null: HEAD detached at the base; \"main\": stay); `tags` created at HEAD; `headRef` given to `git symbolic-ref HEAD`; `config` pairs set with `git config`; `merge` arguments given to `git merge`; `remove` and `move` applied with `git rm` and `git mv`; `stage` paths written and added; `stageHex` paths (hex bytes, which need not be UTF-8) added to the index only; `gitlink` paths added to the index as submodule commits (HEAD's); `stageCount` [prefix, n] adds n index-only paths prefix0 to prefix(n-1); `modify` paths rewritten without staging. Then the wrapper runs in the repository with `env` applied (null unsets) and every PLUMBLINE_* variable cleared first, or, when `commit` is present, a pre-commit hook that runs the wrapper is installed and `git commit` runs with those arguments, and a commit must be made exactly when `expectExit` is 0. `repo: false` runs the wrapper outside any repository instead. `expectStderr` is compared exactly.",
+  "_doc": "Cases for the branch guard's git commit hook (#464), run against a real temporary git repository by both twins: adapters/js/hooks/__tests__/commit-hook-cases.test.mjs and adapters/python/hooks/test_commit_hook_cases.py. Each row builds the repository in this order: `git init` on an unborn main; `committed` paths committed as the base, with `committedText` files (path to content) committed beside them (absent: main stays unborn); `side` paths committed on a branch named side, made from the base, then main checked out again; `branch` checked out as a new branch (null: HEAD detached at the base; \"main\": stay); `tags` created at HEAD; `headRef` given to `git symbolic-ref HEAD`; `config` pairs set with `git config`; `merge` arguments given to `git merge`; `remove` and `move` applied with `git rm` and `git mv`; `stage` paths written and added; `stageHex` paths (hex bytes, which need not be UTF-8) added to the index only; `gitlink` paths added to the index as submodule commits (HEAD's); `stageCount` [prefix, n] adds n index-only paths prefix0 to prefix(n-1); `modify` paths rewritten without staging. Then the wrapper runs in the repository with `env` applied (null unsets) and every PLUMBLINE_* variable cleared first, or, when `commit` is present, a pre-commit hook that runs the wrapper is installed and `git commit` runs with those arguments, and a commit must be made exactly when `expectExit` is 0. `repo: false` runs the wrapper outside any repository instead. `fakeGit` ({script, executable}) runs the wrapper with PATH holding only a directory whose `git` is that script, made executable or not; it cannot be combined with `commit`. `expectStderr` is compared exactly.",
   "version": 1,
   "commitHook": [
     {
@@ -226,6 +226,15 @@
       "expectStderr": "blocked: code edit to lib/sub on protected branch main. Branch first.\n"
     },
     {
+      "name": "a submodule bump on a protected branch blocks, even with ignore = all in a committed .gitmodules",
+      "committed": ["README.md"],
+      "committedText": {".gitmodules": "[submodule \"lib/sub\"]\n\tpath = lib/sub\n\turl = ./sub\n\tignore = all\n"},
+      "branch": "main",
+      "gitlink": ["lib/sub"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to lib/sub on protected branch main. Branch first.\n"
+    },
+    {
       "name": "more than 1 MiB of staged paths on an unprotected branch passes (no output limit)",
       "committed": ["README.md"],
       "branch": "feat",
@@ -250,6 +259,22 @@
       "env": {"PATH": "/nonexistent-plumb-line-path"},
       "expectExit": 2,
       "expectStderr": "blocked: the branch guard's commit hook could not run git (ENOENT).\n"
+    },
+    {
+      "name": "a git on PATH that is not executable blocks, naming the error code",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "fakeGit": {"script": "#!/bin/sh\nexit 0\n", "executable": false},
+      "expectExit": 2,
+      "expectStderr": "blocked: the branch guard's commit hook could not run git (EACCES).\n"
+    },
+    {
+      "name": "git killed by a signal blocks, naming the signal",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "fakeGit": {"script": "#!/bin/sh\nkill -KILL $$\n", "executable": true},
+      "expectExit": 2,
+      "expectStderr": "blocked: the branch guard's commit hook could not read the branch (git symbolic-ref was killed by SIGKILL).\n"
     },
     {
       "name": "outside a git repository the hook blocks: it cannot read the branch",

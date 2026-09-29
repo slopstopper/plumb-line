@@ -98,7 +98,7 @@ describe("the hook as bootstrap Step 4 wires it", () => {
       'PLUMBLINE_CFG="$(cat .claude/guards/branch-guard.json)"',
       "export PLUMBLINE_CFG",
       `'${process.execPath}' .claude/guards/branch-guard-commit.mjs || exit 1`,
-      `PLUMBLINE_TEST_CMD="'${process.execPath}' -e ''" '${process.execPath}' .claude/guards/pre-commit-gate.mjs`,
+      `PLUMBLINE_TEST_CMD="'${process.execPath}' -e ''" '${process.execPath}' .claude/guards/pre-commit-gate.mjs || exit 1`,
       "",
     ].join("\n"));
     chmodSync(hook, 0o755);
@@ -133,6 +133,27 @@ describe("the hook as bootstrap Step 4 wires it", () => {
     const r = git(repo, "commit", "-q", "-m", "code");
     expect(r.stderr).toBe("");
     expect(r.status).toBe(0);
+  });
+  it("added to an existing hook with lines after it, a failing test gate still refuses the commit", () => {
+    const repo = wiredRepo();
+    const hook = path.resolve(repo, git(repo, "rev-parse", "--git-path", "hooks").stdout.trim(), "pre-commit");
+    writeFileSync(hook, [
+      "#!/bin/sh",
+      "echo existing-before",
+      'PLUMBLINE_CFG="$(cat .claude/guards/branch-guard.json)"',
+      "export PLUMBLINE_CFG",
+      `'${process.execPath}' .claude/guards/branch-guard-commit.mjs || exit 1`,
+      `PLUMBLINE_TEST_CMD="'${process.execPath}' -e 'process.exit(1)'" '${process.execPath}' .claude/guards/pre-commit-gate.mjs || exit 1`,
+      "echo existing-after",
+      "",
+    ].join("\n"));
+    git(repo, "switch", "-q", "-c", "feat");
+    stage(repo, "src/a.js");
+    const before = head(repo);
+    const r = git(repo, "commit", "-q", "-m", "code");
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("pre-commit blocked:");
+    expect(head(repo)).toBe(before);
   });
   it("still runs the test gate after the branch guard passes", () => {
     const repo = wiredRepo();

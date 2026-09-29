@@ -185,19 +185,23 @@ replacing it; never overwrite one silently. For the JS adapter:
 PLUMBLINE_CFG="$(cat .claude/guards/branch-guard.json)"
 export PLUMBLINE_CFG
 node .claude/guards/branch-guard-commit.mjs || exit 1
-PLUMBLINE_TEST_CMD='npm test' node .claude/guards/pre-commit-gate.mjs
+PLUMBLINE_TEST_CMD='npm test' node .claude/guards/pre-commit-gate.mjs || exit 1
 ```
 
 For Python, run `python3 .claude/guards/branch_guard_commit.py` and
 `python3 .claude/guards/pre_commit_gate.py` instead, with the project's test
-command. Git runs the hook from the repository root, for `git commit`
-itself: not for the commits a rebase, a cherry-pick, a revert or a clean
-merge makes. A merge that stops (a conflict, `--no-commit`, `--squash`) is
-finished with `git commit`, so the hook judges everything it brings in, and
-a merge of code into a protected branch is refused there. A commit made by
-hand at a rebase stop (`git commit --amend` at an `edit`) has HEAD detached,
-so it blocks on a code path even on a feature branch; `--no-verify` is the
-way through. `git commit --no-verify` skips the hook in general, so it
+command. Keep `|| exit 1` on both lines: in an existing hook with lines
+after them, a failure would otherwise be lost. Git runs the hook from the
+repository root, for `git commit` itself, and not for the commits a rebase
+makes or a cherry-pick, a revert or a merge that completes on its own. One
+that stops (a conflict, or a merge with `--no-commit` or `--squash`) and is
+finished with `git commit` or `--continue` runs the hook, which judges
+everything it brings in, so bringing code into a protected branch that way
+is refused. A commit made by hand at a rebase stop (`git commit --amend` at
+an `edit`) has HEAD detached, so it blocks when a code path is staged, even
+on a feature branch; staging the change and running `git rebase --continue`
+runs no hook, and `--no-verify` is the other way through. This is git's
+behaviour (checked with git 2.39) and may differ between versions. `git commit --no-verify` skips the hook in general, so it
 catches an accident rather than locking anything.
 
 The commit hook judges a commit; to stop the edit itself, before it is made,

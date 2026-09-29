@@ -127,7 +127,7 @@ def _wired_repo(tmp_path):
         'PLUMBLINE_CFG="$(cat .claude/guards/branch-guard.json)"',
         "export PLUMBLINE_CFG",
         f"'{py}' .claude/guards/branch_guard_commit.py || exit 1",
-        f"""PLUMBLINE_TEST_CMD="'{py}' -c pass" '{py}' .claude/guards/pre_commit_gate.py""",
+        f"""PLUMBLINE_TEST_CMD="'{py}' -c pass" '{py}' .claude/guards/pre_commit_gate.py || exit 1""",
         "",
     ]))
     _stage(repo, "README.md")
@@ -166,6 +166,28 @@ def test_the_bootstrap_wiring_commits_docs_on_main_and_code_on_a_branch(tmp_path
     r = _git(repo, "commit", "-q", "-m", "code")
     assert r.stderr == ""
     assert r.returncode == 0
+
+
+def test_added_to_an_existing_hook_with_lines_after_it_a_failing_gate_still_refuses(tmp_path):
+    repo = _wired_repo(tmp_path)
+    py = sys.executable
+    _write_hook(repo, "\n".join([
+        "#!/bin/sh",
+        "echo existing-before",
+        'PLUMBLINE_CFG="$(cat .claude/guards/branch-guard.json)"',
+        "export PLUMBLINE_CFG",
+        f"'{py}' .claude/guards/branch_guard_commit.py || exit 1",
+        f"""PLUMBLINE_TEST_CMD="'{py}' -c 'raise SystemExit(1)'" '{py}' .claude/guards/pre_commit_gate.py || exit 1""",
+        "echo existing-after",
+        "",
+    ]))
+    _git(repo, "switch", "-q", "-c", "feat")
+    _stage(repo, "src/a.py")
+    before = _head(repo)
+    r = _git(repo, "commit", "-q", "-m", "code")
+    assert r.returncode == 1
+    assert "pre-commit blocked:" in r.stderr
+    assert _head(repo) == before
 
 
 def test_the_bootstrap_wiring_still_runs_the_test_gate_after_the_branch_guard(tmp_path):

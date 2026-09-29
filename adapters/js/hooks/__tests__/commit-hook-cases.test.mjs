@@ -17,7 +17,7 @@ const HOOK = fileURLToPath(new URL("../branch-guard-commit.mjs", import.meta.url
 
 // Every field, case kind and table version this runner interprets (#441).
 // Python twin: _MODEL in adapters/python/hooks/test_commit_hook_cases.py.
-const ROW = ["name", "repo", "committed", "side", "branch", "tags", "headRef", "config", "merge",
+const ROW = ["name", "repo", "committed", "committedText", "fakeGit", "side", "branch", "tags", "headRef", "config", "merge",
   "remove", "move", "stage", "stageHex", "gitlink", "stageCount", "modify", "env", "commit",
   "expectExit", "expectStderr"];
 const MODEL = { versions: [1], meta: ["_doc", "version"], fields: { commitHook: ROW } };
@@ -54,6 +54,18 @@ function typeProblems(c) {
     else for (const [k, v] of Object.entries(c.env)) {
       if (v !== null && typeof v !== "string") problems.push(`env.${k} must be a string or null`);
     }
+  }
+  if ("committedText" in c && !(c.committedText !== null && typeof c.committedText === "object"
+      && !Array.isArray(c.committedText) && Object.values(c.committedText).every((v) => typeof v === "string"))) {
+    problems.push("committedText must be an object of strings");
+  }
+  if ("fakeGit" in c) {
+    const f = c.fakeGit;
+    if (f === null || typeof f !== "object" || Array.isArray(f) || typeof f.script !== "string"
+        || typeof f.executable !== "boolean" || Object.keys(f).some((k) => k !== "script" && k !== "executable")) {
+      problems.push("fakeGit must be {script: string, executable: boolean}");
+    }
+    if ("commit" in c) problems.push("fakeGit cannot be combined with commit");
   }
   if (!Number.isInteger(c.expectExit)) problems.push("expectExit must be an integer");
   if (typeof c.expectStderr !== "string") problems.push("expectStderr must be a string");
@@ -97,7 +109,8 @@ function build(c) {
   git(repo, ["symbolic-ref", "HEAD", "refs/heads/main"]);
   if (c.committed) {
     for (const p of c.committed) write(repo, p, "base\n");
-    git(repo, ["add", "--", ...c.committed]);
+    for (const [p, text] of Object.entries(c.committedText ?? {})) write(repo, p, text);
+    git(repo, ["add", "--", ...c.committed, ...Object.keys(c.committedText ?? {})]);
     git(repo, ["commit", "-q", "--no-verify", "-m", "base"]);
   }
   if (c.side) {
@@ -154,6 +167,12 @@ function run(c) {
     return spawnSync(process.execPath, [HOOK], { ...options, cwd });
   }
   const repo = build(c);
+  if (c.fakeGit) {
+    const bin = mkdtempSync(path.join(os.tmpdir(), "plumb-line-fake-git-"));
+    writeFileSync(path.join(bin, "git"), c.fakeGit.script);
+    chmodSync(path.join(bin, "git"), c.fakeGit.executable ? 0o755 : 0o644);
+    env.PATH = bin;
+  }
   if (c.commit === undefined) return spawnSync(process.execPath, [HOOK], { ...options, cwd: repo });
   const hook = path.join(repo, ".git", "hooks", "pre-commit");
   writeFileSync(hook, `#!/bin/sh\nexec '${process.execPath}' '${HOOK}'\n`);
@@ -192,6 +211,10 @@ describe("commit-hook-cases.json — the runner interprets every field, kind and
     expect(typeProblems({ ...ok, stageCount: ["p", 0] }))
       .toEqual(["stageCount must be [a non-empty prefix, a count from 1 to 20000]"]);
     expect(typeProblems({ ...ok, committed: [], merge: ["side"] })).toEqual(["merge needs side"]);
+    expect(typeProblems({ ...ok, committedText: { a: 1 } })).toEqual(["committedText must be an object of strings"]);
+    expect(typeProblems({ ...ok, fakeGit: { script: "x" } })).toEqual(["fakeGit must be {script: string, executable: boolean}"]);
+    expect(typeProblems({ ...ok, fakeGit: { script: "x", executable: true }, commit: [] }))
+      .toEqual(["fakeGit cannot be combined with commit"]);
     expect(typeProblems({ ...ok, branch: 1 })).toEqual(["branch must be a string or null"]);
     expect(typeProblems({ ...ok, repo: true })).toEqual(["repo must be false when present"]);
     expect(typeProblems({ ...ok, env: { A: 1 } })).toEqual(["env.A must be a string or null"]);

@@ -23,7 +23,7 @@ _HOOK = os.path.join(_HERE, 'branch_guard_commit.py')
 
 # Every field, case kind and table version this runner interprets (#441). JS
 # twin: MODEL in adapters/js/hooks/__tests__/commit-hook-cases.test.mjs.
-_ROW = ['name', 'repo', 'committed', 'side', 'branch', 'tags', 'headRef', 'config', 'merge',
+_ROW = ['name', 'repo', 'committed', 'committedText', 'fakeGit', 'side', 'branch', 'tags', 'headRef', 'config', 'merge',
         'remove', 'move', 'stage', 'stageHex', 'gitlink', 'stageCount', 'modify', 'env', 'commit',
         'expectExit', 'expectStderr']
 _MODEL = {'versions': [1], 'meta': ['_doc', 'version'], 'fields': {'commitHook': _ROW}}
@@ -76,6 +76,16 @@ def _type_problems(c):
             for k, v in c['env'].items():
                 if v is not None and not isinstance(v, str):
                     problems.append(f'env.{k} must be a string or null')
+    if 'committedText' in c and not (isinstance(c['committedText'], dict)
+                                     and all(isinstance(v, str) for v in c['committedText'].values())):
+        problems.append('committedText must be an object of strings')
+    if 'fakeGit' in c:
+        f = c['fakeGit']
+        if not (isinstance(f, dict) and isinstance(f.get('script'), str)
+                and isinstance(f.get('executable'), bool) and set(f) == {'script', 'executable'}):
+            problems.append('fakeGit must be {script: string, executable: boolean}')
+        if 'commit' in c:
+            problems.append('fakeGit cannot be combined with commit')
     if not _is_int(c.get('expectExit')):
         problems.append('expectExit must be an integer')
     if not isinstance(c.get('expectStderr'), str):
@@ -122,7 +132,9 @@ def _build(c, repo):
     if 'committed' in c:
         for p in c['committed']:
             _write(repo, p, 'base\n')
-        _git(repo, 'add', '--', *c['committed'])
+        for p, text in c.get('committedText', {}).items():
+            _write(repo, p, text)
+        _git(repo, 'add', '--', *c['committed'], *c.get('committedText', {}))
         _git(repo, 'commit', '-q', '--no-verify', '-m', 'base')
     if c.get('side'):
         _git(repo, 'checkout', '-q', '-b', 'side')
@@ -186,6 +198,12 @@ def _run(c, tmp_path):
     repo = str(tmp_path / 'repo')
     os.mkdir(repo)
     _build(c, repo)
+    if 'fakeGit' in c:
+        bin_dir = tmp_path / 'fake-git'
+        bin_dir.mkdir()
+        (bin_dir / 'git').write_text(c['fakeGit']['script'], encoding='utf-8')
+        os.chmod(bin_dir / 'git', 0o755 if c['fakeGit']['executable'] else 0o644)
+        env['PATH'] = str(bin_dir)
     if 'commit' not in c:
         return subprocess.run([sys.executable, _HOOK], cwd=repo, **options)
     hook = os.path.join(repo, '.git', 'hooks', 'pre-commit')
@@ -232,6 +250,11 @@ def test_a_planted_wrong_type_fails():
     assert _type_problems({**ok, 'stageCount': ['p', 0]}) == [
         'stageCount must be [a non-empty prefix, a count from 1 to 20000]']
     assert _type_problems({**ok, 'committed': [], 'merge': ['side']}) == ['merge needs side']
+    assert _type_problems({**ok, 'committedText': {'a': 1}}) == ['committedText must be an object of strings']
+    assert _type_problems({**ok, 'fakeGit': {'script': 'x'}}) == [
+        'fakeGit must be {script: string, executable: boolean}']
+    assert _type_problems({**ok, 'fakeGit': {'script': 'x', 'executable': True}, 'commit': []}) == [
+        'fakeGit cannot be combined with commit']
     assert _type_problems({**ok, 'branch': 1}) == ['branch must be a string or null']
     assert _type_problems({**ok, 'repo': True}) == ['repo must be false when present']
     assert _type_problems({**ok, 'env': {'A': 1}}) == ['env.A must be a string or null']
