@@ -145,11 +145,14 @@ The law is **total**: any input combines, including one that is not an
 envelope (a string, a number, `null`, an array) and an envelope whose
 `lineage` is not an array or holds steps that are not objects (#525). An
 envelope is any object read by key: in Python any `Mapping`, not only a
-`dict`; in JavaScript any object, its fields read through the prototype. An
-input that is not an envelope carries no fields: it does not taint, its
-confidence reads as `none`, and it contributes no prior steps. A `lineage`
-that is not an array contributes no prior steps. Prior steps are kept
-verbatim whatever they are, an array step as an array.
+`dict`; in JavaScript any object, an input's fields read through the
+prototype. An input that is not an envelope carries no fields: it does not
+taint, its confidence reads as `none`, and it contributes no prior steps. A
+`lineage` that is not an array contributes no prior steps. Prior steps are
+kept whatever they are: an array step as an array, a value that is not an
+object as itself, and an object step as a copy of its fields. In JavaScript
+that copy has the step's own fields only, so a field it inherits through its
+prototype is lost, taint included (#548).
 
 ### Combining zero inputs
 

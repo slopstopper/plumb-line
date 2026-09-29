@@ -199,8 +199,9 @@ It fails closed, whatever the options:
 - a value that is not marked (`42`, `null`, a list, a `Map`) is refused;
 - so is a malformed envelope: any `validateEnvelope` issue, a `source`,
   `confidence` or `weakestSource` off its ladder, a lineage step that is not
-  a plain object (a Python dict), a step whose `source` or `confidence` is
-  off its ladder or whose `derivedFromMock` is not a boolean, or a
+  a plain object (a Python dict), a step with no `source` (#525), a step
+  whose `source` or `confidence` is off its ladder or whose
+  `derivedFromMock` is not a boolean, or a
   `confidenceScore`, top-level or on a step, that is not a number in `[0, 1]`;
 - and so is one the audit flags: any `auditMeta` issue except the
   `version-legacy:` and `version-future:` advisories. An envelope from an older

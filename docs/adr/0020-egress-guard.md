@@ -90,3 +90,14 @@ The behaviour is pinned for both languages by the `guard` kind in
   audit (threat model, N3).
 - #123's fixture helper ("no taint escape") is planned to reuse this `noMock`
   semantics rather than define its own.
+
+## Amendments
+
+- **2026-09-29 (#525).** "Malformed" also covers a lineage step with no
+  `source`. A step with no `confidence` still counts as `none` against a
+  minimum, since that is the weakest rung and the guard can still judge it.
+  A missing `source` has no rung the guard could judge, so it cannot be
+  shown not to be `mock`, and the guard refuses it. The combination law
+  always writes a `source` on the steps it mints, `null` when its input had
+  none. For one commit on #525's branch it left the field off, and the guard
+  passed such a step. The independent review caught this before it merged.

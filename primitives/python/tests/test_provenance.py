@@ -242,3 +242,12 @@ def test_a_mapping_lineage_step_is_copied_as_a_dict_and_its_id_read():
     assert out['lineage'][1]['id'] == p.step_id(
         {'of': 'input', 'source': 'real', 'confidence': 'high', 'derived_from_mock': False},
         ['sha256:aaaaaaaaaaaa'])
+
+
+def test_combined_score_is_positive_zero_whatever_the_input_order():
+    """#525 review: min() over 0.0 and -0.0 returns whichever came first, so
+    the score's sign depended on input order; it is +0.0 either way. The case
+    table cannot see this: -0.0 == 0.0."""
+    import math
+    for scores in ([-0.0, 0.0], [0.0, -0.0], [-0.0]):
+        assert math.copysign(1, p.combine_confidence_score(scores)) == 1, scores
