@@ -142,3 +142,117 @@ def test_bare_code_scan_catches_the_forms_it_must():
     assert not _bare_codes("cite P3 —\nConfidence + provenance")
     assert not _bare_codes("P8 — State-first\n  lineage")                # wrapped, indented
     assert _bare_codes("```\na fenced example citing P3 bare\n```")   # examples get copied too
+
+
+# --- #485: honest deferral, as the method skill teaches it (option C) --------
+
+_EXAMPLE = os.path.join(_ROOT, "examples", "honest-deferral")
+
+
+def _deferral_section():
+    text = SKILLS["plumb-line-method"]
+    start = text.index("## Mid-task: a test that cannot pass honestly")
+    end = text.find("\n## ", start + 1)
+    return text[start:end if end != -1 else len(text)]
+
+
+def test_method_skill_states_all_four_deferral_conditions():
+    # Owner decision on #485, option C: all four, or it is a cheat.
+    section = _deferral_section().lower()
+    for condition in ("strict", "assertion unchanged", "reason", "not met"):
+        assert condition in section, f"the deferral section must state: {condition}"
+    assert "never a deferral" in section, "skipping must be named as never a deferral"
+
+
+def test_method_skill_forms_are_the_ones_the_example_runs():
+    # The skill teaches these spellings; the example (run by
+    # examples/test_honest_deferral.py) proves they behave as taught.
+    section = _deferral_section()
+    py = _read(_EXAMPLE, "python", "test_carrier.py")
+    js = _read(_EXAMPLE, "js", "carrier.test.js")
+    assert "pytest.mark.xfail(strict=True" in section and "pytest.mark.xfail(strict=True" in py
+    assert "it.fails(" in section and "it.fails(" in js
+
+
+def test_remediate_points_to_the_method_skill_for_a_test_it_cannot_fix():
+    text = " ".join(SKILLS["plumb-line-remediate"].split())  # prose wraps
+    assert "Mid-task: a test that cannot pass honestly" in text
+
+
+def test_deferral_keeps_the_owners_wording_on_issues():
+    # Option C: "Reason stated in the marker, ideally citing a tracked issue".
+    assert "ideally" in _deferral_section()
+
+
+def test_deferral_forms_do_not_let_a_crash_pass_as_the_expected_failure():
+    # xfail and it.fails accept any failing test. pytest can be narrowed with
+    # raises=AssertionError; vitest cannot, so the skill must say so and pair
+    # it with a test of the observable failure (#485 review).
+    section = " ".join(_deferral_section().split())
+    py = _read(_EXAMPLE, "python", "test_carrier.py")
+    assert "raises=AssertionError" in section and "raises=AssertionError" in py
+    assert "any error" in section
+    # Markers that look strict but never run, or cannot be strict.
+    assert "run=False" in section and "pytest.xfail()" in section
+
+
+def test_js_deferral_reason_is_in_the_marker_not_a_comment():
+    js = _read(_EXAMPLE, "js", "carrier.test.js")
+    title = re.search(r'it\.fails\(\s*"([^"]+)"', js)
+    assert title and "not reachable" in title.group(1) and "EXAMPLE-1" in title.group(1)
+
+
+def test_remediate_records_an_approved_deferral_as_applied_judgment():
+    text = " ".join(SKILLS["plumb-line-remediate"].split())
+    start = text.index("Mid-task: a test that cannot pass honestly")
+    assert "applied-judgment" in text[start - 600:start + 600]
+
+
+# --- #485 owner ruling on PR #536: usable, not a block on coding ------------
+# "It needs to be practically usable and help keep the code honest about
+# itself, not stop a user being able to code."
+
+def _not_forbidden():
+    section = _deferral_section()
+    start = section.index("### What this does not forbid")
+    end = section.find("\n### ", start + 1)
+    return " ".join(section[start:end if end != -1 else len(section)].split())
+
+
+def test_the_carve_outs_come_before_the_steps():
+    # Read first, so the section is not over-applied to ordinary test work.
+    section = _deferral_section()
+    assert section.index("### What this does not forbid") < section.index("1. **Find the failure")
+
+
+def test_the_carve_outs_name_each_legitimate_change():
+    text = _not_forbidden()
+    assert "wrong" in text and "say what was wrong" in text      # a wrong test is fixed
+    assert "P4" in text and "labelled" in text and "`mock`" in text  # stubs while building
+    assert "unit test" in text                                    # ordinary mocks
+    assert "whose decision" in text                               # thresholds, removals
+    assert "not stop" in text or "not a block" in text            # the ruling itself
+
+
+def test_step_two_targets_an_unmet_requirement_read_as_met():
+    # Step 2 itself, not "read as met" anywhere in the section (#485 review).
+    assert "2. **Do not make an unmet requirement read as met.**" in _deferral_section()
+
+
+def test_the_carve_outs_close_the_loopholes_the_review_found():
+    text = _not_forbidden()
+    # Intended behaviour changes are outside the moment (snapshots, TDD).
+    assert "Behaviour you changed on purpose" in text
+    # B1: a request to get CI green is not a decision about the requirement,
+    # and disclosing a change that fakes the requirement does not make it honest.
+    assert "is not a decision" in text and "does not make it honest" in text
+    # B2, B3: stubs and unit-test mocks sit alongside the requirement's test,
+    # never in place of it.
+    assert text.count("in place of") >= 2
+    # A2: P4's own terms, including the owner's opt-in.
+    assert "opts in" in text
+
+
+def test_the_carve_outs_name_principles_in_house_style():
+    text = _not_forbidden()
+    assert "P4 — Quarantined fakery" in text and "P6 — Maturity vocabulary" in text

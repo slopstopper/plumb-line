@@ -141,7 +141,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: "22"
-      - name: JS fixture toolchain (the end-to-end SARIF test runs real ESLint)
+      - name: JS fixture toolchain (real ESLint for the SARIF end-to-end test; vitest for the honest-deferral proof)
         # Both JS fixtures: js-payments-service (boundary) and
         # ratchet-adoption-js (#393, the output surface + ratchet). Neither
         # installs the plumb-line plugin — the configs reach it by relative
@@ -153,6 +153,9 @@ jobs:
               (cd "examples/$fixture/$tree" && npm ci --no-audit --no-fund)
             done
           done
+          # honest-deferral (#485): the JS half of the strict-marker proof
+          # runs the example's own vitest.
+          (cd examples/honest-deferral/js && npm ci --no-audit --no-fund)
       - name: adapters/sarif — SARIF assembler (end-to-end must RUN here, never skip; 80% coverage floor)
         # The 80% floor the neighbouring packages set in their pyproject.toml,
         # as flags here: this suite runs from the repo root (its imports need
@@ -186,8 +189,9 @@ jobs:
           # matches the demo modules by name — all three, present and future —
           # and the ratchet fixture byte checks (#412), whose JS half needs
           # the fixture toolchain installed above, and the fixture load check
-          # (#447), which needs node.
-          if grep -qE 'SKIPPED.*(test_[a-z]+_demo|test_ratchet_fixtures|test_js_fixture_loads)\.py' /tmp/examples-pytest.txt; then
+          # (#447), which needs node, and the honest-deferral proof (#485),
+          # whose JS half needs the example's toolchain.
+          if grep -qE 'SKIPPED.*(test_[a-z]+_demo|test_ratchet_fixtures|test_js_fixture_loads|test_honest_deferral)\.py' /tmp/examples-pytest.txt; then
             echo "::error::a must-run examples test skipped in CI — node or the JS fixture toolchain is missing"; exit 1
           fi
       - name: conformance against the plugin-bundled Python copy
