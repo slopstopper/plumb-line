@@ -389,3 +389,125 @@ def test_adopt_contract_names_the_mid_task_exception_and_keeps_the_citation():
     assert "brief mid-task answer" in contract
     mid = " ".join(text[text.index("## Surfacing mid-task"):].split()).lower()
     assert "cite what you saw" in mid
+
+
+# --- #486: the audit names a test changed so an unmet requirement reads as met ---
+# Owner decisions 2026-09-29 (#485, #486): one finding class, the method
+# skill's line (flag only when nothing records why or on whose decision),
+# never the method skill's carve-outs.
+
+def _audit_check_10():
+    text = SKILLS["plumb-line-audit"]
+    start = text.index("10. Test changed to pass")
+    end = text.index("\n## Method", start)
+    return " ".join(text[start:end].split())
+
+
+def test_audit_catalogue_has_the_test_changed_to_pass_check():
+    check = _audit_check_10().lower()
+    for form in ("substitut", "skipped", "rewritten", "threshold", "retries"):
+        assert form in check, f"check 10 must name the form: {form}"
+    assert "spine" in check and "p4 — quarantined fakery" in check
+
+
+def test_audit_check_10_uses_the_method_skills_line_and_carve_outs():
+    check = _audit_check_10().lower()
+    assert "whose decision" in check
+    for carve_out in ("on purpose", "wrong test", "labelled stub", "unit test"):
+        assert carve_out in check, f"check 10 must exempt: {carve_out}"
+
+
+def test_audit_check_10_does_not_excuse_a_double_for_being_in_a_test_file():
+    # Four spike audits called the test double acceptable (#486).
+    assert "not acceptable because it sits in a test file" in _audit_check_10().lower()
+
+
+def test_audit_check_10_names_itself_and_the_honest_paths():
+    check = _audit_check_10().lower()
+    assert "not as evidence for a product defect" in check
+    assert "strict" in check and "stay red" in check
+
+
+def test_audit_reads_the_tests_that_state_requirements():
+    text = " ".join(SKILLS["plumb-line-audit"].split()).lower()
+    assert "test files are in scope" in text
+
+
+# --- #486 option (a): check 10 tightened to the method skill's line ---------
+
+def test_audit_check_10_a_stated_reason_alone_is_not_a_decision():
+    check = _audit_check_10().lower()
+    assert "a stated reason alone is not a decision" in check
+    # The loose gate the review found must be gone.
+    assert "nothing records why or on whose decision" not in check
+
+
+def test_audit_check_10_is_not_downgraded_by_the_spine_calibration():
+    assert "the spine calibration does not govern check 10" in _audit_check_10().lower()
+
+
+def test_audit_check_10_markers_that_do_not_count_as_a_record():
+    check = _audit_check_10().lower()
+    assert "run=false" in check and "commented out" in check
+
+
+def test_audit_check_10_asks_whether_the_test_states_the_requirement():
+    # Mocking transport in an HTTP-client unit test is ordinary; the question
+    # is whether this test states the requirement (#486 review).
+    assert "states the requirement" in _audit_check_10().lower()
+
+
+def test_audit_check_10_a_mock_in_place_of_the_requirements_only_test_is_flagged():
+    # #486 narrow review: an unnamed, uncited mock that is the requirement's
+    # only test must not read as "ordinary testing". The method skill's line:
+    # a unit-test mock alongside the requirement's test, never in place of it.
+    check = _audit_check_10().lower()
+    assert "only test" in check and "in place of" in check and "alongside" in check
+
+
+def test_audit_check_10_an_uncheckable_cited_decision_is_needs_review():
+    assert "cannot find" in _audit_check_10().lower()
+
+
+def test_audit_check_10_an_established_only_test_is_a_violation_not_needs_review():
+    # Fixture re-run (#486): auditors established "REQ-8's only test, the
+    # product path calls the real partner" and still hedged to needs-review.
+    check = _audit_check_10().lower()
+    assert "established, it is a violation" in check
+
+
+def test_audit_check_10_needs_evidence_the_requirement_is_unmet():
+    # Final review (#486), defect B: an HTTP-client library with only mocked
+    # unit tests, its API reachable, would otherwise draw a violation on every
+    # requirement. The class is "a test changed so an UNMET requirement reads
+    # as met": both halves need evidence.
+    check = _audit_check_10().lower()
+    assert "evidence that the requirement is unmet" in check
+    assert "with no evidence that the requirement is unmet, it is not this finding" in check
+    assert "at most an advisory" in check
+
+
+def test_audit_check_10_evidence_of_unmet_must_be_recorded():
+    # Review of 55f09cd: a key the code reads but CI does not supply, or a
+    # working live test swapped for a mock, is not evidence on its own;
+    # otherwise the common keyed client, or a refactor for speed, is flagged.
+    check = _audit_check_10().lower()
+    assert "recorded in the repo" in check
+    assert "a key the code reads but the ci configuration does not supply is not evidence on its own" in check
+    assert "neither is a working real call replaced by a stand-in" in check
+    assert "while that call was failing or unavailable" in check
+
+
+def test_audit_check_10_outcome_bullet_agrees_with_the_evidence_rule():
+    # Review of 55f09cd, defect 2: the closing bullet sent everything the repo
+    # "cannot settle" to needs-review, contradicting "at most an advisory".
+    text = SKILLS["plumb-line-audit"]
+    raw = text[text.index("10. Test changed to pass"):text.index("\n## Method")]
+    last = raw.strip().split("\n   - ")[-1].lower()
+    assert last.startswith("the outcome"), last[:60]
+    assert "an advisory, not `needs-review`, for a stand-in with no evidence" in last
+
+
+def test_audit_check_10_a_citation_does_not_make_an_alongside_unit_test_the_requirements():
+    # Defect A: the unit-test exception wins over "cites the requirement".
+    assert "a citation or a name alone" in _audit_check_10().lower()

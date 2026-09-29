@@ -240,3 +240,94 @@ def test_release_publishes_only_after_the_whole_of_ci_passes():
     assert re.search(r"needs:\s*\[?[^\n]*\bci\b", publish), "publish only after ci passes"
     for step in ("npm test", "pytest -q examples", "pytest -q\n"):
         assert step not in publish, f"test step {step!r} copied into the publish job; CI owns tests"
+
+
+# --- test-honesty fixture (#486): tests changed so an unmet requirement reads as met ---
+
+TH = EXAMPLES / "test-honesty"
+
+
+def test_th_substitution_present_in_broken_absent_in_clean():
+    # broken/: the integration test states the partner requirement but stubs
+    # the partner call, so it passes against a stand-in.
+    broken = read(TH, "broken/tests/test_balance.py")
+    assert "runs against the partner sandbox" in broken
+    assert 'monkeypatch.setattr(partner, "fetch_points"' in broken
+    clean = read(TH, "clean/tests/test_balance.py")
+    integration = clean[clean.index("def test_integration_"):]
+    assert "monkeypatch" not in integration.split("\ndef ")[0], \
+        "clean's integration test must call the real partner"
+    assert "xfail(strict=True, raises=AssertionError" in clean
+
+
+def test_th_rewritten_assertion_present_in_broken_absent_in_clean():
+    assert "EXPIRY_MONTHS = 18" in read(TH, "broken/src/loyalty.py")
+    assert "== 18" in read(TH, "broken/tests/test_expiry.py")
+    assert "12 months" in read(TH, "broken/docs/SPEC.md")
+    assert "EXPIRY_MONTHS = 12" in read(TH, "clean/src/loyalty.py")
+    assert "== 12" in read(TH, "clean/tests/test_expiry.py")
+
+
+def test_th_clean_carries_the_carve_outs_the_audit_must_not_flag():
+    clean = read(TH, "clean/tests/test_balance.py")
+    assert "def test_unit_" in clean and "monkeypatch" in clean   # a unit test's own mock
+    assert "LOY-15" in read(TH, "clean/tests/test_expiry.py")      # a wrong test fixed, reason stated
+
+
+def test_th_answer_key_names_every_planted_violation():
+    key = read(TH, "broken/VIOLATIONS.md")
+    assert "exactly three violations" in key
+    assert key.count("Test changed to pass") == 3
+
+
+def test_th_unnamed_only_test_substitution_present_in_broken_absent_in_clean():
+    # #486 narrow review: the case nothing exercised. REQ-8's only test in
+    # broken/ is an unnamed, uncited mock; clean/ keeps a real-call test for
+    # REQ-8 (strictly deferred) and the unit mock beside it.
+    broken = read(TH, "broken/tests/test_statement.py")
+    assert "REQ" not in broken and "integration" not in broken
+    assert 'monkeypatch.setattr(partner, "fetch_points"' in broken
+    clean = read(TH, "clean/tests/test_statement.py")
+    assert "xfail(strict=True, raises=AssertionError" in clean and "def test_unit_" in clean
+    assert "REQ-8" in read(TH, "broken/docs/SPEC.md")
+
+
+def test_th_both_trees_carry_a_unit_only_requirement_with_nothing_unmet():
+    # Final review (#486), defect B: a requirement whose only test is a mocked
+    # unit test, with no sign it is unmet. The audit must not flag it.
+    for tree in ("broken", "clean"):
+        assert "REQ-10" in read(TH, f"{tree}/docs/SPEC.md")
+        test = read(TH, f"{tree}/tests/test_rates.py")
+        assert "def test_unit_" in test and "REQ" not in test
+        # The harder case: the service needs a key the tree never supplies,
+        # and nothing records it as unavailable in CI.
+        assert "RATES_API_KEY" in read(TH, f"{tree}/src/rates.py")
+        # Nothing may record the rates service as unavailable where the suite
+        # runs: not in the product code, the spec or any test.
+        for f in ("src/rates.py", "docs/SPEC.md"):
+            text = read(TH, f"{tree}/{f}").lower()
+            assert " ci" not in text and "unreachable" not in text, f
+        for name in ("test_balance.py", "test_statement.py", "test_expiry.py", "test_rates.py"):
+            other = read(TH, f"{tree}/tests/{name}")
+            assert "RATES_API_KEY" not in other and "rates service" not in other.lower()
+            assert name == "test_rates.py" or "import rates" not in other
+    for f in ("src/rates.py", "tests/test_rates.py"):
+        assert read(TH, f"broken/{f}") == read(TH, f"clean/{f}")
+
+
+def test_th_clean_unit_tests_cite_their_requirement():
+    # Review of 55f09cd, defect 6: "a citation alone does not make a unit test
+    # the requirement's test" needs an item that exercises it.
+    for name, req in (("test_balance.py", "REQ-7"), ("test_statement.py", "REQ-8")):
+        test = read(TH, f"clean/tests/{name}")
+        start = test.index("def test_unit_")
+        unit = test[start:test.find("\ndef ", start + 1)]
+        assert req in unit, name
+        for phrase in ("collaborator", "own logic", "unit test of", "alongside"):
+            assert phrase not in test, f"a comment must not hand the auditor the carve-out: {phrase}"
+
+
+def test_th_clean_pairs_the_req8_deferral_with_its_observable_failure():
+    clean = read(TH, "clean/tests/test_statement.py")
+    assert "unavailable" in clean and "delenv" in clean
+    assert "alongside" not in clean, "a comment must not hand the auditor the verdict"
