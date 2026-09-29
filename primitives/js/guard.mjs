@@ -101,7 +101,12 @@ function unreadable(meta) {
       issues.push(`lineage step ${i} is not a plain object`);
       return;
     }
-    if ("source" in step && !STATUS.includes(step.source))
+    // A step with no source is refused (#525 review): a missing confidence
+    // counts as none, the weakest rung, but a source has no rung the guard
+    // could degrade it to and still judge, so it cannot be shown not to be
+    // mock. Combine always writes a source, null when its input had none.
+    if (!("source" in step)) issues.push(`lineage step ${i} has no source`);
+    else if (!STATUS.includes(step.source))
       issues.push(`lineage step ${i} source ${quote(step.source)} is not on the source ladder`);
     if ("confidence" in step && !CONFIDENCE.includes(step.confidence))
       issues.push(`lineage step ${i} confidence ${quote(step.confidence)} is not on the confidence ladder`);

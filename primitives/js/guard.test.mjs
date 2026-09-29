@@ -115,3 +115,18 @@ describe("guard — the egress guard (#120)", () => {
     expect(guard(mark(1, { source: "real" }), { minConfidence: undefined })).toBeTruthy();
   });
 });
+
+
+describe("the guard refuses what combine makes of an input with no source (#525 review)", () => {
+  it("combine records the missing source as null and the guard refuses it; with the key left off, it passed", async () => {
+    const { combineProvenance } = await import("./provenance.mjs");
+    for (const handed of [{ confidence: "high", derivedFromMock: false, lineage: [] }, {}, "x"]) {
+      const meta = combineProvenance(handed);
+      let refused;
+      try { guard({ value: 1, ...meta }); } catch (e) { refused = e; }
+      expect(refused).toBeInstanceOf(ProvenanceRefused);
+      expect(refused.reasons.some((r) => r.includes("lineage step 0 source null is not on the source ladder")))
+        .toBe(true);
+    }
+  });
+});

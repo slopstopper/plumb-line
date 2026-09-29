@@ -92,3 +92,13 @@ def test_a_derive_override_is_refused_the_same_way():
     a = m.mark(1, source='real', confidence='high')
     with pytest.raises(ValueError, match=r"^confidence must be one of none, low, medium, high; got 0\.8$"):
         m.derive([a], lambda x: x, confidence=0.8)
+
+
+def test_derive_override_derived_from_mock_follows_the_taint_rule():
+    """#525 review: a non-boolean override taints unless it is False or None,
+    as in the JS twin ([] was clean in Python and tainted in JS)."""
+    clean = m.mark(1, source='real', confidence='high')
+    for flag in ([], {}, 0, ''):
+        assert m.derive([clean], lambda v: v, derived_from_mock=flag)['meta']['derived_from_mock'] is True
+    for flag in (False, None):
+        assert m.derive([clean], lambda v: v, derived_from_mock=flag)['meta']['derived_from_mock'] is False

@@ -40,7 +40,7 @@ function runCombine(impl, c) {
   }
   if (c.expectLineageIds) {
     // A prior step that is not an object has no id: null, as in the Python runners.
-    const ids = out.lineage.map((s) => (s !== null && typeof s === "object" && !Array.isArray(s) ? s.id : null));
+    const ids = out.lineage.map((s) => (s !== null && typeof s === "object" && !Array.isArray(s) ? (s.id ?? null) : null));
     if (!isDeepStrictEqual(ids, c.expectLineageIds))
       return `expected lineage ids ${JSON.stringify(c.expectLineageIds)}, got ${JSON.stringify(ids)}`;
   }

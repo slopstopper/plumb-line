@@ -66,7 +66,14 @@ def _unreadable(meta):
         if not isinstance(step, dict):
             issues.append(f'lineage step {i} is not a plain object')
             continue
-        if 'source' in step and not _on(STATUS, step['source']):
+        # A step with no source is refused (#525 review): a missing
+        # confidence counts as none, the weakest rung, but a source has no
+        # rung the guard could degrade it to and still judge, so it cannot be
+        # shown not to be mock. Combine always writes a source, None when its
+        # input had none.
+        if 'source' not in step:
+            issues.append(f'lineage step {i} has no source')
+        elif not _on(STATUS, step['source']):
             issues.append(f"lineage step {i} source {_json(step['source'])} is not on the source ladder")
         if 'confidence' in step and not _on(CONFIDENCE, step['confidence']):
             issues.append(f"lineage step {i} confidence {_json(step['confidence'])} is not on the confidence ladder")

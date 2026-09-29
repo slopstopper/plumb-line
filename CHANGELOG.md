@@ -414,23 +414,34 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 - **`combine` agrees across languages on handed envelopes that are not
   well formed** ([#525](https://github.com/slopstopper/plumb-line/issues/525);
   SPEC §3, §4; `primitives/PARITY.md`). The same inputs gave different results
-  in 20 of 28 probed cases; 9 new `cases.json` rows now pin both languages.
+  in 20 of 28 probed cases, and an independent review found more; 17 new
+  `cases.json` rows now pin both languages.
   - **Step ids:** a `confidence` or `source` that is not a string (`true`,
     `1.0`, an array) got a different content-addressed id in each language.
     It now serializes by type: a boolean as `true`/`false`, a number as its
-    IEEE-754 bit pattern, an array or object as `<array>`/`<object>`.
+    IEEE-754 bit pattern (`-0` as `0`, an out-of-range integer as
+    infinity), an array or object as `<array>`/`<object>`. Input ids sort by
+    code point in both (JS sorted by UTF-16 unit), and a lone surrogate
+    hashes as U+FFFD (Python raised).
   - **Python totality:** Python `combine_provenance` raised `AttributeError`
     on an input that is not a dict, a `lineage` that is not a list, or a step
-    that is not a dict. It now combines them, as JS did.
+    that is not a dict. It now combines them, as JS did, and reads any
+    `Mapping` (a `MappingProxyType` or `UserDict`) as an envelope.
   - **Taint (behaviour change, stricter):** a `derivedFromMock` that is not
     a boolean now taints in both languages unless it is `false` or absent
     (`null` counts as absent). Before, each language used its own
     truthiness, and they disagreed on `[]` and `{}`, so taint could vanish
-    in one language. A handed `0` or `""` now taints as well. `taints()` follows the
-    same rule, and no constructor stores such a value.
-  - **Step shape:** a step leaves off a `source` or `confidence` its input
-    does not have (Python wrote `null`), and an array lineage step stays an
-    array (JS spread it into an object).
+    in one language. A handed `0` or `""` now taints as well. `taints()`,
+    the audit's taint-dropped check, `makeMeta`/`make_meta` and `derive`'s
+    override all follow the same rule (a `null` flag takes the default, as
+    it did in Python). Owner decision on #525.
+  - **Step shape:** a step records `null` for a `source` or `confidence` its
+    input does not have (JS left it `undefined`), and an array lineage step
+    stays an array (JS spread it into an object). `combine`'s score is `0`,
+    not `-0`, whatever the input order.
+  - **Egress guard (stricter):** a lineage step with no `source` is refused
+    as an invalid envelope, because it cannot be shown not to be mock. A step
+    with no `confidence` still counts as `none`.
   - `PARITY.md` no longer records suite counts, which had gone stale, and
     the bundle conformance runner refuses a boolean case-table `version`, as
     the main runners do (#441).

@@ -121,3 +121,16 @@ describe("mark / derive refuse an off-ladder confidence or source (#443)", () =>
       `confidence must be one of none, low, medium, high; ${tail}`);
   });
 });
+
+
+describe("derive override derivedFromMock follows the taint rule (#525 review)", () => {
+  it("taints unless false or null, as in the Python twin ([] was clean there and tainted here)", () => {
+    const clean = mark(1, { source: "real", confidence: "high" });
+    for (const flag of [[], {}, 0, ""]) {
+      expect(derive([clean], (v) => v, { derivedFromMock: flag }).derivedFromMock).toBe(true);
+    }
+    for (const flag of [false, null]) {
+      expect(derive([clean], (v) => v, { derivedFromMock: flag }).derivedFromMock).toBe(false);
+    }
+  });
+});

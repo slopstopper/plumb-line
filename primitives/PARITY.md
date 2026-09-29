@@ -156,6 +156,23 @@ each pinned by a `combine` row in `cases.json` (the rows marked #525):
   one language. Both now taint on anything other than `false` or absent,
   so `0` and `""` taint too (SPEC §3).
 - **Step shape.** For an input with no `source` or `confidence`, Python
-  wrote `null` where JS left the field off; both now leave it off, and keep
-  a `null` the input carries. JS spread an array lineage step into an object
-  (`{"0": ...}`); both now keep it as an array.
+  wrote `null` where JS left the field off (in memory, `undefined`); both now
+  write `null`, so every step has both keys. JS spread an array lineage step
+  into an object (`{"0": ...}`); both now keep it as an array.
+
+The independent review of the first fix found more, all now resolved and
+pinned by rows marked "#525 review": a number beyond double range crashed
+Python's id canon; `-0` gave different ids (and Python's `min` over `0.0`
+and `-0.0` depended on input order); a lone surrogate crashed Python's
+hashing; input ids sorted by UTF-16 unit in JS and by code point in Python;
+and the audit's taint-dropped check, `makeMeta`'s coercion and `derive`'s
+override each used their language's truthiness rather than the §3 rule. It
+also found two regressions in the first fix, fixed before merge: leaving an
+absent `source` off a step let the egress guard pass it (the guard now
+refuses a step with no `source`), and a Python `Mapping` that is not a `dict`
+had its taint cleared (any `Mapping` is now read). A re-run of the reviewer's
+143-input probe leaves 18 differences, none in outcome: nine are the audit's
+field name in its message (`derivedFromMock` / `derived_from_mock`, as
+before), and nine are a `-0` or an out-of-range integer that each language's
+JSON parser already reads differently, copied verbatim into the step; the
+ids and taint agree.

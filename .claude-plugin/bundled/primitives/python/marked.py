@@ -1,6 +1,6 @@
 """marked — thin wrapper sugar over the provenance law. The law lives in provenance.py."""
 try:  # installed as a package (plumb_line_provenance)
-    from .provenance import combine_provenance, make_meta
+    from .provenance import combine_provenance, make_meta, taints
 except ImportError:  # flat / copy-paste usage (modules on sys.path)
     import provenance as _prov
     if not hasattr(_prov, 'combine_provenance') or not hasattr(_prov, 'PROVENANCE_VERSION'):
@@ -9,7 +9,7 @@ except ImportError:  # flat / copy-paste usage (modules on sys.path)
             f"(loaded from {getattr(_prov, '__file__', '?')}); rename it or use the "
             "installed 'plumb_line_provenance' package"
         )
-    combine_provenance, make_meta = _prov.combine_provenance, _prov.make_meta
+    combine_provenance, make_meta, taints = _prov.combine_provenance, _prov.make_meta, _prov.taints
 
 # Only these keys may be supplied as overrides to derive(). lineage and
 # weakest_source always come from the computed combine_provenance result;
@@ -82,7 +82,9 @@ def derive(inputs, fn, **meta_override):
     for key in _OVERRIDE_KEYS:
         if key in meta_override:
             overridden[key] = meta_override[key]
-    overridden['derived_from_mock'] = combined['derived_from_mock'] or bool(meta_override.get('derived_from_mock'))
+    # The taint rule of SPEC §3 (#525 review), as in the JS twin.
+    overridden['derived_from_mock'] = (combined['derived_from_mock']
+                                       or taints({'derived_from_mock': meta_override.get('derived_from_mock')}))
     # Route the override through make_meta so derive is never weaker than the
     # constructor: an out-of-range confidence_score override is dropped by the
     # same validation, not stored raw. derived_from_mock is force-OR'd above, so

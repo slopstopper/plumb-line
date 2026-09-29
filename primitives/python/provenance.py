@@ -3,7 +3,9 @@
 import hashlib
 import json
 import math
+import re
 import struct
+from collections.abc import Mapping
 
 # Schema version of the provenance metadata envelope (Principle 7). Declared so
 # consumers can pin to a shape; every envelope now carries this constant
@@ -109,13 +111,16 @@ def make_meta(source=_REQUIRED, confidence='none', confidence_score=None,
         'provenance_version': PROVENANCE_VERSION,
         'source': source,
         'confidence': confidence,
-        'derived_from_mock': (source == 'mock') if derived_from_mock is None else bool(derived_from_mock),
+        # None takes the default; any other value is read by the taint rule
+        # (SPEC §3), as in the JS twin (#525 review): bool() made [] clean here.
+        'derived_from_mock': (source == 'mock') if derived_from_mock is None else _taint_flag(derived_from_mock),
         # Each meta owns its own copy of every lineage step (dicts are cloned),
         # so mutating one envelope's history can't rewrite a sibling that shares
         # ancestry. Python has no cheap deep-freeze, so this isolates ownership
         # rather than enforcing the true immutability the JS Object.freeze gives.
-        # A list step is copied as a list, as the JS twin copies an array (#525).
-        'lineage': [dict(s) if isinstance(s, dict) else list(s) if isinstance(s, list) else s
+        # A list step is copied as a list, as the JS twin copies an array, and
+        # any Mapping step as a dict (#525).
+        'lineage': [dict(s) if isinstance(s, Mapping) else list(s) if isinstance(s, list) else s
                     for s in lineage] if isinstance(lineage, list) else [],
     }
     # Optional numeric confidence — a finer-grained companion to the ordinal
@@ -161,10 +166,12 @@ def _taint_flag(value):
 
 
 def _field(meta, key):
-    """``meta[key]`` for a dict envelope, else None: an input that is not an
+    """``meta[key]`` for an envelope, else None: an input that is not an
     envelope carries no fields, as in the JS twin, where ``m?.key`` is
-    undefined for a string or a number (#525)."""
-    return meta.get(key) if isinstance(meta, dict) else None
+    undefined for a string or a number (#525). Any Mapping is an envelope,
+    not only a dict: read as carrying nothing, a MappingProxyType or UserDict
+    had its taint cleared (#525 review)."""
+    return meta.get(key) if isinstance(meta, Mapping) else None
 
 
 def taints(meta):
@@ -212,7 +219,11 @@ def combine_confidence_score(scores):
     """
     if not scores or not all(is_score(s) for s in scores):
         return None
-    return min(scores)
+    # -0.0 is returned as 0.0: min() over 0.0 and -0.0 returns whichever came
+    # first, so the result depended on input order (#525 review). abs() keeps
+    # an int 0 an int.
+    low = min(scores)
+    return abs(low) if low == 0 else low
 
 def combine_provenance(*metas):
     """Apply the taint-propagation combination law to one or more metadata dicts.
@@ -251,20 +262,21 @@ def combine_provenance(*metas):
     # not change because it was recombined (#52). Only new input steps are minted.
     input_steps = []
     for m in metas:
-        # The input's source and confidence are recorded as it carries them,
-        # and left off when it carries none, as for an input that is not an
-        # envelope (#525).
-        step = {'of': 'input'}
-        for key in ('source', 'confidence'):
-            if isinstance(m, dict) and key in m:
-                step[key] = m[key]
-        step['derived_from_mock'] = taints(m)
+        # The input's source and confidence, None when it has none, as for an
+        # input that is not an envelope (#525). A step always has both keys:
+        # the guard refuses a step without them (#525 review).
+        step = {
+            'of': 'input',
+            'source': _field(m, 'source'),
+            'confidence': _field(m, 'confidence'),
+            'derived_from_mock': taints(m),
+        }
         # Record the numeric score too when the input carries one, so the numeric
         # over-claim audit works on real derive output, not just hand-built metas.
         score = _field(m, 'confidence_score')
         if is_score(score):
             step['confidence_score'] = score
-        prior_ids = [s['id'] for s in lineage_of(m) if isinstance(s, dict) and isinstance(s.get('id'), str)]
+        prior_ids = [s['id'] for s in lineage_of(m) if isinstance(s, Mapping) and isinstance(s.get('id'), str)]
         step['id'] = step_id(step, prior_ids)
         input_steps.append(step)
     lineage = prior + input_steps
@@ -273,6 +285,19 @@ def combine_provenance(*metas):
                      derived_from_mock=derived_from_mock, lineage=lineage,
                      # Weakest source anywhere in the ancestry, read off the lineage.
                      weakest_source=weakest_source(*[_field(s, 'source') for s in lineage]))
+
+
+def _double_hex(v):
+    """A number as its IEEE-754 binary64 bit pattern, 16 lowercase hex chars.
+    An int too large for a double is +/-infinity, as JSON.parse reads it
+    (math.copysign would itself overflow), and -0.0 is written as 0.0, since
+    JSON's -0 is -0 in JS and the int 0 here (#525 review). JS twin:
+    doubleHex."""
+    try:
+        f = float(v)
+    except OverflowError:
+        f = math.inf if v > 0 else -math.inf
+    return struct.pack('>d', 0.0 if f == 0 else f).hex()
 
 
 def _canon_field(v):
@@ -290,11 +315,7 @@ def _canon_field(v):
     if isinstance(v, bool):
         return 'true' if v else 'false'
     if isinstance(v, (int, float)):
-        try:
-            f = float(v)
-        except OverflowError:
-            f = math.copysign(math.inf, v)
-        return struct.pack('>d', f).hex()
+        return _double_hex(v)
     return '<array>' if isinstance(v, (list, tuple)) else '<object>'
 
 
@@ -307,7 +328,7 @@ def step_id(step, input_ids=None):
     # small floats (e.g. 0.00001: Python "1e-05" vs JS "0.00001"), which would
     # otherwise produce different step ids for the same value cross-language.
     # The raw double bit pattern is identical in both, by construction.
-    score_s = struct.pack('>d', score).hex() if is_score(score) else '-'
+    score_s = _double_hex(score) if is_score(score) else '-'
     canon = "\n".join([
         f"of={_canon_field(_field(step, 'of'))}",
         f"source={_canon_field(_field(step, 'source'))}",
@@ -316,4 +337,7 @@ def step_id(step, input_ids=None):
         f"confidenceScore={score_s}",
         f"inputs={','.join(sorted(input_ids))}",
     ])
+    # A lone surrogate (JSON can carry one) is hashed as U+FFFD, as Node's
+    # UTF-8 encoder writes it; str.encode() raised (#525 review).
+    canon = re.sub('[\ud800-\udfff]', '\ufffd', canon)
     return 'sha256:' + hashlib.sha256(canon.encode()).hexdigest()[:12]

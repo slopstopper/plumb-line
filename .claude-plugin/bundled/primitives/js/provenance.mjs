@@ -97,10 +97,13 @@ export function makeMeta({
     provenanceVersion: PROVENANCE_VERSION,
     source,
     confidence,
+    // Absent or null takes the default; any other value is read by the taint
+    // rule (SPEC §3), as in the Python twin (#525 review): Boolean() made []
+    // taint here and not there, and null clean here and a default there.
     derivedFromMock:
-      derivedFromMock === undefined
+      derivedFromMock === undefined || derivedFromMock === null
         ? source === "mock"
-        : Boolean(derivedFromMock),
+        : taintFlag(derivedFromMock),
     // Each meta owns a *frozen copy* of its lineage. Steps are cloned then
     // frozen so (a) an envelope's recorded history can't be rewritten in place,
     // and (b) a step shared across parent/child metas can't leak a mutation from
@@ -189,7 +192,10 @@ export function weakestSource(...sources) {
  */
 export function combineConfidenceScore(scores) {
   if (scores.length === 0 || !scores.every(isScore)) return undefined;
-  return Math.min(...scores);
+  // -0 is returned as 0: Python's min() over 0.0 and -0.0 depends on argument
+  // order, so the result would too (#525 review).
+  const min = Math.min(...scores);
+  return min === 0 ? 0 : min;
 }
 
 // Deprecated no-op, kept for import compatibility. Step IDs are now
@@ -232,15 +238,16 @@ export function combineProvenance(...metas) {
     Array.isArray(m?.lineage) ? m.lineage : [],
   );
   const inputSteps = metas.map((m) => {
-    // The input's source and confidence are recorded as it carries them, and
-    // left off when it carries none, as for an input that is not an envelope
-    // (#525). The Python twin cannot tell undefined from None, so neither
-    // records an absent field.
-    const step = { of: "input" };
-    const own = m !== null && typeof m === "object" && !Array.isArray(m);
-    if (own && Object.hasOwn(m, "source")) step.source = m.source;
-    if (own && Object.hasOwn(m, "confidence")) step.confidence = m.confidence;
-    step.derivedFromMock = taints(m);
+    // The input's source and confidence, read as taint is read (through the
+    // prototype), and null when it has none, as for an input that is not an
+    // envelope (#525). A step always has both keys: the guard refuses a step
+    // without them, and a key left off let a sourceless input through it.
+    const step = {
+      of: "input",
+      source: m?.source ?? null,
+      confidence: m?.confidence ?? null,
+      derivedFromMock: taints(m),
+    };
     // Record the numeric score too when the input carries one, so the numeric
     // over-claim audit works on real derive output, not just hand-built metas.
     if (isScore(m?.confidenceScore)) step.confidenceScore = m.confidenceScore;
@@ -263,6 +270,34 @@ export function combineProvenance(...metas) {
 }
 
 /**
+ * A number as its IEEE-754 binary64 bit pattern, 16 lowercase hex chars, with
+ * -0 written as 0: JSON's -0 is -0 in JS and the integer 0 in Python (#525
+ * review). Python twin: _double_hex.
+ * @param {number} n
+ * @returns {string}
+ */
+function doubleHex(n) {
+  const buf = Buffer.alloc(8);
+  buf.writeDoubleBE(n === 0 ? 0 : n);
+  return buf.toString("hex");
+}
+
+/**
+ * Compare two strings by Unicode code point, as Python's sorted() does. The
+ * default sort compares UTF-16 code units, which puts a character above
+ * U+FFFF before U+FFFF itself (#525 review).
+ */
+function byCodePoint(a, b) {
+  const x = [...a];
+  const y = [...b];
+  for (let i = 0; i < Math.min(x.length, y.length); i++) {
+    const d = x[i].codePointAt(0) - y[i].codePointAt(0);
+    if (d !== 0) return d;
+  }
+  return x.length - y.length;
+}
+
+/**
  * One `of` / `source` / `confidence` value as the step-id canon writes it
  * (SPEC §4, #525). A string is itself and an absent value is empty, as
  * always; any other value a handed envelope can carry is written by type, the
@@ -276,11 +311,7 @@ function canonField(v) {
   if (v === undefined || v === null) return "";
   if (typeof v === "string") return v;
   if (typeof v === "boolean") return v ? "true" : "false";
-  if (typeof v === "number" || typeof v === "bigint") {
-    const buf = Buffer.alloc(8);
-    buf.writeDoubleBE(Number(v));
-    return buf.toString("hex");
-  }
+  if (typeof v === "number" || typeof v === "bigint") return doubleHex(Number(v));
   return Array.isArray(v) ? "<array>" : "<object>";
 }
 
@@ -298,19 +329,14 @@ export function stepId(step, inputIds = []) {
   // small floats (e.g. 0.00001: JS "0.00001" vs Python "1e-05"), which would
   // otherwise produce different step ids for the same value cross-language.
   // The raw double bit pattern is identical in both, by construction.
-  let score = "-";
-  if (isScore(step?.confidenceScore)) {
-    const buf = Buffer.alloc(8);
-    buf.writeDoubleBE(step.confidenceScore);
-    score = buf.toString("hex");
-  }
+  const score = isScore(step?.confidenceScore) ? doubleHex(step.confidenceScore) : "-";
   const canon = [
     `of=${canonField(step?.of)}`,
     `source=${canonField(step?.source)}`,
     `confidence=${canonField(step?.confidence)}`,
     `derivedFromMock=${taintFlag(step?.derivedFromMock) ? "true" : "false"}`,
     `confidenceScore=${score}`,
-    `inputs=${[...inputIds].sort().join(",")}`,
+    `inputs=${[...inputIds].sort(byCodePoint).join(",")}`,
   ].join("\n");
   return "sha256:" + createHash("sha256").update(canon).digest("hex").slice(0, 12);
 }

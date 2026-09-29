@@ -347,3 +347,23 @@ test("stepId is stable regardless of input-id order (sorted)", () => {
   const step = { of: "input", source: "real", confidence: "high", derivedFromMock: false };
   expect(stepId(step, ["b", "a"])).toBe(stepId(step, ["a", "b"]));
 });
+
+
+// #525 review: what the case table cannot express.
+describe("combineProvenance reads source and confidence as it reads taint (#525 review)", () => {
+  it("through the prototype: an envelope built by Object.create keeps its source on the step", () => {
+    const m = Object.create({ source: "mock", confidence: "high", derivedFromMock: true, lineage: [] });
+    const out = combineProvenance(m, makeMeta({ source: "real", confidence: "high" }));
+    expect(out.lineage[0].source).toBe("mock");
+    expect(out.lineage[0].confidence).toBe("high");
+    expect(out.weakestSource).toBe("mock");
+    expect(out.derivedFromMock).toBe(true);
+  });
+  it("records null for a field the input does not have, so every step has both keys", () => {
+    const out = combineProvenance({ derivedFromMock: false, lineage: [] }, "x");
+    for (const step of out.lineage) {
+      expect(step).toHaveProperty("source", null);
+      expect(step).toHaveProperty("confidence", null);
+    }
+  });
+});

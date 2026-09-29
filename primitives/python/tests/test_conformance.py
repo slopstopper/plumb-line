@@ -92,7 +92,7 @@ def test_combine_cases():
             sk = _KEY.get(k, k)
             assert sk not in out, f"{c['name']}: {sk} should be absent"
         if 'expectLineageIds' in c:
-            assert [_step_id(s) for s in out['lineage']] == c['expectLineageIds'], \
+            assert _strict([_step_id(s) for s in out['lineage']], c['expectLineageIds']), \
                 f"{c['name']}: lineage ids {[_step_id(s) for s in out['lineage']]}"
         if 'expectLineage' in c:
             got = [_step_to_camel(s) for s in out['lineage']]

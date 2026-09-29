@@ -110,7 +110,7 @@ def test_bundle_combine_cases():
             sk = _KEY.get(k, k)
             assert sk not in out, f"{c['name']}: {sk} should be absent"
         if 'expectLineageIds' in c:
-            assert [_step_id(s) for s in out['lineage']] == c['expectLineageIds'], \
+            assert _strict([_step_id(s) for s in out['lineage']], c['expectLineageIds']), \
                 f"{c['name']}: lineage ids {[_step_id(s) for s in out['lineage']]}"
         if 'expectLineage' in c:
             got = [_step_to_camel(s) for s in out['lineage']]
@@ -236,9 +236,19 @@ def test_bundle_every_case_kind_is_interpreted():
     assert kinds == set(_KNOWN_FIELDS), f"unknown case kind(s) {sorted(kinds - set(_KNOWN_FIELDS))}"
 
 
+def _version_is_modelled(version):
+    """`True == 1` in Python: a boolean version is refused, as the main
+    runners refuse it (#441; #525)."""
+    return not isinstance(version, bool) and version in {1}
+
+
 def test_bundle_case_table_version_is_one_this_runner_models():
     # Mirrors primitives/python/tests/test_conformance.py and run-cases.mjs (#433).
-    # `True == 1` in Python: a boolean version is refused, as the main runners
-    # refuse it (#441; #525).
     version = CASES.get("version")
-    assert not isinstance(version, bool) and version in {1}, f"unknown case-table version {version!r}"
+    assert _version_is_modelled(version), f"unknown case-table version {version!r}"
+
+
+def test_bundle_a_boolean_or_unknown_version_is_refused():
+    assert not _version_is_modelled(True)
+    assert not _version_is_modelled(2)
+    assert _version_is_modelled(1) and _version_is_modelled(1.0)

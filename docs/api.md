@@ -148,7 +148,7 @@ a category:
 | `"laundering:"` | A clean `source` (`real`, `semiReal`, `fallback`) but `derivedFromMock` is `true` |
 | `"over-claiming:"` | `confidence` or `confidenceScore` is higher than the lineage supports |
 | `"source over-claim:"` | `weakestSource` is cleaner than the lineage proves |
-| `"taint dropped:"` | A tainted lineage step but `derivedFromMock` is `false` |
+| `"taint dropped:"` | A lineage step that taints (by the rule of `taints`) but `derivedFromMock` is `false` |
 | `"unreproducible:"` | `source` is `"derived"` but `lineage` is empty |
 | `"version-legacy:"` | `provenanceVersion` is absent or lower than the current wire version (advisory; `{}` returns only this) |
 | `"version-future:"` | `provenanceVersion` is newer than this library supports |
@@ -307,6 +307,12 @@ returns a new derived envelope.
 
 Calling with **zero arguments** returns `source: "unavailable"` (not
 `"derived"`), because a value derived from nothing has no honest provenance.
+
+It accepts any input (SPEC §3, #525). An input that is not an envelope, or an
+envelope with no `source` or `confidence`, gives a step with that field
+`null`; the egress guard refuses a step with a `null` or missing `source`. A
+lineage that is not an array contributes no prior steps, and prior steps are
+kept as they are.
 
 ---
 
