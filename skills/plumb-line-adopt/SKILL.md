@@ -16,7 +16,8 @@ This skill is a concierge for the whole toolkit — the four sibling skills
 AND the run-time primitives. Its job is the question the docs cannot answer
 for a specific repo: *"what would I use this on, here?"* It recommends only.
 It never edits files, installs anything, or scaffolds code; every action
-belongs to the skill it hands off to.
+belongs to the skill it hands off to, or, for a stand-in met mid-task, to
+the agent or builder doing the task.
 
 ## 1. Look — a lightweight, read-only scan
 
@@ -103,7 +104,9 @@ present a guessed fit as a match.
 
 The audit and remediate siblings emit versioned, checker-validated shapes;
 this skill's routing recommendation is a public output and carries one too
-(#269, P7 — Contracted outputs, applied to our own output). The contract is deliberately light —
+(#269, P7 — Contracted outputs, applied to our own output). A brief mid-task
+answer (see **Surfacing mid-task**) is not a routing recommendation and
+carries no header, but any fit it claims still cites what was seen. The contract is deliberately light —
 conversational prose stays conversational; five elements are pinned:
 
 ```
@@ -173,7 +176,8 @@ brief; where a fit-map profile matches, point at it and show the one-line
 integration for the code on screen; and offer to continue or get out of
 the way. Do not run the full scan-and-interview over an interruption; the
 full routing is for when the builder asks for it. A brief mid-task answer
-is not a routing report, so it does not carry the `routing-format` header.
+is not a routing report, so it does not carry the `routing-format` header;
+if it names a fit-map profile, cite what you saw that matches it.
 This skill still edits nothing: it tells the agent doing the task, or the
 builder, how to keep the stand-in tracked, and they make the edit.
 

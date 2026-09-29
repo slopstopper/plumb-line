@@ -66,3 +66,19 @@ def test_a_query_with_no_probes_is_an_error_not_a_vacuous_route(tmp_path):
     q, r = _files(tmp_path, [("a", "plumb-line-method", [])])
     with pytest.raises(ValueError):
         br.route(q, r)
+
+
+def test_derive_refuses_a_target_no_query_expects(tmp_path):
+    # A typo would otherwise give an all-negative set that passes trivially.
+    import pytest
+    q, _ = _files(tmp_path, [("a", "plumb-line-method", [])])
+    with pytest.raises(ValueError):
+        br.derive(q, "plumb-line-methd")
+
+
+def test_cli_usage_errors_exit_2_without_a_traceback(tmp_path, capsys):
+    q, _ = _files(tmp_path, [("a", "plumb-line-method", [])])
+    assert br.main(["--derive", "plumb-line-method"]) == 2
+    assert br.main([q]) == 2
+    assert br.main(["--derive", "plumb-line-methd", q]) == 2
+    assert "no query expects" in capsys.readouterr().err

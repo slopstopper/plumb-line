@@ -26,9 +26,13 @@ import sys
 
 
 def derive(queries_path, target):
-    """The breadth set as trigger_check's eval set for one target skill."""
+    """The breadth set as trigger_check's eval set for one target skill. A
+    target no query expects raises ValueError: a typo would otherwise give an
+    all-negative set that passes whenever nothing triggers."""
     with open(queries_path, encoding="utf-8") as f:
         queries = json.load(f)
+    if not any(q["expected_skill"] == target for q in queries):
+        raise ValueError(f"no query expects {target!r}")
     return [{"query": q["query"], "should_trigger": q["expected_skill"] == target}
             for q in queries]
 
@@ -62,8 +66,15 @@ def route(queries_path, record_path):
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
-    if len(argv) == 3 and argv[0] == "--derive":
-        print(json.dumps(derive(argv[2], argv[1]), indent=1, ensure_ascii=False))
+    if argv and argv[0] == "--derive":
+        if len(argv) != 3:
+            print(__doc__, file=sys.stderr)
+            return 2
+        try:
+            print(json.dumps(derive(argv[2], argv[1]), indent=1, ensure_ascii=False))
+        except ValueError as exc:
+            print(f"✗ {exc}", file=sys.stderr)
+            return 2
         return 0
     if len(argv) != 2:
         print(__doc__, file=sys.stderr)

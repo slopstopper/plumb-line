@@ -367,3 +367,25 @@ def test_adopt_says_the_task_agent_adds_the_stand_in_and_adopt_edits_nothing():
     start = text.index("## Surfacing mid-task")
     section = " ".join(text[start:].split("\n## ")[0].split()).lower()
     assert "edits nothing" in section and "not a routing report" in section
+
+
+def test_the_baseline_row_settles_just_regenerate_it():
+    # "Just regenerate it, I don't know why it moved" is a request for green,
+    # not a decision (#485's confirmed reading); the row must not allow both.
+    row = _row("baseline")
+    assert "just regenerate" in row and "accepted unexplained" in row
+
+
+def test_the_layer_row_agrees_with_the_test_section_and_covers_a_failing_gate():
+    row = _row("layer")
+    assert "name the issue" in row          # never filed unasked (the test section)
+    assert "boundary check fails" in row    # then it is that section's moment
+
+
+def test_adopt_contract_names_the_mid_task_exception_and_keeps_the_citation():
+    text = SKILLS["plumb-line-adopt"]
+    contract = text[text.index("## The routing report is contracted"):]
+    contract = " ".join(contract.split("\n## ")[0].split()).lower()
+    assert "brief mid-task answer" in contract
+    mid = " ".join(text[text.index("## Surfacing mid-task"):].split()).lower()
+    assert "cite what you saw" in mid
