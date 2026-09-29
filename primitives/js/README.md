@@ -48,6 +48,31 @@ malformed one, or one the audit flags is refused, and taint and confidence
 are judged from the whole lineage. A bad option is a `TypeError`, never a
 refusal.
 
+## Test fixtures (`plumb-line-provenance/vitest`)
+
+Tests are where fake data is supposed to live; this makes the quarantine
+explicit there (#123). Mark a fixture's value with `markFixture`, and anything
+derived from it carries mock taint; `toBeUntainted()` fails a test when a
+golden output still carries it. The check is `guard` with its defaults, so an
+unmarked value fails too. The helper never imports vitest: register the
+matcher yourself.
+
+```js
+import { expect } from "vitest";
+import { mark, derive } from "plumb-line-provenance";
+import { markFixture, plumbMatchers } from "plumb-line-provenance/vitest";
+expect.extend(plumbMatchers);
+
+const amount = mark(100, { source: "real", confidence: "high" });
+const rate = markFixture(1.17);                        // marked source: "mock"
+expect(derive([amount, rate], (a, r) => a * r)).not.toBeUntainted();
+expect(amount).toBeUntainted();                        // no mock reached it
+```
+
+`assertNoTaint(output)` is the same check for any other runner. Marking is
+opt-in per fixture, and a value that is already marked is refused rather than
+relabelled.
+
 ## HTTP ingestion adapter (`plumb-line-provenance/http`)
 
 Auto-tag `fetch` responses at ingestion. Native `fetch` — no dependency

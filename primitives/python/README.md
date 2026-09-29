@@ -48,6 +48,33 @@ envelope, a malformed one, or one the audit flags is refused, and taint and
 confidence are judged from the whole lineage. A bad option is a `TypeError`,
 never a refusal.
 
+## Test fixtures (pytest)
+
+Tests are where fake data is supposed to live; this makes the quarantine
+explicit there (#123). The package registers a pytest plugin, inert unless a
+test uses it. Decorate a fixture with `plumb_mock_fixture` (a drop-in for
+`pytest.fixture`, keyword arguments included) and its value reaches the test
+marked `source='mock'`; `assert_no_taint` fails a test when a golden output
+still carries the taint. The check is `guard` with its defaults, so an
+unmarked value fails too.
+
+```python
+from plumb_line_provenance import mark, derive
+from plumb_line_provenance.pytest_plugin import plumb_mock_fixture, assert_no_taint
+
+@plumb_mock_fixture
+def rate():
+    return 1.17                          # reaches the test marked mock
+
+def test_price(rate):
+    amount = mark(100, source='real', confidence='high')
+    assert_no_taint(derive([amount, rate], lambda a, r: a * r))  # fails: mock reached it
+```
+
+Marking is opt-in per fixture. A generator fixture's yielded value is marked
+and its teardown still runs; a fixture that returns an already-marked value is
+an error; async fixtures are not supported.
+
 ## HTTP ingestion adapters (optional)
 
 Auto-tag HTTP responses at ingestion. Install the extra for your client:

@@ -451,6 +451,74 @@ tag the response in one call.
 
 ---
 
+## Test fixtures (#123)
+
+The fixture quarantine: fake data belongs in tests, and these helpers make
+the quarantine explicit there (ADR-0021). Marking is opt-in per fixture. The
+no-taint check is `guard` (above) with its defaults, so it fails on mock taint anywhere in the lineage, and on
+an unmarked or malformed value too; it takes a marked value only (walking a
+structure is assessed in #544). Both languages fail with the same message
+prefix: `no mock taint may reach a golden output: provenance refused: …`.
+Neither helper is in the plugin's bundled copy: they are test tooling, and the
+bundle is the dependency-free runtime.
+
+### `plumb_mock_fixture` — Python (pytest)
+
+`pytest.fixture`, with the fixture's value marked `source='mock'`. Use it as
+`@plumb_mock_fixture` or `@plumb_mock_fixture(scope=...)`: keyword arguments
+go to `pytest.fixture`. A generator fixture's yielded value is marked and its
+teardown still runs. A fixture that returns an already-marked value raises
+`TypeError` (marking it again would nest it, or hide a `real` label behind
+`mock`); an async fixture is refused at decoration. Import it from
+`plumb_line_provenance.pytest_plugin`. The package registers that module as a
+pytest plugin through its `pytest11` entry point; it is inert unless a test
+uses it, and it is the only module in the package that imports pytest.
+
+### `assert_no_taint(output)` — Python / `assertNoTaint(output)` — JS
+
+Fails the test unless `guard(output)` passes: Python raises `AssertionError`
+(never a `ValueError`, and with no chained cause, so the report is the
+reasons); JS throws an `Error`. Returns nothing.
+
+### `markFixture(value)` — JS (`plumb-line-provenance/vitest`)
+
+Marks a fixture's value `source: "mock"` and returns it. An already-marked
+value throws `TypeError`, as in Python.
+
+### `plumbMatchers` — JS (`plumb-line-provenance/vitest`)
+
+Matchers for `expect.extend(plumbMatchers)`: `expect(x).toBeUntainted()` is
+`assertNoTaint` as a matcher, and `.not.toBeUntainted()` expects the
+refusal. The subpath never imports vitest, so the package stays
+dependency-free; the caller registers the matchers.
+
+```js
+import { expect } from "vitest";
+import { mark, derive } from "plumb-line-provenance";
+import { markFixture, plumbMatchers } from "plumb-line-provenance/vitest";
+expect.extend(plumbMatchers);
+
+const amount = mark(100, { source: "real", confidence: "high" });
+const price = derive([amount, markFixture(1.17)], (a, r) => a * r);
+expect(price).not.toBeUntainted();   // the fixture's taint reached it
+expect(amount).toBeUntainted();
+```
+
+```python
+from plumb_line_provenance import mark, derive
+from plumb_line_provenance.pytest_plugin import plumb_mock_fixture, assert_no_taint
+
+@plumb_mock_fixture
+def rate():
+    return 1.17
+
+def test_price(rate):
+    amount = mark(100, source='real', confidence='high')
+    assert_no_taint(derive([amount, rate], lambda a, r: a * r))  # fails: mock reached it
+```
+
+---
+
 ## Golden baseline
 
 Pins a derived value *with its envelope* as a golden record and refuses silent

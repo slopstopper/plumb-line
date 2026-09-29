@@ -42,12 +42,13 @@ READMES = {"npm": JS_README, "pypi": PY_README}
 PY_MODULE_SECTIONS = {
     "baseline": "Golden baseline",
     "guard": "Egress guard",
+    "pytest_plugin": "Test fixtures",
     "http_adapter": "HTTP ingestion",
     "frames": "Dataframe adapters",
     "arrays": "Dataframe adapters",
 }
 PY_CORE = {"__init__", "provenance", "marked", "audit"}
-JS_SUBPATH_SECTIONS = {"./http": "HTTP ingestion", "./baseline": "Golden baseline"}
+JS_SUBPATH_SECTIONS = {"./http": "HTTP ingestion", "./baseline": "Golden baseline", "./vitest": "Test fixtures"}
 
 
 def _links(text):
@@ -108,7 +109,7 @@ def test_every_js_subpath_has_a_page_section():
 
 
 def test_features_shared_by_both_packages_appear_on_both_pages():
-    for heading in ("Egress guard", "HTTP ingestion", "Golden baseline"):
+    for heading in ("Egress guard", "Test fixtures", "HTTP ingestion", "Golden baseline"):
         for page, text in READMES.items():
             assert re.search(r"^## .*%s" % re.escape(heading), text, re.M), f"{page}: {heading}"
 
