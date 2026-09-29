@@ -161,7 +161,7 @@ def test_bundle_construct_cases():
                 assert out.get(sk) == v, f"{c['name']}: {sk} == {out.get(sk)!r}, expected {v!r}"
 
 
-_GUARD_OPTION = {'noMock': 'no_mock', 'minConfidence': 'min_confidence'}
+_GUARD_OPTION = {'noMock': 'no_mock', 'minConfidence': 'min_confidence', 'minSource': 'min_source'}
 
 
 def test_bundle_guard_cases():

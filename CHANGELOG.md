@@ -39,10 +39,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   marked value unchanged, so an output point writes `unwrap(guard(x))`, or
   throws `ProvenanceRefused` (a `ValueError` in Python) listing every reason.
   - **Mock is refused unless turned off** (`noMock: false`), as Principle 4's
-    mock clause says. The rest of Principle 4 is not refused: fallback data,
-    cached data (which the HTTP adapter marks `real`), and approximate data,
-    which has no rung of its own; nor are `inferred`, `semiReal` or
-    `unavailable` sources. A source floor is #541.
+    mock clause says.
+  - **A source floor covers the rest of Principle 4** (`minSource` /
+    `min_source`, [#541](https://github.com/slopstopper/plumb-line/issues/541)).
+    It is off by default. An output point that should refuse `fallback` or
+    `inferred` data passes a floor, for example `minSource: "semiReal"`, and
+    gets a reason `source: fallback is below the required semiReal`. It does
+    not need to label that data `mock` to exclude it. The floor reads the
+    weakest source the ancestry shows (the headline, `weakestSource` and
+    every lineage step) and skips `"derived"`, the law's own label, so a
+    derived value is judged by what it was computed from. Cached data is not
+    a rung: the HTTP adapter marks a cache hit `real` with lower confidence,
+    so `minConfidence` covers it. Approximate data has no rung of its own.
   - **It fails closed.** A value with no envelope is refused, and so is a
     malformed envelope: any structural issue, a value off its ladder, a
     lineage step that is not a plain object, a non-boolean taint flag on a

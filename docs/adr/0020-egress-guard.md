@@ -101,3 +101,22 @@ The behaviour is pinned for both languages by the `guard` kind in
   always writes a `source` on the steps it mints, `null` when its input had
   none. For one commit on #525's branch it left the field off, and the guard
   passed such a step. The independent review caught this before it merged.
+- **2026-09-29 (#541).** *Scheduled into v0.12.0 by the owner, recorded on the
+  issue*, because `mock` was being overfitted: the guard could exclude only by
+  `noMock` or a confidence floor, so exclusion pressure turned into `mock`
+  labels. The guard gains a source floor, `minSource` / `min_source`, which
+  covers the rest of Principle 4.
+  - **Off by default**, like `minConfidence`. The default is recorded as
+    Claude's choice, pending the owner's word on #541.
+  - **What it reads:** it refuses when the weakest source the ancestry shows
+    (the headline, `weakestSource` and every lineage step) is below the
+    floor, with the reason `source: <rung> is below the required <floor>`.
+  - **`"derived"` is skipped**, since it is the law's own label for a
+    computed value rather than a source of data. A derived value is judged
+    by what it was computed from.
+  - **Cached data** stays a confidence matter (`minConfidence`), since the
+    HTTP adapter marks a cache hit `real`.
+
+  The Decision's "the rest of P4 is not refused" and the Consequences'
+  "planned option" are superseded by this amendment, and kept above as the
+  record.

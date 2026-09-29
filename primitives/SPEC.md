@@ -428,15 +428,26 @@ The audit reports; the **egress guard** refuses. `guard` takes a marked value
 and options and either returns that value unchanged or refuses it with a list
 of reasons, at the point where a value leaves the system (an export, a
 display, a publish). It enforces Principle 4's mock clause, "excluded from
-outputs unless explicitly opted in", at run time. It does not refuse the
-rest of what Principle 4 names: fallback data (source `fallback`) and cached
-data (which the HTTP adapter marks `real`) pass, and approximate data has no
-rung of its own. Nor are `inferred`, `semiReal` or `unavailable` sources
-refused. A source floor is #541.
+outputs unless explicitly opted in", at run time. The rest of what Principle
+4 names is refused by a source floor the caller sets (`minSource`, #541):
+fallback data is source `fallback`, and inferred data `inferred`. Cached
+data is not a rung (the HTTP adapter marks a cache hit `real` with lower
+confidence), so a confidence floor covers it, and approximate data has no
+rung of its own.
 
-**Options.** `noMock` (a boolean, default **true**) and `minConfidence` (a
-level on the confidence ladder, default `none`). A default of true for
-`noMock` is normative: mock is excluded unless the caller opts in.
+**Options.** `noMock` (a boolean, default **true**), `minConfidence` (a
+level on the confidence ladder, default `none`) and `minSource` (a rung on
+the source ladder, default `unavailable`, which is no floor). A default of
+true for `noMock` is normative: mock is excluded unless the caller opts in.
+With `minSource` above `unavailable`, the guard refuses, with a reason
+prefixed `source:` (`source: fallback is below the required semiReal`), when
+the weakest source the ancestry shows is below it. The ancestry is the
+headline `source`, `weakestSource` and every lineage step's `source`,
+skipping `"derived"`, the law's own label for a computed value, so a derived
+value is judged by what it was computed from. When nothing but `"derived"`
+remains, the reason is `source: no source in the ancestry shows it meets
+the required <floor>`. An unknown `minSource` is a `TypeError` whose message
+starts `guard: the minimum source must be one of`.
 
 **Refusals.** A conforming guard refuses, whatever the options:
 

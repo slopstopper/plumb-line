@@ -192,7 +192,8 @@ output point writes `unwrap(guard(x))`. Otherwise it throws
 
 | Option | Default | Refuses when |
 |---|---|---|
-| `noMock` / `no_mock` | `true` / `True` | mock taint appears anywhere: `derivedFromMock`, `source`, `weakestSource` or any lineage step. On unless turned off (Principle 4's mock clause: excluded from outputs unless explicitly opted in. Fallback data, cached data (which the HTTP adapter marks `real`) and approximate data (no rung of its own) are not refused, nor are `inferred`, `semiReal` or `unavailable` sources; #541) |
+| `noMock` / `no_mock` | `true` / `True` | mock taint appears anywhere: `derivedFromMock`, `source`, `weakestSource` or any lineage step. On unless turned off (Principle 4's mock clause: excluded from outputs unless explicitly opted in) |
+| `minSource` / `min_source` | `"unavailable"` (off) | the weakest source the ancestry shows (the headline, `weakestSource` and every lineage step, skipping `"derived"`, the law's own label) is below this rung: the rest of Principle 4, for example `"semiReal"` to refuse `fallback` and `inferred` data without labelling it `mock`. Reason: `source: fallback is below the required semiReal` (#541). Cached data is not a rung (the HTTP adapter marks a cache hit `real`); use `minConfidence` |
 | `minConfidence` / `min_confidence` | `"none"` | the weakest confidence in the envelope *or its lineage* is below this level (a lineage step with no confidence counts as `none`) |
 
 It fails closed, whatever the options:
