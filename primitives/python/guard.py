@@ -49,9 +49,10 @@ def _on(ladder, value):
 
 def _unreadable(meta):
     """What the guard cannot read on the ladders is malformed (SPEC §5c). The
-    constructors refuse such values (ADR-0019) and the law tolerates them in a
-    handed envelope, but an output point fails closed. Field names are the
-    canonical camelCase ones, as validate_envelope reports them."""
+    constructors refuse an off-ladder source or confidence (ADR-0019) and drop
+    an invalid score; the law tolerates all of these in a handed envelope, and
+    an output point fails closed. Field names are the canonical camelCase ones,
+    as validate_envelope reports them."""
     issues = []
     if not _on(STATUS, meta['source']):
         issues.append(f"source {_json(meta['source'])} is not on the source ladder")
@@ -119,12 +120,14 @@ def guard(x, *, no_mock=True, min_confidence='none', **unknown):
     meta = x['meta']
     # A copy, as JS's metaOf makes: an order-preserving parse (a dict
     # subclass, the twin of JS's null-prototype parse) is judged on content.
-    # Each step is copied too, so a dict subclass whose accessors hide a field
-    # is judged on what it holds, not on what it answers.
+    # dict.items reads the dict's own storage, so a subclass whose accessors or
+    # iteration hide a field (or raise) is judged on what it holds, not on
+    # what it answers. Each step is copied the same way.
     if isinstance(meta, dict):
-        meta = dict(meta)
+        meta = dict(dict.items(meta))
         if isinstance(meta.get('lineage'), list):
-            meta['lineage'] = [dict(step) if isinstance(step, dict) else step for step in meta['lineage']]
+            meta['lineage'] = [dict(dict.items(step)) if isinstance(step, dict) else step
+                               for step in meta['lineage']]
     malformed = validate_envelope(meta) or _unreadable(meta)
     if malformed:
         raise ProvenanceRefused([f'invalid envelope: {issue}' for issue in malformed])

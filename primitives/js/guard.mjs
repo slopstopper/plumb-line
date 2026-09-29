@@ -41,8 +41,13 @@ function quote(value) {
     try {
       return String(value);
     } catch {
-      // A null-prototype object has no toString either.
-      return Object.prototype.toString.call(value);
+      try {
+        // A null-prototype object has no toString either.
+        return Object.prototype.toString.call(value);
+      } catch {
+        // A revoked Proxy, or one whose traps throw, cannot even be tagged.
+        return "<unprintable>";
+      }
     }
   }
 }
@@ -76,9 +81,10 @@ function readOptions(options) {
   return { noMock, minConfidence };
 }
 
-// What the guard cannot read on the ladders is malformed (SPEC §5c): the
-// constructors refuse such values (ADR-0019) and the law tolerates them in a
-// handed envelope, but an output point fails closed.
+// What the guard cannot read on the ladders is malformed (SPEC §5c). The
+// constructors refuse an off-ladder source or confidence (ADR-0019) and drop
+// an invalid score; the law tolerates all of these in a handed envelope, and
+// an output point fails closed.
 function unreadable(meta) {
   const issues = [];
   if (!STATUS.includes(meta.source)) issues.push(`source ${quote(meta.source)} is not on the source ladder`);

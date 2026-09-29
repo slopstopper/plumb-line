@@ -394,18 +394,19 @@ level on the confidence ladder, default `none`). A default of true for
 
 1. a value that is not a marked value (it carries no envelope): reason
    prefixed `not a marked value`;
-2. a malformed envelope, with one reason per issue prefixed
-   `invalid envelope:`: any §5a structural issue; a `source`, `confidence` or
-   (when present) `weakestSource` off its ladder (§2); a lineage step that is
-   not a plain object (a JS object literal or null-prototype object; a Python
-   dict); a step whose `source` or `confidence`, when present, is off its
-   ladder, or whose `derivedFromMock`, when present, is not a boolean; or a
-   `confidenceScore`, top-level or on a step, that is present and not a number
-   in `[0, 1]`. The
-   ladder and score checks are made only on an envelope with no §5a issue, so
-   a structurally broken envelope reports its §5a issues alone. The
-   constructors refuse off-ladder values (§2, ADR-0019) and the law tolerates
-   them in a handed envelope; an output point fails closed; and
+2. a malformed envelope, with one reason per issue prefixed `invalid
+   envelope:`: any §5a structural issue; a `source`, `confidence` or (when
+   present) `weakestSource` off its ladder (§2); a lineage step that is not
+   a plain object (a JS object literal or null-prototype object; a Python
+   dict or dict subclass, judged on its contents); a step whose `source` or
+   `confidence`, when present, is off its ladder, or whose
+   `derivedFromMock`, when present, is not a boolean; or a
+   `confidenceScore`, top-level or on a step, that is present and not a
+   number in `[0, 1]`. The ladder and score checks are made only on an
+   envelope with no §5a issue, so a structurally broken envelope reports its
+   §5a issues alone. The constructors refuse off-ladder values (§2,
+   ADR-0019) and the law tolerates them in a handed envelope; an output
+   point fails closed; and
 3. an envelope with any §5 audit issue other than the `version-legacy:` and
    `version-future:` advisories: one reason per issue, prefixed `audit:`. An
    envelope older or newer than the implementation is judged on what it

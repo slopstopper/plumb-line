@@ -41,8 +41,13 @@ function quote(value) {
     try {
       return String(value);
     } catch {
-      // A null-prototype object has no toString either.
-      return Object.prototype.toString.call(value);
+      try {
+        // A null-prototype object has no toString either.
+        return Object.prototype.toString.call(value);
+      } catch {
+        // A revoked Proxy, or one whose traps throw, cannot even be tagged.
+        return "<unprintable>";
+      }
     }
   }
 }

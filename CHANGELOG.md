@@ -24,10 +24,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   - **It fails closed.** A value with no envelope is refused, and so is a
     malformed envelope: any structural issue, a value off its ladder, a
     lineage step that is not a plain object, a non-boolean taint flag on a
-    step, or a confidence score, top-level or on a step, outside `[0, 1]`. So is one the audit flags, except the `version-legacy:` and
-    `version-future:` advisories: an older or newer envelope is judged on
-    what it carries (SPEC §5b). Taint and confidence are judged from the
-    lineage as well as the headline fields.
+    step, or a confidence score, top-level or on a step, that is not a
+    number in `[0, 1]`. So is one the audit flags, except the
+    `version-legacy:` and `version-future:` advisories: an older or newer
+    envelope is judged on what it carries (SPEC §5b). Taint and confidence
+    are judged from the lineage as well as the headline fields.
   - **A bad option is a `TypeError` in both languages,** raised before the
     value is examined, so it is never mistaken for a refusal; in Python it is
     never a `ValueError`, so an `except ValueError` for refusals cannot catch

@@ -113,3 +113,63 @@ def test_a_dict_subclass_step_is_judged_on_what_it_holds_not_what_it_answers():
     with pytest.raises(ProvenanceRefused) as e:
         guard(x)
     assert any(r.startswith('mock:') for r in e.value.reasons)
+
+
+def test_a_dict_subclass_that_hides_fields_from_iteration_is_still_judged_on_them():
+    hidden = ('source', 'derived_from_mock')
+
+    class IterHide(dict):
+        def __iter__(self):
+            return (k for k in dict.__iter__(self) if k not in hidden)
+
+        def keys(self):
+            return [k for k in dict.keys(self) if k not in hidden]
+
+        def get(self, key, default=None):
+            return default if key in hidden else dict.get(self, key, default)
+
+        def __getitem__(self, key):
+            if key in hidden:
+                raise KeyError(key)
+            return dict.__getitem__(self, key)
+
+        def __contains__(self, key):
+            return key not in hidden and dict.__contains__(self, key)
+
+    step = IterHide(id='s1', of='input', source='mock', confidence='high', derived_from_mock=True)
+    x = {'value': 1, 'meta': {'provenance_version': 2, 'source': 'derived', 'confidence': 'high',
+                              'derived_from_mock': False, 'lineage': [step]}}
+    with pytest.raises(ProvenanceRefused) as e:
+        guard(x)
+    assert any(r.startswith('mock:') for r in e.value.reasons)
+
+
+def test_a_step_whose_iteration_raises_is_judged_on_its_contents_not_raised():
+    class Raising(dict):
+        def __iter__(self):
+            raise RuntimeError('no iteration')
+
+        def keys(self):
+            raise RuntimeError('no keys')
+
+    step = Raising(id='s1', of='input', source='real', confidence='high', derived_from_mock=False)
+    x = {'value': 1, 'meta': {'provenance_version': 2, 'source': 'derived', 'confidence': 'high',
+                              'derived_from_mock': False, 'lineage': [step]}}
+    assert guard(x) is x
+
+
+def test_refuses_never_raises_for_a_malformed_value_it_cannot_print():
+    class Unprintable:
+        def __repr__(self):
+            raise RuntimeError('no repr')
+
+    base = mark(1, source='real', confidence='high')
+    for field in ('confidence_score', 'weakest_source', 'source'):
+        x = {'value': 1, 'meta': dict(base['meta'], **{field: Unprintable()})}
+        with pytest.raises(ProvenanceRefused):
+            guard(x)
+    step = {'id': 's1', 'of': 'input', 'source': 'real', 'confidence': 'high',
+            'derived_from_mock': False, 'confidence_score': Unprintable()}
+    x = {'value': 1, 'meta': dict(base['meta'], source='derived', lineage=[step])}
+    with pytest.raises(ProvenanceRefused):
+        guard(x)

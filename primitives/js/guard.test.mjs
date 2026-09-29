@@ -98,10 +98,14 @@ describe("guard — the egress guard (#120)", () => {
   });
 
   it("refuses, never throws a TypeError for, a malformed value it cannot print", () => {
-    const unprintable = Object.assign(Object.create(null), { n: 1n });
-    for (const field of ["confidenceScore", "weakestSource", "source"]) {
-      const x = { ...mark(1, { source: "real", confidence: "high" }), [field]: unprintable };
-      expect(() => guard(x)).toThrow(ProvenanceRefused);
+    const { proxy: revoked, revoke } = Proxy.revocable({}, {});
+    revoke();
+    const trapping = new Proxy({}, { get() { throw new Error("trap"); } });
+    for (const unprintable of [Object.assign(Object.create(null), { n: 1n }), revoked, trapping]) {
+      for (const field of ["confidenceScore", "weakestSource", "source"]) {
+        const x = { ...mark(1, { source: "real", confidence: "high" }), [field]: unprintable };
+        expect(() => guard(x)).toThrow(ProvenanceRefused);
+      }
     }
   });
 

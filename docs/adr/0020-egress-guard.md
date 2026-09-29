@@ -40,7 +40,7 @@ Yes", "4. Yes"):
    exception from a refusal.
 
 Applying these decisions, the author settled the following details; they are
-normative in SPEC §5c and were refined over two independent reviews:
+normative in SPEC §5c and were refined over four independent reviews:
 
 - **The guard covers Principle 4's mock clause only.** The rest of P4 is not
   refused: fallback data, cached data (which the HTTP adapter marks `real`)
@@ -78,9 +78,10 @@ The behaviour is pinned for both languages by the `guard` kind in
 ## Consequences
 
 - An output point can enforce Principle 4's mock clause in one call, in both
-  languages, with identical refusals. Fallback and inferred sources, and
-  cached data, are **not** refused: a source floor is a separate, planned
-  option (#541).
+  languages, with identical refusals. The rest of Principle 4 is **not**
+  refused: fallback, cached and approximate data, nor `inferred`, `semiReal`
+  or `unavailable` sources. A source floor is a separate, planned option
+  (#541).
 - Unmarked values are refused. A codebase that guards an output must mark
   what flows into it first. That is the adoption cost, and it is the point:
   an unmarked value has no provenance to vouch for.

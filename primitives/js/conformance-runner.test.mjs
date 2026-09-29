@@ -147,14 +147,39 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
     const [r] = runCases(impl, guardRow(c));
     expect(r.error).toMatch(/non-empty string/);
   });
+  // The runner judges a thrown value on its prototype chain, whatever its
+  // `constructor` says, and must not crash on it. A null-prototype object is
+  // unrelated to the refusal, so it conforms (SPEC §5c); a plain object has
+  // Object.prototype, a supertype of the refusal, however it fakes its
+  // `constructor`.
+  it("judges a null-prototype thrown value as unrelated to the refusal", () => {
+    const odd = { ...impl, guard: () => { throw Object.assign(Object.create(null), { message: "guard: x" }); } };
+    const [r] = runCases(odd, guardRow({ name: "x", meta: clean, expectError: "guard: x" }));
+    expect(r.error).toBeNull();
+  });
   it.each([
-    () => Object.assign(Object.create(null), { message: "guard: x" }),
     () => ({ message: "guard: x", constructor: 1 }),
     () => ({ message: "guard: x", constructor: () => 0 }),
-  ])("fails, rather than crashes, on an odd thrown value (%#)", (make) => {
+    () => ({ message: "guard: x", constructor: TypeError }),
+  ])("fails a plain thrown object as a supertype of the refusal, whatever its constructor says (%#)", (make) => {
     const odd = { ...impl, guard: () => { throw make(); } };
-    const results = runCases(odd, guardRow({ name: "x", meta: clean, expectError: "guard: x" }));
-    expect(results).toHaveLength(1);
+    const [r] = runCases(odd, guardRow({ name: "x", meta: clean, expectError: "guard: x" }));
+    expect(r.error).toMatch(/must not be a supertype of the refusal/);
+  });
+  it.each([
+    () => ({ message: Object.create(null) }),
+    () => ({ message: Symbol("x") }),
+    () => ({ get message() { throw 1; } }),
+    () => new Proxy({}, { getPrototypeOf() { throw new Error("trap"); } }),
+  ])("fails, rather than crashes, on a thrown value it cannot inspect, on any row (%#)", (make) => {
+    const odd = { ...impl, guard: () => { throw make(); } };
+    for (const row of [{ name: "x", meta: clean, expectPass: true },
+      { name: "x", meta: mockLeaf, expectRefused: ["mock:"] },
+      { name: "x", meta: clean, expectError: "guard: x" }]) {
+      const results = runCases(odd, guardRow(row));
+      expect(results).toHaveLength(1);
+      expect(results[0].error).toEqual(expect.any(String));
+    }
   });
   it("fails a guard case whose expectAbsent is not a list of reasons", () => {
     for (const expectAbsent of ["zzz", []]) {

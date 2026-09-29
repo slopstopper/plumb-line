@@ -84,6 +84,16 @@ function runConstruct(impl, c) {
   return null;
 }
 
+// A thrown value as text, for a failure message; never throws, whatever the
+// implementation under test threw (a Symbol message, a throwing getter).
+function describeThrown(e) {
+  try {
+    return String(e?.message);
+  } catch {
+    return "a value the runner cannot print";
+  }
+}
+
 // The egress guard (#120). A row's `meta` becomes a marked value (`value`
 // plus the envelope fields, as mark() builds it); a non-object `meta` is
 // passed as is, to pin that a value with no envelope is refused. A refusal
@@ -111,45 +121,51 @@ function runGuard(impl, c) {
   try {
     out = "options" in c ? impl.guard(x, c.options) : impl.guard(x);
   } catch (e) {
-    // An implementation without the export fails the row instead of the run.
-    if (typeof impl.ProvenanceRefused !== "function")
-      return "the implementation exports no ProvenanceRefused";
-    if (e instanceof impl.ProvenanceRefused) {
-      const reasons = e.reasons;
-      if (!Array.isArray(reasons) || !reasons.every((r) => typeof r === "string"))
-        return `a refusal must carry reasons as a list of strings, got ${JSON.stringify(reasons)}`;
-      if (!("expectRefused" in c))
-        return `expected ${"expectPass" in c ? "a pass" : "a programmer error"}, got a refusal: ${JSON.stringify(reasons)}`;
-      const missing = runIssueList(reasons, { expectContains: c.expectRefused });
-      if (missing) return missing;
-      for (const needle of c.expectAbsent || []) {
-        if (reasons.some((r) => r.includes(needle)))
-          return `expected no reason containing "${needle}", got ${JSON.stringify(reasons)}`;
-      }
-      return null;
-    }
-    if (!("expectError" in c))
-      return `expected ${"expectPass" in c ? "a pass" : "a refusal"}, got an error: ${e?.message}`;
-    // SPEC §5c: a bad option's error type is neither the refusal's type nor a
-    // supertype of it, so a catch for one can never catch the other.
-    // Judged on the prototype chain, not `constructor` (which a thrown value
-    // may lack or fake), so an odd throw fails the row instead of the run.
-    const proto = e !== null && typeof e === "object" ? Object.getPrototypeOf(e) : null;
-    if (proto !== null && Object.prototype.isPrototypeOf.call(proto, impl.ProvenanceRefused.prototype))
-      return "a bad option's error must not be a supertype of the refusal";
-    let message;
+    // Whatever was thrown, judging it must fail the row, never the run.
     try {
-      message = String(e?.message);
+      return judgeGuardThrow(impl, c, e);
     } catch {
-      return "a bad option's error has no readable message";
+      return "the implementation threw a value the runner cannot inspect";
     }
-    return message.includes(c.expectError)
-      ? null
-      : `expected an error containing "${c.expectError}", got "${message}"`;
   }
   if (!("expectPass" in c))
     return `expected ${"expectRefused" in c ? "a refusal" : "a programmer error"}, got a pass`;
   return out === x ? null : "a pass must return the marked value it was given";
+}
+
+// What a guard row makes of a thrown value: a refusal, a programmer error, or
+// a wrong kind of throw. Called inside a try, so it may read the value freely.
+function judgeGuardThrow(impl, c, e) {
+  // An implementation without the export fails the row instead of the run.
+  if (typeof impl.ProvenanceRefused !== "function")
+    return "the implementation exports no ProvenanceRefused";
+  if (e instanceof impl.ProvenanceRefused) {
+    const reasons = e.reasons;
+    if (!Array.isArray(reasons) || !reasons.every((r) => typeof r === "string"))
+      return `a refusal must carry reasons as a list of strings, got ${JSON.stringify(reasons)}`;
+    if (!("expectRefused" in c))
+      return `expected ${"expectPass" in c ? "a pass" : "a programmer error"}, got a refusal: ${JSON.stringify(reasons)}`;
+    const missing = runIssueList(reasons, { expectContains: c.expectRefused });
+    if (missing) return missing;
+    for (const needle of c.expectAbsent || []) {
+      if (reasons.some((r) => r.includes(needle)))
+        return `expected no reason containing "${needle}", got ${JSON.stringify(reasons)}`;
+    }
+    return null;
+  }
+  if (!("expectError" in c))
+    return `expected ${"expectPass" in c ? "a pass" : "a refusal"}, got an error: ${describeThrown(e)}`;
+  // SPEC §5c: a bad option's error type is neither the refusal's type nor a
+  // supertype of it, so a catch for one can never catch the other.
+  // Judged on the prototype chain, not `constructor` (which a thrown value
+  // may lack or fake), so an odd throw fails the row instead of the run.
+  const proto = e !== null && typeof e === "object" ? Object.getPrototypeOf(e) : null;
+  if (proto !== null && Object.prototype.isPrototypeOf.call(proto, impl.ProvenanceRefused.prototype))
+    return "a bad option's error must not be a supertype of the refusal";
+  const message = describeThrown(e);
+  return message.includes(c.expectError)
+    ? null
+    : `expected an error containing "${c.expectError}", got "${message}"`;
 }
 
 const RUN = {
