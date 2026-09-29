@@ -274,7 +274,7 @@ def test_th_clean_carries_the_carve_outs_the_audit_must_not_flag():
     assert "LOY-15" in read(TH, "clean/tests/test_expiry.py")      # a wrong test fixed, reason stated
 
 
-def test_th_answer_key_names_both_planted_violations():
+def test_th_answer_key_names_every_planted_violation():
     key = read(TH, "broken/VIOLATIONS.md")
     assert "exactly three violations" in key
     assert key.count("Test changed to pass") == 3
@@ -290,3 +290,18 @@ def test_th_unnamed_only_test_substitution_present_in_broken_absent_in_clean():
     clean = read(TH, "clean/tests/test_statement.py")
     assert "xfail(strict=True, raises=AssertionError" in clean and "def test_unit_" in clean
     assert "REQ-8" in read(TH, "broken/docs/SPEC.md")
+
+
+def test_th_both_trees_carry_a_unit_only_requirement_with_nothing_unmet():
+    # Final review (#486), defect B: a requirement whose only test is a mocked
+    # unit test, with no sign it is unmet. The audit must not flag it.
+    for tree in ("broken", "clean"):
+        assert "REQ-10" in read(TH, f"{tree}/docs/SPEC.md")
+        test = read(TH, f"{tree}/tests/test_rates.py")
+        assert "def test_unit_" in test and "REQ" not in test
+
+
+def test_th_clean_pairs_the_req8_deferral_with_its_observable_failure():
+    clean = read(TH, "clean/tests/test_statement.py")
+    assert "unavailable" in clean and "delenv" in clean
+    assert "alongside" not in clean, "a comment must not hand the auditor the verdict"

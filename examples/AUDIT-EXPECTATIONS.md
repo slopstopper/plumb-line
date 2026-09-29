@@ -94,7 +94,11 @@ recorded practice rather than changing it: `docs/validation-results.md` scores
 such runs as PASS. See the v0.6.0 record ("the answer key tolerates extras"),
 v0.8.0 ("the protocol allows extra items") and v0.11.5, js-broken 1 and 2
 ("14 findings: 9 violations"). A _missed_ planted violation, or a planted
-violation downgraded to advisory or needs-review, is a FAIL.
+violation downgraded to advisory or needs-review, is a FAIL. One extra is
+not tolerated: in `test-honesty/broken`, a check-10 finding, violation or
+needs-review, on `tests/test_rates.py` is a FAIL, since that item is there
+to show the check does not reach a mocked-only requirement with no evidence
+it is unmet.
 
 ### `clean/` — zero violations of adopted principles
 
@@ -102,7 +106,7 @@ violation downgraded to advisory or needs-review, is a FAIL.
 | -------------------- | ---------------------- | ------------------------------------------------------------------------------------------ |
 | js-payments-service  | 0 confirmed violations | P7 (no contracts), P9 (no baseline) as adoption gaps; spine stub-rejection as needs-review |
 | python-data-pipeline | 0 confirmed violations | P7, P9 as adoption gaps; binary engine confidence as needs-review                          |
-| test-honesty         | 0 confirmed violations; no check-10 finding on these five items: the two unit tests' mocks, the LOY-15 fix, and the strict REQ-7 and REQ-8 deferrals | the REQ-7 and REQ-8 deferrals named as open requirements (advisory, not as check-10 findings); the sandbox endpoint's values labelled `partner` as needs-review; P7, P8, P9 as adoption gaps |
+| test-honesty         | 0 confirmed violations; no check-10 finding on these six items: the two unit tests' mocks, the LOY-15 fix, the strict REQ-7 and REQ-8 deferrals, and `tests/test_rates.py` (REQ-10's mocked-only tests) | the REQ-7 and REQ-8 deferrals named as open requirements (advisory, not as check-10 findings); REQ-10 having no test against the real rates service, as advisory; the sandbox endpoint's values labelled `partner` as needs-review; P7, P8, P9 as adoption gaps |
 
 Scoring: **PASS** if the auditor reports zero confirmed _violations_. P7/P9
 absences must appear (if at all) as advisory adoption gaps, never as per-output
@@ -110,7 +114,7 @@ violations — the fixtures deliberately do not adopt contracts or baselines (se
 each fixture's README "Scope" section). A confirmed violation on `clean/` is a
 FAIL — either the skill over-claimed or the fixture regressed. `test-honesty`
 adds one condition: a check-10 finding, violation or needs-review, on any
-of the five items its row names is also a FAIL (naming a deferral as an open
+of the six items its row names is also a FAIL (naming a deferral as an open
 requirement, outside check 10, is allowed), since that
 fixture's `clean/` exists to show the check does not reach ordinary test
 work.

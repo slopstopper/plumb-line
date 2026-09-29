@@ -55,7 +55,8 @@ Follow the blind protocol in
    - A `clean/` fixture **PASSES** only at zero confirmed violations (P7/P9 may
      appear as advisory adoption gaps; never as per-output violations).
      `test-honesty/clean` also FAILS on any check-10 finding, violation or
-     needs-review, on the five items its row names.
+     needs-review, on the six items its row names, and `test-honesty/broken`
+     on one on `tests/test_rates.py`.
    - A missed or downgraded planted violation = **FAIL**.
 
 **Policy — a validation FAIL blocks the tag.** Do not release until the cause is

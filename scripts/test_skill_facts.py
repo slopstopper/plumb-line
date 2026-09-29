@@ -474,3 +474,18 @@ def test_audit_check_10_an_established_only_test_is_a_violation_not_needs_review
     # product path calls the real partner" and still hedged to needs-review.
     check = _audit_check_10().lower()
     assert "established, it is a violation" in check
+
+
+def test_audit_check_10_needs_evidence_the_requirement_is_unmet():
+    # Final review (#486), defect B: an HTTP-client library with only mocked
+    # unit tests, its API reachable, would otherwise draw a violation on every
+    # requirement. The class is "a test changed so an UNMET requirement reads
+    # as met": both halves need evidence.
+    check = _audit_check_10().lower()
+    assert "evidence that the requirement is unmet" in check
+    assert "advisory" in check and "no evidence" in check
+
+
+def test_audit_check_10_a_citation_does_not_make_an_alongside_unit_test_the_requirements():
+    # Defect A: the unit-test exception wins over "cites the requirement".
+    assert "a citation or a name alone" in _audit_check_10().lower()

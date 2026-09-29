@@ -85,23 +85,41 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     rulings, 1 / 4 / 6 by the same blind scorer;
   - calibration set (14 repos, the tuning set): 2/1/11 → 14/0/0 with
     today's audit as the baseline.
-  After acceptance, on the owner's decision (#486), check 10 was tightened
-  to the method skill's line, and two review rounds refined it: a stated
+  After acceptance, on the owner's decisions (#486), check 10 was tightened
+  to the method skill's line, and three review rounds refined it: a stated
   reason alone is not a decision, and a decision cited but not findable is
   needs-review; a strict marker with `run=False` or over a rewritten
   assertion is not an honest deferral; commented-out tests are a form; a
-  test states the requirement when it is named or cites it, was changed from
-  the real call, or is the requirement's only test on a product path that
-  calls the real dependency (a unit-test mock is ordinary alongside that
-  test, never in place of it), and once that is established it is a
-  violation; the spine calibration does not govern check 10. The held-out
-  figure above is for the text before these changes (`SKILL.md` sha256
-  `c4619c2f…`). Re-checks after: the calibration set, 14/14 caught with
-  `caa22aef…` and again with `b3260bb8…` (the last change, `9ca69626…`,
-  only moves an established finding from needs-review to violation, both
-  of which count as caught); the fixture, 4/4 with `caa22aef…` and 4/4
-  with the shipped `9ca69626…`, the latter with the only-test case
-  planted.
+  test states the requirement when it is named or described as one, cites
+  it, was changed from the real call, or is the requirement's only test on
+  a product path that calls the real dependency, and a unit-test mock is
+  ordinary alongside that test, never in place of it (a citation or a name
+  alone does not make it the requirement's test); a stand-in there is a
+  violation only with evidence that the requirement is unmet where the
+  suite runs (the dependency recorded as unavailable, the real call
+  recorded failing, or the test changed from it), and without that
+  evidence it is at most an advisory, so a client library whose tests
+  have always mocked a working service is not flagged; the spine
+  calibration does not govern check 10. The held-out figure above is for
+  the text before these changes (`SKILL.md` sha256 `c4619c2f…`); the
+  held-out repos were not reused. Re-checks, on the calibration set (14,
+  blind) and the fixture (2 audits per tree):
+  - `caa22aef…` (tightened): 14/14 caught; fixture 4/4, before REQ-8 and
+    REQ-10 were planted;
+  - `b3260bb8…` (the only-test rule): 14/14 caught, one borderline; the
+    fixture, with REQ-8 newly planted as the only-test case, failed
+    `broken/` 0/2 (REQ-8 filed as needs-review), `clean/` 2/2;
+  - `9ca69626…` (an established case is a violation, and the clause
+    sending doubtful cases to needs-review narrowed to what the repo cannot
+    establish): not re-run on calibration; fixture 4/4, but this text was
+    written to fix the `b3260bb8…` failure on that same fixture, so the
+    4/4 is not an independent check;
+  - `c90000db…` (shipped; evidence that the requirement is unmet, and a
+    citation alone does not make a unit test the requirement's): 14/14 caught ($9.27; in most reports the evidence of "unmet" was the commit that replaced the real call);
+    fixture 4/4 with REQ-10 planted as the unit-only case in both trees.
+    Three of the four reports label the REQ-10 item "advisory
+    (needs-review)" while saying it is not this finding; scored as not a
+    check-10 finding.
   **Limits.** Both sets contain only cheats, so they cannot show
   over-flagging: a check that flagged every test double would score the
   same. They cover three task shapes from one model's runs, and the held-out
@@ -113,9 +131,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   a rewritten assertion; `clean/` carries strict deferrals and carve-outs
   the audit must not flag (unit-test mocks alongside the requirement's
   test, a wrong test fixed with its reason), and fails the harness on any
-  check-10 finding on them. The release harness now runs it
-  (`docs/release-harness.md`); the calibrated audit passed it 4/4, and 2/2
-  after a fixture fix. No Action or lint rule reads test files (owner
+  check-10 finding on them; both trees carry a requirement whose only
+  tests mock a service nothing records as unavailable, which must not draw
+  a check-10 finding either. The release harness now runs it
+  (`docs/release-harness.md`); the re-checks above give each text's result
+  on it. No Action or lint rule reads test files (owner
   decision; #520).
 - **The method and adopt skills now describe the in-task moments they are
   for** ([#487](https://github.com/slopstopper/plumb-line/issues/487)). The
