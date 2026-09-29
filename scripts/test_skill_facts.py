@@ -492,7 +492,9 @@ def test_audit_check_10_evidence_of_unmet_must_be_recorded():
     # working live test swapped for a mock, is not evidence on its own;
     # otherwise the common keyed client, or a refactor for speed, is flagged.
     check = _audit_check_10().lower()
-    assert "not evidence on its own" in check
+    assert "recorded in the repo" in check
+    assert "a key the code reads but the ci configuration does not supply is not evidence on its own" in check
+    assert "neither is a working real call replaced by a stand-in" in check
     assert "while that call was failing or unavailable" in check
 
 
@@ -503,7 +505,7 @@ def test_audit_check_10_outcome_bullet_agrees_with_the_evidence_rule():
     raw = text[text.index("10. Test changed to pass"):text.index("\n## Method")]
     last = raw.strip().split("\n   - ")[-1].lower()
     assert last.startswith("the outcome"), last[:60]
-    assert "advisory" in last and "needs-review" in last
+    assert "an advisory, not `needs-review`, for a stand-in with no evidence" in last
 
 
 def test_audit_check_10_a_citation_does_not_make_an_alongside_unit_test_the_requirements():

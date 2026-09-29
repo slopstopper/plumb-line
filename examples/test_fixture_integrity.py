@@ -302,6 +302,11 @@ def test_th_both_trees_carry_a_unit_only_requirement_with_nothing_unmet():
         # The harder case: the service needs a key the tree never supplies,
         # and nothing records it as unavailable in CI.
         assert "RATES_API_KEY" in read(TH, f"{tree}/src/rates.py")
+        # Nothing may record the rates service as unavailable where the suite
+        # runs: not in the product code, the spec or any test.
+        for f in ("src/rates.py", "docs/SPEC.md"):
+            text = read(TH, f"{tree}/{f}").lower()
+            assert " ci" not in text and "unreachable" not in text, f
         for name in ("test_balance.py", "test_statement.py", "test_expiry.py", "test_rates.py"):
             other = read(TH, f"{tree}/tests/{name}")
             assert "RATES_API_KEY" not in other and "rates service" not in other.lower()
@@ -318,7 +323,8 @@ def test_th_clean_unit_tests_cite_their_requirement():
         start = test.index("def test_unit_")
         unit = test[start:test.find("\ndef ", start + 1)]
         assert req in unit, name
-        assert "collaborator" not in test, "a comment must not hand the auditor the carve-out"
+        for phrase in ("collaborator", "own logic", "unit test of", "alongside"):
+            assert phrase not in test, f"a comment must not hand the auditor the carve-out: {phrase}"
 
 
 def test_th_clean_pairs_the_req8_deferral_with_its_observable_failure():

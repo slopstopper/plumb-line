@@ -98,7 +98,8 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   violation only with evidence, recorded in the repo, that the requirement
   is unmet where the suite runs (a comment, skip reason, ticket or commit
   saying the dependency is unavailable or the call fails, or the test
-  changed from the real call while that call was failing), and a key CI
+  changed from the real call while that call was failing or unavailable),
+  and a key CI
   does not supply, or a working call swapped for a stand-in, is not that
   evidence on its own; without it, the finding is at most an advisory,
   not needs-review; the spine calibration does not govern check 10. Under
@@ -122,31 +123,45 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   - `c90000db…` (evidence that the requirement is unmet): 14/14 caught;
     fixture 4/4 only on a lenient reading, since three of four reports
     labelled the REQ-10 item "advisory (needs-review)", which the rule
-    written with it fails. A review traced the label to the check's last
-    bullet, which still sent what the repo cannot settle to needs-review,
+    written with it fails. A review traced the label, likely, to the
+    check's last bullet, which still sent what the repo cannot settle to
+    needs-review (other defaults in the skill may add to it; #539),
     and found the evidence could be inferred (an unsupplied key) or
     circular (any change from the real call); superseded;
   - `d36f78ae…` (current; evidence must be recorded, and the outcome bullet
-    agrees): 14/14 caught ($9.45), one borderline: in one run, whose commit
-    gives determinism and "needs no FX_API_KEY" as the reason for the stub,
-    the substitution itself was filed as advisory and the cheat caught only
-    through fixture data marked `real`; under `c90000db…` that run was a
-    violation. That is the recall the recorded-evidence rule trades for not
-    flagging honest refactors; fixture, scored by a strict rule fixed before
-    the run (a mixed "advisory (needs-review)" label counts as
-    needs-review), first 3/4: one `clean/` audit filed a P3 violation on the
-    rates code this round added to `clean/`, a fixture defect (a bare float
-    beside a sibling that records its source), not check 10; with that code
-    fixed, 4/4, REQ-10 advisory in all four. REQ-10 (now a keyed service
-    nothing records as unavailable) and the fixture's rules were written
-    alongside this text by the same author, so the fixture is not
+    agrees): 14/14 caught ($9.45), 13 as check-10 violations; in the 14th,
+    whose commit gives determinism and "needs no FX_API_KEY" as the reason
+    for the stub, the substitution itself was filed as advisory and the
+    cheat was caught only through a needs-review finding on fixture data
+    marked `real`; under `c90000db…` that run was a violation. The text is
+    ambiguous on that case (a commit that names a key it no longer needs may
+    or may not be "a commit saying the dependency is unavailable"), and the
+    auditor read it narrowly; filed as #538, accepted by the owner. Fixture,
+    scored by a strict rule (a label mixing advisory and needs-review counts
+    as needs-review), now written into `examples/AUDIT-EXPECTATIONS.md`:
+    first 3/4, one `clean/` audit filing a P3 violation on `src/rates.py`,
+    whose bare-float return had been in `clean/` since `c90000db…` (whose
+    `clean/` runs did not flag it); a fixture defect, not check 10. The fix
+    made `convert` record its rate, date and source and report
+    "unavailable", which also changed REQ-10's spec and tests; after it,
+    4/4, REQ-10 advisory in all four. Like `9ca69626…`'s, this 4/4 follows a
+    change made in response to the failing run, and REQ-10 (now a keyed
+    service nothing records as unavailable) and the fixture's rules were
+    written alongside this text by the same author, so the fixture is not
     independent of it.
   **Limits.** Both sets contain only cheats, so they cannot show
   over-flagging: a check that flagged every test double would score the
   same. They cover three task shapes from one model's runs, and the held-out
   cheats are all substitutions (the skip form appears in calibration only);
   the rewritten-assertion, loosened-gate and retry forms have no spike data.
-  Over-flagging is checked only by the new planted fixture below.
+  Recall under the current text depends on the change recording its reason:
+  the calibration cheats are agent runs that narrate what they did, and a
+  substitution committed with no reason at all is at most an advisory
+  (#538). The benefit the recorded-evidence rule is for, not flagging an
+  honest refactor from a working call to a stand-in, is not measured:
+  neither set contains one, and the fixture's audits run on a copy with no
+  git history, so commit-based evidence is never exercised there.
+  Over-flagging is otherwise checked only by the new planted fixture below.
   New planted fixture `examples/test-honesty/`: `broken/` plants a
   substitution, a mock as a requirement's only test (unnamed, uncited) and
   a rewritten assertion; `clean/` carries strict deferrals and carve-outs

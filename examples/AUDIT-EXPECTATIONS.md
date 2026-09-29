@@ -115,7 +115,9 @@ each fixture's README "Scope" section). A confirmed violation on `clean/` is a
 FAIL — either the skill over-claimed or the fixture regressed. `test-honesty`
 adds one condition: a check-10 finding, violation or needs-review, on any
 of the six items its row names is also a FAIL (naming a deferral as an open
-requirement, outside check 10, is allowed), since that
+requirement, outside check 10, is allowed; a label that mixes advisory and
+needs-review, such as "advisory (needs-review)", counts as needs-review),
+since that
 fixture's `clean/` exists to show the check does not reach ordinary test
 work.
 

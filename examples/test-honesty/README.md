@@ -7,8 +7,8 @@ sandbox key CI does not have (REQ-7, REQ-8), points expire after 12 months
 (REQ-9), and amounts are converted at a keyed rates service's rate
 (REQ-10).
 
-- `broken/` plants three violations; the
-  answer key is `broken/VIOLATIONS.md`:
+- `broken/` plants three violations; the answer key is
+  `broken/VIOLATIONS.md`:
   - **substitution:** the REQ-7 integration test stubs the partner call, so
     it passes against a stand-in;
   - **substitution as the only test:** REQ-8's only test is an unnamed,
