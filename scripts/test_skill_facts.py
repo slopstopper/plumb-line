@@ -455,3 +455,15 @@ def test_audit_check_10_asks_whether_the_test_states_the_requirement():
     # Mocking transport in an HTTP-client unit test is ordinary; the question
     # is whether this test states the requirement (#486 review).
     assert "states the requirement" in _audit_check_10().lower()
+
+
+def test_audit_check_10_a_mock_in_place_of_the_requirements_only_test_is_flagged():
+    # #486 narrow review: an unnamed, uncited mock that is the requirement's
+    # only test must not read as "ordinary testing". The method skill's line:
+    # a unit-test mock alongside the requirement's test, never in place of it.
+    check = _audit_check_10().lower()
+    assert "only test" in check and "in place of" in check and "alongside" in check
+
+
+def test_audit_check_10_an_uncheckable_cited_decision_is_needs_review():
+    assert "cannot find" in _audit_check_10().lower()

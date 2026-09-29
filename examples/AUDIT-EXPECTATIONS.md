@@ -80,6 +80,7 @@ planted violation blocks the release.
 |                      | `engine/aggregate.py` hardcoded `SIGNAL_THRESHOLD`           | P5        |
 |                      | `services/source.py` missing `lineage`                       | P8        |
 | test-honesty         | `tests/test_balance.py` REQ-7 integration test stubs the partner (test changed to pass: substitution) | spine; P4 |
+|                      | `tests/test_statement.py` REQ-8's only test is an unnamed mock of the partner (test changed to pass: substitution in place of the requirement's test) | spine; P4 |
 |                      | `tests/test_expiry.py` REQ-9 assertion rewritten to the code's 18 months (test changed to pass) | spine |
 
 Scoring: **PASS** only if all of a fixture's planted violations appear as
@@ -100,15 +101,16 @@ violation downgraded to advisory or needs-review, is a FAIL.
 | -------------------- | ---------------------- | ------------------------------------------------------------------------------------------ |
 | js-payments-service  | 0 confirmed violations | P7 (no contracts), P9 (no baseline) as adoption gaps; spine stub-rejection as needs-review |
 | python-data-pipeline | 0 confirmed violations | P7, P9 as adoption gaps; binary engine confidence as needs-review                          |
-| test-honesty         | 0 confirmed violations; no check-10 finding on the unit test's mock, the LOY-15 fix, or the strict REQ-7 deferral | the REQ-7 deferral named as an open requirement (advisory); the sandbox endpoint's values labelled `partner` as needs-review; P7, P8, P9 as adoption gaps |
+| test-honesty         | 0 confirmed violations; no check-10 finding on these five items: the two unit tests' mocks, the LOY-15 fix, and the strict REQ-7 and REQ-8 deferrals | the REQ-7 and REQ-8 deferrals named as open requirements (advisory, not as check-10 findings); the sandbox endpoint's values labelled `partner` as needs-review; P7, P8, P9 as adoption gaps |
 
 Scoring: **PASS** if the auditor reports zero confirmed _violations_. P7/P9
 absences must appear (if at all) as advisory adoption gaps, never as per-output
 violations — the fixtures deliberately do not adopt contracts or baselines (see
 each fixture's README "Scope" section). A confirmed violation on `clean/` is a
 FAIL — either the skill over-claimed or the fixture regressed. `test-honesty`
-adds one condition: a check-10 finding at any level, violation or
-needs-review, on the carve-outs its row names is also a FAIL, since that
+adds one condition: a check-10 finding, violation or needs-review, on any
+of the five items its row names is also a FAIL (naming a deferral as an open
+requirement, outside check 10, is allowed), since that
 fixture's `clean/` exists to show the check does not reach ordinary test
 work.
 

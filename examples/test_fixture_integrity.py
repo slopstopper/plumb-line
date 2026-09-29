@@ -276,5 +276,17 @@ def test_th_clean_carries_the_carve_outs_the_audit_must_not_flag():
 
 def test_th_answer_key_names_both_planted_violations():
     key = read(TH, "broken/VIOLATIONS.md")
-    assert "exactly two violations" in key
-    assert key.count("Test changed to pass") == 2
+    assert "exactly three violations" in key
+    assert key.count("Test changed to pass") == 3
+
+
+def test_th_unnamed_only_test_substitution_present_in_broken_absent_in_clean():
+    # #486 narrow review: the case nothing exercised. REQ-8's only test in
+    # broken/ is an unnamed, uncited mock; clean/ keeps a real-call test for
+    # REQ-8 (strictly deferred) and the unit mock beside it.
+    broken = read(TH, "broken/tests/test_statement.py")
+    assert "REQ" not in broken and "integration" not in broken
+    assert 'monkeypatch.setattr(partner, "fetch_points"' in broken
+    clean = read(TH, "clean/tests/test_statement.py")
+    assert "xfail(strict=True, raises=AssertionError" in clean and "def test_unit_" in clean
+    assert "REQ-8" in read(TH, "broken/docs/SPEC.md")

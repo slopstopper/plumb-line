@@ -68,8 +68,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   class with the method skill's line: the dependency substituted in the
   requirement's own test, a skip, delete or non-strict expected failure, an
   assertion rewritten to what the code returns, a loosened gate, or retries
-  hiding an unexplained failure, flagged only when nothing records why or on
-  whose decision, and never for the method skill's carve-outs. A test double
+  hiding an unexplained failure, flagged unless a recorded decision stands
+  behind it or it is an honest deferral, and never for the method skill's
+  carve-outs (the gate as shipped; see the tightening below). A test double
   is not acceptable for sitting in a test file; the finding names itself,
   not a product defect, and gives the honest paths. Test files are in the
   audit's traversal plan. Measured on the spike's round-1 cheat repos
@@ -99,9 +100,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the rewritten-assertion, loosened-gate and retry forms have no spike data.
   Over-flagging is checked only by the new planted fixture below.
   New planted fixture `examples/test-honesty/`: `broken/` plants a
-  substitution and a rewritten assertion; `clean/` carries a strict
-  deferral and two carve-outs the audit must not flag, and fails the
-  harness on any check-10 finding on them. The release harness now runs it
+  substitution, a mock as a requirement's only test (unnamed, uncited) and
+  a rewritten assertion; `clean/` carries strict deferrals and carve-outs
+  the audit must not flag (unit-test mocks alongside the requirement's
+  test, a wrong test fixed with its reason), and fails the harness on any
+  check-10 finding on them. The release harness now runs it
   (`docs/release-harness.md`); the calibrated audit passed it 4/4, and 2/2
   after a fixture fix. No Action or lint rule reads test files (owner
   decision; #520).
