@@ -89,7 +89,8 @@ def test_it(already):
     pass
 ''')
     result.assert_outcomes(errors=1)
-    result.stdout.fnmatch_lines(["*plumb_mock_fixture: the fixture returned a marked value*"])
+    # Names the fixture, so a test using several can tell which one.
+    result.stdout.fnmatch_lines(["*plumb_mock_fixture: fixture 'already' returned a marked value*"])
 
 
 def test_an_async_fixture_is_refused_at_decoration(pytester):
@@ -189,14 +190,14 @@ class _Box:
 def test_ordinary_fixture_data_shaped_like_a_marked_value_is_marked_not_refused(data):
     from pytest_plugin import _quarantine
     from marked import meta_of, unwrap
-    marked = _quarantine(data)
+    marked = _quarantine(data, "data")
     assert unwrap(marked) == data and meta_of(marked)["source"] == "mock"
 
 
 def test_only_a_real_marked_value_is_refused():
     from pytest_plugin import _quarantine
-    with pytest.raises(TypeError, match="the fixture returned a marked value"):
-        _quarantine(mark(1, source="real", confidence="high"))
+    with pytest.raises(TypeError, match="fixture 'rate' returned a marked value"):
+        _quarantine(mark(1, source="real", confidence="high"), "rate")
 
 
 def test_a_generator_fixture_that_never_yields_reports_it_as_pytest_does(pytester):
@@ -277,7 +278,9 @@ def test_it(twice):
     pass
 ''')
     result.stdout.fnmatch_lines(["*fixture function has more than one 'yield'*"])
-    result.stdout.fnmatch_lines(["*yield 2*"])
+    result.stdout.fnmatch_lines(["*    yield 2*"])  # indented, as pytest does
+    # pytest's location: the fixture's first line, its decorator (line 3).
+    result.stdout.fnmatch_lines(["*test_a_fixture_that_yields_twice_is_reported_with_its_own_source.py:3"])
     result.stdout.no_fnmatch_line("*yield from gen*")
 
 
@@ -303,7 +306,32 @@ def test_cleaned_at_once():
     assert CLEANED == [True]
 ''')
     result.assert_outcomes(passed=1, errors=1)
-    result.stdout.fnmatch_lines(["*TypeError: plumb_mock_fixture: the fixture returned a marked value*"])
+    # The refusal is the reported error, with the cleanup's failure attached
+    # as a note; before, the OSError was the error and the refusal only its
+    # context.
+    result.stdout.fnmatch_lines(["E   TypeError: plumb_mock_fixture: fixture 'already'*"])
+    result.stdout.fnmatch_lines(["*the fixture's own cleanup then failed: OSError('cleanup boom')*"])
+    result.stdout.no_fnmatch_line("E   OSError*")
+
+
+def test_a_skip_in_the_fixture_cleanup_cannot_hide_the_refusal_behind_skipped(pytester):
+    result = _session(pytester, '''
+import pytest
+from pytest_plugin import plumb_mock_fixture
+from marked import mark
+
+@plumb_mock_fixture
+def already():
+    try:
+        yield mark(1, source="real", confidence="high")
+    finally:
+        pytest.skip("cleanup skipped")
+
+def test_it(already):
+    pass
+''')
+    result.assert_outcomes(errors=1)  # before: skipped, the refusal nowhere
+    result.stdout.fnmatch_lines(["E   TypeError: plumb_mock_fixture: fixture 'already'*"])
 
 
 def test_assert_tainted_is_reported_at_the_test_not_in_the_plugin(pytester):

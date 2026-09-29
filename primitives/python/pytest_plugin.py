@@ -47,21 +47,34 @@ def _is_marked(value):
     return not validate_envelope(dict(dict.items(meta)) if isinstance(meta, dict) else meta)
 
 
-def _quarantine(value):
+def _quarantine(value, name):
     __tracebackhide__ = True
     # A marked value is refused, not re-marked: marking it again would nest it,
     # and marking a value someone labelled `real` as mock would hide that label.
+    # The fixture is named, so a test using several can tell which one.
     if _is_marked(value):
-        raise TypeError('plumb_mock_fixture: the fixture returned a marked value; '
+        raise TypeError(f"plumb_mock_fixture: fixture '{name}' returned a marked value; "
                         'return the raw value and let the decorator mark it mock')
     return mark(value, source='mock')
 
 
-def _source(fn):
+def _more_than_one_yield(fn):
+    # pytest's own message for a fixture that yields twice, source and
+    # location included (_pytest/fixtures.py), built from pytest's helpers
+    # where this pytest has them.
     try:
-        return inspect.getsource(fn)
-    except (OSError, TypeError):
-        return fn.__name__
+        from _pytest._code import Source, getfslineno
+        fs, lineno = getfslineno(fn)
+        return (f"fixture function has more than one 'yield':\n\n"
+                f"{Source(fn).indent()}\n{fs}:{lineno + 1}")
+    except Exception:  # a pytest without these helpers: the same shape by hand
+        try:
+            lines, lineno = inspect.getsourcelines(fn)
+            where = f'{inspect.getsourcefile(fn)}:{lineno}'
+            body = ''.join('    ' + line for line in lines).rstrip('\n')
+        except (OSError, TypeError):
+            body, where = f'    {fn.__name__}', '<unknown>'
+        return f"fixture function has more than one 'yield':\n\n{body}\n{where}"
 
 
 def _marking(fn, name):
@@ -80,14 +93,17 @@ def _marking(fn, name):
                 # pytest's own wording, not a bare StopIteration.
                 raise ValueError(f'{name} did not yield a value') from None
             try:
-                marked = _quarantine(value)
-            except BaseException:
-                # Run the fixture's own cleanup now, not at collection; a
-                # failing cleanup must not replace the reason marking failed.
+                marked = _quarantine(value, name)
+            except BaseException as refused:
+                # Run the fixture's own cleanup now, not at collection. Its
+                # failure, even a pytest skip or fail, must not replace the
+                # reason marking failed; it is attached to that reason instead.
                 try:
                     gen.close()
-                except Exception:
-                    pass
+                except (KeyboardInterrupt, SystemExit):
+                    raise
+                except BaseException as cleanup:
+                    refused.add_note(f"the fixture's own cleanup then failed: {cleanup!r}")
                 raise
             yield marked
             # The rest of the fixture is its teardown, run as pytest runs it:
@@ -96,13 +112,13 @@ def _marking(fn, name):
                 next(gen)
             except StopIteration:
                 return
-            pytest.fail(f"fixture function has more than one 'yield':\n\n{_source(fn)}", pytrace=False)
+            pytest.fail(_more_than_one_yield(fn), pytrace=False)
         return yielding
 
     @functools.wraps(fn)
     def returning(*args, **kwargs):
         __tracebackhide__ = True
-        return _quarantine(fn(*args, **kwargs))
+        return _quarantine(fn(*args, **kwargs), name)
     return returning
 
 
