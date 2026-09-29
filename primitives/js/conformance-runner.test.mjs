@@ -120,9 +120,24 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
     { name: "x", meta: clean },
     { name: "x", meta: clean, expectPass: true, expectError: "y" },
     { name: "x", meta: mockLeaf, expectPass: true, expectAbsent: ["mock:"] },
-  ])("fails a guard case without exactly one expectation, or with a stray expectAbsent (%#)", (c) => {
+    { name: "x", meta: mockLeaf, expectPass: false },
+    { name: "x", meta: mockLeaf, expectRefused: [] },
+  ])("fails a guard case whose expectation is missing, doubled, stray or empty (%#)", (c) => {
     const [r] = runCases(impl, guardRow(c));
-    expect(r.error).toMatch(/exactly one of expectPass|expectAbsent is read only/);
+    expect(r.error).toMatch(/exactly one of expectPass|expectAbsent is read only|expectPass must be true|at least one reason/);
+  });
+  it("fails a guard case expecting a refusal when the guard raises a programmer error", () => {
+    const [r] = runCases(impl, guardRow({ name: "x", meta: clean, options: { minConfidence: "hi" }, expectRefused: ["mock:"] }));
+    expect(r.error).toMatch(/expected a refusal, got an error/);
+  });
+  it("fails a guard case whose programmer error is worded otherwise", () => {
+    const [r] = runCases(impl, guardRow({ name: "x", meta: clean, options: { minConfidence: "hi" }, expectError: "no-such-text" }));
+    expect(r.error).toMatch(/expected an error containing "no-such-text"/);
+  });
+  it("fails, rather than crashes, on an implementation without ProvenanceRefused", () => {
+    const { ProvenanceRefused: _dropped, ...partial } = impl;
+    const [r] = runCases(partial, guardRow({ name: "x", meta: mockLeaf, expectRefused: ["mock:"] }));
+    expect(r.error).toMatch(/exports no ProvenanceRefused/);
   });
 
   it("fails a table that lacks a kind the runner models", () => {

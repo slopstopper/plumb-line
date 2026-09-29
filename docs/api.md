@@ -192,18 +192,26 @@ output point writes `unwrap(guard(x))`. Otherwise it throws
 
 | Option | Default | Refuses when |
 |---|---|---|
-| `noMock` / `no_mock` | `true` / `True` | mock taint appears anywhere: `derivedFromMock`, `source`, `weakestSource` or any lineage step. On unless turned off (P4: excluded from outputs unless explicitly opted in) |
-| `minConfidence` / `min_confidence` | `"none"` | the weakest confidence in the envelope *or its lineage* is below this level (an unknown level counts as `none`) |
+| `noMock` / `no_mock` | `true` / `True` | mock taint appears anywhere: `derivedFromMock`, `source`, `weakestSource` or any lineage step. On unless turned off (Principle 4's mock clause: excluded from outputs unless explicitly opted in; fallback, approximate and cached sources are not refused) |
+| `minConfidence` / `min_confidence` | `"none"` | the weakest confidence in the envelope *or its lineage* is below this level (a lineage step with no confidence counts as `none`) |
 
-It fails closed, whatever the options: a value that is not marked (`42`,
-`null`, a list, a `Map`) is refused; so is a malformed envelope (any
-`validateEnvelope` issue) and one the audit flags (any `auditMeta` issue
-except the `version-legacy:` advisory). An unknown option (JS), a non-boolean
-`noMock`, or a `minConfidence` off the ladder is a programmer error — JS
-`TypeError`; Python `TypeError` for `no_mock` and an unknown keyword,
-`ValueError` for `min_confidence` — raised before the value is looked at and
-never a `ProvenanceRefused`. In Python, `min_confidence=None` is an error
-rather than the default, as `make_meta` refuses `None`.
+It fails closed, whatever the options:
+- a value that is not marked (`42`, `null`, a list, a `Map`) is refused;
+- so is a malformed envelope: any `validateEnvelope` issue, a `source`,
+  `confidence` or `weakestSource` off its ladder, a lineage step that is not
+  an object, or a step whose `source` or `confidence` is off its ladder or
+  whose `derivedFromMock` is not a boolean;
+- and so is one the audit flags: any `auditMeta` issue except the
+  `version-legacy:` and `version-future:` advisories. An envelope from an older
+  or newer library is judged on what it carries (SPEC §5b).
+
+A bad option is a programmer error, a `TypeError` in both languages, raised
+before the value is looked at and never a `ProvenanceRefused`: options that
+are not a plain object (JS), an unknown option, a non-boolean `noMock`, or a
+`minConfidence` off the ladder. Its message starts `guard: `. Because a
+refusal is a `ValueError` in Python and a bad option never is, catching one
+cannot swallow the other. In Python, `min_confidence=None` is an error rather
+than the default, as `make_meta` refuses `None`.
 
 ```js
 // JavaScript
@@ -217,6 +225,8 @@ guard(total, { noMock: false, minConfidence: "medium" });
 
 ```python
 # Python
+total = derive([mark(100, source="real", confidence="high"),
+                mark(1.17, source="mock", confidence="low")], lambda a, r: a * r)
 guard(total)                                   # raises ProvenanceRefused: mock: …
 unwrap(guard(total, no_mock=False))            # 117.0 — mock explicitly allowed
 ```

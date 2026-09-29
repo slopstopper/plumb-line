@@ -52,7 +52,8 @@ describe("guard — the egress guard (#120)", () => {
   });
 
   it("raises a programmer error, not a refusal, for a bad option, before looking at the value", () => {
-    for (const opts of [{ minConfidence: "hi" }, { noMock: "yes" }, { nomock: false }, "yes", null]) {
+    for (const opts of [{ minConfidence: "hi" }, { minConfidence: 2 }, { noMock: "yes" }, { nomock: false },
+      "yes", null, new Map([["noMock", false]])]) {
       const e = refusal(() => guard(42, opts));
       expect(e).toBeInstanceOf(TypeError);
       expect(e).not.toBeInstanceOf(ProvenanceRefused);
@@ -62,6 +63,23 @@ describe("guard — the egress guard (#120)", () => {
 
   it("names an unknown option, so a typo cannot silently turn a check off", () => {
     expect(() => guard(mark(1, { source: "real" }), { nomock: false })).toThrow(/guard: unknown option nomock/);
+  });
+
+  it("takes options only as a plain object, so an inherited value cannot turn a check off", () => {
+    const m = mark(1, { source: "mock" });
+    expect(() => guard(m, Object.create({ noMock: false }))).toThrow(/guard: options must be a plain object/);
+  });
+
+  it("reads only the value's own envelope fields, so a polluted prototype cannot vouch for it", () => {
+    const fields = { source: "real", confidence: "high", derivedFromMock: false, lineage: [] };
+    try {
+      Object.assign(Object.prototype, fields);
+      const e = refusal(() => guard({ value: 1 }));
+      expect(e).toBeInstanceOf(ProvenanceRefused);
+      expect(e.reasons.join(" ")).toMatch(/invalid envelope: missing required field: source/);
+    } finally {
+      for (const k of Object.keys(fields)) delete Object.prototype[k];
+    }
   });
 
   it("an undefined option is the default", () => {

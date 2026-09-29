@@ -95,12 +95,20 @@ function runGuard(impl, c) {
     return "a guard case needs exactly one of expectPass, expectRefused or expectError";
   if ("expectAbsent" in c && !("expectRefused" in c))
     return "expectAbsent is read only beside expectRefused";
+  // A value that could only mislead: `expectPass: false` or an empty needle
+  // list would otherwise be read as a pass, or as any refusal at all.
+  if ("expectPass" in c && c.expectPass !== true) return "expectPass must be true";
+  if ("expectRefused" in c && !(Array.isArray(c.expectRefused) && c.expectRefused.length))
+    return "expectRefused must list at least one reason";
   const plain = c.meta !== null && typeof c.meta === "object" && !Array.isArray(c.meta);
   const x = plain ? { value: 1, ...c.meta } : c.meta;
   let out;
   try {
     out = "options" in c ? impl.guard(x, c.options) : impl.guard(x);
   } catch (e) {
+    // An implementation without the export fails the row instead of the run.
+    if (typeof impl.ProvenanceRefused !== "function")
+      return "the implementation exports no ProvenanceRefused";
     if (e instanceof impl.ProvenanceRefused) {
       const reasons = e.reasons;
       if (!Array.isArray(reasons) || !reasons.every((r) => typeof r === "string"))

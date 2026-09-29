@@ -6,12 +6,12 @@
 
 `auditMeta` reports an inconsistent or tainted envelope after the fact.
 Nothing *stopped* such a value at the point where it leaves the system: an
-export, a display, a publish. Principle 4 promises that mock and fallback
-data is "excluded from outputs unless explicitly opted in", and at run time
-nothing enforced it. The impossible-task spike showed the cost (#462,
-recorded on #123): in the FX task, in 11 of 15 runs that mocked the provider
-in the tests, the fake rate flowed through the real code and came out marked
-`source: "real"`.
+export, a display, a publish. Principle 4 promises that mock, approximate,
+fallback and cached data is "excluded from outputs unless explicitly opted
+in", and at run time nothing enforced it. The impossible-task spike showed
+the cost (#462, recorded on #123): in the FX task, in 11 of 15 runs that
+mocked the provider in the tests, the fake rate flowed through the real code
+and came out marked `source: "real"`.
 
 ROADMAP #27 and #120 proposed `require(x, { noMock, minConfidence })`, a
 guard that "throws (or returns a typed refusal)". That left four questions
@@ -20,7 +20,8 @@ envelope that cannot back its own claims.
 
 ## Decision
 
-On 2026-09-29 the owner accepted all four recommendations, recorded on #120:
+On 2026-09-29 the owner accepted four recommendations, recorded on #120 in
+the owner's words:
 
 1. **The name is `guard`**, not `require`. In a CommonJS module,
    `const { require } = …` is a syntax error, since `require` is the module
@@ -30,36 +31,49 @@ On 2026-09-29 the owner accepted all four recommendations, recorded on #120:
    `reasons` list; success returns the marked value unchanged, so an output
    point writes `unwrap(guard(x))`. A refusal that can be ignored is not
    enforcement; a display that should show "unavailable" catches it.
-3. **`noMock` is on unless turned off.** That is Principle 4's own wording:
-   excluded unless explicitly opted in. `minConfidence` defaults to no floor.
-4. **Fail closed.**
-   - A value with no envelope, a malformed envelope (any `validateEnvelope`
-     issue), or one the audit flags (any `auditMeta` issue except the
-     `version-legacy:` advisory) is refused, whatever the options.
-   - Taint and confidence are judged from the lineage as well as the headline
-     fields, so a headline the lineage contradicts cannot pass.
-   - A bad option is a programmer error of a different type, raised before the
-     value is examined, so it is never mistaken for a refusal.
+3. **`noMock` is on unless turned off**, as Principle 4's mock clause says.
+   `minConfidence` defaults to no floor.
+4. **Fail closed.** A value with no envelope, or a malformed one, is always
+   refused; taint and confidence are judged from the whole lineage, not the
+   headline fields; a bad option is a programmer error of a different type,
+   raised before the value is examined.
 
-The behaviour is normative in SPEC §5c and pinned for both languages by the
-`guard` kind in `primitives/conformance/cases.json`.
+Applying decision 4, the author settled these details; they are normative in
+SPEC §5c and were refined after an independent review:
+
+- **"Malformed"** covers every `validateEnvelope` issue, and also values the
+  guard cannot place on the ladders: an off-ladder `source`, `confidence` or
+  `weakestSource`, a lineage step that is not an object, and a step whose
+  `source` or `confidence` is off its ladder or whose `derivedFromMock` is
+  not a boolean. The constructors already refuse such values (ADR-0019); the
+  law tolerates them in a handed envelope, and an output point does not.
+- **An envelope the audit flags is refused**, since it makes a claim it
+  cannot back: laundering, over-claiming, dropped taint, an unreproducible
+  derivation, a malformed version. The `version-legacy:` and
+  `version-future:` advisories are not refusals. §5b says a future version is
+  accepted "so that consumers built against an older checker keep working
+  against newer producers", and a guard that refused it would stop every
+  output of an older consumer the day a producer upgraded.
+- **Bad options are a `TypeError` in both languages.** A refusal is a
+  `ValueError` in Python, and a bad option never is, so catching one cannot
+  swallow the other. An unknown option names itself in both.
+- **A step with no `confidence` counts as `none`** against a minimum: the
+  guard vouches only for what the lineage states.
+
+The behaviour is pinned for both languages by the `guard` kind in
+`primitives/conformance/cases.json`.
 
 ## Consequences
 
-- An output point can now enforce P4 in one call, in both languages, with
-  identical refusals.
+- An output point can enforce Principle 4's mock clause in one call, in both
+  languages, with identical refusals. Fallback, approximate and cached
+  sources are **not** refused: a source floor is a separate, planned option
+  (#541).
 - Unmarked values are refused. A codebase that guards an output must mark
   what flows into it first. That is the adoption cost, and it is the point:
   an unmarked value has no provenance to vouch for.
-- Legacy envelopes (no `provenanceVersion`) still pass on their content. An
-  envelope from a newer wire version is refused, because the guard cannot
-  vouch for semantics it does not know.
-- Error types differ by language convention: JS raises `TypeError` for every
-  bad option, and Python raises `TypeError` for `no_mock` and an unknown
-  keyword but `ValueError` for `min_confidence`. The conformance table pins
-  the message prefix, not the type.
-- #123's fixture helper ("no taint escape") reuses this `noMock` semantics
-  rather than defining its own.
-- `guard` checks mock taint and confidence only. A `source` allow-list (for
-  example "real only") is not an option; a caller who needs one reads
-  `metaOf(x).source` after the guard passes.
+- The guard enforces what an envelope says, not whether it is true: an
+  envelope fabricated to be internally consistent passes it, as it passes the
+  audit (threat model, N3).
+- #123's fixture helper ("no taint escape") is planned to reuse this `noMock`
+  semantics rather than define its own.

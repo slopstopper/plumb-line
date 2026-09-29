@@ -424,9 +424,9 @@
       "expectRefused": ["invalid envelope: field 'confidence' must be a string"]
     },
     {
-      "name": "an envelope from a newer version than this library is refused",
+      "name": "an envelope from a newer version passes on its content: a future version is advisory (SPEC §5b)",
       "meta": { "provenanceVersion": 99, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
-      "expectRefused": ["version-future"]
+      "expectPass": true
     },
     {
       "name": "an envelope with no version field passes: legacy is advisory, not a refusal",
@@ -434,10 +434,9 @@
       "expectPass": true
     },
     {
-      "name": "an unknown confidence counts as none against a minimum",
+      "name": "a confidence off the ladder is refused as malformed, whatever the options",
       "meta": { "provenanceVersion": 2, "source": "real", "confidence": "certain", "derivedFromMock": false, "lineage": [] },
-      "options": { "minConfidence": "low" },
-      "expectRefused": ["confidence: none is below the required low"]
+      "expectRefused": ["invalid envelope: confidence"]
     },
     {
       "name": "a minimum confidence of none admits any confidence",
@@ -456,6 +455,66 @@
       "meta": { "provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
       "options": { "noMock": "yes" },
       "expectError": "guard: the no-mock option must be a boolean"
+    },
+    {
+      "name": "a weakest source of mock is refused even when nothing else shows taint",
+      "meta": { "provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [], "weakestSource": "mock" },
+      "expectRefused": ["mock:"]
+    },
+    {
+      "name": "a derived step carrying taint is refused, the shape derive() builds",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "low", "derivedFromMock": true, "lineage": [{ "id": "s1", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false }, { "id": "s2", "of": "input", "source": "derived", "confidence": "low", "derivedFromMock": true }] },
+      "expectRefused": ["mock:"]
+    },
+    {
+      "name": "a malformed version field is refused",
+      "meta": { "provenanceVersion": "2", "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "expectRefused": ["version-malformed"]
+    },
+    {
+      "name": "a source off the ladder is refused as malformed",
+      "meta": { "provenanceVersion": 2, "source": "Mock", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "options": { "noMock": false },
+      "expectRefused": ["invalid envelope: source"]
+    },
+    {
+      "name": "a weakest source off the ladder is refused as malformed",
+      "meta": { "provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [], "weakestSource": "Mock" },
+      "expectRefused": ["invalid envelope: weakestSource"]
+    },
+    {
+      "name": "a lineage step that is not an object is refused as malformed",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [null] },
+      "expectRefused": ["invalid envelope: lineage step"]
+    },
+    {
+      "name": "a lineage step that is a bare string is refused as malformed",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "low", "derivedFromMock": true, "lineage": ["mock"] },
+      "options": { "noMock": false },
+      "expectRefused": ["invalid envelope: lineage step"]
+    },
+    {
+      "name": "a lineage step whose taint flag is not a boolean is refused as malformed",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{ "id": "s1", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": [] }] },
+      "expectRefused": ["invalid envelope: lineage step"]
+    },
+    {
+      "name": "a lineage step with no confidence counts as none against a minimum",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "none", "derivedFromMock": false, "lineage": [{ "id": "s1", "of": "input", "source": "real", "derivedFromMock": false }] },
+      "options": { "minConfidence": "low" },
+      "expectRefused": ["confidence: none is below the required low"]
+    },
+    {
+      "name": "an unknown option is a programmer error, so a misspelt option cannot leave a check at its default",
+      "meta": { "provenanceVersion": 2, "source": "mock", "confidence": "low", "derivedFromMock": true, "lineage": [] },
+      "options": { "nomock": false },
+      "expectError": "guard: unknown option nomock"
+    },
+    {
+      "name": "a minimum confidence that is not a string is a programmer error",
+      "meta": { "provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "options": { "minConfidence": 2 },
+      "expectError": "guard: the minimum confidence must be one of none, low, medium, high"
     }
   ]
 }

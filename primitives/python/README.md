@@ -41,10 +41,11 @@ unwrap(guard(price, min_confidence='medium')) # refused below medium
 
 A refusal raises `ProvenanceRefused` (a `ValueError`), whose `reasons` list
 every reason; a display that should show "unavailable" instead catches it.
-Mock is refused unless `no_mock=False` is passed. It fails closed: a value with
+Mock is refused unless `no_mock=False` is passed (Principle 4's mock
+clause; fallback and cached sources are not refused). It fails closed: a value with
 no envelope, a malformed one, or one the audit flags is refused, and taint and
-confidence are judged from the whole lineage. A bad option is a `TypeError` or
-`ValueError`, never a refusal.
+confidence are judged from the whole lineage. A bad option is a `TypeError`,
+never a refusal.
 
 ## HTTP ingestion adapters (optional)
 

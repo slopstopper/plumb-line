@@ -131,9 +131,14 @@ def test_guard_cases():
             f"{name}: a guard case needs exactly one of expectPass, expectRefused or expectError"
         assert 'expectAbsent' not in c or 'expectRefused' in c, \
             f"{name}: expectAbsent is read only beside expectRefused"
+        # As in the JS twin: these would otherwise be read as a pass, or as
+        # any refusal at all.
+        assert 'expectPass' not in c or c['expectPass'] is True, f"{name}: expectPass must be true"
+        assert 'expectRefused' not in c or (isinstance(c['expectRefused'], list) and c['expectRefused']), \
+            f"{name}: expectRefused must list at least one reason"
         raw = c['meta']
         x = {'value': 1, 'meta': _meta_to_snake(raw)} if isinstance(raw, dict) else raw
-        kwargs = {_GUARD_OPTION[k]: v for k, v in c.get('options', {}).items()}
+        kwargs = {_GUARD_OPTION.get(k, k): v for k, v in c.get('options', {}).items()}
         try:
             out = guard(x, **kwargs)
         except ProvenanceRefused as e:

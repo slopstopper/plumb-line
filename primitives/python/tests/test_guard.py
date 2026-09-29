@@ -47,18 +47,30 @@ def test_refuses_a_value_that_is_not_marked(x):
         guard(x)
 
 
-@pytest.mark.parametrize('kwargs', [{'min_confidence': 'hi'}, {'no_mock': 'yes'}, {'no_mock': 1},
-                                    {'min_confidence': None}, {'min_confidence': True}])
-def test_a_bad_option_is_a_programmer_error_not_a_refusal(kwargs):
-    with pytest.raises((TypeError, ValueError)) as e:
+@pytest.mark.parametrize('kwargs', [{'min_confidence': 'hi'}, {'min_confidence': 2}, {'no_mock': 'yes'},
+                                    {'no_mock': 1}, {'min_confidence': None}, {'min_confidence': True},
+                                    {'nomock': False}, {'noMock': False}])
+def test_a_bad_option_is_a_type_error_never_a_value_error(kwargs):
+    # A ValueError catch written for refusals must not swallow a bad option,
+    # nor a bad-option catch swallow a refusal: the two types do not overlap.
+    with pytest.raises(TypeError) as e:
         guard(42, **kwargs)
-    assert not isinstance(e.value, ProvenanceRefused)
+    assert not isinstance(e.value, ValueError)
     assert str(e.value).startswith('guard: ')
 
 
-def test_an_unknown_option_is_refused_by_python_itself():
-    with pytest.raises(TypeError):
+def test_an_unknown_option_names_itself():
+    with pytest.raises(TypeError, match='guard: unknown option nomock'):
         guard(mark(1, source='real'), nomock=False)
+
+
+def test_an_order_preserving_parsed_envelope_passes_as_in_js():
+    # json.loads(s, object_pairs_hook=OrderedDict) builds dict subclasses, the
+    # Python twin of JS's null-prototype parse, which JS's guard accepts.
+    import json
+    from collections import OrderedDict
+    marked = json.loads(json.dumps(mark(1, source='real', confidence='high')), object_pairs_hook=OrderedDict)
+    assert guard(marked) is marked
 
 
 def test_the_package_exports_guard():

@@ -379,8 +379,9 @@ exists to make drift *legible*, not to gate interoperability.
 The audit reports; the **egress guard** refuses. `guard` takes a marked value
 and options and either returns that value unchanged or refuses it with a list
 of reasons, at the point where a value leaves the system (an export, a
-display, a publish). It is what makes Principle 4's "excluded from outputs
-unless explicitly opted in" enforceable at run time.
+display, a publish). It enforces Principle 4's mock clause, "excluded from
+outputs unless explicitly opted in", at run time. It does not refuse
+fallback, approximate or cached sources, which Principle 4 also names.
 
 **Options.** `noMock` (a boolean, default **true**) and `minConfidence` (a
 level on the confidence ladder, default `none`). A default of true for
@@ -390,20 +391,27 @@ level on the confidence ladder, default `none`). A default of true for
 
 1. a value that is not a marked value (it carries no envelope): reason
    prefixed `not a marked value`;
-2. a marked value whose envelope has any §5a structural issue: one reason per
-   issue, prefixed `invalid envelope:`; and
-3. an envelope with any §5 audit issue other than `version-legacy:`: one
-   reason per issue, prefixed `audit:`. The legacy advisory is not a refusal;
-   `version-future:` and `version-malformed:` are.
+2. a malformed envelope, with one reason per issue prefixed
+   `invalid envelope:`: any §5a structural issue; a `source`, `confidence` or
+   (when present) `weakestSource` off its ladder (§2); a lineage step that is
+   not an object; or a step whose `source` or `confidence`, when present, is
+   off its ladder, or whose `derivedFromMock`, when present, is not a boolean.
+   The constructors refuse such values (§2, ADR-0019) and the law tolerates
+   them in a handed envelope; an output point fails closed; and
+3. an envelope with any §5 audit issue other than the `version-legacy:` and
+   `version-future:` advisories: one reason per issue, prefixed `audit:`. An
+   envelope older or newer than the implementation is judged on what it
+   carries, as §5b requires; `version-malformed:` is refused.
 
 With `noMock` true it refuses, with a reason prefixed `mock:`, an envelope
 with taint anywhere: `derivedFromMock` true, `source` `mock`, `weakestSource`
 `mock`, or any lineage step with `derivedFromMock` true or `source` `mock`.
 With `minConfidence` above `none`, it refuses, with a reason prefixed
 `confidence:`, when the weakest of the top-level `confidence` and every lineage
-step's `confidence` ranks below `minConfidence`, an unknown level counting as
-`none`. Taint and confidence are judged from the lineage as well as the
-headline fields, so a headline the lineage contradicts cannot pass.
+step's `confidence` ranks below `minConfidence`. A step with no `confidence`
+counts as `none` here (the audit skips it; the guard vouches only for what the
+lineage states). Taint and confidence are judged from the lineage as well as
+the headline fields, so a headline the lineage contradicts cannot pass.
 
 Reasons from (3), `mock:` and `confidence:` accumulate; (1) and (2) are
 returned alone, since a missing or malformed envelope cannot be judged
@@ -411,10 +419,12 @@ further. The refusal's message is `provenance refused: ` followed by the
 reasons joined with `; `.
 
 **Programmer errors.** An unknown option, a non-boolean `noMock`, or a
-`minConfidence` off the ladder MUST raise an error of a different type from
-the refusal, before the value is examined, with a message starting
-`guard: `: a bad option must never be read as a refused value, or a refused
-value as a bad option.
+`minConfidence` off the ladder MUST raise an error, before the value is
+examined, with a message starting `guard: ` (an unknown option's naming it:
+`guard: unknown option <name>`). Its type MUST NOT be the refusal's type, or a
+supertype or subtype of it, so a caller catching one can never catch the
+other: a bad option must never be read as a refused value, or a refused value
+as a bad option.
 
 ---
 

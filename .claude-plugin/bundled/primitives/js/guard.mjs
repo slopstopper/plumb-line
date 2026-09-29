@@ -3,7 +3,7 @@
 // backs what the output claims. Fail closed: a value with no envelope, a
 // malformed one, or one the audit flags is refused, and taint and confidence
 // are judged from the whole lineage, not the headline fields alone.
-import { CONFIDENCE, taints, weakestConfidence } from "./provenance.mjs";
+import { CONFIDENCE, STATUS, taints, weakestConfidence } from "./provenance.mjs";
 import { metaOf } from "./marked.mjs";
 import { auditMeta, validateEnvelope } from "./audit.mjs";
 
@@ -21,9 +21,15 @@ export class ProvenanceRefused extends Error {
   }
 }
 
-const OPTIONS = new Set(["noMock", "minConfidence"]);
+const OPTIONS = ["noMock", "minConfidence"];
+const REQUIRED = ["source", "confidence", "derivedFromMock", "lineage"];
+// The audit's advisories about the version field that do not stop a value:
+// an envelope older or newer than this library is judged on what it carries
+// (SPEC §5b: a version exists to make drift legible, not to gate). A
+// malformed version is not among them.
+const ADVISORY = ["version-legacy:", "version-future:"];
 
-/** A bad option value as a message fragment; never throws (see provenance.mjs quote). */
+/** A value as a message fragment; never throws (see provenance.mjs quote). */
 function quote(value) {
   if (typeof value === "number" && !Number.isFinite(value)) return String(value);
   try {
@@ -34,33 +40,58 @@ function quote(value) {
   }
 }
 
+// A plain object: what an object literal or JSON.parse builds, or a
+// null-prototype object (what a pollution-safe JSON parser returns).
+function isPlain(x) {
+  if (x === null || typeof x !== "object" || Array.isArray(x)) return false;
+  const proto = Object.getPrototypeOf(x);
+  return proto === Object.prototype || proto === null;
+}
+
 // A bad option is the caller's mistake, not the value's: a TypeError, raised
-// before the value is looked at, so it is never mistaken for a refusal.
+// before the value is looked at, so it is never mistaken for a refusal. Only
+// an own value is read, so an inherited one cannot turn a check off.
 function readOptions(options) {
   if (options === undefined) return { noMock: true, minConfidence: "none" };
-  if (options === null || typeof options !== "object" || Array.isArray(options))
-    throw new TypeError(`guard: options must be an object; got ${quote(options)}`);
-  for (const key of Object.keys(options)) {
-    // A misspelt option would otherwise leave its check at the default.
-    if (!OPTIONS.has(key)) throw new TypeError(`guard: unknown option ${key}`);
-  }
-  const noMock = options.noMock === undefined ? true : options.noMock;
+  if (!isPlain(options)) throw new TypeError(`guard: options must be a plain object; got ${quote(options)}`);
+  const unknown = Object.keys(options).filter((key) => !OPTIONS.includes(key));
+  // A misspelt option would otherwise leave its check at the default.
+  if (unknown.length) throw new TypeError(`guard: unknown option ${unknown.join(", ")}`);
+  const own = (key, fallback) =>
+    (Object.hasOwn(options, key) && options[key] !== undefined ? options[key] : fallback);
+  const noMock = own("noMock", true);
   if (typeof noMock !== "boolean")
     throw new TypeError(`guard: the no-mock option must be a boolean; got ${quote(noMock)}`);
-  const minConfidence = options.minConfidence === undefined ? "none" : options.minConfidence;
+  const minConfidence = own("minConfidence", "none");
   if (!CONFIDENCE.includes(minConfidence))
     throw new TypeError(
       `guard: the minimum confidence must be one of ${CONFIDENCE.join(", ")}; got ${quote(minConfidence)}`);
   return { noMock, minConfidence };
 }
 
-// A marked value as mark() and derive() build it: a plain object holding
-// `value` beside the envelope fields. A null prototype is plain too (what a
-// pollution-safe JSON parser returns); metaOf copies the envelope out of it.
-function isMarked(x) {
-  if (x === null || typeof x !== "object" || Array.isArray(x)) return false;
-  const proto = Object.getPrototypeOf(x);
-  return (proto === Object.prototype || proto === null) && Object.hasOwn(x, "value");
+// What the guard cannot read on the ladders is malformed (SPEC §5c): the
+// constructors refuse such values (ADR-0019) and the law tolerates them in a
+// handed envelope, but an output point fails closed.
+function unreadable(meta) {
+  const issues = [];
+  if (!STATUS.includes(meta.source)) issues.push(`source ${quote(meta.source)} is not on the source ladder`);
+  if (!CONFIDENCE.includes(meta.confidence))
+    issues.push(`confidence ${quote(meta.confidence)} is not on the confidence ladder`);
+  if ("weakestSource" in meta && !STATUS.includes(meta.weakestSource))
+    issues.push(`weakestSource ${quote(meta.weakestSource)} is not on the source ladder`);
+  meta.lineage.forEach((step, i) => {
+    if (step === null || typeof step !== "object" || Array.isArray(step)) {
+      issues.push(`lineage step ${i} is not an object`);
+      return;
+    }
+    if ("source" in step && !STATUS.includes(step.source))
+      issues.push(`lineage step ${i} source ${quote(step.source)} is not on the source ladder`);
+    if ("confidence" in step && !CONFIDENCE.includes(step.confidence))
+      issues.push(`lineage step ${i} confidence ${quote(step.confidence)} is not on the confidence ladder`);
+    if ("derivedFromMock" in step && typeof step.derivedFromMock !== "boolean")
+      issues.push(`lineage step ${i} derivedFromMock must be a boolean`);
+  });
+  return issues;
 }
 
 /**
@@ -71,30 +102,41 @@ function isMarked(x) {
  * @param {object} x - A value produced by mark() or derive()
  * @param {object} [options]
  * @param {boolean} [options.noMock=true] - Refuse mock taint anywhere in the
- *   envelope or its lineage. On unless turned off (P4: excluded from outputs
- *   unless explicitly opted in).
+ *   envelope or its lineage. On unless turned off (Principle 4's mock clause:
+ *   excluded from outputs unless explicitly opted in).
  * @param {string} [options.minConfidence="none"] - Refuse when the weakest
  *   confidence in the envelope or its lineage is below this level.
  * @returns {object} `x`
  * @throws {ProvenanceRefused} when the value may not leave
- * @throws {TypeError} when an option is unknown or has a bad value
+ * @throws {TypeError} when the options are not a plain object, or one is
+ *   unknown or has a bad value
  */
 export function guard(x, options) {
   const { noMock, minConfidence } = readOptions(options);
-  if (!isMarked(x)) throw new ProvenanceRefused(["not a marked value: it carries no provenance envelope"]);
-  const meta = metaOf(x);
+  // A marked value as mark() and derive() build it: a plain object holding
+  // `value` beside the envelope fields.
+  if (!isPlain(x) || !Object.hasOwn(x, "value"))
+    throw new ProvenanceRefused(["not a marked value: it carries no provenance envelope"]);
+  // Own fields only: validateEnvelope and the audit read with `in`, so an
+  // inherited field (a polluted prototype) must not reach them as the value's.
+  const missing = REQUIRED.filter((name) => !Object.hasOwn(x, name));
+  if (missing.length)
+    throw new ProvenanceRefused(missing.map((name) => `invalid envelope: missing required field: ${name}`));
+  const all = metaOf(x);
+  const meta = Object.fromEntries(Object.entries(all).filter(([key]) => Object.hasOwn(x, key)));
   const invalid = validateEnvelope(meta);
-  if (invalid.length) throw new ProvenanceRefused(invalid.map((issue) => `invalid envelope: ${issue}`));
-  // The version-legacy advisory is not a refusal: an envelope without a
-  // version field is still judged on what it carries (SPEC §5b).
+  const malformed = invalid.length ? invalid : unreadable(meta);
+  if (malformed.length) throw new ProvenanceRefused(malformed.map((issue) => `invalid envelope: ${issue}`));
   const reasons = auditMeta(meta)
-    .filter((issue) => !issue.startsWith("version-legacy:"))
+    .filter((issue) => !ADVISORY.some((prefix) => issue.startsWith(prefix)))
     .map((issue) => `audit: ${issue}`);
   const steps = meta.lineage;
   if (noMock && (taints(meta) || meta.weakestSource === "mock" || steps.some((step) => taints(step))))
     reasons.push("mock: the value derives from mock data, and this output does not allow it");
   if (minConfidence !== "none") {
-    const weakest = weakestConfidence(meta.confidence, ...steps.map((step) => step?.confidence));
+    // An absent step confidence counts as none: the guard vouches only for
+    // what the lineage states.
+    const weakest = weakestConfidence(meta.confidence, ...steps.map((step) => step.confidence));
     if (CONFIDENCE.indexOf(weakest) < CONFIDENCE.indexOf(minConfidence))
       reasons.push(`confidence: ${weakest} is below the required ${minConfidence}`);
   }
