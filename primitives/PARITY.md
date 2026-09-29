@@ -153,8 +153,11 @@ each pinned by a `combine` row in `cases.json` (the rows marked #525):
   (SPEC §3, "total").
 - **Taint of a non-boolean `derivedFromMock`.** JS read `[]` and `{}` as
   tainting (truthy) and Python as clean (falsy), so taint could vanish in
-  one language. Both now taint on anything other than `false` or absent,
-  so `0` and `""` taint too (SPEC §3).
+  one language. #525 first made both taint on anything other than `false`
+  or absent. #555 reversed that, because it called an unreadable flag mock:
+  now only a boolean `true` taints in both, the constructors refuse a
+  non-boolean flag, and combine keeps it on its step for the egress guard
+  to refuse as invalid (SPEC §3).
 - **Step shape.** For an input with no `source` or `confidence`, Python
   wrote `null` where JS left the field off (in memory, `undefined`); both now
   write `null`, so every step has both keys. JS spread an array lineage step
@@ -171,8 +174,9 @@ also found two regressions in the first fix, fixed before merge: leaving an
 absent `source` off a step let the egress guard pass it (the guard now
 refuses a step with no `source`), and a Python `Mapping` that is not a `dict`
 had its taint cleared (any `Mapping` is now read). A re-run of the reviewer's
-143-input probe leaves 18 differences, none in outcome: nine are the audit's
-field name in its message (`derivedFromMock` / `derived_from_mock`, as
-before), and nine are a `-0` or an out-of-range integer that each language's
-JSON parser already reads differently, copied verbatim into the step; the
-ids and taint agree.
+143-input probe leaves 19 differences after #555, none in outcome: nine are
+the audit's field name in its message (`derivedFromMock` /
+`derived_from_mock`, as before), and ten are a `-0` or an out-of-range
+integer that each language's JSON parser already reads differently, copied
+verbatim into the step (#555's malformed flag of `-0` is the tenth); the ids
+agree and neither language reads any of them as taint.

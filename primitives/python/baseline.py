@@ -362,6 +362,14 @@ def show(name, dir=None):
 _USAGE = 'usage: baseline <list|show <name>|validate> [--dir D]'
 
 
+def _taint_label(flag):
+    """Only True is shown as tainted; a flag that is not a bool is named as
+    malformed, never as taint (#555). JS twin: taintLabel in baseline-cli.mjs."""
+    if flag is True:
+        return ' tainted'
+    return '' if flag is None or isinstance(flag, bool) else ' malformed-taint-flag'
+
+
 def main(argv=None):
     import argparse
     argv = list(sys.argv[1:] if argv is None else argv)
@@ -408,7 +416,7 @@ def main(argv=None):
         steps = rec['meta']['lineage']
         print(f'lineage: {len(steps)} step(s)')
         for i, s in enumerate(steps):
-            tainted = ' tainted' if s.get('derivedFromMock') else ''
+            tainted = _taint_label(s.get('derivedFromMock'))
             score = f' score {s["confidenceScore"]}' if 'confidenceScore' in s else ''
             print(f'  [{i}] {s.get("source")}/{s.get("confidence")}{tainted}{score}')
         print('history:')

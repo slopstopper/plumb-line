@@ -107,13 +107,16 @@ def make_meta(source=_REQUIRED, confidence='none', confidence_score=None,
         raise ValueError(f"source must be one of {', '.join(STATUS)}; got {_json(source)}")
     if not _in_ladder(confidence, CONFIDENCE):
         raise ValueError(f"confidence must be one of {', '.join(CONFIDENCE)}; got {_json(confidence)}")
+    # A taint flag that is not a boolean is refused, as an off-ladder rung is
+    # (#555, ADR-0019 amendment): read as taint it called an unreadable value
+    # mock. None takes the default.
+    if not _is_taint_flag(derived_from_mock):
+        raise ValueError(f"derivedFromMock must be a boolean; got {_json(derived_from_mock)}")
     meta = {
         'provenance_version': PROVENANCE_VERSION,
         'source': source,
         'confidence': confidence,
-        # None takes the default; any other value is read by the taint rule
-        # (SPEC §3), as in the JS twin (#525 review): bool() made [] clean here.
-        'derived_from_mock': (source == 'mock') if derived_from_mock is None else _taint_flag(derived_from_mock),
+        'derived_from_mock': (source == 'mock') if derived_from_mock is None else derived_from_mock,
         # Each meta owns its own copy of every lineage step (dicts are cloned),
         # so mutating one envelope's history can't rewrite a sibling that shares
         # ancestry. Python has no cheap deep-freeze, so this isolates ownership
@@ -156,13 +159,13 @@ def weakest_confidence(*levels):
         min_idx = min(min_idx, idx)
     return CONFIDENCE[min_idx]
 
-def _taint_flag(value):
-    """Whether a ``derived_from_mock`` value marks taint: anything other than
-    False or absent (None counts as absent) does (SPEC §3, #525). No
-    constructor stores a non-boolean, but a handed envelope can carry one, and
-    a stray 0, "" or [] must not clear taint. Not truthiness: Python and JS
-    disagree on [] and {}. JS twin: taintFlag."""
-    return value is not None and value is not False
+def _is_taint_flag(value):
+    """Whether a ``derived_from_mock`` value is one the law can read: a bool,
+    or absent (None). Anything else is malformed (#555): not taint, since
+    nothing shows it means mock, and not clean either. The constructors refuse
+    it and combine keeps it on its step as it is, so the egress guard refuses
+    it as invalid. JS twin: isTaintFlag."""
+    return value is None or isinstance(value, bool)
 
 
 def _field(meta, key):
@@ -177,8 +180,9 @@ def _field(meta, key):
 def taints(meta):
     """Return True when the envelope carries mock taint.
 
-    Taint is present when ``derived_from_mock`` is anything other than False
-    or absent (see :func:`_taint_flag`), or ``source`` is ``"mock"``.
+    Taint is present when ``derived_from_mock`` is True or ``source`` is
+    ``"mock"`` (SPEC §3). Only a bool True taints: a malformed flag is not
+    read as mock (#555, reversing #525).
 
     Args:
         meta: Provenance metadata dict, or any other value (which carries no
@@ -187,7 +191,7 @@ def taints(meta):
     Returns:
         bool
     """
-    return _taint_flag(_field(meta, 'derived_from_mock')) or _field(meta, 'source') == 'mock'
+    return _field(meta, 'derived_from_mock') is True or _field(meta, 'source') == 'mock'
 
 def weakest_source(*sources):
     """Return the least-trustworthy source by STATUS rank.
@@ -269,7 +273,10 @@ def combine_provenance(*metas):
             'of': 'input',
             'source': _field(m, 'source'),
             'confidence': _field(m, 'confidence'),
-            'derived_from_mock': taints(m),
+            # A malformed taint flag is kept as the input carries it, neither
+            # read as taint nor cleaned, so the guard refuses the step (#555).
+            'derived_from_mock': (taints(m) if _is_taint_flag(_field(m, 'derived_from_mock'))
+                                  else _field(m, 'derived_from_mock')),
         }
         # Record the numeric score too when the input carries one, so the numeric
         # over-claim audit works on real derive output, not just hand-built metas.
@@ -319,6 +326,14 @@ def _canon_field(v):
     return '<array>' if isinstance(v, (list, tuple)) else '<object>'
 
 
+def _flag_canon(v):
+    """The step-id canon's derivedFromMock line: a bool as true/false, absent
+    as false, and a malformed flag (kept by combine, #555) by type, so an
+    empty string is empty, not false. JS twin: the derivedFromMock line in
+    stepId."""
+    return 'false' if v is None else _canon_field(v)
+
+
 def step_id(step, input_ids=None):
     """Content-addressed id for a lineage step (#52). Mirror of stepId in provenance.mjs."""
     input_ids = input_ids or []
@@ -333,7 +348,9 @@ def step_id(step, input_ids=None):
         f"of={_canon_field(_field(step, 'of'))}",
         f"source={_canon_field(_field(step, 'source'))}",
         f"confidence={_canon_field(_field(step, 'confidence'))}",
-        f"derivedFromMock={'true' if _taint_flag(_field(step, 'derived_from_mock')) else 'false'}",
+        # A bool as true/false, absent as false, and a malformed flag (kept by
+        # combine, #555) by type, as the fields above are.
+        f"derivedFromMock={_flag_canon(_field(step, 'derived_from_mock'))}",
         f"confidenceScore={score_s}",
         f"inputs={','.join(sorted(input_ids))}",
     ])

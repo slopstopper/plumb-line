@@ -113,3 +113,20 @@ recommendation's reasons:
 
   Recorded here rather than by editing the Decision, because this record is
   append-only.
+
+- **2026-09-29 (#555).** *Decided by the owner, recorded on the issue:* a
+  `derivedFromMock` that is not a boolean is refused at construction too.
+  - The same rule as for an off-ladder rung: a value the law cannot place
+    honestly should not be constructible. `makeMeta`/`make_meta`, `mark` and
+    `derive`'s override refuse it with `derivedFromMock must be a boolean`;
+    absent or `null` takes the default.
+  - The alternative, briefly on #525's branch, read such a flag as taint.
+    That called an unreadable value mock, which is dishonest (the owner's
+    ruling on #525). Reading it by truthiness, as each language did before,
+    disagreed between them.
+  - The law does not refuse a handed envelope: it keeps the flag on the
+    input's step as it is, and the egress guard refuses it as invalid.
+  - Pinned by `construct` rows in `cases.json`.
+
+  Recorded here rather than by editing the Decision, because this record is
+  append-only.

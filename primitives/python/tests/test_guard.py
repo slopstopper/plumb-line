@@ -185,3 +185,19 @@ def test_guard_refuses_what_combine_makes_of_an_input_with_no_source():
             guard({'value': 1, 'meta': meta})
         assert any('lineage step 0 source null is not on the source ladder' in r
                    for r in refused.value.reasons), refused.value.reasons
+
+
+def test_guard_refuses_a_combined_malformed_taint_flag_as_invalid_never_as_mock():
+    """#555: combine keeps a non-boolean derivedFromMock on its step as it is,
+    so the guard refuses it as an invalid envelope. It is not called mock:
+    before #555 combine read it as taint and the guard said mock."""
+    import provenance as prov
+    for flag in (0, '', [], 'false', 'true'):
+        meta = prov.combine_provenance({'source': 'real', 'confidence': 'high',
+                                        'derived_from_mock': flag, 'lineage': []})
+        assert meta['derived_from_mock'] is False
+        with pytest.raises(ProvenanceRefused) as refused:
+            guard({'value': 1, 'meta': meta})
+        reasons = refused.value.reasons
+        assert 'invalid envelope: lineage step 0 derivedFromMock must be a boolean' in reasons, reasons
+        assert not any(r.startswith('mock:') for r in reasons), reasons

@@ -427,14 +427,25 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     on an input that is not a dict, a `lineage` that is not a list, or a step
     that is not a dict. It now combines them, as JS did, and reads any
     `Mapping` (a `MappingProxyType` or `UserDict`) as an envelope.
-  - **Taint (behaviour change, stricter):** a `derivedFromMock` that is not
-    a boolean now taints in both languages unless it is `false` or absent
-    (`null` counts as absent). Before, each language used its own
-    truthiness, and they disagreed on `[]` and `{}`, so taint could vanish
-    in one language. A handed `0` or `""` now taints as well. `taints()`,
-    the audit's taint-dropped check, `makeMeta`/`make_meta` and `derive`'s
-    override all follow the same rule (a `null` flag takes the default, as
-    it did in Python). Owner decision on #525.
+  - **A malformed taint flag is refused, never called mock (breaking for
+    callers who pass one)** ([#555](https://github.com/slopstopper/plumb-line/issues/555)).
+    Each language used to read a `derivedFromMock` that is not a boolean by
+    its own truthiness. They disagreed on `[]` and `{}`, so taint could
+    vanish in one language. Now only a boolean `true` taints, in `taints()`,
+    the audit and `derive`. `makeMeta`/`make_meta`, `mark` and `derive`'s
+    override refuse a non-boolean flag with `derivedFromMock must be a
+    boolean`; a `null` flag takes the default, as it did in Python. A handed
+    envelope that carries one still combines: the flag is kept on its step
+    as it is, and the egress guard refuses the result as an invalid
+    envelope, not as mock. (An intermediate commit on #525 read such a flag
+    as taint; the owner reversed that, since an unreadable flag is not
+    known to be mock.)
+    **Also a change for readers (loosening where the guard is not used):**
+    in v0.11.5 a handed flag of `1`, `"true"` or `[1]` tainted in both
+    languages. Now `taints()` returns false for it, and combine's headline
+    `derivedFromMock` stays `false`. Only the egress guard refuses such an
+    envelope. The audit does not yet report a malformed step flag; that is
+    #551.
   - **Step shape:** a step records `null` for a `source` or `confidence` its
     input does not have (JS left it `undefined`), and an array lineage step
     stays an array (JS spread it into an object). `combine`'s score is `0`,

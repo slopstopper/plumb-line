@@ -50,7 +50,10 @@ export function main(argv) {
       if (k in rec.meta) console.log(`${k}: ${JSON.stringify(rec.meta[k])}`);
     }
     console.log(`lineage: ${rec.meta.lineage.length} step(s)`);
-    rec.meta.lineage.forEach((s, i) => console.log(`  [${i}] ${s.source}/${s.confidence}${s.derivedFromMock ? " tainted" : ""}${"confidenceScore" in s ? ` score ${s.confidenceScore}` : ""}`));
+    // Only true is shown as tainted; a flag that is not a boolean is named as
+    // malformed, never as taint (#555). Python twin: baseline.py _taint_label.
+    const taintLabel = (f) => (f === true ? " tainted" : f == null || typeof f === "boolean" ? "" : " malformed-taint-flag");
+    rec.meta.lineage.forEach((s, i) => console.log(`  [${i}] ${s.source}/${s.confidence}${taintLabel(s.derivedFromMock)}${"confidenceScore" in s ? ` score ${s.confidenceScore}` : ""}`));
     console.log("history:");
     for (const h of rec.history) console.log(`  ${h.date}  ${h.change}  ${h.because}`);
     return 0;

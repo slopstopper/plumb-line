@@ -36,6 +36,25 @@ def test_show_prints_trust_state_and_history(tmp_path):
     assert code == 0 and 'source: "derived"' in out and '2026-09-10  initial  initial pin' in out
 
 
+def test_show_names_a_malformed_taint_flag_and_never_calls_it_tainted(tmp_path):
+    """#555: only True is tainted. The record is edited on disk, since no
+    constructor builds a malformed flag. JS twin in baseline-cli.test.mjs."""
+    import json
+    r = mark(0.04, source='real', confidence='high')
+    bl.update('odd', derive([r, r, r], lambda a, b, c: a), because='pin', dir=str(tmp_path), date='2026-09-10')
+    path = tmp_path / 'odd.json'
+    rec = json.loads(path.read_text(encoding='utf-8'))
+    for step, flag in zip(rec['meta']['lineage'], ('false', [], True)):
+        step['derivedFromMock'] = flag
+    path.write_text(json.dumps(rec), encoding='utf-8')
+    code, out = _run('show', 'odd', '--dir', str(tmp_path))
+    assert code == 0, out
+    lines = [line for line in out.splitlines() if line.startswith('  [')]
+    assert lines[0].endswith('real/high malformed-taint-flag'), lines
+    assert lines[1].endswith('real/high malformed-taint-flag'), lines
+    assert lines[2].endswith('real/high tainted'), lines
+
+
 def test_show_unknown_exits_one(tmp_path):
     assert _run('show', 'nope', '--dir', str(tmp_path))[0] == 1
 
