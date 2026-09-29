@@ -71,9 +71,13 @@ def test_price(rate):
     assert_no_taint(derive([amount, rate], lambda a, r: a * r))  # fails: mock reached it
 ```
 
+`assert_tainted(output)` checks the taint did reach a value: it passes only
+when `guard` refuses for mock taint, not for an unmarked or malformed value.
 Marking is opt-in per fixture. A generator fixture's yielded value is marked
 and its teardown still runs; a fixture that returns an already-marked value is
-an error; async fixtures are not supported.
+an error; async fixtures are not supported. The plugin loads at every pytest
+start where the package is installed; `-p no:plumb_line_provenance.pytest_plugin`
+turns it off.
 
 ## HTTP ingestion adapters (optional)
 

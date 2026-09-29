@@ -30,10 +30,11 @@ pandas = ["pandas>=1.3"]
 numpy = ["numpy>=1.20"]
 
 # The fixture quarantine (#123) registers itself with pytest: inert unless a
-# test uses plumb_mock_fixture or assert_no_taint (owner decision on #123).
-# Only pytest_plugin imports pytest; the package itself never does.
+# test uses its helpers (owner decision on #123). The key is the module's own
+# name, so registering it explicitly as well (`pytest_plugins = [...]`, `-p`)
+# is a no-op, not a clash. Only pytest_plugin imports pytest.
 [project.entry-points.pytest11]
-plumb_line_provenance = "plumb_line_provenance.pytest_plugin"
+"plumb_line_provenance.pytest_plugin" = "plumb_line_provenance.pytest_plugin"
 
 [project.urls]
 Homepage = "https://slopstopper.org/plumb-line/"

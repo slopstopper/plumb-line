@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { markFixture, assertNoTaint, plumbMatchers } from "./vitest.mjs";
+import { markFixture, assertNoTaint, assertTainted, plumbMatchers } from "./vitest.mjs";
 import { mark, derive, metaOf, unwrap } from "./index.mjs";
 
 expect.extend(plumbMatchers);
@@ -20,6 +20,16 @@ describe("markFixture — opt-in per fixture (#123)", () => {
     expect(unwrap(rate)).toBe(1.17);
     expect(metaOf(rate).source).toBe("mock");
     expect(metaOf(rate).derivedFromMock).toBe(true);
+  });
+
+  it.each([
+    [{ value: 42, label: "x" }],
+    [{ value: 3, meta: { page: 1 } }],
+    [new (class Box { constructor() { this.value = 1; } })()],
+  ])("marks ordinary fixture data shaped like a marked value, rather than refuse it (%#)", (data) => {
+    const marked = markFixture(data);
+    expect(unwrap(marked)).toBe(data);
+    expect(metaOf(marked).source).toBe("mock");
   });
 
   it("refuses a value that is already marked, rather than nest or relabel it", () => {
@@ -51,7 +61,27 @@ describe("toBeUntainted — the same check as a matcher registered with expect.e
 
   it("fails with guard's reasons", () => {
     expect(() => expect(fromFixture()).toBeUntainted()).toThrow(/provenance refused: .*mock:/);
-    expect(() => expect(clean()).not.toBeUntainted()).toThrow(/expected the value to carry mock taint/);
+    expect(() => expect(clean()).not.toBeUntainted()).toThrow(/guard let it through/);
+  });
+
+  it("negated, passes only for mock taint: a value guard refuses for another reason is not proof", () => {
+    for (const other of [42, undefined, { value: 1 }]) {
+      expect(() => expect(other).not.toBeUntainted()).toThrow(/guard refused it, but not for mock taint/);
+    }
+  });
+});
+
+describe("assertTainted — the positive claim, verified (twin: assert_tainted)", () => {
+  it("passes only when guard refuses for mock taint", () => {
+    expect(assertTainted(fromFixture())).toBeUndefined();
+  });
+
+  it("fails a value guard refuses for another reason, and a clean one, with Python's wording", () => {
+    for (const other of [42, null, { value: 1, source: "real" }]) {
+      expect(() => assertTainted(other)).toThrow(
+        /^mock taint was expected to reach this value: guard refused it, but not for mock taint/);
+    }
+    expect(() => assertTainted(clean())).toThrow(/^mock taint was expected to reach this value: guard let it through/);
   });
 });
 

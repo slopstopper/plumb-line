@@ -41,9 +41,17 @@ matchers with `expect.extend`. The Python plugin is a module of the package
 - An adopter quarantines a fixture with one decorator or call, and asserts a
   golden output is untainted with one line, in either language.
 - The package gains a pytest entry point: every pytest run in an environment
-  where the package is installed loads the plugin. It defines no hooks,
-  fixtures or options, so loading it changes nothing until a test imports
-  from it.
+  where the package is installed loads the plugin, and so imports the
+  package; an import failure in the package would fail those runs. The
+  plugin defines no hooks, fixtures or options, so it changes no test's
+  behaviour until a test imports from it. The entry point is named after the
+  module, so registering it explicitly as well (`pytest_plugins`, `-p`) is a
+  no-op rather than a clash; `-p no:plumb_line_provenance.pytest_plugin` turns
+  it off.
+- `assert_tainted` / `assertTainted` (and `.not.toBeUntainted()`) verify the
+  opposite claim, that the taint did reach a value: they pass only when
+  `guard` refuses for mock taint, so an unmarked or malformed value is not
+  taken as proof. Settled by the author after review, for both languages.
 - Neither helper is bundled with the Claude Code plugin: they are test
   tooling, and the bundle is the dependency-free runtime core.
 - Stubbed globals and local fake servers (#520) and CI results carrying

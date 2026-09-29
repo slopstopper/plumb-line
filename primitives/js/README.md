@@ -69,9 +69,11 @@ expect(derive([amount, rate], (a, r) => a * r)).not.toBeUntainted();
 expect(amount).toBeUntainted();                        // no mock reached it
 ```
 
-`assertNoTaint(output)` is the same check for any other runner. Marking is
-opt-in per fixture, and a value that is already marked is refused rather than
-relabelled.
+`assertNoTaint(output)` is the same check for any other runner, and
+`assertTainted(output)` (or `.not.toBeUntainted()`) checks the taint did reach
+a value: it passes only when `guard` refuses for mock taint, not for an
+unmarked or malformed value. Marking is opt-in per fixture, and a value that
+is already marked is refused rather than relabelled.
 
 ## HTTP ingestion adapter (`plumb-line-provenance/http`)
 

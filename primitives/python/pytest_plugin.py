@@ -23,15 +23,24 @@ import pytest
 try:  # installed as a package (plumb_line_provenance)
     from .marked import mark
     from .guard import guard, ProvenanceRefused
+    from .audit import validate_envelope
 except ImportError:  # flat / copy-paste usage (modules on sys.path)
     from marked import mark
     from guard import guard, ProvenanceRefused
+    from audit import validate_envelope
 
-__all__ = ['plumb_mock_fixture', 'assert_no_taint']
+__all__ = ['plumb_mock_fixture', 'assert_no_taint', 'assert_tainted']
+
+_NO_TAINT = 'no mock taint may reach a golden output'
+_TAINTED = 'mock taint was expected to reach this value'
 
 
 def _is_marked(value):
-    return isinstance(value, dict) and 'value' in value and 'meta' in value
+    # A marked value, not data that happens to have 'value' and 'meta' keys:
+    # its meta must be a valid envelope (SPEC §5a). The JS twin makes the same
+    # judgement on a plain object's envelope fields.
+    return (isinstance(value, dict) and 'value' in value and 'meta' in value
+            and not validate_envelope(value['meta']))
 
 
 def _quarantine(value):
@@ -50,7 +59,17 @@ def _marking(fn):
         @functools.wraps(fn)
         def yielding(*args, **kwargs):
             gen = fn(*args, **kwargs)
-            yield _quarantine(next(gen))
+            try:
+                value = next(gen)
+            except StopIteration:
+                # pytest's own wording, not "generator raised StopIteration".
+                raise ValueError(f'{fn.__name__} did not yield a value') from None
+            try:
+                marked = _quarantine(value)
+            except BaseException:
+                gen.close()  # run the fixture's own cleanup now, not at collection
+                raise
+            yield marked
             # The rest of the fixture is its teardown.
             yield from gen
         return yielding
@@ -81,7 +100,26 @@ def assert_no_taint(output):
     the envelope or its lineage fails, as does an unmarked or malformed value.
     Raises ``AssertionError`` listing guard's reasons; returns ``None``.
     """
+    __tracebackhide__ = True  # report the failure at the test, not here
     try:
         guard(output)
     except ProvenanceRefused as e:
-        raise AssertionError(f'no mock taint may reach a golden output: {e}') from None
+        raise AssertionError(f'{_NO_TAINT}: {e}') from None
+
+
+def assert_tainted(output):
+    """Fail the test unless guard refuses ``output`` for mock taint.
+
+    The claim that a fixture's taint reached a value, verified: a value guard
+    lets through fails, and so does one it refuses for another reason
+    (unmarked, malformed), which is not proof. The twin of JS's assertTainted
+    and ``expect(x).not.toBeUntainted()``. Returns ``None``.
+    """
+    __tracebackhide__ = True
+    try:
+        guard(output)
+    except ProvenanceRefused as e:
+        if any(r.startswith('mock:') for r in e.reasons):
+            return
+        raise AssertionError(f'{_TAINTED}: guard refused it, but not for mock taint: {e}') from None
+    raise AssertionError(f'{_TAINTED}: guard let it through')

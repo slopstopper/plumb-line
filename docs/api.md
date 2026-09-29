@@ -467,29 +467,46 @@ bundle is the dependency-free runtime.
 `pytest.fixture`, with the fixture's value marked `source='mock'`. Use it as
 `@plumb_mock_fixture` or `@plumb_mock_fixture(scope=...)`: keyword arguments
 go to `pytest.fixture`. A generator fixture's yielded value is marked and its
-teardown still runs. A fixture that returns an already-marked value raises
-`TypeError` (marking it again would nest it, or hide a `real` label behind
-`mock`); an async fixture is refused at decoration. Import it from
+teardown still runs; one that never yields reports it as pytest does. A
+fixture that returns an already-marked value raises `TypeError` (marking it
+again would nest it, or hide a `real` label behind `mock`); "already marked"
+means a real envelope, so ordinary data with `value` and `meta` keys is marked
+like any other. An async fixture is refused at decoration. Import it from
 `plumb_line_provenance.pytest_plugin`. The package registers that module as a
-pytest plugin through its `pytest11` entry point; it is inert unless a test
-uses it, and it is the only module in the package that imports pytest.
+pytest plugin through its `pytest11` entry point, under the module's own name,
+so naming it in `pytest_plugins` or `-p` as well is harmless. It adds no hooks,
+fixtures or options, and it is the only module in the package that imports
+pytest. Loading it does import the package at every pytest start in that
+environment; turn it off with `-p no:plumb_line_provenance.pytest_plugin`.
 
 ### `assert_no_taint(output)` — Python / `assertNoTaint(output)` — JS
 
 Fails the test unless `guard(output)` passes: Python raises `AssertionError`
-(never a `ValueError`, and with no chained cause, so the report is the
-reasons); JS throws an `Error`. Returns nothing.
+(never a `ValueError`, with no chained cause and the plugin's frame hidden, so
+the report is the reasons at the test); JS throws an `Error`. Returns nothing.
+
+### `assert_tainted(output)` — Python / `assertTainted(output)` — JS
+
+The positive claim, verified: fails unless `guard` refuses `output` **for mock
+taint**. A value `guard` lets through fails (`… guard let it through`), and so
+does one it refuses for another reason, an unmarked or malformed value, which
+is not proof that taint reached it (`… guard refused it, but not for mock
+taint: …`). Both languages fail with the prefix `mock taint was expected to
+reach this value:`.
 
 ### `markFixture(value)` — JS (`plumb-line-provenance/vitest`)
 
 Marks a fixture's value `source: "mock"` and returns it. An already-marked
-value throws `TypeError`, as in Python.
+value (a plain object whose envelope fields form a valid envelope) throws
+`TypeError`, as in Python; ordinary data with a `value` key is marked like any
+other.
 
 ### `plumbMatchers` — JS (`plumb-line-provenance/vitest`)
 
 Matchers for `expect.extend(plumbMatchers)`: `expect(x).toBeUntainted()` is
-`assertNoTaint` as a matcher, and `.not.toBeUntainted()` expects the
-refusal. The subpath never imports vitest, so the package stays
+`assertNoTaint` as a matcher, and `.not.toBeUntainted()` is `assertTainted`:
+it passes only when `guard` refuses the value for mock taint, not for a value
+refused for any other reason. The subpath never imports vitest, so the package stays
 dependency-free; the caller registers the matchers.
 
 ```js

@@ -3,19 +3,28 @@
 // supposed to live; this makes the quarantine explicit there. markFixture
 // marks a fixture's value `source: "mock"`, so anything derived from it
 // carries the taint; assertNoTaint and the toBeUntainted matcher fail a test
-// when a golden output still carries it.
+// when a golden output still carries it, and assertTainted (or
+// `.not.toBeUntainted()`) checks that the taint did reach a value.
 //
 // Owner decisions on #123: marking is opt-in per fixture; the check takes a
 // marked value only (#544). The check is the egress guard (#120, SPEC §5c)
 // with its defaults. This module never imports vitest: register the matcher
 // with `expect.extend(plumbMatchers)`. Python twin: pytest_plugin.py.
-import { mark } from "./marked.mjs";
+import { mark, metaOf } from "./marked.mjs";
 import { guard, ProvenanceRefused } from "./guard.mjs";
+import { validateEnvelope } from "./audit.mjs";
 
-const PREFIX = "no mock taint may reach a golden output";
+const NO_TAINT = "no mock taint may reach a golden output";
+const TAINTED = "mock taint was expected to reach this value";
 
+// A marked value, not data that happens to have a `value` key: a plain
+// object whose envelope fields form a valid envelope (SPEC §5a). Python's
+// twin makes the same judgement on {'value', 'meta'}.
 function isMarked(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value) && Object.hasOwn(value, "value");
+  if (value === null || typeof value !== "object" || Array.isArray(value) || !Object.hasOwn(value, "value"))
+    return false;
+  const proto = Object.getPrototypeOf(value);
+  return (proto === Object.prototype || proto === null) && validateEnvelope(metaOf(value)).length === 0;
 }
 
 /**
@@ -32,15 +41,24 @@ export function markFixture(value) {
   return mark(value, { source: "mock" });
 }
 
-// guard's verdict as text: null when the value may leave, else the refusal.
-function refusal(output) {
+// guard's verdict: null when the value may leave, else its refusal.
+function verdict(output) {
   try {
     guard(output);
     return null;
   } catch (e) {
-    if (e instanceof ProvenanceRefused) return e.message;
+    if (e instanceof ProvenanceRefused) return e;
     throw e;
   }
+}
+
+const isMock = (refusal) => refusal.reasons.some((r) => r.startsWith("mock:"));
+
+// Why `output` does not prove mock taint reached it, or null when it does.
+function notTainted(output) {
+  const refusal = verdict(output);
+  if (refusal === null) return "guard let it through";
+  return isMock(refusal) ? null : `guard refused it, but not for mock taint: ${refusal.message}`;
 }
 
 /**
@@ -51,19 +69,39 @@ function refusal(output) {
  * @throws {Error} when mock taint (or an unmarked or malformed value) reaches it
  */
 export function assertNoTaint(output) {
-  const refused = refusal(output);
-  if (refused !== null) throw new Error(`${PREFIX}: ${refused}`);
+  const refusal = verdict(output);
+  if (refusal !== null) throw new Error(`${NO_TAINT}: ${refusal.message}`);
 }
 
 /**
- * Matchers for `expect.extend(plumbMatchers)`: `expect(x).toBeUntainted()`
- * is assertNoTaint as a matcher; `.not.toBeUntainted()` expects the refusal.
+ * Fails unless guard refuses `output` for mock taint: the claim that a
+ * fixture's taint reached it, verified. A value guard refuses for another
+ * reason (unmarked, malformed) is not proof, and fails.
+ * @param {*} output - A marked value expected to carry mock taint
+ * @throws {Error} when guard lets it through, or refuses it for another reason
+ */
+export function assertTainted(output) {
+  const why = notTainted(output);
+  if (why !== null) throw new Error(`${TAINTED}: ${why}`);
+}
+
+/**
+ * Matchers for `expect.extend(plumbMatchers)`. `expect(x).toBeUntainted()` is
+ * assertNoTaint; `.not.toBeUntainted()` is assertTainted: it passes only when
+ * guard refuses for mock taint, never for a value refused for another reason.
  */
 export const plumbMatchers = {
   toBeUntainted(received) {
-    const refused = refusal(received);
-    return refused === null
-      ? { pass: true, message: () => "expected the value to carry mock taint, but guard let it through" }
-      : { pass: false, message: () => `${PREFIX}: ${refused}` };
+    if (this?.isNot) {
+      // Negated: vitest passes the assertion when `pass` is false.
+      const why = notTainted(received);
+      return why === null
+        ? { pass: false, message: () => "expected mock taint, and it is there" }
+        : { pass: true, message: () => `${TAINTED}: ${why}` };
+    }
+    const refusal = verdict(received);
+    return refusal === null
+      ? { pass: true, message: () => `${TAINTED}: guard let it through` }
+      : { pass: false, message: () => `${NO_TAINT}: ${refusal.message}` };
   },
 };
