@@ -26,7 +26,7 @@ has four required fields and several optional ones.
 | `derivedFromMock` | yes | boolean         | `true` if this value or any ancestor was mock-sourced.              |
 | `lineage`         | yes | array of step   | One step per input captured at each combination (§4).               |
 | `confidenceScore` | no  | number `[0,1]`  | Higher-resolution companion to `confidence` (§3).                   |
-| `weakestSource`   | no  | enum (§2)       | Least-trustworthy `source` in the ancestry; computed only (§4).     |
+| `weakestSource`   | no  | enum (§2)       | Least-trustworthy `source` in the ancestry; computed by the law (§4). |
 | `basis`           | no  | any             | Free-form note on the derivation; by convention, an operation label naming the transform (§4). |
 | `adapter`         | no  | any             | Free-form enforcement-adapter annotation.                           |
 | `provenanceVersion` | no | integer        | The `PROVENANCE_VERSION` the producer stamped; read by the audit (§5b). |
@@ -285,12 +285,15 @@ Two guarantees follow from this construction:
   suffix) — see ADR-0010 for the rejected alternatives (random UUIDs, a
   flat field-only hash with no ancestry).
 
-`weakestSource` is **computed only**: it is derived from the lineage and MUST NOT
-be settable as a combination override. An implementation MUST NOT let a caller
-hand-set `weakestSource` to a value cleaner than the lineage proves (the audit in
-§5 catches violations: check 4 against the lineage, and check 8 on a value with
-no lineage, where a leaf's hand-set `weakestSource` has nothing else to
-contradict it; #553).
+`weakestSource` is **computed by the law**: it is derived from the lineage and
+MUST NOT be settable as a combination override. A constructor may accept a
+hand-set value (the reference implementations do), but a value cleaner than
+the lineage proves MUST be flagged by the audit in §5: check 4 against the
+lineage; check 8 on a value with no lineage, where a leaf's hand-set
+`weakestSource` has nothing else to contradict it; and check 4's companion,
+a stated value over a lineage with an unknown source, which cannot be shown
+(#553, #551). Until v0.12.0 this paragraph said a caller MUST NOT be able to
+hand-set it, which the reference implementations never enforced.
 
 An output whose `source` is `"derived"` MUST have a non-empty `lineage`; a
 derived value with no lineage is unreproducible (§5).
@@ -331,10 +334,10 @@ checker MUST detect each of the following:
 | 4 | Source over-claim      | `weakestSource` cleaner (higher-ranked) than the weakest `source` present in the lineage.  |
 | 5 | Dropped taint          | a tainted lineage step exists (by the §3 rule) but `derivedFromMock` is `false`.           |
 | 6 | Unreproducible         | `source` is `"derived"` but `lineage` is empty.                                            |
-| 7 | Source over-claim      | `source` (other than `"derived"`, the law's own label) cleaner than `weakestSource`: a value relabelled above its ancestry (#556). |
-| 8 | Source over-claim      | `lineage` is empty and `weakestSource` is cleaner than `source` (#553).                   |
+| 7 | Source over-claim      | `source` cleaner than its ancestry's weakest source: the weaker of `weakestSource` and, when every step's source is known, the lineage's own weakest. A value relabelled above its ancestry (#556). `"derived"`, the law's own label, is exempt on both sides: as `source`, and as a floor, which means an ancestry of derived and real steps only. |
+| 8 | Source over-claim      | `lineage` is empty and `weakestSource` is cleaner than `source` (#553); or `weakestSource` is stated but a lineage step's source is unknown, so it cannot be shown (#551). |
 | 9 | Unknown source         | a lineage step that is not an object, or whose `source` is missing, `null` or off the ladder (#551). |
-| 10 | Malformed taint flag  | a lineage step whose `derivedFromMock` is present and not a boolean (#551; §3, #555).      |
+| 10 | Malformed taint flag  | a lineage step whose `derivedFromMock` is not a boolean; `null` counts as absent, as at construction (§2), though the egress guard refuses a `null` step flag (#551; §3, #555). |
 
 Checks 9 and 10 name what cannot be read instead of reading it as clean
 (ADR-0014): an unknown step is not called mock, and it is not ignored. Their
@@ -523,7 +526,7 @@ Python (`mark(v, source=…)`); the rules are otherwise identical.
 | --- | ---------------------------------------------------------------------------------------------------- | -------------------- |
 | PB1 | a clean `source` (`real`/`semiReal`/`fallback`) asserted together with `derivedFromMock` literal `true` | laundering (#1) |
 | PB2 | `derivedFromMock` literal `false` passed as a `derive` **override** (a genuine no-op the law ignores) | — |
-| PB3 | a clean `source` passed as a `derive` override (relabeling a derived value)                           | laundering (#1) |
+| PB3 | a clean `source` passed as a `derive` override (relabeling a derived value)                           | laundering (#1); source over-claim (#7) when the ancestry is weaker without mock |
 | PB4 | `mark(unwrap(x), …)` — re-marking a value pulled out via the import-bound `unwrap`, dropping its lineage | unreproducible (#6) |
 
 Reference implementations: `adapters/js/provenance-lint/` (an ESLint rule,

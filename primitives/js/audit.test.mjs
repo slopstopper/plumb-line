@@ -274,3 +274,20 @@ describe("validateEnvelope", () => {
     expect(validateEnvelope([]).join(" ")).toContain("not an envelope object");
   });
 });
+
+describe("a malformed step taint flag is not read as taint (#555; pinned after the #551 review)", () => {
+  // The cases.json rows assert the malformed-flag issue; this asserts the
+  // absence of "taint dropped", which a contains-check cannot.
+  for (const flag of [[], {}, 0, "", "false", "true", 1]) {
+    it(`derivedFromMock ${JSON.stringify(flag)} on a step does not read as dropped taint`, () => {
+      const meta = {
+        provenanceVersion: PROVENANCE_VERSION, source: "derived", confidence: "high", derivedFromMock: false,
+        lineage: [{ id: "s1", of: "input", source: "real", confidence: "high", derivedFromMock: flag }],
+        weakestSource: "real",
+      };
+      const issues = auditMeta(meta);
+      expect(issues.some((i) => i.startsWith("taint dropped:"))).toBe(false);
+      expect(issues).toContain("malformed taint flag: lineage step 0 derivedFromMock is not a boolean");
+    });
+  }
+});

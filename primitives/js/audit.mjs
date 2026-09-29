@@ -11,13 +11,35 @@ import {
 
 const CLEAN_SOURCES = ["real", "semiReal", "fallback"];
 
+/** The weakest of a stated weakestSource and, when every lineage step's
+ * source is on the ladder, the lineage's own weakest source; undefined when
+ * neither is known. A loop, not a spread, so a long lineage cannot overflow
+ * the stack here. Python twin: _ancestry_floor. */
+function ancestryFloor(stated, lineage) {
+  let floor = STATUS.includes(stated) ? STATUS.indexOf(stated) : -1;
+  if (lineage.length > 0 && lineage.every((s) => STATUS.includes(s?.source))) {
+    for (const s of lineage) {
+      const i = STATUS.indexOf(s.source);
+      if (floor === -1 || i < floor) floor = i;
+    }
+  }
+  return floor === -1 ? undefined : STATUS[floor];
+}
+
 /**
  * Checks a provenance metadata envelope for internal consistency.
  * Returns an empty array when the envelope is consistent; otherwise returns
  * one string per issue found. Issue prefixes:
  * - `"laundering:"` — a clean source combined with mock taint
  * - `"over-claiming:"` — confidence or confidenceScore higher than lineage supports
- * - `"source over-claim:"` — weakestSource cleaner than lineage proves
+ * - `"source over-claim:"` — weakestSource cleaner than lineage proves, or
+ *   stated over a lineage with an unknown source; a source (other than
+ *   "derived") cleaner than its ancestry's weakest source (#556); with no
+ *   lineage, weakestSource cleaner than source (#553)
+ * - `"unknown source:"` — a lineage step that is not an object, or whose
+ *   source is missing, null or off the ladder (#551)
+ * - `"malformed taint flag:"` — a lineage step whose derivedFromMock is not a
+ *   boolean; null counts as absent (#551, #555)
  * - `"taint dropped:"` — a tainted lineage step but derivedFromMock is false
  * - `"unreproducible:"` — source is "derived" but lineage is empty
  * - `"missing meta"` — null, undefined, a primitive, an array, or any object
@@ -138,11 +160,22 @@ export function auditMeta(meta) {
   }
 
   // A value relabelled above its own ancestry (#556): a source cleaner than
-  // the weakest source it derives from. "derived" is the law's own label for
-  // a computed value, not a claim about its inputs, so it is exempt.
-  if (meta.source !== "derived" && STATUS.includes(meta.source) && STATUS.includes(meta.weakestSource)
-      && STATUS.indexOf(meta.source) > STATUS.indexOf(meta.weakestSource)) {
-    issues.push(`source over-claim: source '${meta.source}' is cleaner than weakestSource '${meta.weakestSource}'`);
+  // the weakest source its ancestry shows, from the stated weakestSource and,
+  // when every step's source is known, the lineage itself (a handed envelope
+  // can omit weakestSource). "derived" is the law's own label for a computed
+  // value, not a claim about its inputs, so it is exempt on both sides: a
+  // floor of "derived" means an ancestry of derived and real steps only, as
+  // a derive of a derive of real data has (#556 review).
+  const floor = ancestryFloor(meta.weakestSource, lineage);
+  if (meta.source !== "derived" && STATUS.includes(meta.source) && floor !== undefined && floor !== "derived"
+      && STATUS.indexOf(meta.source) > STATUS.indexOf(floor)) {
+    issues.push(`source over-claim: source '${meta.source}' is cleaner than its ancestry's weakest source '${floor}'`);
+  }
+  // A stated weakestSource over a lineage with an unknown source cannot be
+  // shown: the law omits it there (§3 rule 6), and check 4 reads the known
+  // steps alone (#551 review).
+  if (STATUS.includes(meta.weakestSource) && lineage.some((s) => !STATUS.includes(s?.source))) {
+    issues.push(`source over-claim: weakestSource '${meta.weakestSource}' cannot be shown: a lineage step's source is unknown`);
   }
   // A leaf's weakestSource cleaner than its own source, with no lineage to
   // show it (#553): check 4 above has nothing to compare it with.

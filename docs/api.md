@@ -147,9 +147,9 @@ a category:
 |---|---|
 | `"laundering:"` | A clean `source` (`real`, `semiReal`, `fallback`) but `derivedFromMock` is `true` |
 | `"over-claiming:"` | `confidence` or `confidenceScore` is higher than the lineage supports |
-| `"source over-claim:"` | `weakestSource` is cleaner than the lineage proves; or `source` (other than `"derived"`) is cleaner than `weakestSource`, a relabelled value (#556); or, with no lineage, `weakestSource` is cleaner than `source` (#553) |
+| `"source over-claim:"` | `weakestSource` is cleaner than the lineage proves, or is stated over a lineage with an unknown source; or `source` (other than `"derived"`) is cleaner than its ancestry's weakest source, a relabelled value (#556); or, with no lineage, `weakestSource` is cleaner than `source` (#553) |
 | `"unknown source:"` | A lineage step that is not an object, or whose `source` is missing, `null` or off the ladder (#551) |
-| `"malformed taint flag:"` | A lineage step whose `derivedFromMock` is present and not a boolean (#551, #555) |
+| `"malformed taint flag:"` | A lineage step whose `derivedFromMock` is not a boolean; `null` counts as absent (#551, #555) |
 | `"taint dropped:"` | A lineage step that taints (by the rule of `taints`) but `derivedFromMock` is `false` |
 | `"unreproducible:"` | `source` is `"derived"` but `lineage` is empty |
 | `"version-legacy:"` | `provenanceVersion` is absent or lower than the current wire version (advisory; `{}` returns only this) |

@@ -421,22 +421,31 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   - **`combine` omits `weakestSource` when any ancestor's source is
     unknown.** Before, `combine(real, <input with no source>)` said
     `weakestSource: "real"`. Two rows that expected it now expect it
-    absent.
+    absent. A consumer that filters on `weakestSource` loses the known floor
+    in that case (`combine(fallback, <unknown>)` used to say `"fallback"`).
+    The guard loses nothing: it refuses the unknown step. A `weakestSource`
+    stated over such a lineage is flagged, since it cannot be shown.
   - **New audit issues:** `unknown source:` for a lineage step that is not
     an object or whose `source` is missing, `null` or off the ladder, and
     `malformed taint flag:` for a step whose `derivedFromMock` is not a
     boolean (#555 made that neither taint nor clean). Neither calls
-    anything mock. The egress guard refuses them through its `audit:`
-    reasons as well as its `invalid envelope:` checks.
+    anything mock. The egress guard already refuses such a step as an
+    `invalid envelope:`, and returns that alone, so these name it for the
+    audit's own readers.
   - **`source over-claim:` covers a relabelled value.** A `source` cleaner
-    than `weakestSource` (`derive([fallback], fn, {source: "real"})`) is
-    flagged, and so the guard refuses it. `"derived"` is exempt, since it is
-    the law's own label. `docs/threat-model.md` said the audit caught this;
-    it did so only when mock taint was involved.
+    than its ancestry's weakest source (`derive([fallback], fn, {source:
+    "real"})`) is flagged, and so the guard refuses it, with `noMock: false`
+    too. The weakest source is read from `weakestSource`, and also from the
+    lineage when a handed envelope omits it. `"derived"` is exempt on both
+    sides, since it is the law's own label: a derive of a derive of real data
+    relabelled `real` passes, as the one-level case does. A leaf whose
+    `weakestSource` is dirtier than its `source` is flagged too.
+    `docs/threat-model.md` said the audit caught a relabel; it did so only
+    when mock taint was involved.
   - **A leaf's hand-set `weakestSource` cleaner than its own `source` is
     flagged** (`mark(v, {source: "fallback", weakestSource: "real"})`). The
-    primitives README said it could not be hand-set; it is not refused, and
-    the README now says the audit flags it.
+    primitives README and SPEC §4 said it could not be hand-set. It is not
+    refused, and both now say the audit flags it.
 - **`combine` agrees across languages on handed envelopes that are not
   well formed** ([#525](https://github.com/slopstopper/plumb-line/issues/525);
   SPEC §3, §4; `primitives/PARITY.md`). The same inputs gave different results

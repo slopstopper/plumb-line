@@ -208,3 +208,18 @@ def test_fractional_version_is_malformed_integral_float_is_valid():
     assert at(2.5) == ['version-malformed: provenance version is not an integer']
     assert at(1.5) == ['version-malformed: provenance version is not an integer']
     assert at(2.0) == []
+
+
+
+def test_a_malformed_step_taint_flag_is_not_read_as_taint():
+    """#555, pinned after the #551 review: the cases.json rows assert the
+    malformed-flag issue; this asserts the absence of 'taint dropped', which a
+    contains-check cannot. JS twin in audit.test.mjs."""
+    for flag in ([], {}, 0, '', 'false', 'true', 1):
+        meta = {'provenance_version': 2, 'source': 'derived', 'confidence': 'high', 'derived_from_mock': False,
+                'lineage': [{'id': 's1', 'of': 'input', 'source': 'real', 'confidence': 'high',
+                             'derived_from_mock': flag}],
+                'weakest_source': 'real'}
+        issues = a.audit_meta(meta)
+        assert not any(i.startswith('taint dropped:') for i in issues), (flag, issues)
+        assert 'malformed taint flag: lineage step 0 derivedFromMock is not a boolean' in issues, (flag, issues)

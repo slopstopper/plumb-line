@@ -86,6 +86,7 @@ report provenance:
 
 attempted launder (derive with source: "real"):
   laundering: clean source 'real' but derivedFromMock is true
+  source over-claim: source 'real' is cleaner than its ancestry's weakest source 'mock'
 ```
 
 Same code, same "operational". The second version knows that three of its five results came from stubs, and when the code tries to relabel the report as real, the library refuses. That is the whole idea: a mocked result cannot be laundered into a real one.
