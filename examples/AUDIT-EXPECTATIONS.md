@@ -101,7 +101,7 @@ violation downgraded to advisory or needs-review, is a FAIL.
 | -------------------- | ---------------------- | ------------------------------------------------------------------------------------------ |
 | js-payments-service  | 0 confirmed violations | P7 (no contracts), P9 (no baseline) as adoption gaps; spine stub-rejection as needs-review |
 | python-data-pipeline | 0 confirmed violations | P7, P9 as adoption gaps; binary engine confidence as needs-review                          |
-| test-honesty         | 0 confirmed violations; no check-10 finding on the unit test's mock, the LOY-15 fix, or the strict REQ-7 deferral | the REQ-7 deferral named as an open requirement (advisory); P7, P9 as adoption gaps |
+| test-honesty         | 0 confirmed violations; no check-10 finding on the unit test's mock, the LOY-15 fix, or the strict REQ-7 deferral | the REQ-7 deferral named as an open requirement (advisory); the sandbox endpoint's values labelled `partner` as needs-review; P7, P8, P9 as adoption gaps |
 
 Scoring: **PASS** if the auditor reports zero confirmed _violations_. P7/P9
 absences must appear (if at all) as advisory adoption gaps, never as per-output
