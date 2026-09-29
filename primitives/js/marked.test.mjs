@@ -145,3 +145,25 @@ describe("derive refuses a derivedFromMock override that is not a boolean (#555,
     }
   });
 });
+
+
+describe("derive refuses an input that is not a marked value (#550)", () => {
+  // A marked value as the guard reads one: a plain object holding `value`.
+  // JS used to combine an unmarked object or null as an unknown input and
+  // throw an unrelated TypeError on a number; Python raised on all three.
+  const clean = mark(1, { source: "real", confidence: "high" });
+  class Box { constructor() { this.value = 1; } }
+  for (const [label, input] of [["an object", { a: 1 }], ["null", null], ["a number", 3],
+    ["an array", [1]], ["a class instance", new Box()], ["undefined", undefined]]) {
+    it(`refuses ${label}, naming its position, before calling fn`, () => {
+      let called = false;
+      expect(() => derive([clean, input], () => { called = true; }))
+        .toThrow(new TypeError("derive: input 1 is not a marked value (mark it first)"));
+      expect(called).toBe(false);
+    });
+  }
+  it("still accepts marked values, including a handed one with an empty envelope", () => {
+    expect(derive([clean], (v) => v + 1).value).toBe(2);
+    expect(derive([{ value: 2 }], (v) => v).lineage[0].source).toBe(null);
+  });
+});

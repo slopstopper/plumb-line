@@ -73,6 +73,14 @@ def derive(inputs, fn, **meta_override):
     Returns:
         dict: ``{"value": ..., "meta": {...}}``.
     """
+    # Every input must be a marked value, as the egress guard reads one: a dict
+    # holding 'value' and 'meta' (#550). Python raised an unrelated KeyError
+    # or TypeError here while the JS twin combined an unmarked object or None
+    # as an unknown input; unknown provenance is kept out at the source.
+    # Checked before fn runs.
+    for i, item in enumerate(inputs):
+        if not (isinstance(item, dict) and 'value' in item and 'meta' in item):
+            raise TypeError(f'derive: input {i} is not a marked value (mark it first)')
     value = fn(*[unwrap(i) for i in inputs])
     combined = combine_provenance(*[meta_of(i) for i in inputs])
     overridden = dict(combined)

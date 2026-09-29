@@ -411,6 +411,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **`derive` refuses an input that is not a marked value, in both
+  languages (breaking for JS callers who passed one)**
+  ([#550](https://github.com/slopstopper/plumb-line/issues/550); SPEC §2).
+  JS used to combine an unmarked object or `null` as an unknown input, giving
+  a result whose headline `derivedFromMock` was `false`. It threw an
+  unrelated `TypeError` on a number, and Python raised an unrelated
+  `KeyError` or `TypeError` on all three. Both now throw the same
+  `TypeError`, `derive: input N is not a marked value (mark it first)`,
+  before the function runs. A marked value is the shape the egress guard
+  reads.
 - **`combine` agrees across languages on handed envelopes that are not
   well formed** ([#525](https://github.com/slopstopper/plumb-line/issues/525);
   SPEC §3, §4; `primitives/PARITY.md`). The same inputs gave different results

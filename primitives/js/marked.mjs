@@ -53,6 +53,14 @@ export function metaOf(marked) {
   return meta;
 }
 
+/** A plain (object-literal or null-prototype) object holding `value`: the
+ * shape mark() and derive() build, and the one guard() reads (#550). */
+function isMarkedValue(x) {
+  if (x === null || typeof x !== "object" || Array.isArray(x)) return false;
+  const proto = Object.getPrototypeOf(x);
+  return (proto === Object.prototype || proto === null) && Object.hasOwn(x, "value");
+}
+
 /**
  * Derives a new marked value from one or more marked inputs.
  * The combination law is applied automatically: mock taint and the weakest
@@ -66,6 +74,15 @@ export function metaOf(marked) {
  * @returns {Readonly<{value: *, source: string, confidence: string, derivedFromMock: boolean, lineage: object[]}>}
  */
 export function derive(inputs, fn, metaOverride = {}) {
+  // Every input must be a marked value, as the egress guard reads one: a plain
+  // object holding `value` beside the envelope fields (#550). An unmarked
+  // object or null used to be combined as an unknown input here, while the
+  // Python twin raised; unknown provenance is kept out at the source.
+  // Checked before fn runs.
+  inputs.forEach((input, i) => {
+    if (!isMarkedValue(input))
+      throw new TypeError(`derive: input ${i} is not a marked value (mark it first)`);
+  });
   const value = fn(...inputs.map(unwrap));
   const combined = combineProvenance(...inputs.map(metaOf));
   const safeOverride = {};

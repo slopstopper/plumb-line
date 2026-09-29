@@ -89,6 +89,12 @@ The combination law is applied automatically:
 
 **Returns** a marked value with `source: "derived"`.
 
+Every input must be a marked value (since v0.12.0, #550): in JS a plain
+object holding `value`, in Python a dict holding `value` and `meta`, as the
+egress guard reads them. Anything else is refused, before `fn` runs, with a
+`TypeError`: `derive: input 1 is not a marked value (mark it first)`, where
+the position counts from 0.
+
 ```js
 // JavaScript
 const a = mark(10, { source: "real", confidence: "high" });
