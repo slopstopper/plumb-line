@@ -106,8 +106,11 @@ export function makeMeta({
     // and (b) a step shared across parent/child metas can't leak a mutation from
     // one into the other — the audit trail an auditMeta() trusts stays intact.
     lineage: Object.freeze(
+      // An array step stays an array (#525): spread into an object it
+      // became {"0": ..., "1": ...}, a history rewritten in the copy.
       (Array.isArray(lineage) ? lineage : []).map((s) =>
-        s && typeof s === "object" ? Object.freeze({ ...s }) : s,
+        Array.isArray(s) ? Object.freeze([...s])
+          : s && typeof s === "object" ? Object.freeze({ ...s }) : s,
       ),
     ),
   };
@@ -139,13 +142,27 @@ export function weakestConfidence(...levels) {
 }
 
 /**
- * Returns true when the envelope carries mock taint
- * (either `derivedFromMock` is truthy or `source` is `"mock"`).
+ * Whether a `derivedFromMock` value marks taint: anything other than `false`
+ * or absent (`null` counts as absent) does (SPEC §3, #525). No constructor
+ * stores a non-boolean, but a handed envelope can carry one, and a stray
+ * `0`, `""` or `[]` must not clear taint. Not truthiness: JS and Python
+ * disagree on `[]` and `{}`. Python twin: _taint_flag.
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function taintFlag(value) {
+  return value !== undefined && value !== null && value !== false;
+}
+
+/**
+ * Returns true when the envelope carries mock taint: its `derivedFromMock` is
+ * anything other than `false` or absent (see taintFlag), or its `source` is
+ * `"mock"`.
  * @param {object|null|undefined} meta
  * @returns {boolean}
  */
 export function taints(meta) {
-  return Boolean(meta?.derivedFromMock) || meta?.source === "mock";
+  return taintFlag(meta?.derivedFromMock) || meta?.source === "mock";
 }
 
 /**
@@ -215,12 +232,15 @@ export function combineProvenance(...metas) {
     Array.isArray(m?.lineage) ? m.lineage : [],
   );
   const inputSteps = metas.map((m) => {
-    const step = {
-      of: "input",
-      source: m?.source,
-      confidence: m?.confidence,
-      derivedFromMock: taints(m),
-    };
+    // The input's source and confidence are recorded as it carries them, and
+    // left off when it carries none, as for an input that is not an envelope
+    // (#525). The Python twin cannot tell undefined from None, so neither
+    // records an absent field.
+    const step = { of: "input" };
+    const own = m !== null && typeof m === "object" && !Array.isArray(m);
+    if (own && Object.hasOwn(m, "source")) step.source = m.source;
+    if (own && Object.hasOwn(m, "confidence")) step.confidence = m.confidence;
+    step.derivedFromMock = taints(m);
     // Record the numeric score too when the input carries one, so the numeric
     // over-claim audit works on real derive output, not just hand-built metas.
     if (isScore(m?.confidenceScore)) step.confidenceScore = m.confidenceScore;
@@ -240,6 +260,28 @@ export function combineProvenance(...metas) {
     // Weakest source anywhere in the ancestry, read off the full lineage.
     weakestSource: weakestSource(...lineage.map((s) => s?.source)),
   });
+}
+
+/**
+ * One `of` / `source` / `confidence` value as the step-id canon writes it
+ * (SPEC §4, #525). A string is itself and an absent value is empty, as
+ * always; any other value a handed envelope can carry is written by type, the
+ * same in both languages: a boolean as true/false, a number as its IEEE-754
+ * bit pattern (so 1 and 1.0 agree), an array or object as <array> / <object>.
+ * Python twin: _canon_field.
+ * @param {unknown} v
+ * @returns {string}
+ */
+function canonField(v) {
+  if (v === undefined || v === null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "boolean") return v ? "true" : "false";
+  if (typeof v === "number" || typeof v === "bigint") {
+    const buf = Buffer.alloc(8);
+    buf.writeDoubleBE(Number(v));
+    return buf.toString("hex");
+  }
+  return Array.isArray(v) ? "<array>" : "<object>";
 }
 
 /**
@@ -263,10 +305,10 @@ export function stepId(step, inputIds = []) {
     score = buf.toString("hex");
   }
   const canon = [
-    `of=${step?.of ?? ""}`,
-    `source=${step?.source ?? ""}`,
-    `confidence=${step?.confidence ?? ""}`,
-    `derivedFromMock=${step?.derivedFromMock ? "true" : "false"}`,
+    `of=${canonField(step?.of)}`,
+    `source=${canonField(step?.source)}`,
+    `confidence=${canonField(step?.confidence)}`,
+    `derivedFromMock=${taintFlag(step?.derivedFromMock) ? "true" : "false"}`,
     `confidenceScore=${score}`,
     `inputs=${[...inputIds].sort().join(",")}`,
   ].join("\n");

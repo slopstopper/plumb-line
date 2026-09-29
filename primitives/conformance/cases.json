@@ -84,6 +84,117 @@
       ],
       "expect": { "source": "derived", "derivedFromMock": true, "weakestSource": "mock", "confidenceScore": 0.00001 },
       "expectLineageIds": ["sha256:2bdad8542ba4", "sha256:4c2bcbf6481c"]
+    },
+    {
+      "name": "a handed confidence true gives the same step id in both languages: a boolean serializes as true/false (#525)",
+      "inputs": [
+        { "source": "real", "confidence": true, "derivedFromMock": false, "lineage": [] }
+      ],
+      "expect": {"source": "derived", "confidence": "none", "derivedFromMock": false, "weakestSource": "real"},
+      "expectLineageIds": ["sha256:76c0a59ca720"]
+    },
+    {
+      "name": "a handed numeric confidence serializes as its IEEE-754 bit pattern, so 1.0 and 1 give one id in both languages (#525)",
+      "inputs": [
+        { "source": "real", "confidence": 1.0, "derivedFromMock": false, "lineage": [] },
+        { "source": "real", "confidence": 1, "derivedFromMock": false, "lineage": [] },
+        { "source": "real", "confidence": 1e-07, "derivedFromMock": false, "lineage": [] }
+      ],
+      "expect": {"source": "derived", "confidence": "none", "derivedFromMock": false, "weakestSource": "real"},
+      "expectLineageIds": ["sha256:7f455f6cba9e", "sha256:7f455f6cba9e", "sha256:4e93a0381654"]
+    },
+    {
+      "name": "a handed array or object confidence, or a boolean source, serializes by type (<array>, <object>, false), the same in both languages (#525)",
+      "inputs": [
+        { "source": "real", "confidence": ["a", 1], "derivedFromMock": false, "lineage": [] },
+        { "source": "real", "confidence": { "a": 1 }, "derivedFromMock": false, "lineage": [] },
+        { "source": false, "confidence": "high", "derivedFromMock": false, "lineage": [] }
+      ],
+      "expect": {"source": "derived", "confidence": "none", "derivedFromMock": false, "weakestSource": "real"},
+      "expectLineageIds": ["sha256:2d2b46004459", "sha256:1226d4196f56", "sha256:d254157efc1a"]
+    },
+    {
+      "name": "an input that is not an envelope (a string, a number, a boolean, an array, null) combines in both languages: its step has no source or confidence (#525)",
+      "inputs": [
+        "x",
+        3,
+        true,
+        ["a"],
+        null
+      ],
+      "expect": {"source": "derived", "confidence": "none", "derivedFromMock": false},
+      "absent": ["weakestSource", "confidenceScore"],
+      "expectLineage": [
+        {"of": "input", "derivedFromMock": false, "id": "sha256:3f0b169fa1be"},
+        {"of": "input", "derivedFromMock": false, "id": "sha256:3f0b169fa1be"},
+        {"of": "input", "derivedFromMock": false, "id": "sha256:3f0b169fa1be"},
+        {"of": "input", "derivedFromMock": false, "id": "sha256:3f0b169fa1be"},
+        {"of": "input", "derivedFromMock": false, "id": "sha256:3f0b169fa1be"}
+      ]
+    },
+    {
+      "name": "a source or confidence the input carries as null is recorded as null; one it lacks is left off the step (#525)",
+      "inputs": [
+        { "source": null, "confidence": null, "derivedFromMock": false, "lineage": [] },
+        { "derivedFromMock": false, "lineage": [] }
+      ],
+      "expect": {"source": "derived", "confidence": "none", "derivedFromMock": false},
+      "absent": ["weakestSource"],
+      "expectLineage": [
+        {"of": "input", "source": null, "confidence": null, "derivedFromMock": false, "id": "sha256:3f0b169fa1be"},
+        {"of": "input", "derivedFromMock": false, "id": "sha256:3f0b169fa1be"}
+      ]
+    },
+    {
+      "name": "prior lineage steps that are not objects are kept verbatim, an array as an array, and only string ids feed the new step's id (#525)",
+      "inputs": [
+        { "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": ["x", 3, null, ["a", "b"], { "id": 5, "source": "real" }, { "id": "sha256:aaaaaaaaaaaa", "source": "real" }] }
+      ],
+      "expect": {"source": "derived", "confidence": "high", "derivedFromMock": false, "weakestSource": "real"},
+      "expectLineage": [
+        "x",
+        3,
+        null,
+        ["a", "b"],
+        {"id": 5, "source": "real"},
+        {"id": "sha256:aaaaaaaaaaaa", "source": "real"},
+        {"of": "input", "source": "real", "confidence": "high", "derivedFromMock": false, "id": "sha256:e9241bcc8a4f"}
+      ]
+    },
+    {
+      "name": "a lineage that is not an array contributes no prior steps, in both languages (#525)",
+      "inputs": [
+        { "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": "abc" },
+        { "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": { "a": 1 } }
+      ],
+      "expect": {"source": "derived", "confidence": "high", "derivedFromMock": false, "weakestSource": "real"},
+      "expectLineageIds": ["sha256:097181b20233", "sha256:097181b20233"]
+    },
+    {
+      "name": "any derivedFromMock other than false or absent taints, in both languages: [], {}, 0, \"\" and \"false\" each taint (§3; #525)",
+      "inputs": [
+        { "source": "real", "confidence": "high", "derivedFromMock": [], "lineage": [] },
+        { "source": "real", "confidence": "high", "derivedFromMock": {}, "lineage": [] },
+        { "source": "real", "confidence": "high", "derivedFromMock": 0, "lineage": [] },
+        { "source": "real", "confidence": "high", "derivedFromMock": "", "lineage": [] },
+        { "source": "real", "confidence": "high", "derivedFromMock": "false", "lineage": [] }
+      ],
+      "expect": {"source": "derived", "confidence": "high", "derivedFromMock": true, "weakestSource": "real"},
+      "expectLineage": [
+        {"of": "input", "source": "real", "confidence": "high", "derivedFromMock": true, "id": "sha256:e893cd967ce3"},
+        {"of": "input", "source": "real", "confidence": "high", "derivedFromMock": true, "id": "sha256:e893cd967ce3"},
+        {"of": "input", "source": "real", "confidence": "high", "derivedFromMock": true, "id": "sha256:e893cd967ce3"},
+        {"of": "input", "source": "real", "confidence": "high", "derivedFromMock": true, "id": "sha256:e893cd967ce3"},
+        {"of": "input", "source": "real", "confidence": "high", "derivedFromMock": true, "id": "sha256:e893cd967ce3"}
+      ]
+    },
+    {
+      "name": "a derivedFromMock of null counts as absent and does not taint (§3; #525)",
+      "inputs": [
+        { "source": "real", "confidence": "high", "derivedFromMock": null, "lineage": [] }
+      ],
+      "expect": {"source": "derived", "confidence": "high", "derivedFromMock": false, "weakestSource": "real"},
+      "expectLineageIds": ["sha256:097181b20233"]
     }
   ],
   "audit": [

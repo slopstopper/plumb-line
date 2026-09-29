@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 import struct
 
 # Schema version of the provenance metadata envelope (Principle 7). Declared so
@@ -113,7 +114,9 @@ def make_meta(source=_REQUIRED, confidence='none', confidence_score=None,
         # so mutating one envelope's history can't rewrite a sibling that shares
         # ancestry. Python has no cheap deep-freeze, so this isolates ownership
         # rather than enforcing the true immutability the JS Object.freeze gives.
-        'lineage': [dict(s) if isinstance(s, dict) else s for s in lineage] if isinstance(lineage, list) else [],
+        # A list step is copied as a list, as the JS twin copies an array (#525).
+        'lineage': [dict(s) if isinstance(s, dict) else list(s) if isinstance(s, list) else s
+                    for s in lineage] if isinstance(lineage, list) else [],
     }
     # Optional numeric confidence — a finer-grained companion to the ordinal
     # `confidence`, never a replacement. Stored only when it is a valid score.
@@ -148,20 +151,36 @@ def weakest_confidence(*levels):
         min_idx = min(min_idx, idx)
     return CONFIDENCE[min_idx]
 
+def _taint_flag(value):
+    """Whether a ``derived_from_mock`` value marks taint: anything other than
+    False or absent (None counts as absent) does (SPEC §3, #525). No
+    constructor stores a non-boolean, but a handed envelope can carry one, and
+    a stray 0, "" or [] must not clear taint. Not truthiness: Python and JS
+    disagree on [] and {}. JS twin: taintFlag."""
+    return value is not None and value is not False
+
+
+def _field(meta, key):
+    """``meta[key]`` for a dict envelope, else None: an input that is not an
+    envelope carries no fields, as in the JS twin, where ``m?.key`` is
+    undefined for a string or a number (#525)."""
+    return meta.get(key) if isinstance(meta, dict) else None
+
+
 def taints(meta):
     """Return True when the envelope carries mock taint.
 
-    Taint is present when ``derived_from_mock`` is truthy or ``source`` is ``"mock"``.
+    Taint is present when ``derived_from_mock`` is anything other than False
+    or absent (see :func:`_taint_flag`), or ``source`` is ``"mock"``.
 
     Args:
-        meta: Provenance metadata dict, or None.
+        meta: Provenance metadata dict, or any other value (which carries no
+            taint of its own).
 
     Returns:
         bool
     """
-    if not meta:
-        return False
-    return bool(meta.get('derived_from_mock')) or meta.get('source') == 'mock'
+    return _taint_flag(_field(meta, 'derived_from_mock')) or _field(meta, 'source') == 'mock'
 
 def weakest_source(*sources):
     """Return the least-trustworthy source by STATUS rank.
@@ -215,32 +234,37 @@ def combine_provenance(*metas):
     if not metas:
         return make_meta(source='unavailable', confidence='none',
                          derived_from_mock=False, lineage=[])
+    # Total over any input, as the JS twin is (#525): a value that is not an
+    # envelope, a lineage that is not a list and a step that is not a dict are
+    # read as carrying nothing, never an AttributeError.
     derived_from_mock = any(taints(m) for m in metas)
-    confidence = weakest_confidence(*[(m or {}).get('confidence') for m in metas])
-    confidence_score = combine_confidence_score([(m or {}).get('confidence_score') for m in metas])
+    confidence = weakest_confidence(*[_field(m, 'confidence') for m in metas])
+    confidence_score = combine_confidence_score([_field(m, 'confidence_score') for m in metas])
+
+    def lineage_of(m):
+        lin = _field(m, 'lineage')
+        return lin if isinstance(lin, list) else []
     prior = []
     for m in metas:
-        if not m:
-            continue
-        lin = m.get('lineage')
-        if isinstance(lin, list):
-            prior.extend(lin)
+        prior.extend(lineage_of(m))
     # Prior steps keep their content-addressed ids verbatim — a subtree's id must
     # not change because it was recombined (#52). Only new input steps are minted.
     input_steps = []
     for m in metas:
-        step = {
-            'of': 'input',
-            'source': (m or {}).get('source'),
-            'confidence': (m or {}).get('confidence'),
-            'derived_from_mock': taints(m),
-        }
+        # The input's source and confidence are recorded as it carries them,
+        # and left off when it carries none, as for an input that is not an
+        # envelope (#525).
+        step = {'of': 'input'}
+        for key in ('source', 'confidence'):
+            if isinstance(m, dict) and key in m:
+                step[key] = m[key]
+        step['derived_from_mock'] = taints(m)
         # Record the numeric score too when the input carries one, so the numeric
         # over-claim audit works on real derive output, not just hand-built metas.
-        score = (m or {}).get('confidence_score')
+        score = _field(m, 'confidence_score')
         if is_score(score):
             step['confidence_score'] = score
-        prior_ids = [s.get('id') for s in ((m or {}).get('lineage') or []) if isinstance(s.get('id'), str)]
+        prior_ids = [s['id'] for s in lineage_of(m) if isinstance(s, dict) and isinstance(s.get('id'), str)]
         step['id'] = step_id(step, prior_ids)
         input_steps.append(step)
     lineage = prior + input_steps
@@ -248,27 +272,47 @@ def combine_provenance(*metas):
                      confidence_score=confidence_score,
                      derived_from_mock=derived_from_mock, lineage=lineage,
                      # Weakest source anywhere in the ancestry, read off the lineage.
-                     weakest_source=weakest_source(*[s.get('source') for s in lineage]))
+                     weakest_source=weakest_source(*[_field(s, 'source') for s in lineage]))
+
+
+def _canon_field(v):
+    """One ``of`` / ``source`` / ``confidence`` value as the step-id canon
+    writes it (SPEC §4, #525). A string is itself and an absent value is
+    empty, as always; any other value a handed envelope can carry is written
+    by type, the same in both languages: a boolean as true/false, a number as
+    its IEEE-754 bit pattern (so 1 and 1.0 agree; an int too large for a
+    double is +/-infinity, as JSON.parse reads it), a list or dict as
+    <array> / <object>. JS twin: canonField."""
+    if v is None:
+        return ''
+    if isinstance(v, str):
+        return v
+    if isinstance(v, bool):
+        return 'true' if v else 'false'
+    if isinstance(v, (int, float)):
+        try:
+            f = float(v)
+        except OverflowError:
+            f = math.copysign(math.inf, v)
+        return struct.pack('>d', f).hex()
+    return '<array>' if isinstance(v, (list, tuple)) else '<object>'
 
 
 def step_id(step, input_ids=None):
     """Content-addressed id for a lineage step (#52). Mirror of stepId in provenance.mjs."""
     input_ids = input_ids or []
-    score = step.get('confidence_score')
+    score = _field(step, 'confidence_score')
     # Canonical score encoding: IEEE-754 big-endian 8-byte representation as
     # lowercase hex. json.dumps/JSON.stringify disagree across languages for
     # small floats (e.g. 0.00001: Python "1e-05" vs JS "0.00001"), which would
     # otherwise produce different step ids for the same value cross-language.
     # The raw double bit pattern is identical in both, by construction.
     score_s = struct.pack('>d', score).hex() if is_score(score) else '-'
-    of_ = '' if step.get('of') is None else step.get('of')
-    source_ = '' if step.get('source') is None else step.get('source')
-    confidence_ = '' if step.get('confidence') is None else step.get('confidence')
     canon = "\n".join([
-        f"of={of_}",
-        f"source={source_}",
-        f"confidence={confidence_}",
-        f"derivedFromMock={'true' if step.get('derived_from_mock') else 'false'}",
+        f"of={_canon_field(_field(step, 'of'))}",
+        f"source={_canon_field(_field(step, 'source'))}",
+        f"confidence={_canon_field(_field(step, 'confidence'))}",
+        f"derivedFromMock={'true' if _taint_flag(_field(step, 'derived_from_mock')) else 'false'}",
         f"confidenceScore={score_s}",
         f"inputs={','.join(sorted(input_ids))}",
     ])

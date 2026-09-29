@@ -411,6 +411,29 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **`combine` agrees across languages on handed envelopes that are not
+  well formed** ([#525](https://github.com/slopstopper/plumb-line/issues/525);
+  SPEC §3, §4; `primitives/PARITY.md`). The same inputs gave different results
+  in 20 of 28 probed cases; 9 new `cases.json` rows now pin both languages.
+  - **Step ids:** a `confidence` or `source` that is not a string (`true`,
+    `1.0`, an array) got a different content-addressed id in each language.
+    It now serializes by type: a boolean as `true`/`false`, a number as its
+    IEEE-754 bit pattern, an array or object as `<array>`/`<object>`.
+  - **Python totality:** Python `combine_provenance` raised `AttributeError`
+    on an input that is not a dict, a `lineage` that is not a list, or a step
+    that is not a dict. It now combines them, as JS did.
+  - **Taint (behaviour change, stricter):** a `derivedFromMock` that is not
+    a boolean now taints in both languages unless it is `false` or absent
+    (`null` counts as absent). Before, each language used its own
+    truthiness, and they disagreed on `[]` and `{}`, so taint could vanish
+    in one language. A handed `0` or `""` now taints as well. `taints()` follows the
+    same rule, and no constructor stores such a value.
+  - **Step shape:** a step leaves off a `source` or `confidence` its input
+    does not have (Python wrote `null`), and an array lineage step stays an
+    array (JS spread it into an object).
+  - `PARITY.md` no longer records suite counts, which had gone stale, and
+    the bundle conformance runner refuses a boolean case-table `version`, as
+    the main runners do (#441).
 - **The audit skill no longer models the bare principle codes its own report
   contract rejects** ([#514](https://github.com/slopstopper/plumb-line/issues/514)).
   Auditors copy the skill's wording into reports. Its prose said "the

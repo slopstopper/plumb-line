@@ -334,8 +334,11 @@ missing — a gap is "unknown", not zero.
 
 ### `taints(meta)`
 
-Returns `true`/`True` when the envelope carries mock taint
-(`derivedFromMock`/`derived_from_mock` is truthy, or `source === "mock"`).
+Returns `true`/`True` when the envelope carries mock taint:
+`derivedFromMock`/`derived_from_mock` is anything other than `false` or
+absent (`null`/`None` counts as absent), or `source === "mock"`. Not
+truthiness: a handed `0`, `""`, `[]` or `{}` taints, in both languages
+(SPEC §3, #525). A value that is not an envelope carries no taint.
 
 ---
 

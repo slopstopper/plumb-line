@@ -40,10 +40,40 @@ def _lineage_to_snake(lineage):
 
 
 def _meta_to_snake(meta):
+    # An input that is not an envelope passes through verbatim, so combine
+    # itself meets it (#525).
+    if not isinstance(meta, dict):
+        return meta
     out = _to_snake(meta)
     if 'lineage' in out:
         out['lineage'] = _lineage_to_snake(out['lineage'])
     return out
+
+
+_CAMEL = {v: k for k, v in _KEY.items()}
+
+
+def _step_to_camel(step):
+    return {_CAMEL.get(k, k): v for k, v in step.items()} if isinstance(step, dict) else step
+
+
+def _step_id(step):
+    """A prior step that is not a dict has no id: None, as in the JS runner."""
+    return step.get('id') if isinstance(step, dict) else None
+
+
+def _strict(a, b):
+    """== with JSON's types kept apart: True is not 1 (Python's == says it
+    is), as JS isDeepStrictEqual keeps them apart. 1 and 1.0 are one number."""
+    if isinstance(a, bool) or isinstance(b, bool):
+        return type(a) is type(b) and a == b
+    if isinstance(a, dict) and isinstance(b, dict):
+        return a.keys() == b.keys() and all(_strict(a[k], b[k]) for k in a)
+    if isinstance(a, list) and isinstance(b, list):
+        return len(a) == len(b) and all(_strict(x, y) for x, y in zip(a, b))
+    if isinstance(a, (dict, list)) or isinstance(b, (dict, list)):
+        return False
+    return (type(a) is type(b) or (isinstance(a, (int, float)) and isinstance(b, (int, float)))) and a == b
 
 
 def setup_function():
@@ -62,8 +92,11 @@ def test_combine_cases():
             sk = _KEY.get(k, k)
             assert sk not in out, f"{c['name']}: {sk} should be absent"
         if 'expectLineageIds' in c:
-            assert [s.get('id') for s in out['lineage']] == c['expectLineageIds'], \
-                f"{c['name']}: lineage ids {[s.get('id') for s in out['lineage']]}"
+            assert [_step_id(s) for s in out['lineage']] == c['expectLineageIds'], \
+                f"{c['name']}: lineage ids {[_step_id(s) for s in out['lineage']]}"
+        if 'expectLineage' in c:
+            got = [_step_to_camel(s) for s in out['lineage']]
+            assert _strict(got, c['expectLineage']), f"{c['name']}: lineage {got!r}"
 
 
 def test_audit_cases():
@@ -170,7 +203,7 @@ def test_guard_cases():
 # that this runner does not read would otherwise pass silently; the JS twin is
 # KNOWN_FIELDS in primitives/conformance/run-cases.mjs (#369).
 _KNOWN_FIELDS = {
-    'combine': {'name', 'inputs', 'expect', 'absent', 'expectLineageIds'},
+    'combine': {'name', 'inputs', 'expect', 'absent', 'expectLineageIds', 'expectLineage'},
     'audit': {'name', 'meta', 'expectContains'},
     'validate': {'name', 'meta', 'expectContains'},
     'construct': {'name', 'input', 'expect', 'expectError'},

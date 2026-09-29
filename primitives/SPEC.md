@@ -119,7 +119,11 @@ trustworthy than its inputs, and taint can never be cleared.
 
 1. **`derivedFromMock`** = logical OR over all inputs. An input taints if its
    `derivedFromMock` is `true` OR its `source` is `mock`. Once `true`, no
-   downstream combination may set it back to `false`.
+   downstream combination may set it back to `false`. A handed envelope can
+   carry a `derivedFromMock` that is not a boolean, which no constructor
+   stores: any value other than `false` or absent (`null` counts as absent)
+   taints, so a stray `0`, `""`, `[]` or `{}` cannot clear taint. This is
+   not either language's truthiness, which disagree on `[]` and `{}` (#525).
 2. **`confidence`** = the weakest (lowest-ranked) `confidence` among the inputs.
 3. **`confidenceScore`** = the minimum across inputs **iff every input carries a
    valid score**; otherwise the field is omitted. A missing score is "unknown"
@@ -136,6 +140,14 @@ trustworthy than its inputs, and taint can never be cleared.
 
 The law MUST be **order-independent** for fields 1–4 and 6: permuting the inputs
 MUST NOT change the result except for the order of lineage steps.
+
+The law is **total**: any input combines, including one that is not an
+envelope (a string, a number, `null`, an array) and an envelope whose
+`lineage` is not an array or holds steps that are not objects (#525). An
+input that is not an envelope carries no fields: it does not taint, its
+confidence reads as `none`, and it contributes no prior steps. A `lineage`
+that is not an array contributes no prior steps. Prior steps are kept
+verbatim whatever they are, an array step as an array.
 
 ### Combining zero inputs
 
@@ -157,8 +169,8 @@ Each new step MUST contain:
 | ----------------- | ------- | ------------------------------------------------ |
 | `id`              | string  | Content-addressed identifier (see below).        |
 | `of`              | string  | `"input"` for steps minted by the law.           |
-| `source`          | enum    | The input's `source` at combination time.        |
-| `confidence`      | enum    | The input's `confidence` at combination time.    |
+| `source`          | enum    | The input's `source` at combination time; absent when the input has none. |
+| `confidence`      | enum    | The input's `confidence` at combination time; absent when the input has none. |
 | `derivedFromMock` | boolean | Whether the input tainted (flag OR mock source). |
 | `confidenceScore` | number  | Present **iff** the input carried a valid score. |
 
@@ -177,8 +189,16 @@ inputs=<sorted, comma-joined ids of the step's input steps>
 ```
 
 The six lines are joined with `\n` (no trailing newline) and hashed as UTF-8.
-An absent `of`, `source` or `confidence` serializes as the empty string. Input
-ids are sorted by code point; ids are ASCII, so any bytewise sort agrees.
+An absent (or `null`) `of`, `source` or `confidence` serializes as the empty
+string, and a string as itself. A handed envelope can carry another type
+there, and each serializes by type, the same in every language (#525): a
+boolean as `true` or `false`; a number as its IEEE-754 binary64 bit pattern,
+as the score is (so `1` and `1.0` agree, and an integer too large for a double
+is infinity, as a JSON parser reads it); an array as `<array>`; an object as
+`<object>`. Neither language's own string conversion may be used: they write
+`True`/`true`, `1.0`/`1` and `1e-07`/`1e-7` differently. The `derivedFromMock`
+line is `true` exactly when the value would taint (§3). Input ids are sorted
+by code point; ids are ASCII, so any bytewise sort agrees.
 
 The score is encoded as its raw double bit pattern, **not** as a JSON number:
 JSON serializers disagree across languages for the same double (`0.00001` is
