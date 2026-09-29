@@ -19,8 +19,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
 _SCRIPT = os.path.join(_HERE, "check-bundle-sync.mjs")
 
-JS_CORE = ["provenance.mjs", "audit.mjs", "marked.mjs", "index.mjs", "baseline.mjs"]
-PY_CORE = ["provenance.py", "audit.py", "marked.py", "__init__.py", "baseline.py"]
+JS_CORE = ["provenance.mjs", "audit.mjs", "marked.mjs", "guard.mjs", "index.mjs", "baseline.mjs"]
+PY_CORE = ["provenance.py", "audit.py", "marked.py", "guard.py", "__init__.py", "baseline.py"]
 JS_PUBLISHED = JS_CORE + ["http.mjs", "baseline-cli.mjs"]
 PY_PUBLISHED = PY_CORE + ["http_adapter.py", "arrays.py", "frames.py"]
 
@@ -64,8 +64,8 @@ def _run(root):
 def test_clean_tree_passes_and_reports_its_denominators(tmp_path):
     rc, out = _run(_mini_repo(tmp_path))
     assert rc == 0, out
-    assert "10 files byte-checked" in out and "5 excluded" in out, out
-    assert "js 7 (5 bundled + 2 excluded)" in out and "python 8 (5 bundled + 3 excluded)" in out, out
+    assert "12 files byte-checked" in out and "5 excluded" in out, out
+    assert "js 8 (6 bundled + 2 excluded)" in out and "python 9 (6 bundled + 3 excluded)" in out, out
 
 
 def test_byte_drift_still_fails(tmp_path):

@@ -14,6 +14,7 @@
     "provenance.mjs",
     "marked.mjs",
     "audit.mjs",
+    "guard.mjs",
     "http.mjs",
     "baseline.mjs",
     "baseline-cli.mjs",

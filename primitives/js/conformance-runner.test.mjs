@@ -14,13 +14,14 @@ const CASES_PATH = fileURLToPath(new URL("../conformance/cases.json", import.met
 const REPORT = fileURLToPath(new URL("../conformance/report.mjs", import.meta.url));
 const cases = JSON.parse(readFileSync(CASES_PATH, "utf8"));
 const lineageCase = cases.combine.find((c) => c.expectLineageIds);
-const only = (combine) => ({ version: cases.version, combine, audit: [], validate: [], construct: [] });
+const only = (combine) => ({ version: cases.version, combine, audit: [], validate: [], construct: [], guard: [] });
 
 describe("conformance runner (shared by report.mjs and the bundle check)", () => {
   it("passes every case in cases.json against the reference implementation", () => {
     const results = runCases(impl, cases);
     expect(results.length).toBe(
-      cases.combine.length + cases.audit.length + cases.validate.length + cases.construct.length);
+      cases.combine.length + cases.audit.length + cases.validate.length + cases.construct.length +
+      cases.guard.length);
     expect(results.filter((r) => r.error)).toEqual([]);
   });
 
@@ -60,7 +61,7 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
 
   // #443: the construct kind fails when makeMeta accepts what the case says it
   // must refuse, refuses with other words, or refuses what it must accept.
-  const construct = (c) => ({ version: cases.version, combine: [], audit: [], validate: [], construct: [c] });
+  const construct = (c) => ({ version: cases.version, combine: [], audit: [], validate: [], construct: [c], guard: [] });
   it("fails a construct case whose refusal does not happen", () => {
     const [r] = runCases(impl, construct({ name: "x", input: { source: "real", confidence: "high" }, expectError: "must be one of" }));
     expect(r.error).toMatch(/got an envelope/);
@@ -85,6 +86,45 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
     expect(r.error).toMatch(/exactly one of expect or expectError/);
   });
 
+  // #120: the guard kind fails a row whose refusal, pass or programmer error
+  // does not happen as the row says.
+  const clean = { provenanceVersion: 2, source: "real", confidence: "high", derivedFromMock: false, lineage: [] };
+  const mockLeaf = { ...clean, source: "mock", confidence: "low", derivedFromMock: true };
+  const guardRow = (c) => ({ version: cases.version, combine: [], audit: [], validate: [], construct: [], guard: [c] });
+  it("fails a guard case whose refusal does not happen", () => {
+    const [r] = runCases(impl, guardRow({ name: "x", meta: clean, expectRefused: ["mock:"] }));
+    expect(r.error).toMatch(/expected a refusal, got a pass/);
+  });
+  it("fails a guard case whose refusal gives no such reason", () => {
+    const [r] = runCases(impl, guardRow({ name: "x", meta: mockLeaf, expectRefused: ["no-such-reason"] }));
+    expect(r.error).toMatch(/expected an issue containing "no-such-reason"/);
+  });
+  it("fails a guard case whose refusal gives a reason the row says is absent", () => {
+    const [r] = runCases(impl, guardRow({ name: "x", meta: mockLeaf, expectRefused: ["mock:"], expectAbsent: ["mock:"] }));
+    expect(r.error).toMatch(/expected no reason containing "mock:"/);
+  });
+  it("fails a guard case expecting a pass when the value is refused", () => {
+    const [r] = runCases(impl, guardRow({ name: "x", meta: mockLeaf, expectPass: true }));
+    expect(r.error).toMatch(/expected a pass, got a refusal/);
+  });
+  it("fails a guard case that reads a refusal as a programmer error", () => {
+    const [r] = runCases(impl, guardRow({ name: "x", meta: mockLeaf, expectError: "mock" }));
+    expect(r.error).toMatch(/expected a programmer error, got a refusal/);
+  });
+  it("fails a guard pass that returns something other than the value it was given", () => {
+    const copying = { ...impl, guard: (x) => ({ ...x }) };
+    const [r] = runCases(copying, guardRow({ name: "x", meta: clean, expectPass: true }));
+    expect(r.error).toMatch(/must return the marked value it was given/);
+  });
+  it.each([
+    { name: "x", meta: clean },
+    { name: "x", meta: clean, expectPass: true, expectError: "y" },
+    { name: "x", meta: mockLeaf, expectPass: true, expectAbsent: ["mock:"] },
+  ])("fails a guard case without exactly one expectation, or with a stray expectAbsent (%#)", (c) => {
+    const [r] = runCases(impl, guardRow(c));
+    expect(r.error).toMatch(/exactly one of expectPass|expectAbsent is read only/);
+  });
+
   it("fails a table that lacks a kind the runner models", () => {
     const { construct: _dropped, ...rest } = cases;
     const results = runCases(impl, rest);
@@ -94,16 +134,16 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
   });
 
   it("fails an audit case whose needle no issue contains", () => {
-    const [r] = runCases(impl, { version: cases.version, combine: [], validate: [], construct: [],
+    const [r] = runCases(impl, { version: cases.version, combine: [], validate: [], construct: [], guard: [],
       audit: [{ ...auditIssue, expectContains: ["no-such-issue-text"] }] });
     expect(r.error).toMatch(/expected an issue containing "no-such-issue-text"/);
   });
 
   it("fails an audit case expecting no issues when there are some", () => {
-    const [r] = runCases(impl, { version: cases.version, combine: [], validate: [], construct: [],
+    const [r] = runCases(impl, { version: cases.version, combine: [], validate: [], construct: [], guard: [],
       audit: [{ ...auditIssue, expectContains: [] }] });
     expect(r.error).toMatch(/expected no issues/);
-    const [ok] = runCases(impl, { version: cases.version, combine: [], validate: [], construct: [],
+    const [ok] = runCases(impl, { version: cases.version, combine: [], validate: [], construct: [], guard: [],
       audit: [auditClean] });
     expect(ok.error).toBeNull();
   });
@@ -138,7 +178,7 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
     expect(table.version).toBe(cases.version);
     expect(table.counts).toEqual({
       combine: cases.combine.length, audit: cases.audit.length, validate: cases.validate.length,
-      construct: cases.construct.length,
+      construct: cases.construct.length, guard: cases.guard.length,
     });
     expect(table.sha256).toMatch(/^[0-9a-f]{64}$/);
   });

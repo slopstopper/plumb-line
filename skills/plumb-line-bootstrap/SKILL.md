@@ -209,9 +209,9 @@ call sites — and act only on an explicit yes:
   - **Vendor the bundled source instead (no npm/pip, no network install).**
     This plugin ships the same v2 primitive under its own payload at
     `.claude-plugin/bundled/primitives/js/` (`provenance.mjs`, `audit.mjs`,
-    `marked.mjs`, `index.mjs`, `baseline.mjs`) and
+    `marked.mjs`, `guard.mjs`, `index.mjs`, `baseline.mjs`) and
     `.claude-plugin/bundled/primitives/python/` (`provenance.py`, `audit.py`,
-    `marked.py`, `__init__.py`, `baseline.py`) — copy every file in the
+    `marked.py`, `guard.py`, `__init__.py`, `baseline.py`) — copy every file in the
     builder's language's directory straight into the target repo (e.g.
     a `provenance/` dir next to the source-truth layer named in the
     interview), unmodified. They carry a dual-import shim, so they work

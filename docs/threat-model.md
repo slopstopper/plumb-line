@@ -83,7 +83,11 @@ These hold through the documented public API (`mark`, `derive`,
   stops code from hand-building `{ source: "real", derivedFromMock: true, … }`.
   That is precisely the inconsistency `auditMeta` reports (laundering) and the
   lint flags at the call site. Defense is *detection in depth*, not prevention at
-  construction.
+  construction. The egress guard (`guard`, SPEC §5c) refuses what the audit
+  flags, so it inherits this limit: an envelope fabricated to be internally
+  consistent (a mock value hand-labelled `real` with no taint and no lineage
+  to contradict it) passes the audit and the guard alike. The guard enforces
+  what an envelope says, not whether it is true.
 - **N4 — The static lint is deliberately incomplete.** It is contractually
   zero-false-positive: it fires only at resolved primitive call sites on literal
   field values. Patterns that need whole-program dataflow to judge (e.g. a bare
@@ -95,7 +99,7 @@ These hold through the documented public API (`mark`, `derive`,
 
 ## 5. Defense in depth
 
-The same discipline is enforced at three points, so a miss at one is caught at
+The same discipline is enforced at four points, so a miss at one is caught at
 another:
 
 1. **Construction (run time)** — the combination law in `primitives/` makes the
@@ -103,12 +107,17 @@ another:
 2. **Inspection (run time)** — `auditMeta` / `audit_meta` re-derives the
    consistency conditions from the envelope and reports any that fail, catching
    hand-built or tampered metas (N3).
-3. **Review (static)** — the `no-provenance-bypass` ESLint rule and
+3. **Refusal (run time, at an output point)** — `guard` (SPEC §5c) refuses a
+   value whose envelope is missing, malformed, flagged by the audit, tainted by
+   mock, or below a required confidence, before it is exported, displayed or
+   published. It is opt-in per output point, and it trusts a consistent
+   envelope (N3).
+4. **Review (static)** — the `no-provenance-bypass` ESLint rule and
    `provenance_lint.py` flag the four bypass patterns (PB1–PB4) in source before
    the code runs, and the `plumb-line-audit` skill reviews a diff against the
    principles.
 
-A determined in-process attacker (§2) defeats all three; an accident or an
+A determined in-process attacker (§2) defeats all four; an accident or an
 oversight is stopped by at least one.
 
 ## 6. Hardening changelog

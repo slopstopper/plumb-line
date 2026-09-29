@@ -9,6 +9,29 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Added
+- **The egress guard, `guard`, stops a tainted value at an output point**
+  ([#120](https://github.com/slopstopper/plumb-line/issues/120); ADR-0020;
+  SPEC §5c). `auditMeta` reports after the fact. `guard(x, { noMock,
+  minConfidence })` / `guard(x, no_mock=, min_confidence=)` returns the
+  marked value unchanged, so an output point writes `unwrap(guard(x))`, or
+  throws `ProvenanceRefused` (a `ValueError` in Python) listing every reason.
+  - **Mock is refused unless turned off** (`noMock: false`), as Principle 4
+    says: excluded from outputs unless explicitly opted in.
+  - **It fails closed.** A value with no envelope, a malformed envelope, or
+    one the audit flags (other than the `version-legacy:` advisory) is
+    refused. Taint and confidence are judged from the lineage as well as the
+    headline fields.
+  - **A bad option is a programmer error,** of a different type, raised
+    before the value is examined.
+
+  The name, the throw, the default and fail-closed are the owner's decisions
+  on #120; the ROADMAP's working name was `require`, which clashes with
+  CommonJS. Both languages behave identically, pinned by 21 rows of a new
+  `guard` kind in `primitives/conformance/cases.json`; a port certified
+  earlier must re-run. It is bundled with the plugin, and the bootstrap
+  skill's vendoring list includes it.
+
 ### Changed
 - **The `claude plugin eval` suite runs, after its first real run found it
   measured nothing** ([#291](https://github.com/slopstopper/plumb-line/issues/291)).

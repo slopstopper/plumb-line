@@ -24,6 +24,28 @@ This package is the run-time half of [plumb-line](https://slopstopper.org/plumb-
 which also ships review-time audit skills and a GitHub Action that enforce the
 same discipline on a codebase.
 
+## Egress guard
+
+`audit_meta` reports a problem after the fact; `guard` stops a value at an
+output point (an export, a display, a publish) unless its envelope backs what
+the output claims. It returns the value it was given, so the output point
+unwraps it:
+
+```python
+from plumb_line_provenance import guard, unwrap, ProvenanceRefused
+
+unwrap(guard(total))                          # raises: total derives from mock
+unwrap(guard(total, no_mock=False))           # explicitly allowed
+unwrap(guard(price, min_confidence='medium')) # refused below medium
+```
+
+A refusal raises `ProvenanceRefused` (a `ValueError`), whose `reasons` list
+every reason; a display that should show "unavailable" instead catches it.
+Mock is refused unless `no_mock=False` is passed. It fails closed: a value with
+no envelope, a malformed one, or one the audit flags is refused, and taint and
+confidence are judged from the whole lineage. A bad option is a `TypeError` or
+`ValueError`, never a refusal.
+
 ## HTTP ingestion adapters (optional)
 
 Auto-tag HTTP responses at ingestion. Install the extra for your client:

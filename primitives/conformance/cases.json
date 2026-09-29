@@ -339,5 +339,123 @@
       "input": { "source": "real" },
       "expect": { "source": "real", "confidence": "none", "derivedFromMock": false }
     }
+  ],
+  "guard": [
+    {
+      "name": "a clean real value passes the defaults",
+      "meta": { "provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "expectPass": true
+    },
+    {
+      "name": "a mock leaf is refused by default: no-mock is on unless turned off (P4)",
+      "meta": { "provenanceVersion": 2, "source": "mock", "confidence": "low", "derivedFromMock": true, "lineage": [] },
+      "expectRefused": ["mock:"]
+    },
+    {
+      "name": "a mock leaf passes when no-mock is turned off",
+      "meta": { "provenanceVersion": 2, "source": "mock", "confidence": "low", "derivedFromMock": true, "lineage": [] },
+      "options": { "noMock": false },
+      "expectPass": true
+    },
+    {
+      "name": "a value derived from mock is refused by default",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "low", "derivedFromMock": true, "lineage": [{ "id": "s1", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false }, { "id": "s2", "of": "input", "source": "mock", "confidence": "low", "derivedFromMock": true }] },
+      "expectRefused": ["mock:"]
+    },
+    {
+      "name": "with no-mock off, a minimum confidence still applies",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "low", "derivedFromMock": true, "lineage": [{ "id": "s1", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false }, { "id": "s2", "of": "input", "source": "mock", "confidence": "low", "derivedFromMock": true }] },
+      "options": { "noMock": false, "minConfidence": "medium" },
+      "expectRefused": ["confidence: low is below the required medium"],
+      "expectAbsent": ["mock:"]
+    },
+    {
+      "name": "a clean value at the minimum confidence passes",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "medium", "derivedFromMock": false, "lineage": [{ "id": "s1", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false }, { "id": "s2", "of": "input", "source": "semiReal", "confidence": "medium", "derivedFromMock": false }] },
+      "options": { "minConfidence": "medium" },
+      "expectPass": true
+    },
+    {
+      "name": "a clean value below the minimum confidence is refused",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "medium", "derivedFromMock": false, "lineage": [{ "id": "s1", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false }, { "id": "s2", "of": "input", "source": "semiReal", "confidence": "medium", "derivedFromMock": false }] },
+      "options": { "minConfidence": "high" },
+      "expectRefused": ["confidence: medium is below the required high"]
+    },
+    {
+      "name": "confidence is judged from the lineage, not the headline field",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{ "id": "s1", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false }, { "id": "s2", "of": "input", "source": "real", "confidence": "low", "derivedFromMock": false }] },
+      "options": { "minConfidence": "medium" },
+      "expectRefused": ["over-claiming", "confidence: low is below the required medium"]
+    },
+    {
+      "name": "taint in the lineage is refused even when the headline flag says clean",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "low", "derivedFromMock": false, "lineage": [{ "id": "s1", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false }, { "id": "s2", "of": "input", "source": "mock", "confidence": "low", "derivedFromMock": true }] },
+      "expectRefused": ["taint dropped", "mock:"]
+    },
+    {
+      "name": "an inconsistent envelope is refused even with no-mock off",
+      "meta": { "provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": true, "lineage": [] },
+      "options": { "noMock": false },
+      "expectRefused": ["audit: laundering"]
+    },
+    {
+      "name": "a value with no envelope is refused",
+      "meta": 42,
+      "expectRefused": ["not a marked value"]
+    },
+    {
+      "name": "null is refused as not a marked value",
+      "meta": null,
+      "expectRefused": ["not a marked value"]
+    },
+    {
+      "name": "a list is refused as not a marked value",
+      "meta": [],
+      "expectRefused": ["not a marked value"]
+    },
+    {
+      "name": "an empty envelope is refused as malformed",
+      "meta": {},
+      "expectRefused": ["invalid envelope: missing required field: source"]
+    },
+    {
+      "name": "a wrongly typed field is refused as malformed",
+      "meta": { "provenanceVersion": 2, "source": "real", "confidence": 3, "derivedFromMock": false, "lineage": [] },
+      "expectRefused": ["invalid envelope: field 'confidence' must be a string"]
+    },
+    {
+      "name": "an envelope from a newer version than this library is refused",
+      "meta": { "provenanceVersion": 99, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "expectRefused": ["version-future"]
+    },
+    {
+      "name": "an envelope with no version field passes: legacy is advisory, not a refusal",
+      "meta": { "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "expectPass": true
+    },
+    {
+      "name": "an unknown confidence counts as none against a minimum",
+      "meta": { "provenanceVersion": 2, "source": "real", "confidence": "certain", "derivedFromMock": false, "lineage": [] },
+      "options": { "minConfidence": "low" },
+      "expectRefused": ["confidence: none is below the required low"]
+    },
+    {
+      "name": "a minimum confidence of none admits any confidence",
+      "meta": { "provenanceVersion": 2, "source": "mock", "confidence": "low", "derivedFromMock": true, "lineage": [] },
+      "options": { "noMock": false, "minConfidence": "none" },
+      "expectPass": true
+    },
+    {
+      "name": "a minimum confidence off the ladder is a programmer error, not a refusal",
+      "meta": { "provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "options": { "minConfidence": "hi" },
+      "expectError": "guard: the minimum confidence must be one of none, low, medium, high"
+    },
+    {
+      "name": "a non-boolean no-mock option is a programmer error, not a refusal",
+      "meta": { "provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [] },
+      "options": { "noMock": "yes" },
+      "expectError": "guard: the no-mock option must be a boolean"
+    }
   ]
 }

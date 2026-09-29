@@ -24,7 +24,7 @@ const results = runCases(impl, cases);
 
 describe("conformance — the runner judged every case", () => {
   it("one result per case, plus nothing unexpected", () => {
-    const perKind = cases.combine.length + cases.audit.length + cases.validate.length + cases.construct.length;
+    const perKind = cases.combine.length + cases.audit.length + cases.validate.length + cases.construct.length + cases.guard.length;
     expect(results.length).toBe(perKind);
   });
 });

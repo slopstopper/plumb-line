@@ -5,7 +5,8 @@
 // one and silently ignored by the other (#369). An alternative JS
 // implementation self-certifies by passing its own module as `impl`.
 //
-// impl: { combineProvenance, makeMeta, auditMeta, validateEnvelope, __resetStepCounter }
+// impl: { combineProvenance, makeMeta, auditMeta, validateEnvelope, guard,
+//         ProvenanceRefused, __resetStepCounter }
 // Returns one { kind, name, error } per case; error is null on a pass.
 import { createHash } from "node:crypto";
 // Deep equality, as the Python runners' `==` has always been: JSON text
@@ -19,6 +20,7 @@ const KNOWN_FIELDS = {
   audit: new Set(["name", "meta", "expectContains"]),
   validate: new Set(["name", "meta", "expectContains"]),
   construct: new Set(["name", "input", "expect", "expectError"]),
+  guard: new Set(["name", "meta", "options", "expectPass", "expectRefused", "expectAbsent", "expectError"]),
 };
 
 function unknownFields(kind, c) {
@@ -82,11 +84,54 @@ function runConstruct(impl, c) {
   return null;
 }
 
+// The egress guard (#120). A row's `meta` becomes a marked value (`value`
+// plus the envelope fields, as mark() builds it); a non-object `meta` is
+// passed as is, to pin that a value with no envelope is refused. A refusal
+// is a ProvenanceRefused carrying `reasons`; any other throw is a programmer
+// error (a bad option), which only an expectError row accepts.
+function runGuard(impl, c) {
+  const expectations = ["expectPass", "expectRefused", "expectError"].filter((k) => k in c);
+  if (expectations.length !== 1)
+    return "a guard case needs exactly one of expectPass, expectRefused or expectError";
+  if ("expectAbsent" in c && !("expectRefused" in c))
+    return "expectAbsent is read only beside expectRefused";
+  const plain = c.meta !== null && typeof c.meta === "object" && !Array.isArray(c.meta);
+  const x = plain ? { value: 1, ...c.meta } : c.meta;
+  let out;
+  try {
+    out = "options" in c ? impl.guard(x, c.options) : impl.guard(x);
+  } catch (e) {
+    if (e instanceof impl.ProvenanceRefused) {
+      const reasons = e.reasons;
+      if (!Array.isArray(reasons) || !reasons.every((r) => typeof r === "string"))
+        return `a refusal must carry reasons as a list of strings, got ${JSON.stringify(reasons)}`;
+      if (!("expectRefused" in c))
+        return `expected ${"expectPass" in c ? "a pass" : "a programmer error"}, got a refusal: ${JSON.stringify(reasons)}`;
+      const missing = runIssueList(reasons, { expectContains: c.expectRefused });
+      if (missing) return missing;
+      for (const needle of c.expectAbsent || []) {
+        if (reasons.some((r) => r.includes(needle)))
+          return `expected no reason containing "${needle}", got ${JSON.stringify(reasons)}`;
+      }
+      return null;
+    }
+    if (!("expectError" in c))
+      return `expected ${"expectPass" in c ? "a pass" : "a refusal"}, got an error: ${e.message}`;
+    return String(e.message).includes(c.expectError)
+      ? null
+      : `expected an error containing "${c.expectError}", got "${e.message}"`;
+  }
+  if (!("expectPass" in c))
+    return `expected ${"expectRefused" in c ? "a refusal" : "a programmer error"}, got a pass`;
+  return out === x ? null : "a pass must return the marked value it was given";
+}
+
 const RUN = {
   combine: (impl, c) => runCombine(impl, c),
   construct: (impl, c) => runConstruct(impl, c),
   audit: (impl, c) => runIssueList(impl.auditMeta(c.meta), c),
   validate: (impl, c) => runIssueList(impl.validateEnvelope(c.meta), c),
+  guard: (impl, c) => runGuard(impl, c),
 };
 
 // Top-level keys of cases.json that are metadata, not case kinds.
