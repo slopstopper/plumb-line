@@ -17,7 +17,7 @@ def test_integration_balance_is_the_partners_figure():
 
 
 def test_unit_balance_reports_what_the_partner_returned(monkeypatch):
-    # A unit test of balance()'s own shaping: fetch_points is its collaborator.
+    # REQ-7: balance() reports the partner's figure with its source.
     monkeypatch.setattr(partner, "fetch_points", lambda member_id: 40)
     assert partner.balance("m-1") == {"status": "ok", "points": 40, "source": "partner"}
 

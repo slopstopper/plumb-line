@@ -483,7 +483,27 @@ def test_audit_check_10_needs_evidence_the_requirement_is_unmet():
     # as met": both halves need evidence.
     check = _audit_check_10().lower()
     assert "evidence that the requirement is unmet" in check
-    assert "advisory" in check and "no evidence" in check
+    assert "with no evidence that the requirement is unmet, it is not this finding" in check
+    assert "at most an advisory" in check
+
+
+def test_audit_check_10_evidence_of_unmet_must_be_recorded():
+    # Review of 55f09cd: a key the code reads but CI does not supply, or a
+    # working live test swapped for a mock, is not evidence on its own;
+    # otherwise the common keyed client, or a refactor for speed, is flagged.
+    check = _audit_check_10().lower()
+    assert "not evidence on its own" in check
+    assert "while that call was failing or unavailable" in check
+
+
+def test_audit_check_10_outcome_bullet_agrees_with_the_evidence_rule():
+    # Review of 55f09cd, defect 2: the closing bullet sent everything the repo
+    # "cannot settle" to needs-review, contradicting "at most an advisory".
+    text = SKILLS["plumb-line-audit"]
+    raw = text[text.index("10. Test changed to pass"):text.index("\n## Method")]
+    last = raw.strip().split("\n   - ")[-1].lower()
+    assert last.startswith("the outcome"), last[:60]
+    assert "advisory" in last and "needs-review" in last
 
 
 def test_audit_check_10_a_citation_does_not_make_an_alongside_unit_test_the_requirements():

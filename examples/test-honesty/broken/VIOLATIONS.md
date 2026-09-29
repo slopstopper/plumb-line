@@ -28,4 +28,4 @@ This file is the answer key for the audit of `broken/`. There are exactly three 
 
 ---
 
-Not violations here: `test_balance_is_unavailable_without_a_partner_key` tests the real code with the key unset, which is the failure CI can observe. `tests/test_rates.py` is REQ-10's only test and mocks the rates service, but nothing records that service as unavailable or its real call as failing, and the tests were not changed from a real call: with no evidence that REQ-10 is unmet, that is at most an advisory (no test against the real service), not this finding.
+Not violations here: `test_balance_is_unavailable_without_a_partner_key` tests the real code with the key unset, which is the failure CI can observe. `tests/test_rates.py` is REQ-10's only test and mocks the rates service. The service needs `RATES_API_KEY`, which nothing in the tree supplies, but nothing records the service as unavailable where the suite runs or its real call as failing, and there is no history of a change from a real call: with no evidence that REQ-10 is unmet, that is at most an advisory (no test against the real service), not this finding.

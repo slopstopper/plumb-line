@@ -7,4 +7,5 @@
   figure, or "unavailable" when the partner cannot be reached.
 - **REQ-9.** Points expire 12 months after they are earned.
 - **REQ-10.** Amounts shown in a member's home currency are converted at the
-  rates service's rate for the day.
+  rates service's rate for the day, to two decimal places, or shown as
+  "unavailable" when the rates service cannot be reached.

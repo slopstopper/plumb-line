@@ -14,7 +14,7 @@ def test_statement_shows_the_partners_balance():
 
 
 def test_unit_statement_line_formats_the_balance(monkeypatch):
-    # A unit test of statement_line()'s own formatting: the partner call is its collaborator.
+    # REQ-8: the points line's format.
     monkeypatch.setattr(partner, "fetch_points", lambda member_id: 40)
     assert statement.statement_line("m-1") == "Points: 40"
 

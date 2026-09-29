@@ -299,6 +299,26 @@ def test_th_both_trees_carry_a_unit_only_requirement_with_nothing_unmet():
         assert "REQ-10" in read(TH, f"{tree}/docs/SPEC.md")
         test = read(TH, f"{tree}/tests/test_rates.py")
         assert "def test_unit_" in test and "REQ" not in test
+        # The harder case: the service needs a key the tree never supplies,
+        # and nothing records it as unavailable in CI.
+        assert "RATES_API_KEY" in read(TH, f"{tree}/src/rates.py")
+        for name in ("test_balance.py", "test_statement.py", "test_expiry.py", "test_rates.py"):
+            other = read(TH, f"{tree}/tests/{name}")
+            assert "RATES_API_KEY" not in other and "rates service" not in other.lower()
+            assert name == "test_rates.py" or "import rates" not in other
+    for f in ("src/rates.py", "tests/test_rates.py"):
+        assert read(TH, f"broken/{f}") == read(TH, f"clean/{f}")
+
+
+def test_th_clean_unit_tests_cite_their_requirement():
+    # Review of 55f09cd, defect 6: "a citation alone does not make a unit test
+    # the requirement's test" needs an item that exercises it.
+    for name, req in (("test_balance.py", "REQ-7"), ("test_statement.py", "REQ-8")):
+        test = read(TH, f"clean/tests/{name}")
+        start = test.index("def test_unit_")
+        unit = test[start:test.find("\ndef ", start + 1)]
+        assert req in unit, name
+        assert "collaborator" not in test, "a comment must not hand the auditor the carve-out"
 
 
 def test_th_clean_pairs_the_req8_deferral_with_its_observable_failure():

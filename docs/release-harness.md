@@ -51,12 +51,13 @@ Follow the blind protocol in
    lineage contract — that is declaring the architecture, not coaching).
 3. Score against the "Expected findings" table in `AUDIT-EXPECTATIONS.md`:
    - A `broken/` fixture **PASSES** only if **every** planted violation appears
-     as a confirmed violation in **every** run.
+     as a confirmed violation in **every** run. `test-honesty/broken` also
+     FAILS on any check-10 finding, violation or needs-review, on
+     `tests/test_rates.py`.
    - A `clean/` fixture **PASSES** only at zero confirmed violations (P7/P9 may
      appear as advisory adoption gaps; never as per-output violations).
      `test-honesty/clean` also FAILS on any check-10 finding, violation or
-     needs-review, on the six items its row names, and `test-honesty/broken`
-     on one on `tests/test_rates.py`.
+     needs-review, on the six items its row names.
    - A missed or downgraded planted violation = **FAIL**.
 
 **Policy — a validation FAIL blocks the tag.** Do not release until the cause is
