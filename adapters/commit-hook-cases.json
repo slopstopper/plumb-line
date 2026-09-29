@@ -1,0 +1,372 @@
+{
+  "_doc": "Cases for the branch guard's git commit hook (#464), run against a real temporary git repository by both twins: adapters/js/hooks/__tests__/commit-hook-cases.test.mjs and adapters/python/hooks/test_commit_hook_cases.py. Each row builds the repository in this order: `git init` on an unborn main; `committed` paths committed as the base, with `committedText` files (path to content) committed beside them (absent: main stays unborn); `side` paths committed on a branch named side, made from the base, then main checked out again; `branch` checked out as a new branch (null: HEAD detached at the base; \"main\": stay); `tags` created at HEAD; `headRef` given to `git symbolic-ref HEAD`; `config` pairs set with `git config`; `merge` arguments given to `git merge`; `remove` and `move` applied with `git rm` and `git mv`; `stage` paths written and added; `stageHex` paths (hex bytes, which need not be UTF-8) added to the index only; `gitlink` paths added to the index as submodule commits (HEAD's); `stageCount` [prefix, n] adds n index-only paths prefix0 to prefix(n-1); `modify` paths rewritten without staging. Then the wrapper runs in the repository with `env` applied (null unsets) and every PLUMBLINE_* variable cleared first, or, when `commit` is present, a pre-commit hook that runs the wrapper is installed and `git commit` runs with those arguments, and a commit must be made exactly when `expectExit` is 0. `repo: false` runs the wrapper outside any repository instead. `fakeGit` ({script, executable}) runs the wrapper with PATH holding only a directory whose `git` is that script, made executable or not; it cannot be combined with `commit`. `expectStderr` is compared exactly.",
+  "version": 1,
+  "commitHook": [
+    {
+      "name": "a code file on a protected branch blocks",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["src/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "a code file on an unprotected branch passes",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "a docs-only commit on a protected branch passes",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["README.md", "docs/guide.md"],
+      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"docs/\", \"*.md\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "a commit of docs and code on a protected branch blocks on the code file",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["docs/guide.md", "src/b.js"],
+      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"docs/\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/b.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "the first blocked file in git's path order is the one reported",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["src/z.js", "lib/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to lib/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "a detached HEAD blocks a code file: the branch is unknown",
+      "committed": ["README.md"],
+      "branch": null,
+      "stage": ["src/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js with the branch unknown (HEAD is not on a branch). Switch to a branch first.\n"
+    },
+    {
+      "name": "a detached HEAD allows a docs-only commit, as every branch does",
+      "committed": ["README.md"],
+      "branch": null,
+      "stage": ["docs/guide.md"],
+      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"docs/\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "a detached HEAD blocks even with no branch protected: unknown is never a pass",
+      "committed": ["README.md"],
+      "branch": null,
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"protectedBranches\": []}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js with the branch unknown (HEAD is not on a branch). Switch to a branch first.\n"
+    },
+    {
+      "name": "HEAD pointing at a tag is not on a branch",
+      "committed": ["README.md"],
+      "branch": "main",
+      "tags": ["v1"],
+      "headRef": "refs/tags/v1",
+      "stage": ["src/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js with the branch unknown (HEAD is not on a branch). Switch to a branch first.\n"
+    },
+    {
+      "name": "a tag with the protected branch's name does not unprotect it (git's short name would be heads/main)",
+      "committed": ["README.md"],
+      "branch": "main",
+      "tags": ["main"],
+      "stage": ["src/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "the first commit on an unborn protected branch blocks a code file",
+      "branch": "main",
+      "stage": ["src/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "the first commit on an unborn protected branch allows docs",
+      "branch": "main",
+      "stage": ["README.md"],
+      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"*.md\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "moving a code file into docs blocks on the path it leaves (renames are not collapsed)",
+      "committed": ["src/a.js"],
+      "branch": "main",
+      "move": [["src/a.js", "docs/a.md"]],
+      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"docs/\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "deleting a code file on a protected branch blocks",
+      "committed": ["README.md", "src/a.js"],
+      "branch": "main",
+      "remove": ["src/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "PLUMBLINE_BRANCH is ignored: the branch is read from git",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_BRANCH": "feat"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "protectedBranches from PLUMBLINE_CFG is honoured",
+      "committed": ["README.md"],
+      "branch": "release/1.x",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\", \"release/1.x\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch release/1.x. Branch first.\n"
+    },
+    {
+      "name": "an explicit empty protectedBranches protects no branch",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"protectedBranches\": []}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "PLUMBLINE_CFG that is not JSON blocks, with the guard's reason",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["docs/guide.md"],
+      "env": {"PLUMBLINE_CFG": "{"},
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG is not valid JSON. Set it to a JSON object, or unset it for the defaults.\n"
+    },
+    {
+      "name": "PLUMBLINE_CFG with a snake_case key blocks, naming the key to use",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"protected_branches\": [\"release\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"protected_branches\" (use \"protectedBranches\"). The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"; \"layers\" and \"direction\" are the boundary guard's.\n"
+    },
+    {
+      "name": "the boundary guard's keys in a shared PLUMBLINE_CFG are allowed",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"layers\": [\"ui\", \"data\"], \"direction\": \"downward\"}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "nothing staged on a protected branch passes: there is no code edit",
+      "committed": ["README.md"],
+      "branch": "main",
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "paths with spaces and non-ASCII characters are judged as written",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["docs/a b.md", "docs/été.md", "src/é x.js"],
+      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"docs/\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/é x.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "a staged path that is not UTF-8 is judged with U+FFFD in place of each bad sequence",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stageHex": ["7372632f61ff2e6a73"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a�.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "a docs path that is not UTF-8 still matches the allowlist",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stageHex": ["646f63732fc3282e6d64"],
+      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"docs/\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "a path that is not UTF-8 on an unprotected branch passes",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stageHex": ["7372632f61ff2e6a73"],
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "a submodule bump on a protected branch blocks, even with diff.ignoreSubmodules=all",
+      "committed": ["README.md"],
+      "branch": "main",
+      "config": [["diff.ignoreSubmodules", "all"]],
+      "gitlink": ["lib/sub"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to lib/sub on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "a submodule bump on a protected branch blocks, even with ignore = all in a committed .gitmodules",
+      "committed": ["README.md"],
+      "committedText": {".gitmodules": "[submodule \"lib/sub\"]\n\tpath = lib/sub\n\turl = ./sub\n\tignore = all\n"},
+      "branch": "main",
+      "gitlink": ["lib/sub"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to lib/sub on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "more than 1 MiB of staged paths on an unprotected branch passes (no output limit)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stageCount": ["vendor/a-long-directory-name-to-make-each-path-over-one-hundred-bytes-long/and-then-some-more/file-", 12000],
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "HEAD on a new branch whose name git would not accept (-x) is unknown, and the reason names HEAD (the whole index is new there)",
+      "committed": ["README.md"],
+      "branch": "main",
+      "headRef": "refs/heads/-x",
+      "stage": ["src/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to README.md with the branch unknown (HEAD is on \"-x\", which is not a branch name). Switch to a branch first.\n"
+    },
+    {
+      "name": "git that cannot be run blocks, naming the error code",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["docs/guide.md"],
+      "env": {"PATH": "/nonexistent-plumb-line-path"},
+      "expectExit": 2,
+      "expectStderr": "blocked: the branch guard's commit hook could not run git (ENOENT).\n"
+    },
+    {
+      "name": "a git on PATH that is not executable blocks, naming the error code",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "fakeGit": {"script": "#!/bin/sh\nexit 0\n", "executable": false},
+      "expectExit": 2,
+      "expectStderr": "blocked: the branch guard's commit hook could not run git (EACCES).\n"
+    },
+    {
+      "name": "git killed by a signal blocks, naming the signal",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "fakeGit": {"script": "#!/bin/sh\nkill -KILL $$\n", "executable": true},
+      "expectExit": 2,
+      "expectStderr": "blocked: the branch guard's commit hook could not read the branch (git symbolic-ref was killed by SIGKILL).\n"
+    },
+    {
+      "name": "outside a git repository the hook blocks: it cannot read the branch",
+      "repo": false,
+      "expectExit": 2,
+      "expectStderr": "blocked: the branch guard's commit hook could not read the branch (git symbolic-ref exited 128).\n"
+    },
+    {
+      "name": "through git commit: a code file on a protected branch is refused with the guard's reason",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["src/a.js"],
+      "commit": [],
+      "expectExit": 1,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "through git commit: a code file on a feature branch is committed",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "commit": [],
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "through git commit -a: a modified code file that was never staged is still judged",
+      "committed": ["README.md", "src/a.js"],
+      "branch": "main",
+      "modify": ["src/a.js"],
+      "commit": ["-a"],
+      "expectExit": 1,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "through git commit <path>: only the files being committed are judged, not the rest of the index",
+      "committed": ["README.md", "docs/guide.md"],
+      "branch": "main",
+      "stage": ["src/a.js"],
+      "modify": ["docs/guide.md"],
+      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"docs/\"]}"},
+      "commit": ["--", "docs/guide.md"],
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "through git commit: a --no-commit merge into a protected branch is judged, every path it brings in",
+      "committed": ["README.md"],
+      "side": ["src/a.js"],
+      "branch": "main",
+      "merge": ["--no-commit", "--no-ff", "side"],
+      "commit": [],
+      "expectExit": 1,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "through git commit: a --squash merge into a protected branch is judged",
+      "committed": ["README.md"],
+      "side": ["src/a.js"],
+      "branch": "main",
+      "merge": ["--squash", "side"],
+      "commit": [],
+      "expectExit": 1,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "through git commit: a docs-only merge into a protected branch is committed",
+      "committed": ["README.md"],
+      "side": ["docs/guide.md"],
+      "branch": "main",
+      "merge": ["--no-commit", "--no-ff", "side"],
+      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"docs/\"]}"},
+      "commit": [],
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "through git commit --amend: judged by what is staged against HEAD, so an amend with nothing staged passes",
+      "committed": ["README.md", "src/a.js"],
+      "branch": "main",
+      "commit": ["--amend"],
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "through git commit on a detached HEAD: a code file is refused",
+      "committed": ["README.md"],
+      "branch": null,
+      "stage": ["src/a.js"],
+      "commit": [],
+      "expectExit": 1,
+      "expectStderr": "blocked: code edit to src/a.js with the branch unknown (HEAD is not on a branch). Switch to a branch first.\n"
+    }
+  ]
+}

@@ -47,7 +47,7 @@ const BAD_REF_CHARS = /[\x00-\x20\x7f~^:?*[\\]/;
  * `refs/heads/<name>` (#474). The table's rows are cross-checked against
  * `git check-ref-format --branch`. Python twin: _is_branch_name.
  */
-function isBranchName(name) {
+export function isBranchName(name) {
   if (name === "HEAD" || name.startsWith("-")) return false;
   if (BAD_REF_CHARS.test(name) || name.includes("..") || name.includes("@{") || name.endsWith(".")) {
     return false;
@@ -236,6 +236,17 @@ function envProblem(name) {
     : null;
 }
 
+/**
+ * PLUMBLINE_CFG from the environment, checked as this CLI checks it: `{ config }`
+ * for decide(), or `{ reason }` to block. For a caller that judges paths itself
+ * with a branch it did not read from PLUMBLINE_BRANCH: the git commit hook
+ * (branch-guard-commit.mjs, #464). Python twin: config_from_env.
+ */
+export function configFromEnv() {
+  const envReason = envProblem("PLUMBLINE_CFG");
+  return envReason ? { reason: `blocked: ${envReason}` } : readConfig(process.env.PLUMBLINE_CFG);
+}
+
 if (isMainModule()) {
   const chunks = [];
   process.stdin.on("data", (d) => chunks.push(d));
@@ -263,10 +274,10 @@ if (isMainModule()) {
           throw new Error("stdin is not valid JSON");
         }
       }
-      const envReason = envProblem("PLUMBLINE_BRANCH") ?? envProblem("PLUMBLINE_CFG");
-      const { config, reason } = envReason
-        ? { reason: `blocked: ${envReason}` }
-        : readConfig(process.env.PLUMBLINE_CFG);
+      const branchReason = envProblem("PLUMBLINE_BRANCH");
+      const { config, reason } = branchReason
+        ? { reason: `blocked: ${branchReason}` }
+        : configFromEnv();
       // Only the two documented config keys, never a spread: a spread let a
       // config `branch` or `filePath` override the real ones.
       r = reason

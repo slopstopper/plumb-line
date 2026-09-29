@@ -62,3 +62,9 @@ stderr = block) so the same script works as a git hook and a Claude Code hook.
 - **2026-09-27 (#471).** The boundary guard now exits 2 on input it cannot
   read or judge, and on a `PLUMBLINE_CFG` it cannot use, so the exit-2
   convention holds for all three hooks.
+- **2026-09-29 (#464).** The branch guard now works as a git commit hook
+  through a wrapper per language (`branch-guard-commit.mjs`,
+  `branch_guard_commit.py`), which reads the branch from git and feeds the
+  guard each staged path. So the same guard serves both hosts, but not the
+  same script: git still gives a hook none of the guard's inputs, and the
+  wrapper is what supplies them.
