@@ -70,11 +70,13 @@ work. All of these are fine; do them, and say what you did:
   removed along with the behaviour it tested, is fine when the change says
   whose decision it was.
 
-What counts as a decision (this skill's reading of option C, below, which
-leaves whether a requirement can wait to the owner): one the owner, a spec
-or a ticket made about *this* expectation. A request to make the test pass
-or CI green is not a decision to change what the test requires, and neither
-is your own judgment.
+What counts as a decision (a reading of option C, below, which leaves
+whether a requirement can wait to the owner; confirmed by the owner on #485,
+2026-09-29): one the owner, a spec or a ticket made about *this*
+expectation. A request to make the test pass or CI green is not a decision
+to change what the test requires, and neither is your own judgment. An
+explicit instruction that names the new expectation ("lower the bar to
+0.80, we accept that for now") is one.
 
 The line, every time: a change is honest when it says why and, where it
 changes what counts as met, on whose decision. Disclosing a change that makes
