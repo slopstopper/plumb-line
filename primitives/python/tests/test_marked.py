@@ -103,6 +103,13 @@ def test_derive_override_refuses_a_derived_from_mock_that_is_not_a_boolean():
     for flag in ([], {}, 0, '', 'false', 'true'):
         with pytest.raises(ValueError, match='derivedFromMock must be a boolean'):
             m.derive([clean], lambda v: v, derived_from_mock=flag)
+    # Values json.dumps cannot write are refused with the same message
+    # (make_meta's own quoting), not a serialization error (#555 review).
+    cycle = []
+    cycle.append(cycle)
+    for flag in (object(), {1, 2}, b'x', cycle, float('nan')):
+        with pytest.raises(ValueError, match='derivedFromMock must be a boolean'):
+            m.derive([clean], lambda v: v, derived_from_mock=flag)
     assert m.derive([clean], lambda v: v, derived_from_mock=True)['meta']['derived_from_mock'] is True
     for flag in (False, None):
         assert m.derive([clean], lambda v: v, derived_from_mock=flag)['meta']['derived_from_mock'] is False

@@ -174,8 +174,9 @@ also found two regressions in the first fix, fixed before merge: leaving an
 absent `source` off a step let the egress guard pass it (the guard now
 refuses a step with no `source`), and a Python `Mapping` that is not a `dict`
 had its taint cleared (any `Mapping` is now read). A re-run of the reviewer's
-143-input probe leaves 18 differences, none in outcome: nine are the audit's
-field name in its message (`derivedFromMock` / `derived_from_mock`, as
-before), and nine are a `-0` or an out-of-range integer that each language's
-JSON parser already reads differently, copied verbatim into the step; the
-ids and taint agree.
+143-input probe leaves 19 differences after #555, none in outcome: nine are
+the audit's field name in its message (`derivedFromMock` /
+`derived_from_mock`, as before), and ten are a `-0` or an out-of-range
+integer that each language's JSON parser already reads differently, copied
+verbatim into the step (#555's malformed flag of `-0` is the tenth); the ids
+agree and neither language reads any of them as taint.

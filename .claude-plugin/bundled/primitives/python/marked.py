@@ -1,6 +1,4 @@
 """marked — thin wrapper sugar over the provenance law. The law lives in provenance.py."""
-import json
-
 try:  # installed as a package (plumb_line_provenance)
     from .provenance import combine_provenance, make_meta
 except ImportError:  # flat / copy-paste usage (modules on sys.path)
@@ -84,12 +82,12 @@ def derive(inputs, fn, **meta_override):
     for key in _OVERRIDE_KEYS:
         if key in meta_override:
             overridden[key] = meta_override[key]
-    # A malformed taint override is refused, as make_meta refuses one (#555):
-    # read as taint it was called mock, and it must not be dropped silently.
+    # A malformed taint override is passed to make_meta as it is, so make_meta
+    # refuses it with its own message and quoting (#555): read as taint it was
+    # called mock, and it must not be dropped silently.
     flag = meta_override.get('derived_from_mock')
-    if flag is not None and not isinstance(flag, bool):
-        raise ValueError(f"derivedFromMock must be a boolean; got {json.dumps(flag, ensure_ascii=False)}")
-    overridden['derived_from_mock'] = combined['derived_from_mock'] or flag is True
+    readable = flag is None or isinstance(flag, bool)
+    overridden['derived_from_mock'] = (combined['derived_from_mock'] or flag is True) if readable else flag
     # Route the override through make_meta so derive is never weaker than the
     # constructor: an out-of-range confidence_score override is dropped by the
     # same validation, not stored raw. derived_from_mock is force-OR'd above, so

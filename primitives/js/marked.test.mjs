@@ -129,6 +129,16 @@ describe("derive refuses a derivedFromMock override that is not a boolean (#555,
     for (const flag of [[], {}, 0, "", "false", "true"]) {
       expect(() => derive([clean], (v) => v, { derivedFromMock: flag })).toThrow("derivedFromMock must be a boolean");
     }
+    // Values JSON.stringify cannot write, or writes as null, are refused with
+    // makeMeta's own message and quoting (#555 review).
+    const cycle = [];
+    cycle.push(cycle);
+    for (const flag of [10n, NaN, cycle, Symbol("s"), () => 1]) {
+      let error;
+      try { derive([clean], (v) => v, { derivedFromMock: flag }); } catch (e) { error = e; }
+      expect(error?.message).toMatch(/^derivedFromMock must be a boolean; got /);
+      expect(error.message).not.toMatch(/got (null|undefined)$/);
+    }
     expect(derive([clean], (v) => v, { derivedFromMock: true }).derivedFromMock).toBe(true);
     for (const flag of [false, null]) {
       expect(derive([clean], (v) => v, { derivedFromMock: flag }).derivedFromMock).toBe(false);

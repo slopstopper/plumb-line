@@ -148,8 +148,8 @@ def audit_meta(meta):
         if actual is not None and STATUS.index(meta['weakest_source']) > STATUS.index(actual):
             issues.append(f"source over-claim: weakestSource '{meta['weakest_source']}' is cleaner than lineage's '{actual}'")
 
-    # The taint rule of SPEC §3 (#525 review): bool() read [] as clean here
-    # and tainted in the JS twin, and 0 as clean in both.
+    # Only a bool True taints (SPEC §3, #555): bool() read [] as clean here
+    # and tainted in the JS twin. A malformed step flag is not taint.
     lineage_tainted = any(taints(s) for s in steps)
     if lineage_tainted and meta.get('derived_from_mock') is False:
         issues.append('taint dropped: lineage contains a tainted step but derived_from_mock is false')

@@ -81,15 +81,15 @@ export function derive(inputs, fn, metaOverride = {}) {
   // constructor: an out-of-range confidenceScore (or unrankable weakestSource)
   // is dropped by the same validation, not stored raw. derivedFromMock is
   // force-OR'd *before* the call, so taint still cannot be cleared (the one law).
-  // A malformed taint override is refused, as makeMeta refuses one (#555):
-  // read as taint it was called mock, and it must not be dropped silently.
+  // A malformed taint override is passed to makeMeta as it is, so makeMeta
+  // refuses it with its own message and quoting (#555): read as taint it was
+  // called mock, and it must not be dropped silently.
   const flag = metaOverride.derivedFromMock;
-  if (flag !== undefined && flag !== null && typeof flag !== "boolean")
-    throw new Error(`derivedFromMock must be a boolean; got ${JSON.stringify(flag)}`);
+  const readable = flag === undefined || flag === null || typeof flag === "boolean";
   const merged = makeMeta({
     ...combined,
     ...safeOverride,
-    derivedFromMock: combined.derivedFromMock || flag === true,
+    derivedFromMock: readable ? combined.derivedFromMock || flag === true : flag,
   });
   return Object.freeze({ value, ...merged });
 }

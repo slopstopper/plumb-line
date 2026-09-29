@@ -440,6 +440,12 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     envelope, not as mock. (An intermediate commit on #525 read such a flag
     as taint; the owner reversed that, since an unreadable flag is not
     known to be mock.)
+    **Also a change for readers (loosening where the guard is not used):**
+    in v0.11.5 a handed flag of `1`, `"true"` or `[1]` tainted in both
+    languages. Now `taints()` returns false for it, and combine's headline
+    `derivedFromMock` stays `false`. Only the egress guard refuses such an
+    envelope. The audit does not yet report a malformed step flag; that is
+    #551.
   - **Step shape:** a step records `null` for a `source` or `confidence` its
     input does not have (JS left it `undefined`), and an array lineage step
     stays an array (JS spread it into an object). `combine`'s score is `0`,

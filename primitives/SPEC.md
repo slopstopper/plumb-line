@@ -196,7 +196,7 @@ canonical serialization (`stepId` / `step_id`, Task 4 of wire v2):
 of=<of>
 source=<source>
 confidence=<confidence>
-derivedFromMock=<"true"|"false">
+derivedFromMock=<"true" or "false" for a boolean, "false" if absent or null; otherwise by type, see below>
 confidenceScore=<IEEE-754 binary64, big-endian, as 16 lowercase hex chars; or "-" if absent or not a valid score>
 inputs=<sorted, comma-joined ids of the step's input steps>
 ```
@@ -213,8 +213,12 @@ is infinity, as a JSON parser reads it); an array as `<array>`; an object as
 included, is written with `-0` as `0`: JSON's `-0` is `-0` in JavaScript and
 the integer `0` in Python. This serialization is not one-to-one: `true` and
 `"true"`, or any two arrays, write the same line, so two handed steps can
-share an id. An id addresses a step's trust state, and a value no
-constructor stores has no finer state to address. The `derivedFromMock`
+share an id. That holds for the `derivedFromMock` line too: a step whose
+flag is the string `"false"` shares an id with a clean step, and one with
+`"true"` with a tainted one, though the guard refuses both malformed steps
+and passes neither on their account. An id identifies a step's content for
+lineage references; it is not a trust verdict, and nothing may be judged
+from an id alone. The `derivedFromMock`
 line is `true` or `false` for a boolean, `false` when absent or `null`, and
 otherwise the malformed value the law kept (§3) serialized by type, as the
 fields above are.

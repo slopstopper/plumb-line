@@ -124,8 +124,8 @@ export function auditMeta(meta) {
     }
   }
 
-  // The taint rule of SPEC §3 (#525 review): Boolean() read [] as tainted
-  // here and not in the Python twin, and 0 as clean in both.
+  // Only a boolean true taints (SPEC §3, #555): Boolean() read [] as tainted
+  // here and not in the Python twin. A malformed step flag is not taint.
   const lineageTainted = lineage.some((s) => taints(s));
   if (lineageTainted && meta.derivedFromMock === false) {
     issues.push(

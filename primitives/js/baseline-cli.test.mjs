@@ -43,6 +43,27 @@ describe("baseline-cli", () => {
     expect(out).toContain('source: "derived"');
     expect(out).toContain("2026-09-10  initial  initial pin");
   });
+  it("show names a malformed taint flag and never calls it tainted (#555)", async () => {
+    // The record is edited on disk, since no constructor builds a malformed
+    // flag. Python twin in tests/test_baseline_cli.py.
+    // Its own directory: `dir` is shared, and the validate test counts files.
+    const { readFileSync } = await import("node:fs");
+    const own = mkdtempSync(join(tmpdir(), "plumb-baseline-odd-"));
+    const r = mark(0.04, { source: "real", confidence: "high" });
+    update("odd", derive([r, r, r], (a) => a), { because: "pin", dir: own, date: "2026-09-10" });
+    const path = join(own, "odd.json");
+    const rec = JSON.parse(readFileSync(path, "utf8"));
+    ["false", [], true].forEach((flag, i) => { rec.meta.lineage[i].derivedFromMock = flag; });
+    writeFileSync(path, JSON.stringify(rec));
+    const { code, out } = run("show", "odd", "--dir", own);
+    rmSync(own, { recursive: true, force: true });
+    expect(code).toBe(0);
+    const lines = out.split("\n").filter((l) => l.startsWith("  ["));
+    expect(lines[0]).toMatch(/real\/high malformed-taint-flag$/);
+    expect(lines[1]).toMatch(/real\/high malformed-taint-flag$/);
+    expect(lines[2]).toMatch(/real\/high tainted$/);
+  });
+
   it("show on an unknown name exits 1", () => {
     expect(run("show", "nope", "--dir", dir).code).toBe(1);
   });
