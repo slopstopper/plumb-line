@@ -1,5 +1,5 @@
 // marked.mjs — thin wrapper sugar over the provenance law. The law lives in provenance.mjs.
-import { combineProvenance, makeMeta } from "./provenance.mjs";
+import { combineProvenance, makeMeta, taints } from "./provenance.mjs";
 
 const META_KEYS = [
   "provenanceVersion",
@@ -84,8 +84,9 @@ export function derive(inputs, fn, metaOverride = {}) {
   const merged = makeMeta({
     ...combined,
     ...safeOverride,
+    // The taint rule of SPEC §3 (#525 review), as in the Python twin.
     derivedFromMock:
-      combined.derivedFromMock || Boolean(metaOverride.derivedFromMock),
+      combined.derivedFromMock || taints({ derivedFromMock: metaOverride.derivedFromMock }),
   });
   return Object.freeze({ value, ...merged });
 }

@@ -173,3 +173,15 @@ def test_refuses_never_raises_for_a_malformed_value_it_cannot_print():
     x = {'value': 1, 'meta': dict(base['meta'], source='derived', lineage=[step])}
     with pytest.raises(ProvenanceRefused):
         guard(x)
+
+
+def test_guard_refuses_what_combine_makes_of_an_input_with_no_source():
+    """#525 review: combine records the missing source as None, and the guard
+    refuses it, as before #525; with the key left off, it passed."""
+    import provenance as prov
+    for handed in ({'confidence': 'high', 'derived_from_mock': False, 'lineage': []}, {}, 'x'):
+        meta = prov.combine_provenance(handed)
+        with pytest.raises(ProvenanceRefused) as refused:
+            guard({'value': 1, 'meta': meta})
+        assert any('lineage step 0 source null is not on the source ladder' in r
+                   for r in refused.value.reasons), refused.value.reasons

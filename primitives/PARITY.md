@@ -9,10 +9,11 @@ marked object vs Python's `meta` dict) are documented once, in
 [`docs/api.md`](../docs/api.md); this file does not repeat them (owner decision
 2026-09-28).
 
-Suites: JS `npm ci && npx vitest run` → 287/287; Python `python3 -m pytest` → 218/218 (reproduced 2026-09-25).
-(Run JS after `npm ci` — the count includes the fast-check property suite, which
-silently fails to import if the dev-dependency is absent. Reproduce the number;
-never hand-type it.)
+Suites: JS `npm ci && npx vitest run`; Python `python3 -m pytest`. Both must
+pass in full. The counts are not recorded here, because a count in prose goes
+stale (it said 287 / 218 while the suites ran 321 / 233; #525): run them.
+(Run JS after `npm ci`: the JS suite includes the fast-check property suite,
+which silently fails to import if the dev-dependency is absent.)
 
 **Parity is enforced by data, not prose.** `primitives/conformance/cases.json` is
 a single language-neutral case table; `primitives/js/conformance.test.mjs` and
@@ -32,7 +33,7 @@ floats, non-ASCII text and containers). Both checkers report the four
 required fields by their canonical camelCase names in both languages, so the
 conformance needles match verbatim.
 
-The suite totals differ (287 JS vs 218 Python) partly because JS carries a
+The suite totals differ partly because JS carries a
 fast-check **property-test** suite (`property.test.mjs`) with no Python
 `hypothesis` mirror yet. Property tests are JS-only and sit *outside* the
 conformance contract — parity of the law and checkers is still enforced by the
@@ -135,3 +136,43 @@ advisory alone in both languages, because it carries no `provenanceVersion`
 by the `cases.json` "empty envelope" row, which requires the advisory, and by
 each language's unit test, which requires it to be the only issue
 (`audit.test.mjs`, `tests/test_audit.py`), not by this table.
+
+## Handed envelopes — resolved 2026-09-29 (#525)
+
+A differential probe fed the same malformed, handed inputs to both
+`combine` implementations; 20 of 28 gave different results. All now match,
+each pinned by a `combine` row in `cases.json` (the rows marked #525):
+
+- **Step ids for a non-string `confidence` or `source`.** Each language wrote
+  the value with its own string conversion (`True` vs `true`, `1.0` vs `1`,
+  `1e-07` vs `1e-7`, and containers differently), so the content-addressed
+  id differed. Both now use SPEC §4's serialization by type.
+- **Python `combine_provenance` was not total.** An input that is not a dict,
+  a `lineage` that is not a list, or a lineage step that is not a dict raised
+  `AttributeError`; JS combined them. Python now combines them as JS does
+  (SPEC §3, "total").
+- **Taint of a non-boolean `derivedFromMock`.** JS read `[]` and `{}` as
+  tainting (truthy) and Python as clean (falsy), so taint could vanish in
+  one language. Both now taint on anything other than `false` or absent,
+  so `0` and `""` taint too (SPEC §3).
+- **Step shape.** For an input with no `source` or `confidence`, Python
+  wrote `null` where JS left the field off (in memory, `undefined`); both now
+  write `null`, so every step has both keys. JS spread an array lineage step
+  into an object (`{"0": ...}`); both now keep it as an array.
+
+The independent review of the first fix found more, all now resolved and
+pinned by rows marked "#525 review": a number beyond double range crashed
+Python's id canon; `-0` gave different ids (and Python's `min` over `0.0`
+and `-0.0` depended on input order); a lone surrogate crashed Python's
+hashing; input ids sorted by UTF-16 unit in JS and by code point in Python;
+and the audit's taint-dropped check, `makeMeta`'s coercion and `derive`'s
+override each used their language's truthiness rather than the §3 rule. It
+also found two regressions in the first fix, fixed before merge: leaving an
+absent `source` off a step let the egress guard pass it (the guard now
+refuses a step with no `source`), and a Python `Mapping` that is not a `dict`
+had its taint cleared (any `Mapping` is now read). A re-run of the reviewer's
+143-input probe leaves 18 differences, none in outcome: nine are the audit's
+field name in its message (`derivedFromMock` / `derived_from_mock`, as
+before), and nine are a `-0` or an out-of-range integer that each language's
+JSON parser already reads differently, copied verbatim into the step; the
+ids and taint agree.

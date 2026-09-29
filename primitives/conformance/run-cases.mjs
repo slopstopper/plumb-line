@@ -16,7 +16,7 @@ import { isDeepStrictEqual } from "node:util";
 // Every field a case may carry. Anything else is reported as an error, never
 // skipped, so a field added to cases.json must be taught to this runner.
 const KNOWN_FIELDS = {
-  combine: new Set(["name", "inputs", "expect", "absent", "expectLineageIds"]),
+  combine: new Set(["name", "inputs", "expect", "absent", "expectLineageIds", "expectLineage"]),
   audit: new Set(["name", "meta", "expectContains"]),
   validate: new Set(["name", "meta", "expectContains"]),
   construct: new Set(["name", "input", "expect", "expectError"]),
@@ -39,9 +39,17 @@ function runCombine(impl, c) {
     if (k in out) return `expected ${k} to be absent`;
   }
   if (c.expectLineageIds) {
-    const ids = out.lineage.map((s) => s.id);
+    // A prior step that is not an object has no id: null, as in the Python runners.
+    const ids = out.lineage.map((s) => (s !== null && typeof s === "object" && !Array.isArray(s) ? (s.id ?? null) : null));
     if (!isDeepStrictEqual(ids, c.expectLineageIds))
       return `expected lineage ids ${JSON.stringify(c.expectLineageIds)}, got ${JSON.stringify(ids)}`;
+  }
+  // The whole lineage, camelCase, compared strictly: a key the step should
+  // leave off must be absent, not undefined (#525).
+  if (c.expectLineage) {
+    const plain = JSON.parse(JSON.stringify(out.lineage, (k, v) => (v === undefined ? "<undefined>" : v)));
+    if (!isDeepStrictEqual(plain, c.expectLineage))
+      return `expected lineage ${JSON.stringify(c.expectLineage)}, got ${JSON.stringify(plain)}`;
   }
   return null;
 }

@@ -215,3 +215,39 @@ def test_step_id_known_leaf():
 def test_step_id_input_order_independent():
     step = {'of': 'input', 'source': 'real', 'confidence': 'high', 'derived_from_mock': False}
     assert p.step_id(step, ['b', 'a']) == p.step_id(step, ['a', 'b'])
+
+
+# #525 review: what the case table cannot express.
+
+def test_a_mapping_that_is_not_a_dict_is_read_so_its_taint_is_kept():
+    """MappingProxyType, UserDict and ChainMap are envelopes read through
+    .get(); read as carrying nothing, their taint was cleared."""
+    from collections import ChainMap, UserDict
+    from types import MappingProxyType
+    fields = {'source': 'mock', 'confidence': 'high', 'derived_from_mock': True, 'lineage': []}
+    for m in (MappingProxyType(dict(fields)), UserDict(fields), ChainMap(dict(fields))):
+        assert p.taints(m) is True, type(m).__name__
+        out = p.combine_provenance(m, p.make_meta(source='real', confidence='high'))
+        assert out['derived_from_mock'] is True, type(m).__name__
+        assert out['weakest_source'] == 'mock', type(m).__name__
+        assert out['lineage'][0]['source'] == 'mock', type(m).__name__
+
+
+def test_a_mapping_lineage_step_is_copied_as_a_dict_and_its_id_read():
+    from types import MappingProxyType
+    prior = MappingProxyType({'id': 'sha256:aaaaaaaaaaaa', 'source': 'real'})
+    out = p.combine_provenance({'source': 'real', 'confidence': 'high', 'derived_from_mock': False,
+                                'lineage': [prior]})
+    assert out['lineage'][0] == {'id': 'sha256:aaaaaaaaaaaa', 'source': 'real'}
+    assert out['lineage'][1]['id'] == p.step_id(
+        {'of': 'input', 'source': 'real', 'confidence': 'high', 'derived_from_mock': False},
+        ['sha256:aaaaaaaaaaaa'])
+
+
+def test_combined_score_is_positive_zero_whatever_the_input_order():
+    """#525 review: min() over 0.0 and -0.0 returns whichever came first, so
+    the score's sign depended on input order; it is +0.0 either way. The case
+    table cannot see this: -0.0 == 0.0."""
+    import math
+    for scores in ([-0.0, 0.0], [0.0, -0.0], [-0.0]):
+        assert math.copysign(1, p.combine_confidence_score(scores)) == 1, scores

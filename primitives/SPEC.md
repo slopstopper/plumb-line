@@ -119,7 +119,11 @@ trustworthy than its inputs, and taint can never be cleared.
 
 1. **`derivedFromMock`** = logical OR over all inputs. An input taints if its
    `derivedFromMock` is `true` OR its `source` is `mock`. Once `true`, no
-   downstream combination may set it back to `false`.
+   downstream combination may set it back to `false`. A handed envelope can
+   carry a `derivedFromMock` that is not a boolean, which no constructor
+   stores: any value other than `false` or absent (`null` counts as absent)
+   taints, so a stray `0`, `""`, `[]` or `{}` cannot clear taint. This is
+   not either language's truthiness, which disagree on `[]` and `{}` (#525).
 2. **`confidence`** = the weakest (lowest-ranked) `confidence` among the inputs.
 3. **`confidenceScore`** = the minimum across inputs **iff every input carries a
    valid score**; otherwise the field is omitted. A missing score is "unknown"
@@ -136,6 +140,19 @@ trustworthy than its inputs, and taint can never be cleared.
 
 The law MUST be **order-independent** for fields 1–4 and 6: permuting the inputs
 MUST NOT change the result except for the order of lineage steps.
+
+The law is **total**: any input combines, including one that is not an
+envelope (a string, a number, `null`, an array) and an envelope whose
+`lineage` is not an array or holds steps that are not objects (#525). An
+envelope is any object read by key: in Python any `Mapping`, not only a
+`dict`; in JavaScript any object, an input's fields read through the
+prototype. An input that is not an envelope carries no fields: it does not
+taint, its confidence reads as `none`, and it contributes no prior steps. A
+`lineage` that is not an array contributes no prior steps. Prior steps are
+kept whatever they are: an array step as an array, a value that is not an
+object as itself, and an object step as a copy of its fields. In JavaScript
+that copy has the step's own fields only, so a field it inherits through its
+prototype is lost, taint included (#548).
 
 ### Combining zero inputs
 
@@ -157,8 +174,8 @@ Each new step MUST contain:
 | ----------------- | ------- | ------------------------------------------------ |
 | `id`              | string  | Content-addressed identifier (see below).        |
 | `of`              | string  | `"input"` for steps minted by the law.           |
-| `source`          | enum    | The input's `source` at combination time.        |
-| `confidence`      | enum    | The input's `confidence` at combination time.    |
+| `source`          | enum    | The input's `source` at combination time; `null` when the input has none. |
+| `confidence`      | enum    | The input's `confidence` at combination time; `null` when the input has none. |
 | `derivedFromMock` | boolean | Whether the input tainted (flag OR mock source). |
 | `confidenceScore` | number  | Present **iff** the input carried a valid score. |
 
@@ -177,8 +194,25 @@ inputs=<sorted, comma-joined ids of the step's input steps>
 ```
 
 The six lines are joined with `\n` (no trailing newline) and hashed as UTF-8.
-An absent `of`, `source` or `confidence` serializes as the empty string. Input
-ids are sorted by code point; ids are ASCII, so any bytewise sort agrees.
+An absent (or `null`) `of`, `source` or `confidence` serializes as the empty
+string, and a string as itself. A handed envelope can carry another type
+there, and each serializes by type, the same in every language (#525): a
+boolean as `true` or `false`; a number as its IEEE-754 binary64 bit pattern,
+as the score is (so `1` and `1.0` agree, and an integer too large for a double
+is infinity, as a JSON parser reads it); an array as `<array>`; an object as
+`<object>`. Neither language's own string conversion may be used: they write
+`True`/`true`, `1.0`/`1` and `1e-07`/`1e-7` differently. A number, the score
+included, is written with `-0` as `0`: JSON's `-0` is `-0` in JavaScript and
+the integer `0` in Python. This serialization is not one-to-one: `true` and
+`"true"`, or any two arrays, write the same line, so two handed steps can
+share an id. An id addresses a step's trust state, and a value no
+constructor stores has no finer state to address. The `derivedFromMock`
+line is `true` exactly when the value would taint (§3).
+
+Input ids are sorted by Unicode code point (not by UTF-16 code unit, which
+puts a character above U+FFFF before U+FFFF). Ids the law mints are ASCII,
+but a handed lineage can carry any string. The text is hashed as UTF-8, with
+a lone surrogate, which JSON can carry, written as U+FFFD.
 
 The score is encoded as its raw double bit pattern, **not** as a JSON number:
 JSON serializers disagree across languages for the same double (`0.00001` is
@@ -274,7 +308,7 @@ checker MUST detect each of the following:
 | 2 | Over-claiming          | `confidence` ranked higher than the weakest `confidence` in the lineage.                   |
 | 3 | Numeric over-claiming  | `confidenceScore` greater than the weakest `confidenceScore` in the lineage.               |
 | 4 | Source over-claim      | `weakestSource` cleaner (higher-ranked) than the weakest `source` present in the lineage.  |
-| 5 | Dropped taint          | a tainted lineage step exists but `derivedFromMock` is `false`.                            |
+| 5 | Dropped taint          | a tainted lineage step exists (by the §3 rule) but `derivedFromMock` is `false`.           |
 | 6 | Unreproducible         | `source` is `"derived"` but `lineage` is empty.                                            |
 
 The checker MUST be total: a missing or malformed field MUST yield a result list
@@ -398,7 +432,9 @@ level on the confidence ladder, default `none`). A default of true for
    envelope:`: any §5a structural issue; a `source`, `confidence` or (when
    present) `weakestSource` off its ladder (§2); a lineage step that is not
    a plain object (a JS object literal or null-prototype object; a Python
-   dict or dict subclass, judged on its contents); a step whose `source` or
+   dict or dict subclass, judged on its contents); a step with no `source`
+   (it cannot be shown not to be `mock`; the law always writes one, `null`
+   when its input had none; #525); a step whose `source` or
    `confidence`, when present, is off its ladder, or whose
    `derivedFromMock`, when present, is not a boolean; or a
    `confidenceScore`, top-level or on a step, that is present and not a

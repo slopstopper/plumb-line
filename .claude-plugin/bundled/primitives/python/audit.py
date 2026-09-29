@@ -10,7 +10,7 @@ _FLOAT_MAX = sys.float_info.max
 _MISSING = object()
 
 try:  # installed as a package (plumb_line_provenance)
-    from .provenance import CONFIDENCE, STATUS, weakest_confidence, weakest_source, is_score, PROVENANCE_VERSION
+    from .provenance import CONFIDENCE, STATUS, weakest_confidence, weakest_source, is_score, PROVENANCE_VERSION, taints
 except ImportError:  # flat / copy-paste usage (modules on sys.path)
     import provenance as _prov
     if not hasattr(_prov, 'combine_provenance') or not hasattr(_prov, 'PROVENANCE_VERSION'):
@@ -22,6 +22,7 @@ except ImportError:  # flat / copy-paste usage (modules on sys.path)
     CONFIDENCE, STATUS = _prov.CONFIDENCE, _prov.STATUS
     weakest_confidence, weakest_source = _prov.weakest_confidence, _prov.weakest_source
     is_score, PROVENANCE_VERSION = _prov.is_score, _prov.PROVENANCE_VERSION
+    taints = _prov.taints
 
 CLEAN_SOURCES = ['real', 'semiReal', 'fallback']
 
@@ -147,7 +148,9 @@ def audit_meta(meta):
         if actual is not None and STATUS.index(meta['weakest_source']) > STATUS.index(actual):
             issues.append(f"source over-claim: weakestSource '{meta['weakest_source']}' is cleaner than lineage's '{actual}'")
 
-    lineage_tainted = any(bool(s.get('derived_from_mock')) or s.get('source') == 'mock' for s in steps)
+    # The taint rule of SPEC §3 (#525 review): bool() read [] as clean here
+    # and tainted in the JS twin, and 0 as clean in both.
+    lineage_tainted = any(taints(s) for s in steps)
     if lineage_tainted and meta.get('derived_from_mock') is False:
         issues.append('taint dropped: lineage contains a tainted step but derived_from_mock is false')
 

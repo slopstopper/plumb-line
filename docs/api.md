@@ -148,7 +148,7 @@ a category:
 | `"laundering:"` | A clean `source` (`real`, `semiReal`, `fallback`) but `derivedFromMock` is `true` |
 | `"over-claiming:"` | `confidence` or `confidenceScore` is higher than the lineage supports |
 | `"source over-claim:"` | `weakestSource` is cleaner than the lineage proves |
-| `"taint dropped:"` | A tainted lineage step but `derivedFromMock` is `false` |
+| `"taint dropped:"` | A lineage step that taints (by the rule of `taints`) but `derivedFromMock` is `false` |
 | `"unreproducible:"` | `source` is `"derived"` but `lineage` is empty |
 | `"version-legacy:"` | `provenanceVersion` is absent or lower than the current wire version (advisory; `{}` returns only this) |
 | `"version-future:"` | `provenanceVersion` is newer than this library supports |
@@ -199,8 +199,9 @@ It fails closed, whatever the options:
 - a value that is not marked (`42`, `null`, a list, a `Map`) is refused;
 - so is a malformed envelope: any `validateEnvelope` issue, a `source`,
   `confidence` or `weakestSource` off its ladder, a lineage step that is not
-  a plain object (a Python dict), a step whose `source` or `confidence` is
-  off its ladder or whose `derivedFromMock` is not a boolean, or a
+  a plain object (a Python dict), a step with no `source` (#525), a step
+  whose `source` or `confidence` is off its ladder or whose
+  `derivedFromMock` is not a boolean, or a
   `confidenceScore`, top-level or on a step, that is not a number in `[0, 1]`;
 - and so is one the audit flags: any `auditMeta` issue except the
   `version-legacy:` and `version-future:` advisories. An envelope from an older
@@ -308,6 +309,12 @@ returns a new derived envelope.
 Calling with **zero arguments** returns `source: "unavailable"` (not
 `"derived"`), because a value derived from nothing has no honest provenance.
 
+It accepts any input (SPEC §3, #525). An input that is not an envelope, or an
+envelope with no `source` or `confidence`, gives a step with that field
+`null`; the egress guard refuses a step with a `null` or missing `source`. A
+lineage that is not an array contributes no prior steps, and prior steps are
+kept as they are.
+
 ---
 
 ### `weakestConfidence(...levels)` / `weakest_confidence(*levels)`
@@ -334,8 +341,11 @@ missing — a gap is "unknown", not zero.
 
 ### `taints(meta)`
 
-Returns `true`/`True` when the envelope carries mock taint
-(`derivedFromMock`/`derived_from_mock` is truthy, or `source === "mock"`).
+Returns `true`/`True` when the envelope carries mock taint:
+`derivedFromMock`/`derived_from_mock` is anything other than `false` or
+absent (`null`/`None` counts as absent), or `source === "mock"`. Not
+truthiness: a handed `0`, `""`, `[]` or `{}` taints, in both languages
+(SPEC §3, #525). A value that is not an envelope carries no taint.
 
 ---
 

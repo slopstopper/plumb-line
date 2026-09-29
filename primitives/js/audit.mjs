@@ -6,6 +6,7 @@ import {
   weakestSource,
   isScore,
   PROVENANCE_VERSION,
+  taints,
 } from "./provenance.mjs";
 
 const CLEAN_SOURCES = ["real", "semiReal", "fallback"];
@@ -123,9 +124,9 @@ export function auditMeta(meta) {
     }
   }
 
-  const lineageTainted = lineage.some(
-    (s) => Boolean(s?.derivedFromMock) || s?.source === "mock",
-  );
+  // The taint rule of SPEC §3 (#525 review): Boolean() read [] as tainted
+  // here and not in the Python twin, and 0 as clean in both.
+  const lineageTainted = lineage.some((s) => taints(s));
   if (lineageTainted && meta.derivedFromMock === false) {
     issues.push(
       "taint dropped: lineage contains a tainted step but derivedFromMock is false",
