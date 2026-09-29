@@ -63,7 +63,7 @@ def _unreadable(meta):
         issues.append(f"confidenceScore {_json(meta['confidence_score'])} is not a number in [0, 1]")
     for i, step in enumerate(meta['lineage']):
         if not isinstance(step, dict):
-            issues.append(f'lineage step {i} is not an object')
+            issues.append(f'lineage step {i} is not a plain object')
             continue
         if 'source' in step and not _on(STATUS, step['source']):
             issues.append(f"lineage step {i} source {_json(step['source'])} is not on the source ladder")
@@ -71,6 +71,10 @@ def _unreadable(meta):
             issues.append(f"lineage step {i} confidence {_json(step['confidence'])} is not on the confidence ladder")
         if 'derived_from_mock' in step and not isinstance(step['derived_from_mock'], bool):
             issues.append(f'lineage step {i} derivedFromMock must be a boolean')
+        # The audit skips a score it cannot read, so a bad one could hide an
+        # over-claim against a readable top-level score.
+        if 'confidence_score' in step and not is_score(step['confidence_score']):
+            issues.append(f"lineage step {i} confidenceScore {_json(step['confidence_score'])} is not a number in [0, 1]")
     return issues
 
 
@@ -115,8 +119,12 @@ def guard(x, *, no_mock=True, min_confidence='none', **unknown):
     meta = x['meta']
     # A copy, as JS's metaOf makes: an order-preserving parse (a dict
     # subclass, the twin of JS's null-prototype parse) is judged on content.
+    # Each step is copied too, so a dict subclass whose accessors hide a field
+    # is judged on what it holds, not on what it answers.
     if isinstance(meta, dict):
         meta = dict(meta)
+        if isinstance(meta.get('lineage'), list):
+            meta['lineage'] = [dict(step) if isinstance(step, dict) else step for step in meta['lineage']]
     malformed = validate_envelope(meta) or _unreadable(meta)
     if malformed:
         raise ProvenanceRefused([f'invalid envelope: {issue}' for issue in malformed])

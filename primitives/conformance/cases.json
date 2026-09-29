@@ -540,6 +540,21 @@
       "name": "a confidence score above one is refused as malformed",
       "meta": { "provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [], "confidenceScore": 2 },
       "expectRefused": ["invalid envelope: confidenceScore"]
+    },
+    {
+      "name": "a lineage step whose confidence score is not a number is refused, so an over-claim cannot hide behind it",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{ "id": "s1", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false, "confidenceScore": "0.1" }], "confidenceScore": 0.9 },
+      "expectRefused": ["invalid envelope: lineage step 0 confidenceScore"]
+    },
+    {
+      "name": "a lineage step whose confidence score is above one is refused as malformed",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{ "id": "s1", "of": "input", "source": "real", "confidence": "high", "derivedFromMock": false, "confidenceScore": 2 }] },
+      "expectRefused": ["invalid envelope: lineage step 0 confidenceScore"]
+    },
+    {
+      "name": "a lineage step that is not a plain object names that fact",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [7] },
+      "expectRefused": ["invalid envelope: lineage step 0 is not a plain object"]
     }
   ]
 }

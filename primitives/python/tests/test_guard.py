@@ -90,3 +90,26 @@ def test_the_package_exports_guard():
         'print("ok")\n')], cwd=py_dir, capture_output=True, text=True)
     assert out.returncode == 0, out.stderr
     assert out.stdout.strip() == 'ok'
+
+
+def test_a_dict_subclass_step_is_judged_on_what_it_holds_not_what_it_answers():
+    # A step whose accessors hide its taint: judged on a plain copy of its
+    # contents, as JS judges a plain object and refuses anything else.
+    class Sneaky(dict):
+        def get(self, key, default=None):
+            return default if key in ('source', 'derived_from_mock') else super().get(key, default)
+
+        def __getitem__(self, key):
+            if key in ('source', 'derived_from_mock'):
+                raise KeyError(key)
+            return super().__getitem__(key)
+
+        def __contains__(self, key):
+            return key not in ('source', 'derived_from_mock') and super().__contains__(key)
+
+    step = Sneaky(id='s1', of='input', source='mock', confidence='high', derived_from_mock=True)
+    x = {'value': 1, 'meta': {'provenance_version': 2, 'source': 'derived', 'confidence': 'high',
+                              'derived_from_mock': False, 'lineage': [step]}}
+    with pytest.raises(ProvenanceRefused) as e:
+        guard(x)
+    assert any(r.startswith('mock:') for r in e.value.reasons)

@@ -17,23 +17,26 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   marked value unchanged, so an output point writes `unwrap(guard(x))`, or
   throws `ProvenanceRefused` (a `ValueError` in Python) listing every reason.
   - **Mock is refused unless turned off** (`noMock: false`), as Principle 4's
-    mock clause says. The rest of what Principle 4 names is not refused:
-    fallback and inferred sources, and cached data, which the HTTP adapter
-    marks `real` (a source floor is #541).
+    mock clause says. The rest of Principle 4 is not refused: fallback data,
+    cached data (which the HTTP adapter marks `real`), and approximate data,
+    which has no rung of its own; nor are `inferred`, `semiReal` or
+    `unavailable` sources. A source floor is #541.
   - **It fails closed.** A value with no envelope is refused, and so is a
     malformed envelope: any structural issue, a value off its ladder, a
-    lineage step that is not an object, or a non-boolean taint flag on a
-    step. So is one the audit flags, except the `version-legacy:` and
+    lineage step that is not a plain object, a non-boolean taint flag on a
+    step, or a confidence score, top-level or on a step, outside `[0, 1]`. So is one the audit flags, except the `version-legacy:` and
     `version-future:` advisories: an older or newer envelope is judged on
     what it carries (SPEC §5b). Taint and confidence are judged from the
     lineage as well as the headline fields.
   - **A bad option is a `TypeError` in both languages,** raised before the
-    value is examined, so it is never mistaken for a refusal.
+    value is examined, so it is never mistaken for a refusal; in Python it is
+    never a `ValueError`, so an `except ValueError` for refusals cannot catch
+    it.
 
   The name, the throw, the default and fail-closed are the owner's decisions
   on #120; ADR-0020 records which details were then settled under them. The
   ROADMAP's working name was `require`, which clashes with CommonJS. The two
-  languages are pinned by 37 rows of a new `guard` kind in
+  languages are pinned by 40 rows of a new `guard` kind in
   `primitives/conformance/cases.json`; a port certified earlier must re-run.
   It is bundled with the plugin, and the bootstrap skill's vendoring list
   includes it.

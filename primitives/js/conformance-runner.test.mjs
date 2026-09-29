@@ -147,6 +147,21 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
     const [r] = runCases(impl, guardRow(c));
     expect(r.error).toMatch(/non-empty string/);
   });
+  it.each([
+    () => Object.assign(Object.create(null), { message: "guard: x" }),
+    () => ({ message: "guard: x", constructor: 1 }),
+    () => ({ message: "guard: x", constructor: () => 0 }),
+  ])("fails, rather than crashes, on an odd thrown value (%#)", (make) => {
+    const odd = { ...impl, guard: () => { throw make(); } };
+    const results = runCases(odd, guardRow({ name: "x", meta: clean, expectError: "guard: x" }));
+    expect(results).toHaveLength(1);
+  });
+  it("fails a guard case whose expectAbsent is not a list of reasons", () => {
+    for (const expectAbsent of ["zzz", []]) {
+      const [r] = runCases(impl, guardRow({ name: "x", meta: mockLeaf, expectRefused: ["mock:"], expectAbsent }));
+      expect(r.error).toMatch(/expectAbsent must list at least one reason/);
+    }
+  });
   it("fails, rather than crashes, on an implementation without ProvenanceRefused", () => {
     const { ProvenanceRefused: _dropped, ...partial } = impl;
     const [r] = runCases(partial, guardRow({ name: "x", meta: mockLeaf, expectRefused: ["mock:"] }));

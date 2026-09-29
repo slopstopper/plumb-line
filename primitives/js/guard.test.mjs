@@ -94,7 +94,15 @@ describe("guard — the egress guard (#120)", () => {
   it("refuses a lineage step that is not a plain object, so taint in a Map cannot pass unseen", () => {
     const x = { value: 1, provenanceVersion: 2, source: "derived", confidence: "high", derivedFromMock: false,
       lineage: [new Map([["source", "mock"], ["derivedFromMock", true]])] };
-    expect(() => guard(x)).toThrow(/invalid envelope: lineage step 0 is not an object/);
+    expect(() => guard(x)).toThrow(/invalid envelope: lineage step 0 is not a plain object/);
+  });
+
+  it("refuses, never throws a TypeError for, a malformed value it cannot print", () => {
+    const unprintable = Object.assign(Object.create(null), { n: 1n });
+    for (const field of ["confidenceScore", "weakestSource", "source"]) {
+      const x = { ...mark(1, { source: "real", confidence: "high" }), [field]: unprintable };
+      expect(() => guard(x)).toThrow(ProvenanceRefused);
+    }
   });
 
   it("an undefined option is the default", () => {

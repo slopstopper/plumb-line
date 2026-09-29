@@ -134,8 +134,9 @@ def test_guard_cases():
         # As in the JS twin: these would otherwise be read as a pass, or as
         # any refusal at all.
         assert 'expectPass' not in c or c['expectPass'] is True, f"{name}: expectPass must be true"
-        assert 'expectRefused' not in c or (isinstance(c['expectRefused'], list) and c['expectRefused']), \
-            f"{name}: expectRefused must list at least one reason"
+        for key in ('expectRefused', 'expectAbsent'):
+            assert key not in c or (isinstance(c[key], list) and c[key]), \
+                f"{name}: {key} must list at least one reason"
         # An empty needle is in every string, so it would pin nothing.
         needles = c.get('expectRefused', []) + c.get('expectAbsent', []) + ([c['expectError']] if 'expectError' in c else [])
         assert all(isinstance(n, str) and n for n in needles), \

@@ -28,14 +28,22 @@ const OPTIONS = ["noMock", "minConfidence"];
 // malformed version is not among them.
 const ADVISORY = ["version-legacy:", "version-future:"];
 
-/** A value as a message fragment; never throws (see provenance.mjs quote). */
+/** A value as a message fragment. It never throws, so a malformed value the
+ * guard cannot print (a BigInt in a null-prototype object, a cycle) is still
+ * refused, not turned into a TypeError a caller would read as a bad option.
+ * The same as provenance.mjs quote, which is not exported. */
 function quote(value) {
   if (typeof value === "number" && !Number.isFinite(value)) return String(value);
   try {
     const s = JSON.stringify(value);
     return s === undefined ? String(value) : s;
   } catch {
-    return String(value);
+    try {
+      return String(value);
+    } catch {
+      // A null-prototype object has no toString either.
+      return Object.prototype.toString.call(value);
+    }
   }
 }
 
@@ -84,7 +92,7 @@ function unreadable(meta) {
     // A plain object, as derive() builds it: a Map or class instance could
     // carry taint the field reads below would not see.
     if (!isPlain(step)) {
-      issues.push(`lineage step ${i} is not an object`);
+      issues.push(`lineage step ${i} is not a plain object`);
       return;
     }
     if ("source" in step && !STATUS.includes(step.source))
@@ -93,6 +101,10 @@ function unreadable(meta) {
       issues.push(`lineage step ${i} confidence ${quote(step.confidence)} is not on the confidence ladder`);
     if ("derivedFromMock" in step && typeof step.derivedFromMock !== "boolean")
       issues.push(`lineage step ${i} derivedFromMock must be a boolean`);
+    // The audit skips a score it cannot read, so a bad one could hide an
+    // over-claim against a readable top-level score.
+    if ("confidenceScore" in step && !isScore(step.confidenceScore))
+      issues.push(`lineage step ${i} confidenceScore ${quote(step.confidenceScore)} is not a number in [0, 1]`);
   });
   return issues;
 }
@@ -120,13 +132,16 @@ export function guard(x, options) {
   // `value` beside the envelope fields.
   if (!isPlain(x) || !Object.hasOwn(x, "value"))
     throw new ProvenanceRefused(["not a marked value: it carries no provenance envelope"]);
-  // The value's own envelope fields only. validateEnvelope reads with `in`, so
-  // it is handed a null-prototype copy: an inherited field (a polluted
-  // prototype) cannot count as present. The audit wants a plain object.
+  // The value's own envelope fields only. The structural and ladder checks
+  // read top-level fields with `in`, so they are handed a null-prototype
+  // copy: an inherited field (a polluted prototype) cannot count as present.
+  // The audit wants a plain object, and reads a polluted prototype as any
+  // plain-object reader does (the threat model's in-process attacker).
   const own = Object.fromEntries(Object.entries(metaOf(x)).filter(([key]) => Object.hasOwn(x, key)));
   const meta = { ...own };
-  const invalid = validateEnvelope(Object.assign(Object.create(null), own));
-  const malformed = invalid.length ? invalid : unreadable(meta);
+  const bare = Object.assign(Object.create(null), own);
+  const invalid = validateEnvelope(bare);
+  const malformed = invalid.length ? invalid : unreadable(bare);
   if (malformed.length) throw new ProvenanceRefused(malformed.map((issue) => `invalid envelope: ${issue}`));
   const reasons = auditMeta(meta)
     .filter((issue) => !ADVISORY.some((prefix) => issue.startsWith(prefix)))

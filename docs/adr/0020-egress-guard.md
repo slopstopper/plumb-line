@@ -42,18 +42,20 @@ Yes", "4. Yes"):
 Applying these decisions, the author settled the following details; they are
 normative in SPEC §5c and were refined over two independent reviews:
 
-- **The guard covers Principle 4's mock clause only.** The rest of what P4
-  names (fallback and inferred sources, and cached data, which the HTTP
-  adapter marks `real`) is not refused; a source floor is #541.
+- **The guard covers Principle 4's mock clause only.** The rest of P4 is not
+  refused: fallback data, cached data (which the HTTP adapter marks `real`)
+  and approximate data (no rung of its own); nor are `inferred`, `semiReal`
+  or `unavailable` sources. A source floor is #541.
 - **A bad option is raised before the value is examined**, so a bad call
   fails the same way whatever it is given.
-
 - **"Malformed"** covers every `validateEnvelope` issue, and also values the
   guard cannot place on the ladders: an off-ladder `source`, `confidence` or
   `weakestSource`, a lineage step that is not a plain object, a step whose
   `source` or `confidence` is off its ladder or whose `derivedFromMock` is
-  not a boolean, and a `confidenceScore` that is not a number in `[0, 1]`. The constructors already refuse such values (ADR-0019); the
-  law tolerates them in a handed envelope, and an output point does not.
+  not a boolean, and a `confidenceScore`, top-level or on a step, that is
+  not a number in `[0, 1]`. The constructors refuse an off-ladder source or
+  confidence (ADR-0019) and drop an invalid score; the law tolerates all of
+  these in a handed envelope, and an output point does not.
 - **An envelope the audit flags is refused**, since it makes a claim it
   cannot back: laundering, over-claiming, dropped taint, an unreproducible
   derivation, a malformed version. The `version-legacy:` and
@@ -64,8 +66,9 @@ normative in SPEC §5c and were refined over two independent reviews:
   that uses a source or confidence rung this library does not know is still
   refused, as malformed: the guard cannot place it.
 - **Bad options are a `TypeError` in both languages.** A refusal is a
-  `ValueError` in Python, and a bad option never is, so catching one cannot
-  swallow the other. An unknown option names itself in both.
+  `ValueError` in Python, and a bad option never is, not even a subclass, so
+  an `except ValueError` for refusals cannot swallow one. An unknown option
+  names itself in both.
 - **A step with no `confidence` counts as `none`** against a minimum: the
   guard vouches only for what the lineage states.
 

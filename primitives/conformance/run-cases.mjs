@@ -98,8 +98,9 @@ function runGuard(impl, c) {
   // A value that could only mislead: `expectPass: false` or an empty needle
   // list would otherwise be read as a pass, or as any refusal at all.
   if ("expectPass" in c && c.expectPass !== true) return "expectPass must be true";
-  if ("expectRefused" in c && !(Array.isArray(c.expectRefused) && c.expectRefused.length))
-    return "expectRefused must list at least one reason";
+  for (const key of ["expectRefused", "expectAbsent"]) {
+    if (key in c && !(Array.isArray(c[key]) && c[key].length)) return `${key} must list at least one reason`;
+  }
   // An empty needle is in every string, so it would pin nothing.
   const needles = [...(c.expectRefused || []), ...(c.expectAbsent || []), ...("expectError" in c ? [c.expectError] : [])];
   if (needles.some((n) => typeof n !== "string" || n === ""))
@@ -131,11 +132,20 @@ function runGuard(impl, c) {
       return `expected ${"expectPass" in c ? "a pass" : "a refusal"}, got an error: ${e?.message}`;
     // SPEC §5c: a bad option's error type is neither the refusal's type nor a
     // supertype of it, so a catch for one can never catch the other.
-    if (e !== null && typeof e === "object" && impl.ProvenanceRefused.prototype instanceof e.constructor)
-      return `a bad option's error must not be a supertype of the refusal, got ${e.constructor.name}`;
-    return String(e?.message).includes(c.expectError)
+    // Judged on the prototype chain, not `constructor` (which a thrown value
+    // may lack or fake), so an odd throw fails the row instead of the run.
+    const proto = e !== null && typeof e === "object" ? Object.getPrototypeOf(e) : null;
+    if (proto !== null && Object.prototype.isPrototypeOf.call(proto, impl.ProvenanceRefused.prototype))
+      return "a bad option's error must not be a supertype of the refusal";
+    let message;
+    try {
+      message = String(e?.message);
+    } catch {
+      return "a bad option's error has no readable message";
+    }
+    return message.includes(c.expectError)
       ? null
-      : `expected an error containing "${c.expectError}", got "${e.message}"`;
+      : `expected an error containing "${c.expectError}", got "${message}"`;
   }
   if (!("expectPass" in c))
     return `expected ${"expectRefused" in c ? "a refusal" : "a programmer error"}, got a pass`;

@@ -381,8 +381,10 @@ and options and either returns that value unchanged or refuses it with a list
 of reasons, at the point where a value leaves the system (an export, a
 display, a publish). It enforces Principle 4's mock clause, "excluded from
 outputs unless explicitly opted in", at run time. It does not refuse the
-rest of what Principle 4 names: fallback and inferred sources, and cached data (which the HTTP adapter marks `real`)
-pass (#541).
+rest of what Principle 4 names: fallback data (source `fallback`) and cached
+data (which the HTTP adapter marks `real`) pass, and approximate data has no
+rung of its own. Nor are `inferred`, `semiReal` or `unavailable` sources
+refused. A source floor is #541.
 
 **Options.** `noMock` (a boolean, default **true**) and `minConfidence` (a
 level on the confidence ladder, default `none`). A default of true for
@@ -395,9 +397,11 @@ level on the confidence ladder, default `none`). A default of true for
 2. a malformed envelope, with one reason per issue prefixed
    `invalid envelope:`: any §5a structural issue; a `source`, `confidence` or
    (when present) `weakestSource` off its ladder (§2); a lineage step that is
-   not an object; a step whose `source` or `confidence`, when present, is off
-   its ladder, or whose `derivedFromMock`, when present, is not a boolean; or
-   a `confidenceScore` that is present and not a number in `[0, 1]`. The
+   not a plain object (a JS object literal or null-prototype object; a Python
+   dict); a step whose `source` or `confidence`, when present, is off its
+   ladder, or whose `derivedFromMock`, when present, is not a boolean; or a
+   `confidenceScore`, top-level or on a step, that is present and not a number
+   in `[0, 1]`. The
    ladder and score checks are made only on an envelope with no §5a issue, so
    a structurally broken envelope reports its §5a issues alone. The
    constructors refuse off-ladder values (§2, ADR-0019) and the law tolerates
@@ -428,7 +432,9 @@ examined, with a message starting `guard: ` (an unknown option's naming it:
 `guard: unknown option <name>`). Its type MUST NOT be the refusal's type, or a
 supertype or subtype of it, so a caller catching one can never catch the
 other: a bad option must never be read as a refused value, or a refused value
-as a bad option.
+as a bad option. Where the refusal is a subtype of a standard error callers
+catch (Python's `ValueError`), the bad option's error MUST NOT be one either,
+so an `except ValueError` written for refusals cannot catch it.
 
 ---
 
