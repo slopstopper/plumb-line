@@ -98,6 +98,12 @@ belongs in `confidenceScore`. Added in v0.12.0 (#443, ADR-0019). Before that, an
 off-ladder value was stored silently, and only `validateEnvelope` noticed a
 non-string.
 
+A `derivedFromMock` that is not a boolean is refused the same way: the
+constructors, and `derive`'s override, MUST refuse it with an error whose
+message contains `derivedFromMock must be a boolean`. Absent or `null`
+takes the default (`true` exactly when `source` is `mock`). Added in v0.12.0
+(#555, ADR-0019 amendment). It is neither read as taint nor as clean.
+
 `source` has no default at construction of a **leaf**, an envelope with no
 parents. `makeMeta`/`make_meta`, `mark`, and any wrapper built on them for a
 leaf value MUST refuse when `source` is left out, with an error whose message
@@ -119,11 +125,13 @@ trustworthy than its inputs, and taint can never be cleared.
 
 1. **`derivedFromMock`** = logical OR over all inputs. An input taints if its
    `derivedFromMock` is `true` OR its `source` is `mock`. Once `true`, no
-   downstream combination may set it back to `false`. A handed envelope can
-   carry a `derivedFromMock` that is not a boolean, which no constructor
-   stores: any value other than `false` or absent (`null` counts as absent)
-   taints, so a stray `0`, `""`, `[]` or `{}` cannot clear taint. This is
-   not either language's truthiness, which disagree on `[]` and `{}` (#525).
+   downstream combination may set it back to `false`. Only a boolean `true`
+   taints. A handed envelope can carry a `derivedFromMock` that is not a
+   boolean (`0`, `""`, `"false"`, `[]`), which no constructor stores: it is
+   malformed, not taint, since nothing shows it means mock, and not clean
+   either. The law records it on that input's step as it is, where the
+   egress guard refuses it as an invalid envelope (§5c), and it adds no
+   taint to the result (#555, reversing #525's rule that it tainted).
 2. **`confidence`** = the weakest (lowest-ranked) `confidence` among the inputs.
 3. **`confidenceScore`** = the minimum across inputs **iff every input carries a
    valid score**; otherwise the field is omitted. A missing score is "unknown"
@@ -207,7 +215,9 @@ the integer `0` in Python. This serialization is not one-to-one: `true` and
 `"true"`, or any two arrays, write the same line, so two handed steps can
 share an id. An id addresses a step's trust state, and a value no
 constructor stores has no finer state to address. The `derivedFromMock`
-line is `true` exactly when the value would taint (§3).
+line is `true` or `false` for a boolean, `false` when absent or `null`, and
+otherwise the malformed value the law kept (§3) serialized by type, as the
+fields above are.
 
 Input ids are sorted by Unicode code point (not by UTF-16 code unit, which
 puts a character above U+FFFF before U+FFFF). Ids the law mints are ASCII,

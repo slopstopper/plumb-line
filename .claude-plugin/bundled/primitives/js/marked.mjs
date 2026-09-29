@@ -1,5 +1,5 @@
 // marked.mjs — thin wrapper sugar over the provenance law. The law lives in provenance.mjs.
-import { combineProvenance, makeMeta, taints } from "./provenance.mjs";
+import { combineProvenance, makeMeta } from "./provenance.mjs";
 
 const META_KEYS = [
   "provenanceVersion",
@@ -81,12 +81,15 @@ export function derive(inputs, fn, metaOverride = {}) {
   // constructor: an out-of-range confidenceScore (or unrankable weakestSource)
   // is dropped by the same validation, not stored raw. derivedFromMock is
   // force-OR'd *before* the call, so taint still cannot be cleared (the one law).
+  // A malformed taint override is refused, as makeMeta refuses one (#555):
+  // read as taint it was called mock, and it must not be dropped silently.
+  const flag = metaOverride.derivedFromMock;
+  if (flag !== undefined && flag !== null && typeof flag !== "boolean")
+    throw new Error(`derivedFromMock must be a boolean; got ${JSON.stringify(flag)}`);
   const merged = makeMeta({
     ...combined,
     ...safeOverride,
-    // The taint rule of SPEC §3 (#525 review), as in the Python twin.
-    derivedFromMock:
-      combined.derivedFromMock || taints({ derivedFromMock: metaOverride.derivedFromMock }),
+    derivedFromMock: combined.derivedFromMock || flag === true,
   });
   return Object.freeze({ value, ...merged });
 }

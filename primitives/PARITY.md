@@ -153,8 +153,11 @@ each pinned by a `combine` row in `cases.json` (the rows marked #525):
   (SPEC §3, "total").
 - **Taint of a non-boolean `derivedFromMock`.** JS read `[]` and `{}` as
   tainting (truthy) and Python as clean (falsy), so taint could vanish in
-  one language. Both now taint on anything other than `false` or absent,
-  so `0` and `""` taint too (SPEC §3).
+  one language. #525 first made both taint on anything other than `false`
+  or absent. #555 reversed that, because it called an unreadable flag mock:
+  now only a boolean `true` taints in both, the constructors refuse a
+  non-boolean flag, and combine keeps it on its step for the egress guard
+  to refuse as invalid (SPEC §3).
 - **Step shape.** For an input with no `source` or `confidence`, Python
   wrote `null` where JS left the field off (in memory, `undefined`); both now
   write `null`, so every step has both keys. JS spread an array lineage step

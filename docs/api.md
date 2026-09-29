@@ -271,7 +271,7 @@ Constructs a provenance metadata envelope (JS: frozen object, Python: dict).
 | `source` | none: required | One of `STATUS`; anything else, or leaving it out, is refused |
 | `confidence` | `"none"` | One of `CONFIDENCE`; anything else, including a number, is refused |
 | `confidenceScore` / `confidence_score` | — | Numeric `[0, 1]`; omitted if invalid |
-| `derivedFromMock` / `derived_from_mock` | `source === "mock"` | Mock-taint flag |
+| `derivedFromMock` / `derived_from_mock` | `source === "mock"` | Mock-taint flag; a boolean. `null`/`None` takes the default; anything else is refused |
 | `lineage` | `[]` | Prior lineage steps; each step is cloned |
 | `weakestSource` / `weakest_source` | — | Least-trustworthy source in ancestry |
 | `basis` | — | Arbitrary domain metadata |
@@ -288,6 +288,12 @@ equivalent), though the quoted value can differ in form between the two. In
 Python, `None` is refused rather than defaulted, matching JS `null`. This
 applies to `mark` and to a `derive` override, which build on `makeMeta`. A
 numeric certainty belongs in `confidenceScore`.
+
+A `derivedFromMock` that is not a boolean (`0`, `""`, `"false"`, `[]`) is
+refused too (since v0.12.0, #555), in `mark` and a `derive` override as
+well: `derivedFromMock must be a boolean; got 0`. It is neither read as
+mock taint nor as clean. Before, each language coerced it by its own
+truthiness.
 
 `source` has no default (since v0.12.0, #177). Leaving it out throws or raises
 `source is required (one of unavailable, mock, inferred, fallback, semiReal,
@@ -342,10 +348,11 @@ missing — a gap is "unknown", not zero.
 ### `taints(meta)`
 
 Returns `true`/`True` when the envelope carries mock taint:
-`derivedFromMock`/`derived_from_mock` is anything other than `false` or
-absent (`null`/`None` counts as absent), or `source === "mock"`. Not
-truthiness: a handed `0`, `""`, `[]` or `{}` taints, in both languages
-(SPEC §3, #525). A value that is not an envelope carries no taint.
+`derivedFromMock`/`derived_from_mock` is the boolean `true`, or
+`source === "mock"`. A malformed flag (`0`, `""`, `"false"`, `[]`) is not
+taint: the constructors refuse it, and the egress guard refuses an envelope
+carrying one (SPEC §3, #555). A value that is not an envelope carries no
+taint.
 
 ---
 

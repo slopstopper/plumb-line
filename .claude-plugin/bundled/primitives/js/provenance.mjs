@@ -93,17 +93,17 @@ export function makeMeta({
     throw new Error(`source must be one of ${STATUS.join(", ")}; got ${quote(source)}`);
   if (!CONFIDENCE.includes(confidence))
     throw new Error(`confidence must be one of ${CONFIDENCE.join(", ")}; got ${quote(confidence)}`);
+  // A taint flag that is not a boolean is refused, as an off-ladder rung is
+  // (#555, ADR-0019 amendment): read as taint it called an unreadable value
+  // mock, and read by truthiness it disagreed with the Python twin. Absent or
+  // null takes the default.
+  if (!isTaintFlag(derivedFromMock))
+    throw new Error(`derivedFromMock must be a boolean; got ${quote(derivedFromMock)}`);
   const meta = {
     provenanceVersion: PROVENANCE_VERSION,
     source,
     confidence,
-    // Absent or null takes the default; any other value is read by the taint
-    // rule (SPEC §3), as in the Python twin (#525 review): Boolean() made []
-    // taint here and not there, and null clean here and a default there.
-    derivedFromMock:
-      derivedFromMock === undefined || derivedFromMock === null
-        ? source === "mock"
-        : taintFlag(derivedFromMock),
+    derivedFromMock: derivedFromMock ?? source === "mock",
     // Each meta owns a *frozen copy* of its lineage. Steps are cloned then
     // frozen so (a) an envelope's recorded history can't be rewritten in place,
     // and (b) a step shared across parent/child metas can't leak a mutation from
@@ -145,27 +145,27 @@ export function weakestConfidence(...levels) {
 }
 
 /**
- * Whether a `derivedFromMock` value marks taint: anything other than `false`
- * or absent (`null` counts as absent) does (SPEC §3, #525). No constructor
- * stores a non-boolean, but a handed envelope can carry one, and a stray
- * `0`, `""` or `[]` must not clear taint. Not truthiness: JS and Python
- * disagree on `[]` and `{}`. Python twin: _taint_flag.
+ * Whether a `derivedFromMock` value is one the law can read: a boolean, or
+ * absent (`null` counts as absent). Anything else is malformed (#555): not
+ * taint, since nothing shows it means mock, and not clean either. The
+ * constructors refuse it and combine keeps it on its step as it is, so the
+ * egress guard refuses it as invalid. Python twin: _is_taint_flag.
  * @param {unknown} value
  * @returns {boolean}
  */
-function taintFlag(value) {
-  return value !== undefined && value !== null && value !== false;
+function isTaintFlag(value) {
+  return value === undefined || value === null || typeof value === "boolean";
 }
 
 /**
  * Returns true when the envelope carries mock taint: its `derivedFromMock` is
- * anything other than `false` or absent (see taintFlag), or its `source` is
- * `"mock"`.
+ * `true`, or its `source` is `"mock"` (SPEC §3). Only a boolean `true` taints:
+ * a malformed flag is not read as mock (#555, reversing #525).
  * @param {object|null|undefined} meta
  * @returns {boolean}
  */
 export function taints(meta) {
-  return taintFlag(meta?.derivedFromMock) || meta?.source === "mock";
+  return meta?.derivedFromMock === true || meta?.source === "mock";
 }
 
 /**
@@ -242,11 +242,13 @@ export function combineProvenance(...metas) {
     // prototype), and null when it has none, as for an input that is not an
     // envelope (#525). A step always has both keys: the guard refuses a step
     // without them, and a key left off let a sourceless input through it.
+    // A malformed taint flag is kept as the input carries it, neither read as
+    // taint nor cleaned, so the guard refuses the step as invalid (#555).
     const step = {
       of: "input",
       source: m?.source ?? null,
       confidence: m?.confidence ?? null,
-      derivedFromMock: taints(m),
+      derivedFromMock: isTaintFlag(m?.derivedFromMock) ? taints(m) : m.derivedFromMock,
     };
     // Record the numeric score too when the input carries one, so the numeric
     // over-claim audit works on real derive output, not just hand-built metas.
@@ -334,7 +336,9 @@ export function stepId(step, inputIds = []) {
     `of=${canonField(step?.of)}`,
     `source=${canonField(step?.source)}`,
     `confidence=${canonField(step?.confidence)}`,
-    `derivedFromMock=${taintFlag(step?.derivedFromMock) ? "true" : "false"}`,
+    // A boolean as true/false, absent as false, and a malformed flag (kept by
+    // combine, #555) by type, as the fields above are.
+    `derivedFromMock=${step?.derivedFromMock == null ? "false" : canonField(step.derivedFromMock)}`,
     `confidenceScore=${score}`,
     `inputs=${[...inputIds].sort(byCodePoint).join(",")}`,
   ].join("\n");

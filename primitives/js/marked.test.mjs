@@ -123,12 +123,13 @@ describe("mark / derive refuse an off-ladder confidence or source (#443)", () =>
 });
 
 
-describe("derive override derivedFromMock follows the taint rule (#525 review)", () => {
-  it("taints unless false or null, as in the Python twin ([] was clean there and tainted here)", () => {
+describe("derive refuses a derivedFromMock override that is not a boolean (#555, reversing #525)", () => {
+  it("throws, as the Python twin raises; true still taints, false and null leave a clean input clean", () => {
     const clean = mark(1, { source: "real", confidence: "high" });
-    for (const flag of [[], {}, 0, ""]) {
-      expect(derive([clean], (v) => v, { derivedFromMock: flag }).derivedFromMock).toBe(true);
+    for (const flag of [[], {}, 0, "", "false", "true"]) {
+      expect(() => derive([clean], (v) => v, { derivedFromMock: flag })).toThrow("derivedFromMock must be a boolean");
     }
+    expect(derive([clean], (v) => v, { derivedFromMock: true }).derivedFromMock).toBe(true);
     for (const flag of [false, null]) {
       expect(derive([clean], (v) => v, { derivedFromMock: flag }).derivedFromMock).toBe(false);
     }

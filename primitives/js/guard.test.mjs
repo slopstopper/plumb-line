@@ -130,3 +130,19 @@ describe("the guard refuses what combine makes of an input with no source (#525 
     }
   });
 });
+
+
+describe("the guard refuses a combined malformed taint flag as invalid, never as mock (#555)", () => {
+  it("combine keeps the flag on its step as it is; before #555 it was read as taint and the guard said mock", async () => {
+    const { combineProvenance } = await import("./provenance.mjs");
+    for (const flag of [0, "", [], "false", "true"]) {
+      const meta = combineProvenance({ source: "real", confidence: "high", derivedFromMock: flag, lineage: [] });
+      expect(meta.derivedFromMock).toBe(false);
+      let refused;
+      try { guard({ value: 1, ...meta }); } catch (e) { refused = e; }
+      expect(refused).toBeInstanceOf(ProvenanceRefused);
+      expect(refused.reasons).toContain("invalid envelope: lineage step 0 derivedFromMock must be a boolean");
+      expect(refused.reasons.some((r) => r.startsWith("mock:"))).toBe(false);
+    }
+  });
+});
