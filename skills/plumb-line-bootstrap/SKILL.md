@@ -71,9 +71,12 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
 
 - Copy the boundary config template, replacing layer placeholders with the
   builder's layers/direction. (JS: eslint zones; Python: import-linter layers.)
-- Copy the two guard hook scripts (branch guard + pre-commit gate) into the
-  target repo's `.claude/guards/` (or hooks dir).
-- Wire the pre-commit gate to the adapter's declared test command.
+- Copy the guard hook scripts into the target repo's `.claude/guards/` (or
+  hooks dir): the branch guard, its commit-hook wrapper
+  (`branch-guard-commit.mjs` / `branch_guard_commit.py`, which imports the
+  guard, so the two must sit in the same directory) and the pre-commit gate.
+- Wire git's pre-commit hook to run the wrapper, then the pre-commit gate with
+  the adapter's declared test command (see *Hook I/O contract* below).
 - Tell the builder exactly what was written and how to enable the hooks.
 - **Verify, don't assume.** After installing, plant a deliberate upward import
   and confirm the boundary check errors; on the protected branch, run a code
@@ -84,7 +87,10 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
   absolute `tool_input.file_path`), or the docs check cannot catch a path
   the wiring failed to make repo-relative. An
   installed-but-inert guard is the failure mode to rule out, and a guard that
-  blocks every docs edit is the other.
+  blocks every docs edit is the other. Then verify the git wiring the same
+  way, through git itself: on the protected branch, stage a scratch code file,
+  run `git commit`, and confirm it is refused with the branch guard's reason
+  and `git rev-parse HEAD` has not moved; unstage and delete the file after.
 
 ### JS boundary zones — get the direction right (easy to invert silently)
 
@@ -159,9 +165,34 @@ convention"):
 
 Git runs a hook with no stdin and none of these variables, so the guards are
 not git hooks on their own. The pre-commit gate needs only
-`PLUMBLINE_TEST_CMD`, so a `.git/hooks/pre-commit` that sets it and runs the
-gate works. The branch guard needs each edit's file path and the current
-branch: wire it as a Claude Code PreToolUse hook, map the host's tool
+`PLUMBLINE_TEST_CMD`, so a pre-commit hook that sets it and runs the gate
+works. The branch guard runs from git through its commit-hook wrapper, which
+reads the branch from git (a detached HEAD is an unknown branch, so a code
+commit there blocks) and judges every staged path, a rename as both of its
+paths. Write the hook to `$(git rev-parse --git-path hooks)/pre-commit`,
+which honours `core.hooksPath`, and make it executable. If the project
+already has a pre-commit hook or a hook manager, add these lines to it
+rather than replacing it; never overwrite one silently. For the JS adapter,
+with the builder's protected branches and docs allowlist in `PLUMBLINE_CFG`:
+
+```sh
+#!/bin/sh
+# plumb-line: the branch guard, then the test gate.
+PLUMBLINE_CFG='{"protectedBranches": ["main"], "docsAllowlist": ["docs/", "*.md"]}'
+export PLUMBLINE_CFG
+node .claude/guards/branch-guard-commit.mjs || exit 1
+PLUMBLINE_TEST_CMD='npm test' exec node .claude/guards/pre-commit-gate.mjs
+```
+
+For Python, run `python3 .claude/guards/branch_guard_commit.py` and
+`python3 .claude/guards/pre_commit_gate.py` instead, with the project's test
+command. Git runs the hook from the repository root, and only for
+`git commit` itself: not for a rebase, a cherry-pick or a merge.
+`git commit --no-verify` skips it, so it catches an accident rather than
+locking anything.
+
+The commit hook judges a commit; to stop the edit itself, before it is made,
+also wire the branch guard as a Claude Code PreToolUse hook: map the host's tool
 payload's file path into the `{filePath}` stdin it expects, and set the
 branch in the hook command. `filePath` must be relative to the repository
 root: the allowlist's directory and file entries are compared with it as
@@ -184,8 +215,7 @@ stays absolute and blocks as a code edit, unless an extension glob such as
 The guard blocks a code edit when
 the branch is unknown (unset, empty as on a detached HEAD, or a value git would
 not accept as a branch name, such as `HEAD`), so wiring that
-forgets the branch blocks every code edit rather than silently allowing it. A
-git commit-hook wrapper for it is planned (slopstopper/plumb-line#464). The
+forgets the branch blocks every code edit rather than silently allowing it. The
 boundary guard also needs the import path, so wire it where the edit's new
 import is known, or rely on the ESLint / import-linter boundary config
 instead. If the host payload shape differs, add a one-line shim rather than

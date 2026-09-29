@@ -233,16 +233,28 @@ def _env_problem(name):
     return None
 
 
+def config_from_env():
+    """PLUMBLINE_CFG from the environment, checked as this CLI checks it:
+    (config, None) for decide(), or (None, a reason to block). For a caller
+    that judges paths itself with a branch it did not read from
+    PLUMBLINE_BRANCH: the git commit hook (branch_guard_commit.py, #464). JS
+    twin: configFromEnv."""
+    problem = _env_problem("PLUMBLINE_CFG")
+    if problem:
+        return None, f"blocked: {problem}"
+    return _read_config(_env("PLUMBLINE_CFG"))
+
+
 def _main():
     raw = _read_stdin()
     # Empty means JSON whitespace only, as in the JS twin: str.strip() also
     # strips \x1c-\x1f, and JS trim() also strips a byte-order mark.
     # _parse_stdin refuses NaN and Infinity, as JSON.parse does (#503).
     input_data = _parse_stdin(raw) if raw.strip(" \t\n\r") else {}
-    problem = _env_problem("PLUMBLINE_BRANCH") or _env_problem("PLUMBLINE_CFG")
+    problem = _env_problem("PLUMBLINE_BRANCH")
     if problem:
         return {"allow": False, "reason": f"blocked: {problem}"}
-    cfg, reason = _read_config(_env("PLUMBLINE_CFG"))
+    cfg, reason = config_from_env()
     if reason:
         return {"allow": False, "reason": reason}
     return decide(

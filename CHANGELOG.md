@@ -10,6 +10,24 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Added
+- **The branch guard works as a git commit hook**
+  ([#464](https://github.com/slopstopper/plumb-line/issues/464)). Git gives
+  a hook neither the `{filePath}` stdin nor `PLUMBLINE_BRANCH`, so since
+  0.11.4 the guard wired in directly blocked every commit. A wrapper per
+  language, `hooks/branch-guard-commit.mjs` and
+  `hooks/branch_guard_commit.py`, reads the branch from git and judges every
+  staged path with the guard's own `decide` and `PLUMBLINE_CFG` checks, in
+  one process per commit. It reads the full ref, because git's short name
+  for `main` is `heads/main` when a tag is also named `main`, and that
+  would read as an unprotected branch. It lists renames as both paths, so
+  moving a code file into `docs/` is judged by the code path it removes. A
+  detached HEAD is an unknown branch: a code commit there blocks, and docs
+  pass. `adapters/commit-hook-cases.json` holds its cases, which both
+  languages run against a real temporary repository. Bootstrap's Step 4
+  now copies the wrapper, wires it into git's pre-commit hook ahead of the
+  test gate, and verifies it with a real `git commit`. Each guard gains a
+  `configFromEnv` / `config_from_env` export, which the wrapper uses; the
+  guard CLIs behave as before.
 - **The egress guard, `guard`, stops a tainted value at an output point**
   ([#120](https://github.com/slopstopper/plumb-line/issues/120); ADR-0020;
   SPEC §5c). `auditMeta` reports after the fact. `guard(x, { noMock,
