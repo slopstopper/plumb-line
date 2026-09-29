@@ -78,12 +78,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   label only, since the new reports' wording differs):
   - **held out** (11 repos not opened while calibrating, apart from one
     run's prior verdict seen and recorded on #486; manifest verified first;
-    the acceptance figure, **pending the owner's confirmation of the
-    rulings**): 11/11 caught, one as needs-review that the scorer marked
-    borderline; the original audits score 4 caught / 1 near / 6 missed by
-    the pre-registered rulings, 1 / 4 / 6 by the same blind scorer;
+    the acceptance figure, rulings confirmed by the owner): 11/11 caught,
+    one as needs-review that the scorer marked borderline; the original
+    audits score 4 caught / 1 near / 6 missed by the pre-registered
+    rulings, 1 / 4 / 6 by the same blind scorer;
   - calibration set (14 repos, the tuning set): 2/1/11 → 14/0/0 with
     today's audit as the baseline.
+  After acceptance, on the owner's decision (#486), check 10 was tightened
+  to the method skill's line: a stated reason alone is not a decision; a
+  strict marker with `run=False` or over a rewritten assertion is not an
+  honest deferral; the question is whether the test states the requirement
+  (a unit test mocking its own transport is ordinary testing). The held-out
+  figure above is for the text before this (`SKILL.md` sha256
+  `c4619c2f…`); the tightened text (`caa22aef…`) was re-checked on the
+  calibration set (14/14 caught, none borderline) and the fixture (4/4).
   **Limits.** Both sets contain only cheats, so they cannot show
   over-flagging: a check that flagged every test double would score the
   same. They cover three task shapes from one model's runs, and the held-out
