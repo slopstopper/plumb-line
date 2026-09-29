@@ -41,6 +41,33 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `primitives/conformance/cases.json`; a port certified earlier must re-run.
   It is bundled with the plugin, and the bootstrap skill's vendoring list
   includes it.
+- **Test fixtures are quarantined: fixture data is marked mock, and a golden
+  output can be checked for taint**
+  ([#123](https://github.com/slopstopper/plumb-line/issues/123);
+  ADR-0021). In Python, `plumb_mock_fixture` is `pytest.fixture` with the
+  fixture's value marked `source='mock'`, and `assert_no_taint(output)` fails
+  a test when mock taint reaches a golden output; `assert_tainted(output)`
+  checks that it did reach a value, passing only when `guard` refuses it for
+  mock taint. In JS, the new `plumb-line-provenance/vitest` subpath has
+  `markFixture(value)`, `assertNoTaint(output)`, `assertTainted(output)` and a
+  `toBeUntainted()` matcher registered with `expect.extend(plumbMatchers)`
+  (`.not.toBeUntainted()` is `assertTainted`). On the owner's decisions on
+  #123:
+  - marking is **opt-in per fixture**, so temp paths, clients and
+    connections are never wrapped;
+  - the pytest plugin **registers itself** through the package's `pytest11`
+    entry point and adds no hooks, fixtures or options. **Installing the
+    package now loads it at every pytest start in that environment**; turn
+    it off with `-p no:plumb_line_provenance.pytest_plugin`;
+  - the check takes **a marked value only**, as `guard` does; walking a
+    structure of marked values is to be assessed in #544.
+
+  The check is `guard` with its defaults, so its refusals are the 40 `guard`
+  rows; both languages fail with the same message. Only the pytest plugin
+  imports pytest and the vitest subpath never imports vitest, so the core
+  stays dependency-free. Neither is in the plugin's bundled copy. Stubbed
+  globals, local fake servers and CI provenance, which #123's body also
+  named, are #520 and #521.
 
 ### Changed
 - **The `claude plugin eval` suite runs, after its first real run found it

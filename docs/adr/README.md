@@ -48,3 +48,4 @@ not a rewrite of an accepted one.
 | [0018](0018-plumb-lines-own-source-truth-and-layers.md)  | plumb-line's own source-truth layer and layer direction | Accepted |
 | [0019](0019-constructors-refuse-off-ladder-values.md)    | Constructors refuse off-ladder values; handed envelopes stay tolerated | Accepted |
 | [0020](0020-egress-guard.md)                             | The egress guard refuses at the output point, fails closed, and excludes mock by default | Accepted |
+| [0021](0021-fixture-quarantine.md)                       | Test fixtures are quarantined opt-in per fixture, by a self-registering pytest plugin and a dependency-free vitest subpath | Accepted |

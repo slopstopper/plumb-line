@@ -42,6 +42,7 @@ const BUNDLE = {
     excluded: {
       "http.mjs": "the ./http subpath adapter needs native fetch and the Age-header policy; the bundle is the dependency-free dual-import-shim core",
       "baseline-cli.mjs": "inspection tooling, not runtime; the library it reads is bundled",
+      "vitest.mjs": "test-harness helper (#123), not runtime; the guard it wraps is bundled",
     },
     // What the package publishes: package.json `files`, minus docs.
     published: () => {
@@ -57,6 +58,7 @@ const BUNDLE = {
       "http_adapter.py": "optional-dependency adapter (requests/httpx extras); the bundle is the dependency-free core",
       "arrays.py": "optional-dependency adapter (numpy extra); the bundle is the dependency-free core",
       "frames.py": "optional-dependency adapter (pandas extra); the bundle is the dependency-free core",
+      "pytest_plugin.py": "pytest plugin (#123): imports pytest, and the bundle is the dependency-free core",
     },
     // pyproject packages the flat directory (package-dir = "."), so every
     // top-level module is published.

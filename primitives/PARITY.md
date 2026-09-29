@@ -77,6 +77,12 @@ Environment values are read the same way in both twins: one that is not
 valid UTF-8, or holds U+FFFD, blocks (#501). Rows set such values as raw
 bytes with `envHex`.
 
+The test-fixture helpers (#123, ADR-0021) add no case kind of their own: the
+no-taint check is `guard` with its defaults, so its behaviour is the `guard`
+rows'. What they add, the fixture marking and the message prefix `no mock
+taint may reach a golden output:`, is pinned by each language's unit tests
+(`primitives/js/vitest.test.mjs`, `primitives/python/tests/test_pytest_plugin.py`).
+
 **When parity is waived** (owner decision, #505). Parity is required for
 behaviour anyone relies on: what a hook allows, what it blocks, and why. It
 is not forced where a divergence comes from a runtime's own limits rather

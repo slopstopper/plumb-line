@@ -977,15 +977,17 @@ grade.
 
 ---
 
-### 30. Test-harness plugins — automatic fixture quarantine
+### 30. Test-harness plugins — fixture quarantine
 
 **Priority: medium** · Milestone: v0.12.0 · GitHub: #123
 
-Tests are where fake data is *supposed* to live; make the quarantine automatic
-there. A pytest plugin and vitest helper that auto-mark fixture-constructed
-values `source: mock` and assert no mock taint reaches golden outputs — the
-classic disaster (test fixture leaks into a prod default) caught at near-zero
-adoption friction. Ships as optional extras; zero-dependency core untouched.
+Tests are where fake data is *supposed* to live; make the quarantine explicit
+there. As decided on #123 (ADR-0021): a pytest plugin and a vitest helper that
+mark a fixture's value `source: mock`, **opt-in per fixture**, and assert no
+mock taint reaches golden outputs (the check is the egress guard, #120). The
+pytest plugin is a module of the package that registers itself; the vitest
+helper is a subpath that never imports vitest; the core stays
+dependency-free. Walking a structure of marked values is #544.
 
 ---
 

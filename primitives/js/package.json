@@ -7,7 +7,8 @@
   "exports": {
     ".": "./index.mjs",
     "./http": "./http.mjs",
-    "./baseline": "./baseline.mjs"
+    "./baseline": "./baseline.mjs",
+    "./vitest": "./vitest.mjs"
   },
   "files": [
     "index.mjs",
@@ -18,6 +19,7 @@
     "http.mjs",
     "baseline.mjs",
     "baseline-cli.mjs",
+    "vitest.mjs",
     "README.md"
   ],
   "scripts": {
