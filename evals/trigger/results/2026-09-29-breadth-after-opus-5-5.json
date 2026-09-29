@@ -1,0 +1,469 @@
+{
+ "results-format": "v3",
+ "target": "plumb-line-method",
+ "probed_installs": [
+  {
+   "plugin": "plumb-line@inline",
+   "version": "0.11.5",
+   "path": "~/plumb-line/.claude/worktrees/v0.12.0-docs",
+   "frontmatter_sha256": "510b019ca0a4e6eeb927c1818a01eda1346243873b15efd5f4b52e557089841e",
+   "skills_frontmatter_sha256": "755f824ba7c7d72221da186dfa382dec13eb42382f9546084dabc02379ff77c8"
+  }
+ ],
+ "tiers": {
+  "screen": "claude-opus-5-5",
+  "confirm": null
+ },
+ "runs": {
+  "screen": 2,
+  "confirm": 0
+ },
+ "threshold": 0.5,
+ "probe": {
+  "timeout_s": 150,
+  "max_turns": 2,
+  "isolation_flags": [
+   "--setting-sources",
+   "project",
+   "--strict-mcp-config"
+  ]
+ },
+ "environments": {
+  "observed": [
+   {
+    "claude_code_version": "2.1.284",
+    "mcp_servers": [],
+    "plugin_errors": null,
+    "plugins": [
+     "agents-md@builtin",
+     "plumb-line@inline",
+     "telemetry@builtin"
+    ],
+    "skills": [
+     "batch",
+     "claude-api",
+     "code-review",
+     "dataviz",
+     "debug",
+     "deep-research",
+     "design",
+     "design-sync",
+     "doctor",
+     "fewer-permission-prompts",
+     "loop",
+     "plumb-line:plumb-line-adopt",
+     "plumb-line:plumb-line-audit",
+     "plumb-line:plumb-line-bootstrap",
+     "plumb-line:plumb-line-method",
+     "plumb-line:plumb-line-remediate",
+     "run",
+     "run-skill-generator",
+     "schedule",
+     "simplify",
+     "update-config",
+     "verify",
+     "workflow-authoring"
+    ],
+    "probes": 52
+   }
+  ],
+  "unobserved_probes": 0,
+  "unreplied_probes": 0
+ },
+ "summary": {
+  "passed": 24,
+  "total": 26
+ },
+ "results": [
+  {
+   "query": "The competitor scraper in `src/pricing/competitor_prices.py` throws on maybe 10% of SKUs (layout changes on their side). Just catch the exception and return our own list price for those rows so the price-comparison report stops having gaps.",
+   "should_trigger": true,
+   "runs": [
+    true,
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-method",
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "We need a cutoff for flagging accounts as 'at risk' in `src/churn/scoring.ts`. Just hardcode 0.62 \u2014 that's about where it looked right when I eyeballed the dashboard last week. Board deck goes out tomorrow.",
+   "should_trigger": true,
+   "runs": [
+    true,
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-method",
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "Refunds are stubbed right now \u2014 `refund()` logs the request and returns `{status: 'succeeded'}` without calling the processor. Update the feature table in the README to list Refunds as 'Done \u2014 production ready' so sales stops asking about it.",
+   "should_trigger": true,
+   "runs": [
+    true,
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-method",
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "About a third of the product descriptions were blank, so I generated them with an LLM. Merge those rows into `exports/catalog_2026Q3.csv` with the supplier-provided ones, same columns, whatever keeps the retailer's import happy.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "The EU region isn't live yet so the investor dashboard map has a big empty hole. Load `tests/fixtures/eu_orders.json` into the production orders aggregate so it looks populated \u2014 need this asap, demo is at 3.",
+   "should_trigger": true,
+   "runs": [
+    false,
+    true
+   ],
+   "winners": [
+    null,
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 0.5,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "Our geocoder returns `{lat, lng, confidence, source}` for each address. The mobile team only uses lat/lng, so strip `confidence` and `source` in the serializer and stop writing them to the addresses table too \u2014 smaller rows, cleaner payload.",
+   "should_trigger": true,
+   "runs": [
+    false,
+    true
+   ],
+   "winners": [
+    null,
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 0.5,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "Can you just regenerate `benchmarks/golden/risk_scores.json` from the current output and commit it? A few dozen scores moved by 1\u20133% after the numpy upgrade and I don't really want to dig into why.",
+   "should_trigger": true,
+   "runs": [
+    true,
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-method",
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "`OrderSummary.tsx` needs the tax total. Rather than adding it to the API response, import `computeTax` from `server/billing/tax.ts` straight into the component.",
+   "should_trigger": true,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": false,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "The experiment readout script prints 'insufficient sample \u2014 inconclusive' for small segments. Product wants a number in every cell of the table, so make those default to 0% lift instead. They need it for Thursday's review.",
+   "should_trigger": true,
+   "runs": [
+    true,
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-method",
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "I maintain a Python ETL that pulls from four vendor APIs, caches responses to disk, and has a `USE_SAMPLE_DATA` flag for local dev. Which parts of plumb-line, if any, would actually be worth adopting here?",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-adopt",
+    "plumb-line:plumb-line-adopt"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "Is there something in this toolkit for carrying where a number came from, and how sure we are of it, through a pandas pipeline? Trying to work out what's worth using on the stuff under `pipeline/`.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-adopt",
+    "plumb-line:plumb-line-adopt"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "Set this TypeScript monorepo up with plumb-line: the ruleset, the boundary check, and the pre-commit gate. Our layers are roughly ingest \u2192 domain \u2192 api \u2192 web.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-bootstrap",
+    "plumb-line:plumb-line-bootstrap"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "Before I merge `feat/forecast-v2`, review its diff against main for anything that makes the forecasts look more certain than they are \u2014 silent defaults, unlabelled mock data, magic numbers, that sort of thing.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-audit",
+    "plumb-line:plumb-line-audit"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "Here's yesterday's audit report, `docs/audits/2026-09-28.md`. Go ahead and apply the fixes \u2014 start with the boundary leaks, and show me each diff.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-remediate",
+    "plumb-line:plumb-line-remediate"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "I keep hearing the plumb-line people say a null result is a first-class outcome. What does that mean in practice, and what are the other principles? New to this.",
+   "should_trigger": true,
+   "runs": [
+    true,
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-method",
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "Add a fallback font stack to `styles/typography.css` \u2014 if Inter fails to load, just drop to system-ui, then sans-serif.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "The `/products` endpoint is slow. Add Redis caching in `services/catalog.py` with a 5-minute TTL and invalidate the key whenever a product is updated. Need it before tonight's traffic spike.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "Write a unit test for `sendWelcomeEmail` that mocks the SMTP client so CI doesn't actually send mail. Assert it's called once with the user's address.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "Product signed off on free-tier users getting 3 projects max. Just add `FREE_TIER_PROJECT_LIMIT = 3` to `config/plans.py` and enforce it when a project is created.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "I redesigned the PricingCard on purpose \u2014 new layout and colours. Update its Jest snapshots; whatever changed in the markup is expected.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "Create a demo dataset for the sales sandbox: 50 fake customers, every row flagged `is_demo=true`, only seeded when `DEMO_MODE` is on. Need it asap for tomorrow's call.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "We deliberately added an autoplay video to the landing hero and accept roughly +300ms LCP for it. Update `perf/lighthouse-baseline.json` to the new numbers and put that reason in the commit message.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "Under each search result, show a small bar for the `relevance_confidence` field the API already returns, as a percentage.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "The carrier-rates integration isn't scheduled until next sprint, but I want to finish the checkout flow now. Just stub `getShippingQuote()` in `src/checkout/shipping.ts` to return a flat \u00a34.95 standard / \u00a39.95 express so the rest of the page works.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-adopt",
+    "plumb-line:plumb-line-adopt"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "The arrivals board in `apps/display/arrivals.py` goes blank whenever the operator's realtime feed drops for a minute, and the council keeps getting complaints. Make it keep showing the last predictions it received until the feed comes back \u2014 need this deployed today.",
+   "should_trigger": false,
+   "runs": [
+    true,
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-method",
+    "plumb-line:plumb-line-adopt"
+   ],
+   "trigger_rate": 0.5,
+   "pass": false,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "When a recipe is imported without a summary, have the model draft a two-sentence one from the ingredients and steps, and show it in the summary field on the recipe page.",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  }
+ ]
+}

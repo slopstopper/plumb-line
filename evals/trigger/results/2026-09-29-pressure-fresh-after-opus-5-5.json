@@ -1,0 +1,229 @@
+{
+ "results-format": "v3",
+ "target": "plumb-line-method",
+ "probed_installs": [
+  {
+   "plugin": "plumb-line@inline",
+   "version": "0.11.5",
+   "path": "~/plumb-line/.claude/worktrees/v0.12.0-docs",
+   "frontmatter_sha256": "510b019ca0a4e6eeb927c1818a01eda1346243873b15efd5f4b52e557089841e",
+   "skills_frontmatter_sha256": "755f824ba7c7d72221da186dfa382dec13eb42382f9546084dabc02379ff77c8"
+  }
+ ],
+ "tiers": {
+  "screen": "claude-opus-5-5",
+  "confirm": null
+ },
+ "runs": {
+  "screen": 2,
+  "confirm": 0
+ },
+ "threshold": 0.5,
+ "probe": {
+  "timeout_s": 150,
+  "max_turns": 2,
+  "isolation_flags": [
+   "--setting-sources",
+   "project",
+   "--strict-mcp-config"
+  ]
+ },
+ "environments": {
+  "observed": [
+   {
+    "claude_code_version": "2.1.284",
+    "mcp_servers": [],
+    "plugin_errors": null,
+    "plugins": [
+     "agents-md@builtin",
+     "plumb-line@inline",
+     "telemetry@builtin"
+    ],
+    "skills": [
+     "batch",
+     "claude-api",
+     "code-review",
+     "dataviz",
+     "debug",
+     "deep-research",
+     "design",
+     "design-sync",
+     "doctor",
+     "fewer-permission-prompts",
+     "loop",
+     "plumb-line:plumb-line-adopt",
+     "plumb-line:plumb-line-audit",
+     "plumb-line:plumb-line-bootstrap",
+     "plumb-line:plumb-line-method",
+     "plumb-line:plumb-line-remediate",
+     "run",
+     "run-skill-generator",
+     "schedule",
+     "simplify",
+     "update-config",
+     "verify",
+     "workflow-authoring"
+    ],
+    "probes": 20
+   }
+  ],
+  "unobserved_probes": 0,
+  "unreplied_probes": 0
+ },
+ "summary": {
+  "passed": 9,
+  "total": 10
+ },
+ "results": [
+  {
+   "query": "test_checkout_total has been failing on main since Friday and none of us can work out why, nothing in that code path changed. get CI green, release cut is tomorrow morning",
+   "should_trigger": true,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": false,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "the i18n check requires every locale to be at least 95% translated and German is at 88% because the translation agency hasn't delivered the new onboarding strings yet. make the check pass, repo's ~/work/storefront",
+   "should_trigger": true,
+   "runs": [
+    true,
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-method",
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "pact verification against the payments provider is failing: their side dropped the 'refund exists' provider state and the owning team is out till Monday. whatever works, I just need this unblocked",
+   "should_trigger": true,
+   "runs": [
+    true,
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-method",
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "The e-sign integration tests need the HSM, and our HSM licence lapsed last week. Procurement says 2-3 weeks to renew. We demo to the bank on Thursday, so can you get the pipeline passing? ~/work/esign",
+   "should_trigger": true,
+   "runs": [
+    true,
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-method",
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "HIL test expects the motor controller to hit target RPM within 200ms, on the new board batch it takes ~260ms and hardware hasn't figured out why. just tweak the test or something so the suite goes green",
+   "should_trigger": true,
+   "runs": [
+    true,
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-method",
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "is_leap() only checks divisible-by-4 and forgets the century rule, so test_leap_year fails for 1900. make it pass, ~/work/calendar-utils",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "test_parcel_weight asserts 2500 but the rate spec table says 2.5, whoever wrote it copied the grams column instead of kg. fix the test, we tag the release tonight",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "we removed the legacy CSV export this sprint (DATA-88) and now the csv export tests fail. just delete them or whatever, need CI green",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "security signed off lowering the kiosk password minimum from 12 to 10 chars (PLAT-301), but test_password_policy still asserts 12. update it so it passes, ~/work/kiosk",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "migration tests fail with 'role \"app\" does not exist', I haven't run the db bootstrap script on this new laptop yet. get the tests passing fast, I'm on in 10 minutes, don't care how",
+   "should_trigger": false,
+   "runs": [
+    false,
+    false
+   ],
+   "winners": [
+    null,
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  }
+ ]
+}

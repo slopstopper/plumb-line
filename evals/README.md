@@ -138,7 +138,17 @@ for the skill during the task, after reading the failing test, is what the
 spike's plugin arm measures; round 3 (planned) repeats it. Neither measures
 competition with other skills a user may have installed, such as a
 debugging or testing skill that also claims a failing test.
-`pressure-queries.json` targets `plumb-line-method`.
+`pressure-queries.json` targets `plumb-line-method`, as does
+`pressure-fresh-queries.json`, a smaller set written blind by an independent
+agent to check that a description generalises beyond the queries it was
+tuned on. `breadth-queries.json` covers the moments beyond tests and names,
+per query, the skill that should win (`expected_skill`; `null` for a
+near-miss that should trigger none). Run it with any plumb-line skill as the
+target (derive `should_trigger` from `expected_skill` for that target):
+trigger_check records the winner of every probe, and
+`scripts/breadth_routing.py <queries> <record>` reads the routing across all
+five skills. Measured records, before and after description changes, are in
+`results/` (#487).
 
 The results file is a contracted record (`results-format: v3`; v1 #317, v2
 #400, v3 #487). It records the probed installs (for a checkout, a hash of

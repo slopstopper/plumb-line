@@ -59,6 +59,40 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   unchanged here, and gives an agent mid-task no cue to invoke the skill:
   #487's baseline measured 0 of 20 probes (10 pressure prompts, 2 runs
   each). #487 reworks it.
+- **The method and adopt skills now trigger in the moments they exist for**
+  ([#487](https://github.com/slopstopper/plumb-line/issues/487)). The spike
+  loaded the plugin in 90 runs and a skill was invoked once. A breadth
+  baseline on the old descriptions (Opus 5.5, isolated) showed why: the
+  plugin answered people who *asked about* plumb-line (fit, setup, review,
+  applying findings, learning: 6/6) and invoked no skill in any of 12
+  in-task moments. On the owner's decisions (#487): every moment gets a
+  "yes, and" answer (meet the need, keep what is uncertain visible; the
+  only no is presenting it as real, measured or done);
+  `plumb-line-method` goes first where the aim is to make something look
+  more real, finished or certain than it is, tests included; and
+  `plumb-line-adopt` goes first when building with a stand-in ("add it,
+  and here is how to keep track of it"). The method skill gains a
+  **Mid-task: other moments** section (eight moments, each with its "yes,
+  and" and its one no, and hand-offs), both descriptions are rewritten,
+  and a test checks that every moment method's description claims is
+  taught in its body. Measured with `scripts/trigger_check.py`, isolated,
+  Opus 5.5, before and after:
+  - the test moment, approved set: should-trigger 0/10 → 5/10, near-misses
+    held at 10/10;
+  - a fresh set written blind by an independent agent: 4/5
+    should-trigger, 5/5 near-misses;
+  - breadth routing (`evals/trigger/breadth-queries.json`, 26 queries,
+    read by the new `scripts/breadth_routing.py`): 14/26 → 23/26; method's
+    in-task moments 1/9 → 8/9, adopt's 2/6 → 4/6, near-misses 8/8 and
+    repo-level questions 6/6 both held;
+  - no regression: audit's set 20/20 → 20/20, adopt's 12/12 → 11/12 on one
+    run, its one miss firing 3 of 4 on a recheck.
+  These are trigger rates on a bare prompt in an empty directory; whether
+  agents reach for the skill during a real task is round 3's measurement
+  (#462). All records are in `evals/trigger/results/`. skill-creator's
+  description loop was run first (patched: on Claude Code 2.1.284 its
+  candidate, written as a command, is not seen as a skill) and overfitted
+  (training 12/12, held-out positives 1/4); its record is kept there too.
 - **`scripts/trigger_check.py` can probe a checkout in isolation, and its
   record says what each probe loaded**
   ([#487](https://github.com/slopstopper/plumb-line/issues/487)).

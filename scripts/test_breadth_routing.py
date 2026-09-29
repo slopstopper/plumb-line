@@ -1,0 +1,50 @@
+"""Tests for scripts/breadth_routing.py — who won each breadth probe (#487).
+
+Run from the repo root: python3 -m pytest -q scripts/test_breadth_routing.py
+"""
+import importlib.util
+import json
+import os
+
+_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "breadth_routing.py")
+_spec = importlib.util.spec_from_file_location("_breadth_routing", _SCRIPT)
+br = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(br)
+
+
+def _files(tmp_path, rows):
+    queries = [{"query": q, "expected_skill": exp, "moment": "m", "principle": "p"}
+               for q, exp, _ in rows]
+    record = {"results": [{"query": q, "winners": winners} for q, _, winners in rows]}
+    qp, rp = tmp_path / "q.json", tmp_path / "r.json"
+    qp.write_text(json.dumps(queries), encoding="utf-8")
+    rp.write_text(json.dumps(record), encoding="utf-8")
+    return str(qp), str(rp)
+
+
+def test_a_query_routes_when_its_skill_wins_at_least_half_the_probes(tmp_path):
+    q, r = _files(tmp_path, [
+        ("a", "plumb-line-method", ["plumb-line:plumb-line-method", None]),
+        ("b", "plumb-line-adopt", ["plumb-line:plumb-line-method", None]),
+        ("c", None, [None, None]),
+        # a near-miss must win nothing on every probe
+        ("d", None, [None, "plumb-line:plumb-line-audit"]),
+    ])
+    rows, by_skill = br.route(q, r)
+    assert [row["routed"] for row in rows] == [True, False, True, False]
+    assert by_skill == {"plumb-line-method": (1, 1), "plumb-line-adopt": (0, 1), "none": (1, 2)}
+
+
+def test_the_winner_is_read_from_the_skill_field_without_its_plugin_prefix(tmp_path):
+    q, r = _files(tmp_path, [("a", "plumb-line-audit", ["plumb-line:plumb-line-audit"])])
+    rows, _ = br.route(q, r)
+    assert rows[0]["winners"] == ["plumb-line-audit"]
+
+
+def test_a_query_missing_from_the_record_is_an_error(tmp_path):
+    import pytest
+    q, _ = _files(tmp_path, [("a", None, [None])])
+    other = tmp_path / "other.json"
+    other.write_text(json.dumps({"results": []}), encoding="utf-8")
+    with pytest.raises(KeyError):
+        br.route(q, str(other))
