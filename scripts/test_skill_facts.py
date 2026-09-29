@@ -467,3 +467,10 @@ def test_audit_check_10_a_mock_in_place_of_the_requirements_only_test_is_flagged
 
 def test_audit_check_10_an_uncheckable_cited_decision_is_needs_review():
     assert "cannot find" in _audit_check_10().lower()
+
+
+def test_audit_check_10_an_established_only_test_is_a_violation_not_needs_review():
+    # Fixture re-run (#486): auditors established "REQ-8's only test, the
+    # product path calls the real partner" and still hedged to needs-review.
+    check = _audit_check_10().lower()
+    assert "established, it is a violation" in check
