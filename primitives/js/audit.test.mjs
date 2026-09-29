@@ -99,7 +99,8 @@ describe("auditMeta", () => {
       confidence: "low",
       confidenceScore: 0.2,
       derivedFromMock: false,
-      lineage: [{ id: "s1", confidence: "low", confidenceScore: 0.2 }],
+      // The step names its source: one with none is now named as unknown (#551).
+      lineage: [{ id: "s1", source: "real", confidence: "low", confidenceScore: 0.2 }],
     };
     expect(auditMeta(meta)).toEqual([]);
   });

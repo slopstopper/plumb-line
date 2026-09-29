@@ -44,8 +44,10 @@ Two **optional** fields add resolution where the coarse axes lose information:
 - **`weakestSource`** (`string`) — the least-trustworthy `source` anywhere in the
   value's ancestry, ranked by the `source` ladder above. More resolution than the
   `derivedFromMock` boolean: it distinguishes a value built from `fallback` data
-  from one built from `mock`. Computed only — it cannot be hand-set, so it can
-  never claim to be cleaner than the lineage proves.
+  from one built from `mock`. The law computes it, and omits it when any
+  ancestor's source is unknown (#551). A hand-set value is not refused, but
+  the audit flags one cleaner than the lineage proves, or, on a value with no
+  lineage, cleaner than its own `source` (#553).
 
 ---
 

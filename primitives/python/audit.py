@@ -157,7 +157,41 @@ def audit_meta(meta):
     if meta.get('source') == 'derived' and len(lineage) == 0:
         issues.append('unreproducible: derived value has no lineage')
 
+    src, weakest = meta.get('source'), meta.get('weakest_source')
+    ranked = _is_ranked(src) and _is_ranked(weakest)
+    # A value relabelled above its own ancestry (#556): a source cleaner than
+    # the weakest source it derives from. 'derived' is the law's own label for
+    # a computed value, not a claim about its inputs, so it is exempt.
+    if ranked and src != 'derived' and STATUS.index(src) > STATUS.index(weakest):
+        issues.append(f"source over-claim: source '{src}' is cleaner than weakestSource '{weakest}'")
+    # A leaf's weakest_source cleaner than its own source, with no lineage to
+    # show it (#553): check 4 above has nothing to compare it with.
+    if ranked and len(lineage) == 0 and STATUS.index(weakest) > STATUS.index(src):
+        issues.append(f"source over-claim: weakestSource '{weakest}' is cleaner than source '{src}', "
+                      'with no lineage to show it')
+
+    # Name what cannot be read, rather than reading it as clean (#551): a step
+    # whose source is unknown, and a step whose taint flag is not a bool (#555
+    # made that neither taint nor clean). The value is not quoted, so the
+    # message is the same in both twins.
+    for i, s in enumerate(lineage):
+        if not isinstance(s, dict):
+            issues.append(f'unknown source: lineage step {i} is not an object')
+            continue
+        if s.get('source') is None:
+            issues.append(f'unknown source: lineage step {i} has no source')
+        elif not _is_ranked(s.get('source')):
+            issues.append(f'unknown source: lineage step {i} source is not on the source ladder')
+        flag = s.get('derived_from_mock')
+        if flag is not None and not isinstance(flag, bool):
+            issues.append(f'malformed taint flag: lineage step {i} derivedFromMock is not a boolean')
+
     return issues
+
+
+def _is_ranked(source):
+    """On the status ladder; tested by string, so an unhashable value is simply not ranked."""
+    return isinstance(source, str) and source in STATUS
 
 
 # The four required fields (SPEC §1) and their type predicates. Keys are the

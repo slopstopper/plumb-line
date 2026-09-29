@@ -168,6 +168,12 @@ def _is_taint_flag(value):
     return value is None or isinstance(value, bool)
 
 
+def _ranked(source):
+    """True when `source` is on the status ladder. Membership is tested by
+    string, so an unhashable or odd value is simply not ranked."""
+    return isinstance(source, str) and source in STATUS
+
+
 def _field(meta, key):
     """``meta[key]`` for an envelope, else None: an input that is not an
     envelope carries no fields, as in the JS twin, where ``m?.key`` is
@@ -287,11 +293,16 @@ def combine_provenance(*metas):
         step['id'] = step_id(step, prior_ids)
         input_steps.append(step)
     lineage = prior + input_steps
+    sources = [_field(s, 'source') for s in lineage]
     return make_meta(source='derived', confidence=confidence,
                      confidence_score=confidence_score,
                      derived_from_mock=derived_from_mock, lineage=lineage,
-                     # Weakest source anywhere in the ancestry, read off the lineage.
-                     weakest_source=weakest_source(*[_field(s, 'source') for s in lineage]))
+                     # Weakest source anywhere in the ancestry, read off the lineage,
+                     # and omitted when any step's source cannot be ranked (#551):
+                     # read off the known steps alone, an unknown ancestor left the
+                     # result looking clean.
+                     weakest_source=(weakest_source(*sources)
+                                     if all(_ranked(src) for src in sources) else None))
 
 
 def _double_hex(v):

@@ -411,6 +411,32 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **The audit names an unknown or over-claimed source instead of reading it
+  as clean** ([#551](https://github.com/slopstopper/plumb-line/issues/551),
+  [#556](https://github.com/slopstopper/plumb-line/issues/556),
+  [#553](https://github.com/slopstopper/plumb-line/issues/553); SPEC §2,
+  §3 rule 6, §5 checks 7–10). Owner decisions of 2026-09-29, after the
+  ruling that a value must not be labelled as something it is not known to
+  be:
+  - **`combine` omits `weakestSource` when any ancestor's source is
+    unknown.** Before, `combine(real, <input with no source>)` said
+    `weakestSource: "real"`. Two rows that expected it now expect it
+    absent.
+  - **New audit issues:** `unknown source:` for a lineage step that is not
+    an object or whose `source` is missing, `null` or off the ladder, and
+    `malformed taint flag:` for a step whose `derivedFromMock` is not a
+    boolean (#555 made that neither taint nor clean). Neither calls
+    anything mock. The egress guard refuses them through its `audit:`
+    reasons as well as its `invalid envelope:` checks.
+  - **`source over-claim:` covers a relabelled value.** A `source` cleaner
+    than `weakestSource` (`derive([fallback], fn, {source: "real"})`) is
+    flagged, and so the guard refuses it. `"derived"` is exempt, since it is
+    the law's own label. `docs/threat-model.md` said the audit caught this;
+    it did so only when mock taint was involved.
+  - **A leaf's hand-set `weakestSource` cleaner than its own `source` is
+    flagged** (`mark(v, {source: "fallback", weakestSource: "real"})`). The
+    primitives README said it could not be hand-set; it is not refused, and
+    the README now says the audit flags it.
 - **`combine` agrees across languages on handed envelopes that are not
   well formed** ([#525](https://github.com/slopstopper/plumb-line/issues/525);
   SPEC §3, §4; `primitives/PARITY.md`). The same inputs gave different results

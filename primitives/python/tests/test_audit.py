@@ -143,7 +143,8 @@ def test_flags_numeric_over_claiming():
 
 def test_silent_when_score_within_lineage():
     meta = {'provenance_version':2,'source':'derived','confidence':'low','confidence_score':0.2,'derived_from_mock':False,
-            'lineage':[{'id':'s1','confidence':'low','confidence_score':0.2}]}
+            'lineage':[{'id':'s1','source':'real','confidence':'low','confidence_score':0.2}]}
+    # The step names its source: one with none is now named as unknown (#551).
     assert a.audit_meta(meta) == []
 
 def test_flags_source_over_claim():

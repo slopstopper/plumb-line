@@ -137,6 +137,39 @@ export function auditMeta(meta) {
     issues.push("unreproducible: derived value has no lineage");
   }
 
+  // A value relabelled above its own ancestry (#556): a source cleaner than
+  // the weakest source it derives from. "derived" is the law's own label for
+  // a computed value, not a claim about its inputs, so it is exempt.
+  if (meta.source !== "derived" && STATUS.includes(meta.source) && STATUS.includes(meta.weakestSource)
+      && STATUS.indexOf(meta.source) > STATUS.indexOf(meta.weakestSource)) {
+    issues.push(`source over-claim: source '${meta.source}' is cleaner than weakestSource '${meta.weakestSource}'`);
+  }
+  // A leaf's weakestSource cleaner than its own source, with no lineage to
+  // show it (#553): check 4 above has nothing to compare it with.
+  if (lineage.length === 0 && STATUS.includes(meta.source) && STATUS.includes(meta.weakestSource)
+      && STATUS.indexOf(meta.weakestSource) > STATUS.indexOf(meta.source)) {
+    issues.push(`source over-claim: weakestSource '${meta.weakestSource}' is cleaner than source '${meta.source}', with no lineage to show it`);
+  }
+
+  // Name what cannot be read, rather than reading it as clean (#551): a step
+  // whose source is unknown, and a step whose taint flag is not a boolean
+  // (#555 made that neither taint nor clean). The value is not quoted, so the
+  // message is the same in both twins.
+  lineage.forEach((s, i) => {
+    if (s === null || typeof s !== "object" || Array.isArray(s)) {
+      issues.push(`unknown source: lineage step ${i} is not an object`);
+      return;
+    }
+    if (s.source === undefined || s.source === null) {
+      issues.push(`unknown source: lineage step ${i} has no source`);
+    } else if (!STATUS.includes(s.source)) {
+      issues.push(`unknown source: lineage step ${i} source is not on the source ladder`);
+    }
+    if (s.derivedFromMock !== undefined && s.derivedFromMock !== null && typeof s.derivedFromMock !== "boolean") {
+      issues.push(`malformed taint flag: lineage step ${i} derivedFromMock is not a boolean`);
+    }
+  });
+
   return issues;
 }
 

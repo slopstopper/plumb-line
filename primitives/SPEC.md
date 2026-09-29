@@ -81,8 +81,10 @@ none  <  low  <  medium  <  high
 
 A value not present in a ladder is **unknown**. For `confidence`, an unknown
 input MUST be treated as the weakest (`none`) by the combination law (§3) and
-MUST be ignored by the audit's over-claim comparison (§5). For `source`, unknown
-values are ignored when computing `weakestSource` (§4).
+MUST be ignored by the audit's over-claim comparison (§5). For `source`, an
+unknown value is not ranked: if any lineage step's `source` is unknown, the law
+omits `weakestSource` (§3 rule 6) rather than reading it off the known steps
+alone, and the audit names the step (§5, `unknown source:`) (#551).
 
 That tolerance is for envelopes an implementation is **handed**, such as parsed
 JSON or another producer's output. The combination law and the checkers MUST
@@ -144,7 +146,10 @@ trustworthy than its inputs, and taint can never be cleared.
 5. **`lineage`** = every input's prior lineage steps, concatenated, followed by
    one new step per input (§4).
 6. **`weakestSource`** = the weakest `source` across the entire resulting
-   `lineage` (§4). Omitted when the lineage is empty.
+   `lineage` (§4). Omitted when the lineage is empty, and when any step's
+   `source` cannot be ranked (missing, `null`, off the ladder, or a step that
+   is not an object): an unknown ancestor must not leave the result looking as
+   clean as its known ones (#551).
 
 The law MUST be **order-independent** for fields 1–4 and 6: permuting the inputs
 MUST NOT change the result except for the order of lineage steps.
@@ -283,7 +288,9 @@ Two guarantees follow from this construction:
 `weakestSource` is **computed only**: it is derived from the lineage and MUST NOT
 be settable as a combination override. An implementation MUST NOT let a caller
 hand-set `weakestSource` to a value cleaner than the lineage proves (the audit in
-§5 catches violations).
+§5 catches violations: check 4 against the lineage, and check 8 on a value with
+no lineage, where a leaf's hand-set `weakestSource` has nothing else to
+contradict it; #553).
 
 An output whose `source` is `"derived"` MUST have a non-empty `lineage`; a
 derived value with no lineage is unreproducible (§5).
@@ -324,6 +331,14 @@ checker MUST detect each of the following:
 | 4 | Source over-claim      | `weakestSource` cleaner (higher-ranked) than the weakest `source` present in the lineage.  |
 | 5 | Dropped taint          | a tainted lineage step exists (by the §3 rule) but `derivedFromMock` is `false`.           |
 | 6 | Unreproducible         | `source` is `"derived"` but `lineage` is empty.                                            |
+| 7 | Source over-claim      | `source` (other than `"derived"`, the law's own label) cleaner than `weakestSource`: a value relabelled above its ancestry (#556). |
+| 8 | Source over-claim      | `lineage` is empty and `weakestSource` is cleaner than `source` (#553).                   |
+| 9 | Unknown source         | a lineage step that is not an object, or whose `source` is missing, `null` or off the ladder (#551). |
+| 10 | Malformed taint flag  | a lineage step whose `derivedFromMock` is present and not a boolean (#551; §3, #555).      |
+
+Checks 9 and 10 name what cannot be read instead of reading it as clean
+(ADR-0014): an unknown step is not called mock, and it is not ignored. Their
+messages do not quote the value, so they read the same in every language.
 
 The checker MUST be total: a missing or malformed field MUST yield a result list
 (possibly noting the problem), never an exception. A `null`/`None` envelope MUST
@@ -360,7 +375,7 @@ check, returning only the `version-legacy:` advisory (§5b) — it also carries 
 
 The audit above checks the *logic* of the claims an envelope makes and treats an
 absent field as "unknown" (§2) — so a structurally empty `{}` audits clean of
-every logical-consistency check (issues #1–6 above), because it asserts nothing
+every logical-consistency check (issues #1–10 above), because it asserts nothing
 to contradict; its only issue is the version-legacy advisory (§5b). The audit
 therefore does **not** verify that the four required fields (§1) are present.
 
