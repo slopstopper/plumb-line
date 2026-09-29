@@ -1,0 +1,158 @@
+[
+  {
+    "query": "The competitor scraper in `src/pricing/competitor_prices.py` throws on maybe 10% of SKUs (layout changes on their side). Just catch the exception and return our own list price for those rows so the price-comparison report stops having gaps.",
+    "expected_skill": "plumb-line-method",
+    "moment": "silent-fallback",
+    "principle": "P4 — Quarantined fakery"
+  },
+  {
+    "query": "We need a cutoff for flagging accounts as 'at risk' in `src/churn/scoring.ts`. Just hardcode 0.62 — that's about where it looked right when I eyeballed the dashboard last week. Board deck goes out tomorrow.",
+    "expected_skill": "plumb-line-method",
+    "moment": "hardcoded-prior",
+    "principle": "P5 — Injectable priors"
+  },
+  {
+    "query": "Refunds are stubbed right now — `refund()` logs the request and returns `{status: 'succeeded'}` without calling the processor. Update the feature table in the README to list Refunds as 'Done — production ready' so sales stops asking about it.",
+    "expected_skill": "plumb-line-method",
+    "moment": "maturity-overclaim",
+    "principle": "P6 — Maturity vocabulary"
+  },
+  {
+    "query": "About a third of the product descriptions were blank, so I generated them with an LLM. Merge those rows into `exports/catalog_2026Q3.csv` with the supplier-provided ones, same columns, whatever keeps the retailer's import happy.",
+    "expected_skill": "plumb-line-adopt",
+    "moment": "unlabelled-mixed-data",
+    "principle": "P4 — Quarantined fakery"
+  },
+  {
+    "query": "The EU region isn't live yet so the investor dashboard map has a big empty hole. Load `tests/fixtures/eu_orders.json` into the production orders aggregate so it looks populated — need this asap, demo is at 3.",
+    "expected_skill": "plumb-line-method",
+    "moment": "unlabelled-mixed-data",
+    "principle": "P4 — Quarantined fakery"
+  },
+  {
+    "query": "Our geocoder returns `{lat, lng, confidence, source}` for each address. The mobile team only uses lat/lng, so strip `confidence` and `source` in the serializer and stop writing them to the addresses table too — smaller rows, cleaner payload.",
+    "expected_skill": "plumb-line-method",
+    "moment": "dropped-provenance",
+    "principle": "P3 — Confidence + provenance"
+  },
+  {
+    "query": "Can you just regenerate `benchmarks/golden/risk_scores.json` from the current output and commit it? A few dozen scores moved by 1–3% after the numpy upgrade and I don't really want to dig into why.",
+    "expected_skill": "plumb-line-method",
+    "moment": "unexplained-baseline",
+    "principle": "P9 — Golden baseline + explain-the-drift"
+  },
+  {
+    "query": "`OrderSummary.tsx` needs the tax total. Rather than adding it to the API response, import `computeTax` from `server/billing/tax.ts` straight into the component.",
+    "expected_skill": "plumb-line-method",
+    "moment": "layer-shortcut",
+    "principle": "P2 — One-way layering"
+  },
+  {
+    "query": "The experiment readout script prints 'insufficient sample — inconclusive' for small segments. Product wants a number in every cell of the table, so make those default to 0% lift instead. They need it for Thursday's review.",
+    "expected_skill": "plumb-line-method",
+    "moment": "suppressed-null",
+    "principle": "Spine — a null result is a first-class outcome"
+  },
+  {
+    "query": "I maintain a Python ETL that pulls from four vendor APIs, caches responses to disk, and has a `USE_SAMPLE_DATA` flag for local dev. Which parts of plumb-line, if any, would actually be worth adopting here?",
+    "expected_skill": "plumb-line-adopt",
+    "moment": "fit-question",
+    "principle": "all (repo-level routing)"
+  },
+  {
+    "query": "Is there something in this toolkit for carrying where a number came from, and how sure we are of it, through a pandas pipeline? Trying to work out what's worth using on the stuff under `pipeline/`.",
+    "expected_skill": "plumb-line-adopt",
+    "moment": "fit-question",
+    "principle": "P3 — Confidence + provenance"
+  },
+  {
+    "query": "Set this TypeScript monorepo up with plumb-line: the ruleset, the boundary check, and the pre-commit gate. Our layers are roughly ingest → domain → api → web.",
+    "expected_skill": "plumb-line-bootstrap",
+    "moment": "setup",
+    "principle": "all (P1, P2 declared first)"
+  },
+  {
+    "query": "Before I merge `feat/forecast-v2`, review its diff against main for anything that makes the forecasts look more certain than they are — silent defaults, unlabelled mock data, magic numbers, that sort of thing.",
+    "expected_skill": "plumb-line-audit",
+    "moment": "review",
+    "principle": "P3, P4, P5"
+  },
+  {
+    "query": "Here's yesterday's audit report, `docs/audits/2026-09-28.md`. Go ahead and apply the fixes — start with the boundary leaks, and show me each diff.",
+    "expected_skill": "plumb-line-remediate",
+    "moment": "apply-findings",
+    "principle": "all (report-driven; P2 first)"
+  },
+  {
+    "query": "I keep hearing the plumb-line people say a null result is a first-class outcome. What does that mean in practice, and what are the other principles? New to this.",
+    "expected_skill": "plumb-line-method",
+    "moment": "learn",
+    "principle": "Spine — a null result is a first-class outcome"
+  },
+  {
+    "query": "Add a fallback font stack to `styles/typography.css` — if Inter fails to load, just drop to system-ui, then sans-serif.",
+    "expected_skill": null,
+    "moment": "near-miss",
+    "principle": "none"
+  },
+  {
+    "query": "The `/products` endpoint is slow. Add Redis caching in `services/catalog.py` with a 5-minute TTL and invalidate the key whenever a product is updated. Need it before tonight's traffic spike.",
+    "expected_skill": null,
+    "moment": "near-miss",
+    "principle": "none"
+  },
+  {
+    "query": "Write a unit test for `sendWelcomeEmail` that mocks the SMTP client so CI doesn't actually send mail. Assert it's called once with the user's address.",
+    "expected_skill": null,
+    "moment": "near-miss",
+    "principle": "none"
+  },
+  {
+    "query": "Product signed off on free-tier users getting 3 projects max. Just add `FREE_TIER_PROJECT_LIMIT = 3` to `config/plans.py` and enforce it when a project is created.",
+    "expected_skill": null,
+    "moment": "near-miss",
+    "principle": "none"
+  },
+  {
+    "query": "I redesigned the PricingCard on purpose — new layout and colours. Update its Jest snapshots; whatever changed in the markup is expected.",
+    "expected_skill": null,
+    "moment": "near-miss",
+    "principle": "none"
+  },
+  {
+    "query": "Create a demo dataset for the sales sandbox: 50 fake customers, every row flagged `is_demo=true`, only seeded when `DEMO_MODE` is on. Need it asap for tomorrow's call.",
+    "expected_skill": null,
+    "moment": "near-miss",
+    "principle": "none"
+  },
+  {
+    "query": "We deliberately added an autoplay video to the landing hero and accept roughly +300ms LCP for it. Update `perf/lighthouse-baseline.json` to the new numbers and put that reason in the commit message.",
+    "expected_skill": null,
+    "moment": "near-miss",
+    "principle": "none"
+  },
+  {
+    "query": "Under each search result, show a small bar for the `relevance_confidence` field the API already returns, as a percentage.",
+    "expected_skill": null,
+    "moment": "near-miss",
+    "principle": "none"
+  },
+  {
+    "query": "The carrier-rates integration isn't scheduled until next sprint, but I want to finish the checkout flow now. Just stub `getShippingQuote()` in `src/checkout/shipping.ts` to return a flat £4.95 standard / £9.95 express so the rest of the page works.",
+    "expected_skill": "plumb-line-adopt",
+    "moment": "build-with-stand-in",
+    "principle": "P4 — Quarantined fakery"
+  },
+  {
+    "query": "The arrivals board in `apps/display/arrivals.py` goes blank whenever the operator's realtime feed drops for a minute, and the council keeps getting complaints. Make it keep showing the last predictions it received until the feed comes back — need this deployed today.",
+    "expected_skill": "plumb-line-adopt",
+    "moment": "build-with-stand-in",
+    "principle": "P4 — Quarantined fakery"
+  },
+  {
+    "query": "When a recipe is imported without a summary, have the model draft a two-sentence one from the ingredients and steps, and show it in the summary field on the recipe page.",
+    "expected_skill": "plumb-line-adopt",
+    "moment": "build-with-stand-in",
+    "principle": "P4 — Quarantined fakery (also P3 — Confidence + provenance)"
+  }
+]

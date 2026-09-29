@@ -1,0 +1,235 @@
+{
+ "results-format": "v3",
+ "target": "plumb-line-adopt",
+ "probed_installs": [
+  {
+   "plugin": "plumb-line@inline",
+   "version": "0.11.5",
+   "path": "~/plumb-line/.claude/worktrees/v0.12.0-docs",
+   "frontmatter_sha256": "2a7a5360e67ca4e5e5d00b4594d86f5964c40278d74eb351677b02e1eceda920",
+   "skills_frontmatter_sha256": "755f824ba7c7d72221da186dfa382dec13eb42382f9546084dabc02379ff77c8"
+  }
+ ],
+ "tiers": {
+  "screen": "claude-opus-5-5",
+  "confirm": null
+ },
+ "runs": {
+  "screen": 1,
+  "confirm": 0
+ },
+ "threshold": 0.5,
+ "probe": {
+  "timeout_s": 150,
+  "max_turns": 2,
+  "isolation_flags": [
+   "--setting-sources",
+   "project",
+   "--strict-mcp-config"
+  ]
+ },
+ "environments": {
+  "observed": [
+   {
+    "claude_code_version": "2.1.284",
+    "mcp_servers": [],
+    "plugin_errors": null,
+    "plugins": [
+     "agents-md@builtin",
+     "plumb-line@inline",
+     "telemetry@builtin"
+    ],
+    "skills": [
+     "batch",
+     "claude-api",
+     "code-review",
+     "dataviz",
+     "debug",
+     "deep-research",
+     "design",
+     "design-sync",
+     "doctor",
+     "fewer-permission-prompts",
+     "loop",
+     "plumb-line:plumb-line-adopt",
+     "plumb-line:plumb-line-audit",
+     "plumb-line:plumb-line-bootstrap",
+     "plumb-line:plumb-line-method",
+     "plumb-line:plumb-line-remediate",
+     "run",
+     "run-skill-generator",
+     "schedule",
+     "simplify",
+     "update-config",
+     "verify",
+     "workflow-authoring"
+    ],
+    "probes": 12
+   }
+  ],
+  "unobserved_probes": 0,
+  "unreplied_probes": 0
+ },
+ "summary": {
+  "passed": 11,
+  "total": 12
+ },
+ "results": [
+  {
+   "query": "we just installed the plumb-line plugin. what would it actually do for our repo? it's a fastapi service with some LLM-generated enrichment columns, ~/work/enrichd",
+   "should_trigger": true,
+   "runs": [
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-adopt"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "i keep mixing cached api responses with live ones in dev and honestly i can't tell which numbers in the report are real anymore. is there something in plumb-line that fits this? repo is ~/src/pricefeed",
+   "should_trigger": true,
+   "runs": [
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-adopt"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "which part of plumb-line should we start with? we don't want the whole thing, just whatever pays off first for a small data pipeline",
+   "should_trigger": true,
+   "runs": [
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-adopt"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "im adding a fallback that returns yesterday's numbers when the upstream is down (src/loader.py) and it feels like the kind of thing that should be visibly marked as stale/fallback data, what do you recommend",
+   "should_trigger": true,
+   "runs": [
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-adopt"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "does plumb-line even make sense for a static docs site? tell me straight if it doesn't",
+   "should_trigger": true,
+   "runs": [
+    false
+   ],
+   "winners": [
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": false,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "audit this repo against the plumb-line principles and give me the findings table",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-audit"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "teach me the plumb-line method, i want to actually understand the principles not just run the tools",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "install plumb-line's enforcement into this repo - the boundary check and the pre-commit gate, we already know we want it",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-bootstrap"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "apply the fixes from yesterday's audit report, it's in plumb-line-audit.md",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-remediate"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "help me adopt typescript in this javascript project, incremental migration plan please",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "we're evaluating whether to adopt langchain or write our own orchestration, pros and cons for our stack",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "add provenance tracking to my ETL job - i literally just want a lineage column in the output table, postgres, dbt project at ~/analytics",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  }
+ ]
+}

@@ -59,6 +59,48 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   unchanged here, and gives an agent mid-task no cue to invoke the skill:
   #487's baseline measured 0 of 20 probes (10 pressure prompts, 2 runs
   each). #487 reworks it.
+- **The method and adopt skills now describe the in-task moments they are
+  for** ([#487](https://github.com/slopstopper/plumb-line/issues/487)). The
+  spike loaded the plugin in 90 runs and a skill was invoked once. A breadth
+  baseline on the old descriptions (Opus 5.5, isolated, 2 runs) showed a
+  wider gap: the plugin answered people who *asked about* plumb-line (fit,
+  setup, review, applying findings, learning: 6/6) and invoked no skill in
+  any of 12 in-task moments. On the owner's decisions (#487): every moment
+  gets a "yes, and" answer (meet the need, keep what is uncertain visible;
+  the only no is presenting it as real, measured or done);
+  `plumb-line-method` goes first where the aim is to make something look
+  more real, finished or certain than it is, tests included; and
+  `plumb-line-adopt` goes first when building with a stand-in ("add it,
+  and here is how to keep track of it"; adopt still edits nothing). The
+  method skill gains a **Mid-task: other moments** section (eight moments,
+  each with its "yes, and" and its one no, and hand-offs), both descriptions
+  are rewritten, and a keyword test checks that the moments the method
+  description names are taught in its mid-task sections.
+  Measured with `scripts/trigger_check.py`, isolated, Opus 5.5, 2 runs per
+  query unless stated. A query counts as triggered when at least half its
+  probes chose the skill (trigger_check's threshold); figures in brackets
+  count only queries that triggered on every probe.
+  - **Out of sample** (the only measurement the new descriptions were not
+    written against): a fresh set written blind by an independent agent,
+    4/5 should-trigger and 5/5 near-misses, one measurement, no before-run.
+  - **In sample** (the descriptions were written after seeing these, so
+    they show fit, not generalisation): the approved test-moment set,
+    should-trigger 0/10 → 5/10 (5/10), near-misses held at 10/10, though
+    the new description reaches only 1 of the 4 positives skill-creator had
+    held out; breadth routing (`evals/trigger/breadth-queries.json`, 26
+    queries, read by the new `scripts/breadth_routing.py`) 14/26 → 23/26,
+    with method's in-task moments 0/8 → 7/8 (5/8) and adopt's 0/4 → 2/4
+    (1/4), near-misses 8/8 and repo-level questions 6/6 held.
+  - **Other skills' sets, 1 run per query:** audit 20/20 → 20/20; adopt
+    12/12 → 11/12, its one miss triggering 3 of 4 on a recheck (the before
+    was a single probe, so this is "held on recheck", not proof of no
+    regression).
+  These are trigger rates on a bare prompt in an empty directory; whether
+  agents reach for the skill during a real task is round 3's measurement
+  (#462). All records are in `evals/trigger/results/`. skill-creator's
+  description loop was run first (patched: on Claude Code 2.1.284 its
+  candidate, written as a command, is not seen as a skill) and overfitted
+  (training 12/12, held-out positives 1/4); its record is kept there too.
 - **`scripts/trigger_check.py` can probe a checkout in isolation, and its
   record says what each probe loaded**
   ([#487](https://github.com/slopstopper/plumb-line/issues/487)).

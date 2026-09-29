@@ -1,0 +1,339 @@
+{
+ "results-format": "v3",
+ "target": "plumb-line-audit",
+ "probed_installs": [
+  {
+   "plugin": "plumb-line@inline",
+   "version": "0.11.5",
+   "path": "~/plumb-line/.claude/worktrees/v0.12.0-docs",
+   "frontmatter_sha256": "4a230f21cb0ee1e63f87b1b9035afde4a77f6764ac6e7984a8b932f30fe5621a",
+   "skills_frontmatter_sha256": "755f824ba7c7d72221da186dfa382dec13eb42382f9546084dabc02379ff77c8"
+  }
+ ],
+ "tiers": {
+  "screen": "claude-opus-5-5",
+  "confirm": null
+ },
+ "runs": {
+  "screen": 1,
+  "confirm": 0
+ },
+ "threshold": 0.5,
+ "probe": {
+  "timeout_s": 150,
+  "max_turns": 2,
+  "isolation_flags": [
+   "--setting-sources",
+   "project",
+   "--strict-mcp-config"
+  ]
+ },
+ "environments": {
+  "observed": [
+   {
+    "claude_code_version": "2.1.284",
+    "mcp_servers": [],
+    "plugin_errors": null,
+    "plugins": [
+     "agents-md@builtin",
+     "plumb-line@inline",
+     "telemetry@builtin"
+    ],
+    "skills": [
+     "batch",
+     "claude-api",
+     "code-review",
+     "dataviz",
+     "debug",
+     "deep-research",
+     "design",
+     "design-sync",
+     "doctor",
+     "fewer-permission-prompts",
+     "loop",
+     "plumb-line:plumb-line-adopt",
+     "plumb-line:plumb-line-audit",
+     "plumb-line:plumb-line-bootstrap",
+     "plumb-line:plumb-line-method",
+     "plumb-line:plumb-line-remediate",
+     "run",
+     "run-skill-generator",
+     "schedule",
+     "simplify",
+     "update-config",
+     "verify",
+     "workflow-authoring"
+    ],
+    "probes": 20
+   }
+  ],
+  "unobserved_probes": 0,
+  "unreplied_probes": 0
+ },
+ "summary": {
+  "passed": 20,
+  "total": 20
+ },
+ "results": [
+  {
+   "query": "can you check this diff before I merge? I'm worried we're claiming confidence values we never actually compute. the branch is feature/scoring-v2, repo is ~/work/mlpipe",
+   "should_trigger": true,
+   "runs": [
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-audit"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "my teammate hardcoded a 0.7 threshold in engine/detect.py again instead of reading it from config. can you sweep the repo for stuff like that, magic numbers pretending to be measurements",
+   "should_trigger": true,
+   "runs": [
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-audit"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "we ship a report generator and I think some outputs are built from cached fixtures but labelled like real data. audit ~/src/reportgen for anything like that",
+   "should_trigger": true,
+   "runs": [
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-audit"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "review this PR for epistemic honesty issues - laundered uncertainty, that kind of thing. PR #88 in the current repo",
+   "should_trigger": true,
+   "runs": [
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-audit"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "our golden baseline numbers changed in tests/baselines.json last sprint and nobody wrote down why. can you look at whether anything else drifted without explanation",
+   "should_trigger": true,
+   "runs": [
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-audit"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "run the plumb-line audit on the last 3 commits",
+   "should_trigger": true,
+   "runs": [
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-audit"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "before we tag v2.0 i want a pass over the repo checking the README and docs don't overstate what's actually implemented, we have a bunch of half-finished features",
+   "should_trigger": true,
+   "runs": [
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-audit"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "something feels off in our data pipeline, outputs claim source=real but half the loaders fall back to synthetic rows silently. ~/code/ingestd, have a look",
+   "should_trigger": true,
+   "runs": [
+    true
+   ],
+   "winners": [
+    "plumb-line:plumb-line-audit"
+   ],
+   "trigger_rate": 1.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "can you fix the findings from the audit report? it's saved as plumb-line-audit.md in the repo root, just apply the suggested fixes",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-remediate"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "set up my new project ~/code/flowlab with the plumb-line discipline, we need the boundary checks and the pre-commit gate installed",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-bootstrap"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "what are the nine plumb-line principles again? explain the maturity vocabulary bit, I keep forgetting current vs planned",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-method"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "would plumb-line even help my codebase? it's a little CLI tool, no data pipeline, tell me which parts fit if any. ~/dev/tinytool",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-adopt"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "review PR #142 for style and naming consistency, our linter doesn't catch naming stuff",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "audit our npm dependencies for known CVEs, package.json is in the repo root",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "check my SQL migration for correctness before I run it on prod, it's migrations/0042_add_index.sql",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "write me a unit test that pins the aggregate output as a golden baseline so future drift fails CI",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "profile why the scoring endpoint is slow, i think it's the confidence calculation loop in scorer.py",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "hey can you do a security review of the auth module, we're worried about session fixation",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "summarize what changed in the repo since the v1.3 tag, just a changelog draft",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    null
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  },
+  {
+   "query": "my mock data is leaking into prod reports and I want machine-enforced boundaries so it can't happen again - install whatever hooks plumb-line has for that in this repo",
+   "should_trigger": false,
+   "runs": [
+    false
+   ],
+   "winners": [
+    "plumb-line:plumb-line-bootstrap"
+   ],
+   "trigger_rate": 0.0,
+   "pass": true,
+   "measured_by": "claude-opus-5-5"
+  }
+ ]
+}

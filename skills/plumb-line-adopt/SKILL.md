@@ -1,6 +1,6 @@
 ---
 name: plumb-line-adopt
-description: Use when a builder wonders what plumb-line would do for their codebase or which part to adopt — or when, mid-task, their work shows a fit signal (adding a mock or fallback near a production path, mixing fixture, cached, or LLM/agent-produced data with real data) and visible uncertainty would help. Inspects the repo, routes to the right skills and, where the fit map matches, the right primitive integration. Read-only: recommends and hands off, never edits or installs.
+description: "Use when a builder wonders what plumb-line would do for their codebase or which part to adopt, or when, mid-task, they are building with a stand-in: stubbing a service that is not built yet, falling back to cached or last-known values when a source fails, filling a field with generated or sample data, mixing fixture, cached or LLM-produced data with real data. It answers yes, and: add it, and here is how to keep track of it (a label or marker, or plumb-line's provenance primitive where it fits). Inspects the repo and routes to the right skills and primitive integration. Read-only: recommends and hands off, never edits or installs."
 ---
 
 # Adopt plumb-line — which part, on what
@@ -16,7 +16,8 @@ This skill is a concierge for the whole toolkit — the four sibling skills
 AND the run-time primitives. Its job is the question the docs cannot answer
 for a specific repo: *"what would I use this on, here?"* It recommends only.
 It never edits files, installs anything, or scaffolds code; every action
-belongs to the skill it hands off to.
+belongs to the skill it hands off to, or, for a stand-in met mid-task, to
+the agent or builder doing the task.
 
 ## 1. Look — a lightweight, read-only scan
 
@@ -103,7 +104,9 @@ present a guessed fit as a match.
 
 The audit and remediate siblings emit versioned, checker-validated shapes;
 this skill's routing recommendation is a public output and carries one too
-(#269, P7 — Contracted outputs, applied to our own output). The contract is deliberately light —
+(#269, P7 — Contracted outputs, applied to our own output). A brief mid-task
+answer (see **Surfacing mid-task**) is not a routing recommendation and
+carries no header, but any fit it claims still cites what was seen. The contract is deliberately light —
 conversational prose stays conversational; five elements are pinned:
 
 ```
@@ -169,7 +172,22 @@ recommendation is a valid ending.
 
 This skill may fire while the builder is doing something else — writing a
 fallback branch, loading a fixture into a pipeline. In that case: be
-brief, point at the one matching profile, show the one-line integration
-for the code on screen, and offer to continue or get out of the way. Do
-not run the full scan-and-interview over an interruption; the full
-routing is for when the builder asks for it.
+brief; where a fit-map profile matches, point at it and show the one-line
+integration for the code on screen; and offer to continue or get out of
+the way. Do not run the full scan-and-interview over an interruption; the
+full routing is for when the builder asks for it. A brief mid-task answer
+is not a routing report, so it does not carry the `routing-format` header;
+if it names a fit-map profile, cite what you saw that matches it.
+This skill still edits nothing: it tells the agent doing the task, or the
+builder, how to keep the stand-in tracked, and they make the edit.
+
+The answer to building with a stand-in is yes, and: a stub for a service
+that is not built yet, a fallback to cached or last-known values, generated
+or sample data filling a field. Add it, and here is how to keep track of it.
+The lightest tracking that fits is enough: a label on the value or the
+screen ("sample", "generated", a "last updated" marker on stale data), a
+flag on the row, the stub named as a stub. Offer the provenance primitive
+where the stand-in flows into other values, so its `mock` or `fallback`
+source stays marked in everything derived from it. If the aim is to make
+the stand-in pass as real, that is `plumb-line-method`'s moment, not this
+one.
