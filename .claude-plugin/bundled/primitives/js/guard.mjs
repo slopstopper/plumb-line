@@ -10,7 +10,7 @@ import { auditMeta, validateEnvelope } from "./audit.mjs";
 /**
  * Thrown by {@link guard} when a value may not leave through an output point.
  * `reasons` lists every reason, each prefixed with its class (`not a marked
- * value`, `invalid envelope:`, `audit:`, `mock:`, `confidence:`); the message
+ * value`, `invalid envelope:`, `audit:`, `mock:`, `confidence:`, `source:`); the message
  * joins them after `provenance refused: `, the same in both languages.
  */
 export class ProvenanceRefused extends Error {
@@ -138,7 +138,8 @@ function unreadable(meta) {
  * @param {string} [options.minSource="unavailable"] - Refuse when the weakest
  *   source the ancestry shows (the headline, weakestSource and every lineage
  *   step, skipping the law's own label "derived") is below this rung. Off by
- *   default (#541): the rest of Principle 4, fallback and inferred data.
+ *   default, pending the owner's decision (#541): refuses fallback and
+ *   inferred data without a mock label; assumes a complete lineage.
  * @returns {object} `x`
  * @throws {ProvenanceRefused} when the value may not leave
  * @throws {TypeError} when the options are not a plain object, or one is

@@ -181,7 +181,7 @@ validateEnvelope({ source: "real" });
 
 ---
 
-### `guard(x, options?)` / `guard(x, *, no_mock=True, min_confidence='none')`
+### `guard(x, options?)` / `guard(x, *, no_mock=True, min_confidence='none', min_source='unavailable')`
 
 The egress guard (since v0.12.0, #120; ADR-0020). `auditMeta` reports a
 problem after the fact; `guard` stops a value at an output point (an export,
@@ -193,7 +193,7 @@ output point writes `unwrap(guard(x))`. Otherwise it throws
 | Option | Default | Refuses when |
 |---|---|---|
 | `noMock` / `no_mock` | `true` / `True` | mock taint appears anywhere: `derivedFromMock`, `source`, `weakestSource` or any lineage step. On unless turned off (Principle 4's mock clause: excluded from outputs unless explicitly opted in) |
-| `minSource` / `min_source` | `"unavailable"` (off) | the weakest source the ancestry shows (the headline, `weakestSource` and every lineage step, skipping `"derived"`, the law's own label) is below this rung: the rest of Principle 4, for example `"semiReal"` to refuse `fallback` and `inferred` data without labelling it `mock`. Reason: `source: fallback is below the required semiReal` (#541). Cached data is not a rung (the HTTP adapter marks a cache hit `real`); use `minConfidence` |
+| `minSource` / `min_source` | `"unavailable"` (off, pending the owner's decision on #541) | the weakest source the ancestry shows (the headline, `weakestSource` and every lineage step, skipping `"derived"`, the law's own label) is below this rung: the rest of Principle 4, for example `"semiReal"` to refuse `fallback` and `inferred` data without labelling it `mock`. Reason: `source: fallback is below the required semiReal` (#541). `"derived"` as the floor behaves as `"real"`, since derived labels are skipped. The floor relies on a complete lineage, as the law builds it: a `derived` step whose own inputs were dropped is skipped, not refused (a fabricated envelope is outside the threat model, N3). Approximate and cached data have no rung (#562) |
 | `minConfidence` / `min_confidence` | `"none"` | the weakest confidence in the envelope *or its lineage* is below this level (a lineage step with no confidence counts as `none`) |
 
 It fails closed, whatever the options:
@@ -210,11 +210,13 @@ It fails closed, whatever the options:
 
 A bad option is a programmer error, a `TypeError` in both languages, raised
 before the value is looked at and never a `ProvenanceRefused`: options that
-are not a plain object (JS), an unknown option, a non-boolean `noMock`, or a
-`minConfidence` off the ladder. Its message starts `guard: `. Because a
+are not a plain object (JS), an unknown option, a non-boolean `noMock`, a
+`minConfidence` off the confidence ladder, or a `minSource` off the source
+ladder. Its message starts `guard: `. Because a
 refusal is a `ValueError` in Python and a bad option never is, catching one
-cannot swallow the other. In Python, `min_confidence=None` is an error rather
-than the default, as `make_meta` refuses `None`.
+cannot swallow the other. In Python, `min_confidence=None` and
+`min_source=None` are errors rather than the default, as `make_meta` refuses
+`None`.
 
 ```js
 // JavaScript
@@ -244,7 +246,7 @@ The refusals are pinned for both languages by the `guard` kind in
 What `guard` throws (JS: an `Error` subclass) or raises (Python: a
 `ValueError` subclass) when a value may not leave. `reasons` lists every
 reason, each prefixed with its class — `not a marked value`,
-`invalid envelope:`, `audit:`, `mock:`, `confidence:` — and the message is
+`invalid envelope:`, `audit:`, `mock:`, `confidence:`, `source:` — and the message is
 `provenance refused: ` followed by the reasons joined with `; `, the same in
 both languages. A display that should show "unavailable" instead of failing
 catches it:

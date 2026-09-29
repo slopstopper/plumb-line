@@ -41,12 +41,13 @@ unwrap(guard(price, min_confidence='medium')) # refused below medium
 
 A refusal raises `ProvenanceRefused` (a `ValueError`), whose `reasons` list
 every reason; a display that should show "unavailable" instead catches it.
-Mock is refused unless `no_mock=False` is passed (Principle 4's mock clause). The rest of Principle 4 is a source floor the
-caller sets, e.g. `min_source='semiReal'` to refuse fallback and inferred data
-without labelling it mock (#541). It fails closed: a value with no
-envelope, a malformed one, or one the audit flags is refused, and taint and
-confidence are judged from the whole lineage. A bad option is a `TypeError`,
-never a refusal.
+Mock is refused unless `no_mock=False` is passed (Principle 4's mock
+clause). A source floor the caller sets, e.g. `min_source='semiReal'`
+refuses fallback and inferred data without labelling it mock (off by
+default, pending the owner's decision on #541); approximate and cached data
+have no rung (#562). It fails closed: a value with no envelope, a malformed
+one, or one the audit flags is refused, and taint and confidence are judged
+from the whole lineage. A bad option is a `TypeError`, never a refusal.
 
 ## Test fixtures (pytest)
 

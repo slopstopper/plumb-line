@@ -33,7 +33,7 @@ class ProvenanceRefused(ValueError):
 
     ``reasons`` lists every reason, each prefixed with its class (``not a
     marked value``, ``invalid envelope:``, ``audit:``, ``mock:``,
-    ``confidence:``); the message joins them after ``provenance refused: ``,
+    ``confidence:``, ``source:``); the message joins them after ``provenance refused: ``,
     the same in both languages.
     """
 
@@ -102,8 +102,9 @@ def guard(x, *, no_mock=True, min_confidence='none', min_source='unavailable', *
             its lineage is below this level.
         min_source: Refuse when the weakest source the ancestry shows (the
             headline, weakest_source and every lineage step, skipping the
-            law's own label 'derived') is below this rung. Off by default
-            (#541): the rest of Principle 4, fallback and inferred data.
+            law's own label 'derived') is below this rung. Off by default,
+            pending the owner's decision (#541): refuses fallback and inferred
+            data without a mock label; assumes a complete lineage.
 
     Returns:
         ``x``.
