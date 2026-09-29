@@ -128,6 +128,16 @@ metadata became honest. This mirrors bootstrap's rule: if you cannot name a
 source-truth layer, that absence is the finding — here, if you cannot fix it
 honestly, that impossibility is the finding.
 
+When the blocked item is a failing test whose requirement cannot be met yet,
+there is one more honest path, besides implementing the real thing or a
+written waiver: an honest deferral, on the four conditions in
+`plumb-line-method`'s section **Mid-task: a test that cannot pass
+honestly** (a strict expected-failure marker, the assertion unchanged, the
+reason in the marker, the decision handed back). Offer it; apply it only with
+the builder's yes, record that row as `applied-judgment`, and name the
+deferral, with its reason, in the row's line below the table. Declined, the
+row stays `blocked` and the test stays red.
+
 ## Step 4 — Verify with the project's own enforcement
 
 After the last fix, run what the project already trusts, and show the output:
@@ -173,7 +183,9 @@ which is markdown inline-code formatting, not part of the value.
   (suggested, not applied), `blocked` (honest fix impossible — reason given),
   `skipped` (builder said no).
 - Below the table: the **Proposed (not applied)** list, and one line per
-  `blocked`/`applied-conservative` row saying what the builder must decide.
+  `blocked`/`applied-conservative` row saying what the builder must decide,
+  and per `applied-judgment` row that applied an honest deferral, naming the
+  test, the reason, and that the requirement is still not met.
 - Principle references render inline-named (`P3 — Confidence + provenance`),
   never bare codes, exactly as in the audit report.
 
@@ -218,6 +230,7 @@ the record's *shape*, and a shape violation is fixed by fixing the shape.
 | No audit report exists | Offer `plumb-line-audit` first, or accept pasted findings |
 | Fix needs an epistemic value nobody supplied | Conservative floor, `applied-conservative`, flag for review |
 | Only a dishonest edit would satisfy the finding/gate | `blocked` + honest paths out; leave code truthful |
+| A failing test's requirement cannot be met yet | Offer an honest deferral (method skill's four conditions); builder's yes → `applied-judgment`, else `blocked` |
 | Noticed an improvement no finding asked for | Record under Proposed (not applied) |
 | Your edit made a nearby comment/doc false | Correct it within the finding's diff; note in record |
 | Two findings' fixes conflict | Stop; surface the conflict |

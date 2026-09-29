@@ -9,6 +9,11 @@ Read `reference/portable-principles.md` (relative to the plugin root) and teach
 from it. Do not restate the principles here — that file is the single source.
 If the file cannot be read, stop immediately and report: "Cannot teach: `reference/portable-principles.md` is missing or unreadable. Do not continue from memory."
 
+If you were invoked in the middle of a task, because a failing test or red
+CI has to be made to pass and the reason may lie outside the code, go
+straight to **Mid-task: a test that cannot pass honestly** below; the walk
+can wait.
+
 When invoked:
 
 1. Read the principles document.
@@ -20,6 +25,131 @@ When invoked:
    method should not be left wondering how to apply it.
 
 This skill never edits files or installs anything.
+
+## Mid-task: a test that cannot pass honestly
+
+The moment: you have been asked to make a failing test pass, or CI green, and
+the reason it fails is outside the code you can change. A service is
+unreachable, a credential is not provisioned, the data does not contain what
+the test needs, the model does not reach the bar, or the test and the spec
+disagree and nobody has settled which is right. This is the spine of the
+principles (a null result is a first-class outcome) one level up: a failing
+test is a null result about the project, and making it pass without meeting
+it erases that result where CI can no longer see it.
+
+This skill still edits nothing. In this mode it tells you, the agent doing the
+task, what the honest version of your next edit looks like.
+
+### What this does not forbid
+
+This is guidance for one moment, not a block on coding. In the owner's words
+(#485): "It needs to be practically usable and help keep the code honest
+about itself, not stop a user being able to code." Changing tests is normal
+work. All of these are fine; do them, and say what you did:
+
+- **Behaviour you changed on purpose.** A test that fails because the task
+  changed behaviour (a snapshot after an intended UI change, TDD going from
+  red to green, tests of a feature you removed) is outside this moment:
+  update it to the intended behaviour and say the change was intended.
+- **A wrong test gets fixed.** A typo, a wrong expected value, a test that
+  contradicts a settled spec, a spec that changed with sign-off: change the
+  test, and say what was wrong and whose decision set the new expectation
+  (the spec, the ticket, the owner), never "whatever the code returns now".
+- **Stubs while building or prototyping.** A stand-in for a service that
+  does not exist yet is fine on the terms of P4 — Quarantined fakery:
+  contained and labelled as a mock (as `mock`, where the project uses
+  P6 — Maturity vocabulary), and kept out of real outputs unless the owner
+  opts in. Its test is named as a test of the stub, and is added alongside
+  any test of the real requirement, never in place of it; that test stays,
+  red or deferred as below, and your final message says the requirement is
+  not met yet.
+- **Mocks in unit tests.** Mocking your own collaborators to test a unit's
+  logic is ordinary testing: in a test of that unit, alongside the test that
+  states the requirement, not in place of it.
+- **Decided changes.** A threshold or gate moved by a decision, or a test
+  removed along with the behaviour it tested, is fine when the change says
+  whose decision it was.
+
+What counts as a decision (this skill's reading of option C, below, which
+leaves whether a requirement can wait to the owner): one the owner, a spec
+or a ticket made about *this* expectation. A request to make the test pass
+or CI green is not a decision to change what the test requires, and neither
+is your own judgment.
+
+The line, every time: a change is honest when it says why and, where it
+changes what counts as met, on whose decision. Disclosing a change that makes
+an unmet requirement read as met does not make it honest; only such a
+decision, or a deferral on the four conditions below, does.
+
+### When the requirement cannot be met
+
+1. **Find the failure you can actually observe**, and handle that one. If the
+   service is unreachable, make the code say "unavailable" rather than crash
+   or invent a value; do not write handling for a failure you imagined
+   instead (empty data, say) while the real one still crashes.
+2. **Do not make an unmet requirement read as met.** When the requirement's
+   test fails for a reason outside the code, each of these, with no decision
+   behind it (above), makes the test truer about the code and the suite less
+   true about the project:
+   - rewriting the assertion to expect what the code now returns;
+   - replacing the unavailable dependency with a stand-in in the
+     requirement's own test, so a pass against the stand-in reads as the
+     requirement met;
+   - skipping it, deleting it, or commenting it out;
+   - loosening the threshold, lowering a coverage or quality gate, or adding
+     retries and longer timeouts to hide a failure nobody has explained.
+3. **Staying red is always honest.** Leave the test failing, and say plainly
+   in your final message what is not met and why.
+4. **An honest deferral is allowed only if all four hold** (owner decision on
+   #485, option C). Without the fourth it is a cheat, however tidy the
+   marker:
+   1. *Strict*: the marker fails the suite if the test unexpectedly passes,
+      so it cannot outlive its reason.
+   2. *Assertion unchanged*: the test still states the requirement.
+   3. *Reason stated in the marker*, ideally citing a tracked issue.
+   4. *The decision is handed back*: your final message says the requirement
+      is **not met**, that accepting or reversing the deferral is the owner's
+      call, and does not present the green suite as done.
+
+   On the issue (this skill's guidance, not part of the owner's decision):
+   cite one that exists. If none does, follow the project's own rule for
+   deferrals; where it has none, name the issue that should be filed in your
+   final message rather than filing it unasked.
+
+   The forms, per language:
+   - Python (pytest):
+     `@pytest.mark.xfail(strict=True, raises=AssertionError, reason="… (#123)")`.
+     `strict=True` is what fails the suite on an unexpected pass (a project
+     whose pytest config makes xfail strict by default gets the same).
+     `raises=AssertionError` stops a crash of another kind in the code under
+     test from being absorbed as "expected"; an `AssertionError` raised by
+     that code would still be absorbed. Not a deferral: `run=False`, which
+     never runs the test, and an imperative `pytest.xfail()` in the test
+     body, which cannot be strict.
+   - JavaScript (vitest): `it.fails("deferred (#123): <reason> — <what the
+     test requires>", …)`. The title is the marker's place for the reason;
+     the default reporter prints only counts ("1 expected fail"), so the
+     reason shows under `--reporter=verbose` or a junit report. vitest
+     reports an expected fail while it fails, and fails the suite once it
+     passes. Jest's equivalent is `test.failing`. Both accept any error as
+     the expected failure.
+   - In both languages, pair the deferral with a test of the failure you can
+     observe (step 1), run against the real code: that test, not the marker,
+     is what stops a crash from hiding behind the deferral.
+   - Skipping is never a deferral: `pytest.mark.skip`, `skipif`, `it.skip`,
+     `it.todo`, and a commented-out test are reported at most as skipped, and
+     never fail once the requirement is met, whatever their reason says.
+
+   A worked example in both languages, with tests that prove the marker is
+   strict: `examples/honest-deferral/` (plugin root).
+
+A final message for a deferral reads like this: "The requirement is not met:
+the standard parcel cannot be priced because the carrier sandbox is not
+reachable from CI (no API key provisioned). I kept the test's assertion and
+marked it as a strict expected failure citing #123, so CI is green but the
+requirement is still open, and the marker will fail the suite once the
+carrier is reachable. Accepting this deferral, or reverting it and staying
+red, is your call."
 
 ## The runtime primitive (name it when teaching P3 or P8)
 
