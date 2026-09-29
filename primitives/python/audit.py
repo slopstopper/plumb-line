@@ -34,7 +34,14 @@ def audit_meta(meta):
 
     - ``"laundering:"`` — a clean source combined with mock taint
     - ``"over-claiming:"`` — confidence or confidence_score higher than lineage supports
-    - ``"source over-claim:"`` — weakest_source cleaner than lineage proves
+    - ``"source over-claim:"`` — weakest_source cleaner than lineage proves, or
+      stated over a lineage with an unknown source; a source (other than
+      ``"derived"``) cleaner than its ancestry's weakest source (#556); with
+      no lineage, weakest_source cleaner than source (#553)
+    - ``"unknown source:"`` — a lineage step that is not a dict, or whose
+      source is missing, None or off the ladder (#551)
+    - ``"malformed taint flag:"`` — a lineage step whose derived_from_mock is
+      not a bool; None counts as absent (#551, #555)
     - ``"taint dropped:"`` — a tainted lineage step but derived_from_mock is False
     - ``"unreproducible:"`` — source is ``"derived"`` but lineage is empty
     - ``"missing meta"`` — None, a scalar, a list, or any object outside the
@@ -163,11 +170,16 @@ def audit_meta(meta):
     # the weakest source its ancestry shows, from the stated weakest_source
     # and, when every step's source is known, the lineage itself (a handed
     # envelope can omit weakest_source). 'derived' is the law's own label for
-    # a computed value, not a claim about its inputs, so it is exempt on both
-    # sides: a floor of 'derived' means an ancestry of derived and real steps
-    # only, as a derive of a derive of real data has (#556 review).
+    # a computed value, not a claim about its inputs, so it is exempt as the
+    # source. A floor of 'derived' is exempt only when the lineage also shows
+    # a real step, as a derive of a derive of real data has (#556 review): a
+    # lineage of derived steps alone, or a leaf that states it, shows no real
+    # data at all, for example a value re-marked 'derived' with its lineage
+    # dropped (#551 verification).
     floor = _ancestry_floor(weakest, lineage)
-    if (_is_ranked(src) and src != 'derived' and floor is not None and floor != 'derived'
+    real_shown = any(_step_source(s) == 'real' for s in lineage)
+    if (_is_ranked(src) and src != 'derived' and floor is not None
+            and not (floor == 'derived' and real_shown)
             and STATUS.index(src) > STATUS.index(floor)):
         issues.append(f"source over-claim: source '{src}' is cleaner than its ancestry's weakest source '{floor}'")
     # A stated weakest_source over a lineage with an unknown source cannot be
@@ -207,16 +219,19 @@ def _step_source(step):
 
 
 def _ancestry_floor(stated, lineage):
-    """The weakest of a stated weakest_source and, when every lineage step's
-    source is on the ladder, the lineage's own weakest source; None when
-    neither is known. JS twin: ancestryFloor."""
+    """The weakest of a stated weakest_source and every lineage step whose
+    source is on the ladder; None when none is known. Steps with an unknown
+    source are skipped: the weakest known source is an upper bound on the
+    true floor, so a source cleaner than it is an over-claim whatever the
+    unknown steps hold (#551 verification). JS twin: ancestryFloor."""
     floor = STATUS.index(stated) if _is_ranked(stated) else -1
-    sources = [_step_source(s) for s in lineage]
-    if sources and all(_is_ranked(src) for src in sources):
-        for src in sources:
-            i = STATUS.index(src)
-            if floor == -1 or i < floor:
-                floor = i
+    for s in lineage:
+        src = _step_source(s)
+        if not _is_ranked(src):
+            continue
+        i = STATUS.index(src)
+        if floor == -1 or i < floor:
+            floor = i
     return None if floor == -1 else STATUS[floor]
 
 

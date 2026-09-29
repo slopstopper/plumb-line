@@ -438,8 +438,13 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     too. The weakest source is read from `weakestSource`, and also from the
     lineage when a handed envelope omits it. `"derived"` is exempt on both
     sides, since it is the law's own label: a derive of a derive of real data
-    relabelled `real` passes, as the one-level case does. A leaf whose
-    `weakestSource` is dirtier than its `source` is flagged too.
+    relabelled `real` passes, as the one-level case does. `"derived"` as a
+    floor is exempt only when the lineage shows a `real` step, so a `real`
+    source over a lineage of `derived` steps alone is flagged. So is a leaf
+    stating `weakestSource: "derived"`: it shows no real data, for example
+    a value re-marked `derived` with its lineage dropped. A leaf whose
+    `weakestSource` is dirtier than its `source` is flagged too. Unknown
+    steps do not excuse a relabel the known steps already prove.
     `docs/threat-model.md` said the audit caught a relabel; it did so only
     when mock taint was involved.
   - **A leaf's hand-set `weakestSource` cleaner than its own `source` is

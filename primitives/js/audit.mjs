@@ -11,17 +11,18 @@ import {
 
 const CLEAN_SOURCES = ["real", "semiReal", "fallback"];
 
-/** The weakest of a stated weakestSource and, when every lineage step's
- * source is on the ladder, the lineage's own weakest source; undefined when
- * neither is known. A loop, not a spread, so a long lineage cannot overflow
- * the stack here. Python twin: _ancestry_floor. */
+/** The weakest of a stated weakestSource and every lineage step whose
+ * source is on the ladder; undefined when none is known. Steps with an unknown
+ * source are skipped: the weakest known source is an upper bound on the true
+ * floor, so a source cleaner than it is an over-claim whatever the unknown
+ * steps hold (#551 verification). A loop, not a spread, so a long lineage
+ * cannot overflow the stack here. Python twin: _ancestry_floor. */
 function ancestryFloor(stated, lineage) {
   let floor = STATUS.includes(stated) ? STATUS.indexOf(stated) : -1;
-  if (lineage.length > 0 && lineage.every((s) => STATUS.includes(s?.source))) {
-    for (const s of lineage) {
-      const i = STATUS.indexOf(s.source);
-      if (floor === -1 || i < floor) floor = i;
-    }
+  for (const s of lineage) {
+    if (!STATUS.includes(s?.source)) continue;
+    const i = STATUS.indexOf(s.source);
+    if (floor === -1 || i < floor) floor = i;
   }
   return floor === -1 ? undefined : STATUS[floor];
 }
@@ -163,11 +164,16 @@ export function auditMeta(meta) {
   // the weakest source its ancestry shows, from the stated weakestSource and,
   // when every step's source is known, the lineage itself (a handed envelope
   // can omit weakestSource). "derived" is the law's own label for a computed
-  // value, not a claim about its inputs, so it is exempt on both sides: a
-  // floor of "derived" means an ancestry of derived and real steps only, as
-  // a derive of a derive of real data has (#556 review).
+  // value, not a claim about its inputs, so it is exempt as the source. A
+  // floor of "derived" is exempt only when the lineage also shows a real
+  // step, as a derive of a derive of real data has (#556 review): a lineage
+  // of derived steps alone, or a leaf that states it, shows no real data at
+  // all, for example a value re-marked "derived" with its lineage dropped
+  // (#551 verification).
   const floor = ancestryFloor(meta.weakestSource, lineage);
-  if (meta.source !== "derived" && STATUS.includes(meta.source) && floor !== undefined && floor !== "derived"
+  const realShown = lineage.some((s) => s?.source === "real");
+  if (meta.source !== "derived" && STATUS.includes(meta.source) && floor !== undefined
+      && !(floor === "derived" && realShown)
       && STATUS.indexOf(meta.source) > STATUS.indexOf(floor)) {
     issues.push(`source over-claim: source '${meta.source}' is cleaner than its ancestry's weakest source '${floor}'`);
   }

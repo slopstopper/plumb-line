@@ -290,8 +290,8 @@ MUST NOT be settable as a combination override. A constructor may accept a
 hand-set value (the reference implementations do), but a value cleaner than
 the lineage proves MUST be flagged by the audit in §5: check 4 against the
 lineage; check 8 on a value with no lineage, where a leaf's hand-set
-`weakestSource` has nothing else to contradict it; and check 4's companion,
-a stated value over a lineage with an unknown source, which cannot be shown
+`weakestSource` has nothing else to contradict it; and, also check 8, a
+stated value over a lineage with an unknown source, which cannot be shown
 (#553, #551). Until v0.12.0 this paragraph said a caller MUST NOT be able to
 hand-set it, which the reference implementations never enforced.
 
@@ -334,7 +334,7 @@ checker MUST detect each of the following:
 | 4 | Source over-claim      | `weakestSource` cleaner (higher-ranked) than the weakest `source` present in the lineage.  |
 | 5 | Dropped taint          | a tainted lineage step exists (by the §3 rule) but `derivedFromMock` is `false`.           |
 | 6 | Unreproducible         | `source` is `"derived"` but `lineage` is empty.                                            |
-| 7 | Source over-claim      | `source` cleaner than its ancestry's weakest source: the weaker of `weakestSource` and, when every step's source is known, the lineage's own weakest. A value relabelled above its ancestry (#556). `"derived"`, the law's own label, is exempt on both sides: as `source`, and as a floor, which means an ancestry of derived and real steps only. |
+| 7 | Source over-claim      | `source` cleaner than its ancestry's weakest source: the weakest of `weakestSource` and every lineage step whose source is known (the weakest known source bounds the true one, so unknown steps cannot excuse it). A value relabelled above its ancestry (#556). `"derived"`, the law's own label, is exempt as `source`. As a floor it is exempt only when the lineage also shows a `real` step (a derive of a derive of real data); a lineage of `derived` steps alone, or a leaf stating it, shows no real data. |
 | 8 | Source over-claim      | `lineage` is empty and `weakestSource` is cleaner than `source` (#553); or `weakestSource` is stated but a lineage step's source is unknown, so it cannot be shown (#551). |
 | 9 | Unknown source         | a lineage step that is not an object, or whose `source` is missing, `null` or off the ladder (#551). |
 | 10 | Malformed taint flag  | a lineage step whose `derivedFromMock` is not a boolean; `null` counts as absent, as at construction (§2), though the egress guard refuses a `null` step flag (#551; §3, #555). |
@@ -526,7 +526,7 @@ Python (`mark(v, source=…)`); the rules are otherwise identical.
 | --- | ---------------------------------------------------------------------------------------------------- | -------------------- |
 | PB1 | a clean `source` (`real`/`semiReal`/`fallback`) asserted together with `derivedFromMock` literal `true` | laundering (#1) |
 | PB2 | `derivedFromMock` literal `false` passed as a `derive` **override** (a genuine no-op the law ignores) | — |
-| PB3 | a clean `source` passed as a `derive` override (relabeling a derived value)                           | laundering (#1); source over-claim (#7) when the ancestry is weaker without mock |
+| PB3 | a clean `source` passed as a `derive` override (relabeling a derived value)                           | laundering (#1) when there is mock taint; source over-claim (#7) whenever the source is cleaner than the ancestry, with or without mock |
 | PB4 | `mark(unwrap(x), …)` — re-marking a value pulled out via the import-bound `unwrap`, dropping its lineage | unreproducible (#6) |
 
 Reference implementations: `adapters/js/provenance-lint/` (an ESLint rule,

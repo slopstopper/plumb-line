@@ -210,7 +210,6 @@ def test_fractional_version_is_malformed_integral_float_is_valid():
     assert at(2.0) == []
 
 
-
 def test_a_malformed_step_taint_flag_is_not_read_as_taint():
     """#555, pinned after the #551 review: the cases.json rows assert the
     malformed-flag issue; this asserts the absence of 'taint dropped', which a
