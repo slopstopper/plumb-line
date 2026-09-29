@@ -256,3 +256,66 @@ def test_the_carve_outs_close_the_loopholes_the_review_found():
 def test_the_carve_outs_name_principles_in_house_style():
     text = _not_forbidden()
     assert "P4 — Quarantined fakery" in text and "P6 — Maturity vocabulary" in text
+
+
+# --- #487: the method skill's other moments, and its description in step ---
+# Owner decisions on #487 (2026-09-29): a "yes, and" framing for every
+# moment; method first where the aim is to make something look more real,
+# finished or certain than it is; adopt first when building with a stand-in.
+
+def _other_moments():
+    text = SKILLS["plumb-line-method"]
+    start = text.index("## Mid-task: other moments")
+    end = text.find("\n## ", start + 1)
+    return " ".join(text[start:end if end != -1 else len(text)].split())
+
+
+def test_other_moments_meet_the_need_and_name_the_one_no():
+    text = _other_moments().lower()
+    for moment in ("fallback", "hardcod", "production-ready", "generated", "fixture",
+                   "provenance", "baseline", "layer", "inconclusive"):
+        assert moment in text, f"the other-moments section must cover: {moment}"
+    assert "yes, and" in text and "the only no" in text
+
+
+def test_other_moments_hand_off_to_the_skills_with_the_tools():
+    text = _other_moments()
+    assert "plumb-line-adopt" in text and "plumb-line-bootstrap" in text
+
+
+def _method_description():
+    text = SKILLS["plumb-line-method"]
+    front = text.split("\n---", 1)[0]
+    line = next(ln for ln in front.splitlines() if ln.startswith("description:"))
+    return line.split(":", 1)[1].strip().strip('"').lower()
+
+
+# A moment the description claims must be taught in the body, or the
+# description overstates what the skill does (P6 — Maturity vocabulary).
+_CLAIMS = {"fallback": "fallback", "baseline": "baseline", "inconclusive": "inconclusive",
+           "hardcod": "hardcod", "production-ready": "production-ready",
+           "provenance": "provenance", "layer": "layer",
+           "failing test": "a test that cannot pass"}
+
+
+def test_every_moment_the_description_claims_is_taught_in_the_body():
+    desc = _method_description()
+    body = " ".join(SKILLS["plumb-line-method"].split("\n---", 1)[1].split()).lower()
+    for claim, taught in _CLAIMS.items():
+        if claim in desc:
+            assert taught in body, f"description claims {claim!r}; the body does not teach it"
+
+
+def test_adopt_mid_task_says_yes_and_with_tracking_short_of_the_primitive():
+    # Owner, #487: "add the mock but here's how we can keep track of it".
+    text = SKILLS["plumb-line-adopt"]
+    start = text.index("## Surfacing mid-task")
+    section = " ".join(text[start:].split("\n## ")[0].split()).lower()
+    assert "yes, and" in section and "keep track" in section
+    # Not every repo uses the primitive: a plain label or marker counts.
+    assert "label" in section and "marker" in section
+
+
+def test_adopt_description_claims_building_with_a_stand_in():
+    front = SKILLS["plumb-line-adopt"].split("\n---", 1)[0].lower()
+    assert "stand-in" in front and "keep track" in front

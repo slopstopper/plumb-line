@@ -1,6 +1,6 @@
 ---
 name: plumb-line-method
-description: Use when a builder wants to learn or be reminded of the plumb-line method — the discipline of epistemic honesty enforced by tooling. Teaches the thesis, the nine portable principles, the maturity vocabulary, and the one-line test. Pure knowledge; takes no actions.
+description: "Use when an edit would make the system look more real, finished or certain than it is, to make the honest version instead: a failing test or red CI that cannot honestly pass (a dependency down, a bar missed, nobody knows why) under pressure to get it green anyway; a fallback, fixture or generated value passed off as real; a guessed threshold hardcoded as if measured; a stub called production-ready; a baseline regenerated without explaining the drift; a confidence or provenance field dropped; an inconclusive result shown as a number; a layer shortcut. It answers yes, and: meet the need, keep what is uncertain visible. Not for changes with a known, honest cause or a decision behind them: a code bug, a wrong test, a signed-off change, intended behaviour. Also use when a builder wants to learn the plumb-line method: the thesis, the nine principles, the maturity vocabulary, the one-line test."
 ---
 
 # The plumb-line method
@@ -9,10 +9,11 @@ Read `reference/portable-principles.md` (relative to the plugin root) and teach
 from it. Do not restate the principles here — that file is the single source.
 If the file cannot be read, stop immediately and report: "Cannot teach: `reference/portable-principles.md` is missing or unreadable. Do not continue from memory."
 
-If you were invoked in the middle of a task, because a failing test or red
-CI has to be made to pass and the reason may lie outside the code, go
-straight to **Mid-task: a test that cannot pass honestly** below; the walk
-can wait.
+If you were invoked in the middle of a task, go straight to the section for
+that moment; the walk can wait. A failing test or red CI that has to be made
+to pass, where the reason may lie outside the code: **Mid-task: a test that
+cannot pass honestly**. Any other edit that would make something look more
+real, finished or certain than it is: **Mid-task: other moments**.
 
 When invoked:
 
@@ -152,6 +153,41 @@ marked it as a strict expected failure citing #123, so CI is green but the
 requirement is still open, and the marker will fail the suite once the
 carrier is reachable. Accepting this deferral, or reverting it and staying
 red, is your call."
+
+## Mid-task: other moments
+
+Tests are one moment. The one-line test in the principles names the rest:
+an edit that would make the system look more certain than it is, blur a
+layer boundary, hardcode a prior, or hide approximate data. Each has a real
+need behind it, and a quick way to meet that need honestly. Answer with
+"yes, and": meet the need, and keep what is uncertain, stand-in or
+unfinished visible. The only no is presenting it as real, measured or done.
+As with tests, this is not a block on coding: an ordinary change with a
+known cause, or a decision behind it, needs nothing from this section.
+
+| The edit asked for | Yes, and | The only no |
+| --- | --- | --- |
+| A **fallback** that fills a gap when the real source fails | Fill it visibly: "unavailable", or the stand-in labelled as a fallback | The stand-in passed off as the real value |
+| A **hardcoded** threshold or constant that "looked about right" | Use it, as a named config value noting where it came from (eyeballed, not measured), so it can be tuned (P5 — Injectable priors) | The guess buried in logic as if measured |
+| Calling a stub **production-ready**, done or live | State what it is: `mock` (stubbed, returns success without doing the work), `planned` for when (P6 — Maturity vocabulary) | "Done" for a stub |
+| **Fixture**, sample or **generated** data in a real output, "so it looks complete" | Show it as sample or generated: a labelled layer, a flag, a demo environment | Stand-in data counted or shown as real |
+| Dropping a confidence or **provenance** field to slim a payload | Slim the response for that client; keep the field where it is stored | Deleting the record of how sure a value is (P3 — Confidence + provenance) |
+| Regenerating a golden **baseline** without looking into the drift | Regenerate, and record what moved and why it is accepted (P9 — Golden baseline + explain-the-drift) | A silent overwrite |
+| A **layer** shortcut: an import across a boundary to get it working | Take the proper route if it is small; if not, mark the shortcut as a known exception (P2 — One-way layering) | A silent boundary breach |
+| An **inconclusive** or empty result turned into a number (0%, a default) | Show it as inconclusive, with the reason ("n=12") or a dash and a legend | A made-up number that reads as measured (the spine) |
+
+Hand-offs, so the honest version is also the easy one:
+
+- When a stand-in needs tracking through code (a fallback or mock source
+  that should stay marked in everything derived from it), or a baseline
+  needs its drift recorded, offer `plumb-line-adopt`: it knows which
+  plumb-line tool fits (the provenance primitive, the baseline library).
+- When the user is building with a stand-in (a stub while an integration
+  is not built yet, a fallback to keep a feature working, generated drafts
+  to fill a field) and there is no aim to hide it, that moment is
+  `plumb-line-adopt`'s first: "add it, and here is how to keep track of it".
+- A layer shortcut that should be caught next time is what
+  `plumb-line-bootstrap`'s boundary check is for.
 
 ## The runtime primitive (name it when teaching P3 or P8)
 
