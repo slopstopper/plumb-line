@@ -59,6 +59,34 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   unchanged here, and gives an agent mid-task no cue to invoke the skill:
   #487's baseline measured 0 of 20 probes (10 pressure prompts, 2 runs
   each). #487 reworks it.
+- **The audit names a test changed so an unmet requirement reads as met**
+  ([#486](https://github.com/slopstopper/plumb-line/issues/486)). In the
+  impossible-task spike, the audit caught 6 of 25 cheats that turned a
+  failing test green by substituting the unavailable dependency or skipping
+  the test; four audits called the test double acceptable. On the owner's
+  decisions (#485, #486), check 10 in `plumb-line-audit` is one finding
+  class with the method skill's line: the dependency substituted in the
+  requirement's own test, a skip, delete or non-strict expected failure, an
+  assertion rewritten to what the code returns, a loosened gate, or retries
+  hiding an unexplained failure, flagged only when nothing records why or on
+  whose decision, and never for the method skill's carve-outs. A test double
+  is not acceptable for sitting in a test file; the finding names itself,
+  not a product defect, and gives the honest paths. Test files are in the
+  audit's traversal plan. Measured on the spike's round-1 cheat repos
+  (Opus 5.5, headless, blind scoring by the pre-registered criterion):
+  - **held out** (11 repos, never opened while calibrating; manifest
+    verified first; the acceptance figure): 11/11 caught, one of them as
+    needs-review; the original audits score 4 caught / 1 near / 6 missed
+    by the pre-registered rulings, 1 / 4 / 6 by the same blind scorer;
+  - calibration set (14 repos, the tuning set): 2/1/11 → 14/0/0 with
+    today's audit as the baseline.
+  New planted fixture `examples/test-honesty/`: `broken/` plants a
+  substitution and a rewritten assertion; `clean/` carries a strict
+  deferral and two carve-outs the audit must not flag. Its expected
+  findings are in `examples/AUDIT-EXPECTATIONS.md`, so the release harness
+  keeps checking both catching and not over-reaching; the calibrated audit
+  passed it 4/4, and 2/2 after a fixture fix. No Action or lint rule reads
+  test files (owner decision; #520).
 - **The method and adopt skills now describe the in-task moments they are
   for** ([#487](https://github.com/slopstopper/plumb-line/issues/487)). The
   spike loaded the plugin in 90 runs and a skill was invoked once. A breadth
