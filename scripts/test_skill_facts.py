@@ -412,7 +412,7 @@ def test_audit_catalogue_has_the_test_changed_to_pass_check():
 
 def test_audit_check_10_uses_the_method_skills_line_and_carve_outs():
     check = _audit_check_10().lower()
-    assert "whose decision" in check and "nothing records" in check
+    assert "whose decision" in check
     for carve_out in ("on purpose", "wrong test", "labelled stub", "unit test"):
         assert carve_out in check, f"check 10 must exempt: {carve_out}"
 
@@ -431,3 +431,27 @@ def test_audit_check_10_names_itself_and_the_honest_paths():
 def test_audit_reads_the_tests_that_state_requirements():
     text = " ".join(SKILLS["plumb-line-audit"].split()).lower()
     assert "test files are in scope" in text
+
+
+# --- #486 option (a): check 10 tightened to the method skill's line ---------
+
+def test_audit_check_10_a_stated_reason_alone_is_not_a_decision():
+    check = _audit_check_10().lower()
+    assert "a stated reason alone is not a decision" in check
+    # The loose gate the review found must be gone.
+    assert "nothing records why or on whose decision" not in check
+
+
+def test_audit_check_10_is_not_downgraded_by_the_spine_calibration():
+    assert "the spine calibration does not govern check 10" in _audit_check_10().lower()
+
+
+def test_audit_check_10_markers_that_do_not_count_as_a_record():
+    check = _audit_check_10().lower()
+    assert "run=false" in check and "commented out" in check
+
+
+def test_audit_check_10_asks_whether_the_test_states_the_requirement():
+    # Mocking transport in an HTTP-client unit test is ordinary; the question
+    # is whether this test states the requirement (#486 review).
+    assert "states the requirement" in _audit_check_10().lower()
