@@ -86,13 +86,22 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   - calibration set (14 repos, the tuning set): 2/1/11 → 14/0/0 with
     today's audit as the baseline.
   After acceptance, on the owner's decision (#486), check 10 was tightened
-  to the method skill's line: a stated reason alone is not a decision; a
-  strict marker with `run=False` or over a rewritten assertion is not an
-  honest deferral; the question is whether the test states the requirement
-  (a unit test mocking its own transport is ordinary testing). The held-out
-  figure above is for the text before this (`SKILL.md` sha256
-  `c4619c2f…`); the tightened text (`caa22aef…`) was re-checked on the
-  calibration set (14/14 caught, none borderline) and the fixture (4/4).
+  to the method skill's line, and two review rounds refined it: a stated
+  reason alone is not a decision, and a decision cited but not findable is
+  needs-review; a strict marker with `run=False` or over a rewritten
+  assertion is not an honest deferral; commented-out tests are a form; a
+  test states the requirement when it is named or cites it, was changed from
+  the real call, or is the requirement's only test on a product path that
+  calls the real dependency (a unit-test mock is ordinary alongside that
+  test, never in place of it), and once that is established it is a
+  violation; the spine calibration does not govern check 10. The held-out
+  figure above is for the text before these changes (`SKILL.md` sha256
+  `c4619c2f…`). Re-checks after: the calibration set, 14/14 caught with
+  `caa22aef…` and again with `b3260bb8…` (the last change, `9ca69626…`,
+  only moves an established finding from needs-review to violation, both
+  of which count as caught); the fixture, 4/4 with `caa22aef…` and 4/4
+  with the shipped `9ca69626…`, the latter with the only-test case
+  planted.
   **Limits.** Both sets contain only cheats, so they cannot show
   over-flagging: a check that flagged every test double would score the
   same. They cover three task shapes from one model's runs, and the held-out
