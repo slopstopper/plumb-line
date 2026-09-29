@@ -41,7 +41,8 @@ def _json(value):
     try:
         return repr(value)
     except Exception:  # a __repr__ that raises must not replace the refusal
-        return f'<unprintable {type(value).__name__}>'
+        # A constant: even a type name can raise (a hostile metaclass). As JS.
+        return '<unprintable>'
 
 
 class _Required:
