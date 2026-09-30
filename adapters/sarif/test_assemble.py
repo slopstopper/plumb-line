@@ -5,6 +5,7 @@ Run from the repo root:  python3 -m pytest -q adapters/sarif
 """
 import json
 import os
+import re
 
 import pytest
 
@@ -172,6 +173,34 @@ def test_parse_import_linter_garbled_is_unparsed():
     r = A.parse_import_linter(_fx("garbled.txt"), root="/repo", root_package="src")
     assert r == [A.unparsed("this line is not any format the assembler knows", "import-linter", whole=True)]
     assert r[0]["ruleId"] == "PL/unparsed"
+
+
+def _spec_pb_table():
+    """SPEC §6's PB rows as {id: (name, pattern)}, the pattern as plain text:
+    the one table the SARIF catalogue's PB rules are checked against (#552)."""
+    spec = os.path.join(os.path.dirname(_FX), "..", "..", "primitives", "SPEC.md")
+    with open(spec, encoding="utf-8") as fh:
+        text = fh.read()
+    section = text[text.index("## 6. Static enforcement"):text.index("## 7. Conformance")]
+    rows = {}
+    for line in section.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) == 4 and re.fullmatch(r"PB\d", cells[0]):
+            rows[cells[0]] = (cells[1].strip("`"), cells[2].replace("`", "").replace("**", ""))
+    return rows
+
+
+def test_pb_rules_are_named_and_described_as_spec_section_6_says():
+    # #552: PB2 was published as HandBuiltLineage and PB3 as
+    # DeriveOverrideClearsTaint, each describing another rule, so a code
+    # scanning viewer showed a finding under a false label.
+    table = _spec_pb_table()
+    assert sorted(table) == ["PB1", "PB2", "PB3", "PB4"], table
+    assert sorted(r for r in A.RULES if r.startswith("PL/PB")) == [f"PL/{pb}" for pb in sorted(table)]
+    for pb, (name, pattern) in table.items():
+        rule = A.RULES[f"PL/{pb}"]
+        assert rule["name"] == name, pb
+        assert rule["shortDescription"] == f"{pb}: {pattern}.", pb
 
 
 def test_pb_help_uris_point_at_the_spec_section_that_holds_the_pb_table():

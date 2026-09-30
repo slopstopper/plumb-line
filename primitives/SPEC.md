@@ -554,12 +554,16 @@ proven a violation and MUST NOT be flagged (under-claim over false positives).
 The fields are an object literal in JS (`mark(v, {…})`) and keyword arguments in
 Python (`mark(v, source=…)`); the rules are otherwise identical.
 
-| ID  | Pattern                                                                                              | Run-time analog (§5) |
-| --- | ---------------------------------------------------------------------------------------------------- | -------------------- |
-| PB1 | a clean `source` (`real`/`semiReal`/`fallback`) asserted together with `derivedFromMock` literal `true` | laundering (#1) |
-| PB2 | `derivedFromMock` literal `false` passed as a `derive` **override** (a genuine no-op the law ignores) | — |
-| PB3 | a clean `source` passed as a `derive` override (relabeling a derived value)                           | laundering (#1) when there is mock taint; source over-claim (#7) whenever the source is cleaner than the ancestry, with or without mock |
-| PB4 | `mark(unwrap(x), …)` — re-marking a value pulled out via the import-bound `unwrap`, dropping its lineage | unreproducible (#6) |
+| ID  | Name                  | Pattern                                                                                              | Run-time analog (§5) |
+| --- | --------------------- | ---------------------------------------------------------------------------------------------------- | -------------------- |
+| PB1 | `LaunderedMeta`       | a clean `source` (`real`/`semiReal`/`fallback`) asserted together with `derivedFromMock` literal `true` | laundering (#1) |
+| PB2 | `ManualTaintClear`    | `derivedFromMock` literal `false` passed as a `derive` **override** (a genuine no-op the law ignores) | — |
+| PB3 | `CleanSourceOverride` | a clean `source` passed as a `derive` override (relabeling a derived value)                           | laundering (#1) when there is mock taint; source over-claim (#7) whenever the source is cleaner than the ancestry, with or without mock |
+| PB4 | `RemarkDropsLineage`  | `mark(unwrap(x), …)` — re-marking a value pulled out via the import-bound `unwrap`, dropping its lineage | unreproducible (#6) |
+
+The name is the rule's name in the SARIF log (`adapters/sarif/assemble.py`),
+which a code-scanning viewer shows beside a finding; a test holds the SARIF
+catalogue's PB names and descriptions to this table (#552).
 
 Reference implementations: `adapters/js/provenance-lint/` (an ESLint rule,
 `no-provenance-bypass`) and `adapters/python/provenance_lint.py` (a stdlib-`ast`

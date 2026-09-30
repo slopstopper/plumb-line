@@ -423,6 +423,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **The SARIF log names PB2 and PB3 as SPEC §6 does**
+  ([#552](https://github.com/slopstopper/plumb-line/issues/552);
+  `adapters/sarif/assemble.py`, since #118). The catalogue published PB2 as
+  `HandBuiltLineage`, "lineage or weakestSource written by hand", and PB3 as
+  `DeriveOverrideClearsTaint`, "would clear taint or lineage". Each
+  described another rule, so a code-scanning viewer showed a finding under a
+  false label. PB2 is now `ManualTaintClear` and PB3 `CleanSourceOverride`,
+  the names the lints' own messages use. All four PB descriptions are SPEC
+  §6's patterns word for word. SPEC §6's table gains a Name column, and a
+  test holds the SARIF catalogue to it. Rule ids are unchanged, so existing
+  code-scanning alerts keep matching; only the displayed name and
+  description change.
 - **`derive` refuses an input that is not a marked value, in both
   languages (breaking for callers who passed one)**
   ([#550](https://github.com/slopstopper/plumb-line/issues/550); SPEC §2).
