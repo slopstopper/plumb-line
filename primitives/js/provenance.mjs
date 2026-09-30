@@ -55,28 +55,48 @@ function quote(value) {
 // The step fields the law, the audit and the guard read.
 const STEP_FIELDS = ["of", "source", "confidence", "derivedFromMock", "confidenceScore", "id"];
 
-/** A frozen plain copy of an object lineage step, with the fields the step
- * inherits through its prototype (#548): a copy of own fields only lost an
- * inherited taint flag, so one combine cleared it. The chain is walked from
- * the step up to, not including, Object.prototype, which is no step's own: a
- * polluted global baked into a frozen copy would outlive the pollution. At
- * each level the enumerable fields are copied, and a step field the law reads
- * even when it is not enumerable; a nearer field shadows a farther one.
- * Fields are defined, not assigned, so a "__proto__" key is copied as a
- * field, never as the copy's prototype. Python has no prototype chain: a
- * Mapping step is copied by its items. */
+// How far up a step's prototype chain copyStep looks for a law field.
+const MAX_CHAIN = 64;
+
+/** Whether the step itself defines field `k`: on it or on its prototype
+ * chain, short of Object.prototype, which is no step's own (a polluted global
+ * baked into a frozen copy would outlive the pollution). The walk is bounded
+ * and stops at a cycle, and a chain that cannot be read shows nothing, so an
+ * exotic step cannot hang or crash the law. */
+function stepDefines(s, k) {
+  const seen = new Set();
+  try {
+    for (let o = s; o !== null && o !== Object.prototype && !seen.has(o) && seen.size < MAX_CHAIN;
+      o = Object.getPrototypeOf(o)) {
+      if (Object.hasOwn(o, k)) return true;
+      seen.add(o);
+    }
+  } catch {
+    // A Proxy trap that throws: the field is not shown.
+  }
+  return false;
+}
+
+/** A frozen plain copy of an object lineage step (#548). Its own enumerable
+ * fields are copied, as before; a copy of those only lost a law field the
+ * step inherits, taint included, so one combine cleared it. So each law
+ * field the copy lacks is read from the step, as the law reads it, when the
+ * step defines it (stepDefines) and it is not undefined. Only law fields come
+ * from the prototype: an inherited method such as toJSON would change what
+ * the stored step says. Last, taint the audit reads on the step is kept even
+ * when a Proxy hides where it comes from. A law field whose getter throws
+ * throws here, as it does when the law reads an input. Python has no
+ * prototype chain: a Mapping step is copied by its items. */
 function copyStep(s) {
   const copy = { ...s };
-  const seen = new Set();
-  for (let o = s; o !== null && o !== Object.prototype; o = Object.getPrototypeOf(o)) {
-    for (const k of Reflect.ownKeys(o)) {
-      if (seen.has(k)) continue;
-      seen.add(k);
-      if (Object.hasOwn(copy, k)) continue;
-      if (Object.getOwnPropertyDescriptor(o, k).enumerable || STEP_FIELDS.includes(k))
-        Object.defineProperty(copy, k, { value: s[k], enumerable: true, writable: true, configurable: true });
-    }
+  const define = (k, value) =>
+    Object.defineProperty(copy, k, { value, enumerable: true, writable: true, configurable: true });
+  for (const k of STEP_FIELDS) {
+    if (Object.hasOwn(copy, k) || !stepDefines(s, k)) continue;
+    const value = s[k];
+    if (value !== undefined) define(k, value);
   }
+  if (taints(s) && !taints(copy)) define("derivedFromMock", true);
   return Object.freeze(copy);
 }
 

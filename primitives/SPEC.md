@@ -179,9 +179,17 @@ taint, its confidence reads as `none`, and it contributes no prior steps. A
 `lineage` that is not an array contributes no prior steps. Prior steps are
 kept whatever they are: an array step as an array, a value that is not an
 object as itself, and an object step as a copy of its fields. In JavaScript
-that copy includes the fields the step inherits through its prototype, so an
-inherited taint flag is kept (#548). It stops short of `Object.prototype`,
-which is no step's own, so a polluted global is not copied into the step.
+that copy has the step's own enumerable fields, and each step field the law
+reads (`of`, `source`, `confidence`, `derivedFromMock`, `confidenceScore`,
+`id`) that the step defines on its prototype chain, so an inherited taint
+flag is kept (#548). The chain is read short of this realm's
+`Object.prototype`, which is no step's own, so a polluted global is not
+copied into the step; the walk is bounded, and a chain it cannot read shows
+nothing. A step field that reads `undefined` is left out, as JSON leaves it
+out. Taint the audit reads on the step is kept even when a `Proxy` hides
+where it comes from. One exception to totality, in both languages: a field
+whose read throws (a getter, a `Proxy` trap, a `Mapping` whose lookup
+raises) propagates the error, for an input and for a step's law field.
 
 ### Combining zero inputs
 

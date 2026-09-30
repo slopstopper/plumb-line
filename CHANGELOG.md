@@ -423,20 +423,24 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
-- **JS keeps a lineage step's inherited fields, so its taint cannot be
-  cleared by a combine**
-  ([#548](https://github.com/slopstopper/plumb-line/issues/548); SPEC §3).
-  `makeMeta` copied each object step with `{ ...s }`, own fields only. A
-  step that inherited `derivedFromMock: true` through its prototype lost it
-  in the copy. So an envelope the audit flagged as "taint dropped" came out
-  of `combineProvenance` clean, and the guard passed it. The copy now takes
-  the fields the step inherits, walking its prototype chain up to, not
-  including, `Object.prototype`: the enumerable fields at each level, and a
-  step field the law reads even when it is not enumerable, the nearer one
-  winning. A polluted `Object.prototype` is not copied into the step. The
-  copy stays a plain frozen object, and a `"__proto__"` key is copied as a
-  field. JSON cannot build such a step, so envelopes handed over as JSON,
-  and Python, are unchanged.
+- **JS keeps a lineage step's inherited law fields, so a combine cannot
+  clear its taint**
+  ([#548](https://github.com/slopstopper/plumb-line/issues/548); SPEC §3;
+  threat model F5). `makeMeta` copied each object step with `{ ...s }`,
+  own fields only. A step that inherited `derivedFromMock: true` through its
+  prototype lost it in the copy. So an envelope the audit flagged as "taint
+  dropped" came out of `combineProvenance` clean, and the guard passed it.
+  The copy now also takes each step field the law reads (`of`, `source`,
+  `confidence`, `derivedFromMock`, `confidenceScore`, `id`) that the step
+  defines on its prototype chain, short of `Object.prototype`, and that is
+  not `undefined`. Nothing else is taken from the prototype, so an inherited
+  method such as `toJSON` cannot change what the stored step says. The walk
+  is bounded and cannot hang or throw on an exotic `Proxy`. Taint the audit
+  reads on the step is kept even when a `Proxy` hides where it comes from.
+  SPEC §3 now names the one exception to the law's totality, in both
+  languages: a field whose read throws propagates the error. JSON cannot
+  build such a step, so envelopes handed over as JSON, and Python, are
+  unchanged.
 - **`derive` refuses an input that is not a marked value, in both
   languages (breaking for callers who passed one)**
   ([#550](https://github.com/slopstopper/plumb-line/issues/550); SPEC §2).

@@ -370,8 +370,8 @@ describe("combineProvenance reads source and confidence as it reads taint (#525 
   });
 });
 
-// #548: a prior step's fields are copied as the law reads them, through the
-// prototype. A copy of own fields only let a step's inherited taint be
+// #548: a prior step's law fields are copied with what it inherits, short of
+// Object.prototype. A copy of own fields only let a step's inherited taint be
 // cleared by one combine. JSON cannot build such a step, so no case row.
 describe("makeMeta copies a lineage step's inherited fields (#548)", () => {
   const INHERITED_TAINT = () =>
@@ -435,22 +435,105 @@ describe("makeMeta copies a lineage step's inherited fields (#548)", () => {
     }
   });
 
-  it("an own field that is not enumerable still shadows an inherited one", () => {
+  it("an own law field that is not enumerable still shadows an inherited one", () => {
     const step = Object.defineProperty(
-      Object.assign(Object.create({ note: "inherited" }), { of: "input", source: "real" }),
-      "note", { value: "own", enumerable: false },
+      Object.assign(Object.create({ source: "mock" }), { of: "input" }),
+      "source", { value: "real", enumerable: false },
     );
     const copy = makeMeta({ source: "derived", lineage: [step] }).lineage[0];
-    expect(Object.hasOwn(copy, "note")).toBe(false);
+    expect(copy.source).toBe("real");
   });
 
-  it("an inherited __proto__ key is copied as a field, never as the copy's prototype", () => {
+  it("an inherited __proto__ key never becomes the copy's prototype", () => {
     // JSON.parse makes "__proto__" an own key; as a prototype, it is inherited.
     const proto = JSON.parse('{"__proto__": {"derivedFromMock": true}}');
     const step = Object.assign(Object.create(proto), { of: "input", source: "real" });
     const copy = makeMeta({ source: "derived", lineage: [step] }).lineage[0];
     expect(Object.getPrototypeOf(copy)).toBe(Object.prototype);
-    expect(Object.hasOwn(copy, "__proto__")).toBe(true);
     expect(copy.derivedFromMock).toBeUndefined();
+  });
+});
+
+// #548 review: steps the first fix mishandled. Each is combined as a prior
+// step of an envelope whose own flag is false.
+describe("copying an unusual lineage step (#548 review)", () => {
+  const base = { of: "input", source: "real", confidence: "high", id: "sha256:000000000003" };
+  const combined = (step) =>
+    combineProvenance({
+      provenanceVersion: PROVENANCE_VERSION, source: "derived", confidence: "high",
+      derivedFromMock: false, weakestSource: "real", lineage: [step],
+    });
+  const refused = (out) => {
+    expect(() => guard({ value: 1, ...out })).toThrow(ProvenanceRefused);
+    // And after a JSON round trip, the form an envelope is stored in.
+    const stored = JSON.parse(JSON.stringify(out));
+    expect(() => guard({ value: 1, ...stored })).toThrow(ProvenanceRefused);
+  };
+
+  it("only law fields come from the prototype: an inherited toJSON cannot drop the step's taint", () => {
+    const step = Object.assign(
+      Object.create({ toJSON() { return { of: this.of, source: this.source, confidence: this.confidence }; } }),
+      { ...base, derivedFromMock: true },
+    );
+    const out = combined(step);
+    expect(Object.hasOwn(out.lineage[0], "toJSON")).toBe(false);
+    refused(out);
+  });
+
+  it("an inherited method is not copied into the step", () => {
+    const step = Object.assign(Object.create({ describe() { return "x"; } }), base);
+    expect(Object.hasOwn(combined(step).lineage[0], "describe")).toBe(false);
+  });
+
+  it("a prototype chain that cycles through a Proxy ends, and the step keeps its own fields", () => {
+    const p = new Proxy({ ...base }, { getPrototypeOf: () => p });
+    expect(combined(p).lineage[0].source).toBe("real");
+  });
+
+  it.each([
+    ["ownKeys lists a key with no descriptor", () =>
+      new Proxy({ ...base }, { ownKeys: (t) => [...Reflect.ownKeys(t), "phantom"] })],
+    ["getPrototypeOf throws", () =>
+      new Proxy({ ...base }, { getPrototypeOf: () => { throw new Error("trap"); } })],
+    ["getOwnPropertyDescriptor throws for an inherited law field", () =>
+      Object.assign(Object.create(new Proxy({}, { getOwnPropertyDescriptor: () => { throw new Error("trap"); } })), base)],
+    ["an inherited getter that is not a law field throws", () =>
+      Object.assign(Object.create({ get note() { throw new Error("getter"); } }), base)],
+    ["a getter deletes a field while the step is read", () => {
+      // The getter comes first, so a walk over the prototype's keys reaches
+      // "note" after it is gone.
+      const proto = { get derivedFromMock() { delete proto.note; return false; }, note: 1 };
+      return Object.assign(Object.create(proto), base);
+    }],
+  ])("combining returns, as on main, when %s", (_, make) => {
+    expect(() => combined(make())).not.toThrow();
+  });
+
+  it.each([
+    ["a Proxy whose get trap reads the flag as true", () =>
+      new Proxy({ ...base }, { get: (t, k) => (k === "derivedFromMock" ? true : Reflect.get(t, k)) })],
+    ["a Proxy that hides its tainted prototype", () =>
+      new Proxy(Object.assign(Object.create({ derivedFromMock: true }), base), { getPrototypeOf: () => Object.prototype })],
+    ["a prototype that is a Proxy reading the flag as true", () =>
+      Object.assign(Object.create(new Proxy({}, { get: (t, k) => (k === "derivedFromMock" ? true : undefined) })), base)],
+  ])("taint the audit reads on the step survives the copy: %s", (_, make) => {
+    const out = combined(make());
+    expect(out.lineage[0].derivedFromMock).toBe(true);
+    refused(out);
+  });
+
+  it("a law field whose getter throws propagates the error, as for an input (SPEC §3)", () => {
+    const step = Object.assign(Object.create({ get derivedFromMock() { throw new Error("boom"); } }), base);
+    expect(() => combined(step)).toThrow("boom");
+  });
+
+  it("an inherited law field that reads undefined is left out, as JSON would leave it", () => {
+    class Step {
+      constructor() { Object.assign(this, base); }
+      get confidenceScore() { return this._score; }
+    }
+    const out = combined(new Step());
+    expect(Object.hasOwn(out.lineage[0], "confidenceScore")).toBe(false);
+    expect(() => guard({ value: 1, ...out })).not.toThrow();
   });
 });
