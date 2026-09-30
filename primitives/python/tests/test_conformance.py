@@ -137,6 +137,11 @@ def _shape_problem(kind, c):
         return 'absent must be a list of field names'
     if 'absent' in c and 'expect' not in c:
         return 'absent applies only to an expect case'
+    if kind == 'derive':
+        if not isinstance(c.get('inputs'), list):
+            return 'a derive case needs a list of inputs'
+        if 'override' in c and not isinstance(c['override'], dict):
+            return "a derive case's override must be an object"
     return None
 
 
@@ -148,6 +153,34 @@ def _envelope_problems(name, out, c):
     for k in c.get('absent', []):
         sk = _KEY.get(k, k)
         assert sk not in out, f"{name}: {sk} should be absent"
+
+
+_BAD_ROWS = [
+    ('construct', {'input': {}, 'expect': {}, 'absent': 'basis'}, 'absent must be a list of field names'),
+    ('construct', {'input': {}, 'expect': {}, 'absent': {'basis': 1}}, 'absent must be a list of field names'),
+    ('construct', {'input': {}, 'expect': {}, 'absent': ['basis', None]}, 'absent must be a list of field names'),
+    ('construct', {'input': {}, 'expectError': 'x', 'absent': ['source']}, 'absent applies only to an expect case'),
+    ('construct', {'input': {}}, 'a construct case needs exactly one of expect or expectError'),
+    ('construct', {'input': {}, 'expect': {}, 'expectError': 'x'},
+     'a construct case needs exactly one of expect or expectError'),
+    ('derive', {'inputs': {}, 'expect': {}}, 'a derive case needs a list of inputs'),
+    ('derive', {'inputs': [], 'override': None, 'expect': {}}, "a derive case's override must be an object"),
+    ('derive', {'inputs': [], 'expect': {}, 'absent': 'basis'}, 'absent must be a list of field names'),
+    ('construct', {'input': {}, 'expect': {}, 'absent': ['toString']}, None),
+]
+
+
+def test_the_row_shape_checks_refuse_what_the_js_runner_refuses():
+    # #566 review: the same bad rows, the same messages, as the JS runner's
+    # meta-tests in primitives/js/conformance-runner.test.mjs.
+    for kind, row, expected in _BAD_ROWS:
+        assert _shape_problem(kind, row) == expected, (kind, row)
+
+
+def test_absent_fails_a_field_that_is_written():
+    import pytest
+    with pytest.raises(AssertionError, match='basis should be absent'):
+        _envelope_problems('x', {'basis': 'b'}, {'expect': {}, 'absent': ['basis']})
 
 
 def test_construct_cases():

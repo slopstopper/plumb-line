@@ -453,7 +453,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `confidenceScore` / `confidence_score`, `basis` and `adapter`. A `null`
   `source` or `confidence` is still refused (#443). SPEC §2 now says so.
   JS `makeMeta` stored a `null` `basis` or `adapter` as `null`, against SPEC
-  §2 (an optional field with no value MUST be absent), where Python left it
+  §1 (an optional field with no value MUST be absent), where Python left it
   out; both now leave it out. The case table gains a `derive` kind, so the
   override rule is pinned in both languages and for any port, and its
   `construct` and `derive` rows an `absent` list, so a field that must not be

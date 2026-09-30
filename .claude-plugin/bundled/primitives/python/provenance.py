@@ -84,7 +84,7 @@ def make_meta(source=_REQUIRED, confidence='none', confidence_score=None,
         lineage: List of prior lineage step dicts; each step is shallow-copied.
         weakest_source: Lowest-ranked source in ancestry; one of STATUS.
         basis: Arbitrary domain metadata (passed through unchanged; None
-            writes no field, SPEC §2).
+            writes no field, SPEC §1).
         adapter: Adapter identifier (passed through unchanged; None writes no
             field).
 

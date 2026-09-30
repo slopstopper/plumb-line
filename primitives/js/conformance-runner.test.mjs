@@ -79,6 +79,12 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
   it("reads absent as the envelope's own fields, not its prototype's", () => {
     expect(runCases(impl, construct({ name: "x", input: { source: "real" }, expect: {}, absent: ["toString"] }))[0].error).toBe(null);
   });
+  it("refuses a derive case whose inputs are not a list or whose override is not an object", () => {
+    expect(runCases(impl, derive({ name: "x", inputs: {}, expect: {} }))[0].error)
+      .toBe("a derive case needs a list of inputs");
+    expect(runCases(impl, derive({ name: "x", inputs: [], override: null, expect: {} }))[0].error)
+      .toBe("a derive case's override must be an object");
+  });
   it("fails a derive case whose envelope differs, or whose refusal does not happen (#566)", () => {
     const inputs = [{ source: "real", confidence: "high", confidenceScore: 0.9 }];
     expect(runCases(impl, derive({ name: "x", inputs, override: {}, expect: { confidenceScore: 0.1 } }))[0].error)

@@ -63,12 +63,11 @@ and assert every field a case carries (including `expectLineageIds`). A
 #443), and to refuse a missing `source` rather than default it (v0.12.0,
 #177). JSON cannot write "left out", so those rows omit `source` from `input`;
 pass only the keys a row carries. A `construct` or `derive` row's `absent`
-list names fields the envelope must not have at all (SPEC §2; the rows since
-v0.12.0, #566). A `derive` row marks each of its `inputs` with those fields,
+list names fields the envelope must not have at all (SPEC §1; the rows since
+v0.12.0, #566). A `derive` row marks each of its `inputs` with its fields,
 then derives with its `override` and any function: the envelope is under
-test, not the value. `derive` is a new kind at the same schema version, so a
-port certified before it must re-run. A port certified against schema version 2 before v0.12.0 must re-run:
-`construct` is a new requirement at the same schema version, signalled by the
+test, not the value. A port certified against schema version 2 before v0.12.0 must re-run:
+`construct` and `derive` (#566) are new requirements at the same schema version, signalled by the
 table's sha256 and its per-kind counts, not by a version number. So is `guard`
 (v0.12.0, #120): a port provides the egress guard of SPEC §5c, and a `guard`
 row's `meta` is the envelope of a marked value built the way your `mark`

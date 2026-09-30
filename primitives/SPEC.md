@@ -115,15 +115,17 @@ contains `source is required (one of <the ladder, comma-separated>)`;
 `confidence` still defaults to `none`. `derive` is not a leaf constructor: its
 `source` comes from the combination law (§3), so a `derive` whose override
 leaves `source` out MUST NOT refuse for that reason. Added
-in v0.12.0 (#177, ADR-0019 amendment). A `derive` override that is unset,
-left out, or `null` for an optional field (`confidenceScore`, `basis`,
-`adapter`), MUST be treated as no override: the combination law's value
-stands, and an optional field with no value is absent, as below. A `null`
-`source` or `confidence` is a value off its ladder and MUST be refused, as
-above. Added in v0.12.0 (#533, #566; `derive` rows in
-`conformance/cases.json`). Before that, `source` defaulted to
+in v0.12.0 (#177, ADR-0019 amendment). Before that, `source` defaulted to
 `derived`, which is untrue of a leaf with no parents and audits as
 `unreproducible` (§5).
+
+A `derive` override key that is left out, or unset (JavaScript `undefined`),
+MUST be treated as no override, for every key: the combination law's value
+stands. So is a `null` for an optional field (`confidenceScore`, `basis`,
+`adapter`), and an optional field with no value is absent, as §1 requires. A
+`null` `source` or `confidence` is a value off its ladder and MUST be
+refused, as above. Added in v0.12.0 (#533, #566; `derive` rows in
+`conformance/cases.json`).
 
 `derive` MUST refuse an input that is not a marked value, before it applies
 the function, with a `TypeError` whose message is `derive: input <position>

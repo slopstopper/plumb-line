@@ -151,6 +151,11 @@ def _shape_problem(kind, c):
         return 'absent must be a list of field names'
     if 'absent' in c and 'expect' not in c:
         return 'absent applies only to an expect case'
+    if kind == 'derive':
+        if not isinstance(c.get('inputs'), list):
+            return 'a derive case needs a list of inputs'
+        if 'override' in c and not isinstance(c['override'], dict):
+            return "a derive case's override must be an object"
     return None
 
 

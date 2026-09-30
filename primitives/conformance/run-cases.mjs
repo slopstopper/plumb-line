@@ -81,6 +81,11 @@ function shapeProblem(kind, c) {
   if ("absent" in c && !(Array.isArray(c.absent) && c.absent.every((k) => typeof k === "string")))
     return "absent must be a list of field names";
   if ("absent" in c && !("expect" in c)) return "absent applies only to an expect case";
+  if (kind === "derive") {
+    if (!Array.isArray(c.inputs)) return "a derive case needs a list of inputs";
+    if ("override" in c && (c.override === null || typeof c.override !== "object" || Array.isArray(c.override)))
+      return "a derive case's override must be an object";
+  }
   return null;
 }
 
@@ -108,7 +113,7 @@ function runDerive(impl, c) {
   let out;
   try {
     const items = c.inputs.map((fields, i) => impl.mark(i, fields));
-    out = impl.derive(items, () => 0, c.override ?? {});
+    out = impl.derive(items, () => 0, c.override || {});
   } catch (e) {
     if (c.expectError === undefined) return `expected an envelope, got an error: ${describeThrown(e)}`;
     const message = describeThrown(e);

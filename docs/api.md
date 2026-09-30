@@ -323,7 +323,7 @@ no override too for the optional keys, `confidenceScore` /
 #566; before, a `null` `confidenceScore` dropped the combined score, and JS
 stored a `null` `basis` or `adapter`). A `null` `source` or `confidence` is
 still refused (#443). A `null` `basis` or `adapter` given to the constructor
-is no field in both languages, as SPEC §2 requires of an optional field with
+is no field in both languages, as SPEC §1 requires of an optional field with
 no value. Envelopes you are
 *handed*, such as parsed JSON, are not refused: `combineProvenance` and the
 audit still tolerate unknown values in them (SPEC §2).
