@@ -122,6 +122,33 @@ describe("mark / derive refuse an off-ladder confidence or source (#443)", () =>
   });
 });
 
+describe("derive: an undefined override is no override (#533)", () => {
+  it.each(["source", "confidence", "confidenceScore", "basis", "adapter"])(
+    "an undefined %s override on derive is no override (#533)",
+    (key) => {
+      // A caller writing derive(xs, f, { confidence: opts.confidence }) with
+      // the option unset must keep the law's result, not reset or drop it.
+      const a = mark(1, { source: "real", confidence: "high", confidenceScore: 0.9 });
+      const b = mark(2, { source: "fallback", confidence: "medium", confidenceScore: 0.6 });
+      const plain = derive([a, b], (x, y) => x + y);
+      const out = derive([a, b], (x, y) => x + y, { [key]: undefined });
+      expect(out).toEqual(plain);
+      expect(Object.keys(out)).toEqual(Object.keys(plain));
+    },
+  );
+  it("reads each override value once, so a getter cannot reset the rung", () => {
+    const a = mark(1, { source: "real", confidence: "high" });
+    let reads = 0;
+    const override = { get confidence() { return reads++ === 0 ? "low" : undefined; } };
+    expect(derive([a], (x) => x, override).confidence).toBe("low");
+  });
+  it.each(["source", "confidence"])("a null %s override is still refused (#443, not #533)", (key) => {
+    // undefined is no override; null is a value, and off the ladder.
+    const a = mark(1, { source: "real", confidence: "high" });
+    expect(() => derive([a], (x) => x, { [key]: null })).toThrow(`${key} must be one of`);
+  });
+});
+
 
 describe("derive refuses a derivedFromMock override that is not a boolean (#555, reversing #525)", () => {
   it("throws, as the Python twin raises; true still taints, false and null leave a clean input clean", () => {

@@ -130,3 +130,18 @@ recommendation's reasons:
 
   Recorded here rather than by editing the Decision, because this record is
   append-only.
+
+- **2026-09-30 (#533).** *Scheduled into v0.12.0 at filing; an
+  implementation choice, not an owner decision.* In JS, a `derive` override
+  whose value is `undefined` is no override for every key (`source`,
+  `confidence`, `confidenceScore`, `basis`, `adapter`), so the combination
+  law's value stands. The #177 amendment's "an override of `source:
+  undefined` counts as no override" now holds for every key. Before, `{
+  confidence: undefined }` gave `"none"`, the Decision's reading of
+  `undefined` as the default, which for `derive` discarded the combined
+  rung; for `derive` the default is the law's result, not a constructor
+  default. `null` is unchanged: it is a value, refused off the ladder for
+  `source` and `confidence` (#443); the other keys' `null` is #566.
+
+  Recorded here rather than by editing the Decision, because this record is
+  append-only.

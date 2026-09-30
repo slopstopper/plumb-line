@@ -30,7 +30,7 @@ ancestry** — laundering, over-claiming, or a dropped taint.
 
 | Actor | In scope? | How they are served |
 | --- | --- | --- |
-| **The honest-but-careless developer** — the primary actor. Wants correct provenance, will make mistakes: combine values by hand, relabel a derived value, forget that a fallback tainted the result. | **Yes — the whole point.** | The combination law makes the right thing automatic; the audit catches inconsistent envelopes at run time, including a derived value relabelled above its ancestry (since v0.12.0, #556; before that only when mock taint was involved); the static lint catches bypass patterns at review time. |
+| **The honest-but-careless developer** — the primary actor. Wants correct provenance, will make mistakes: combine values by hand, relabel a derived value, forget that a mock or a fallback fed the result. | **Yes — the whole point.** | The combination law makes the right thing automatic; the audit catches inconsistent envelopes at run time, including a derived value relabelled above its ancestry (since v0.12.0, #556; before that only when mock taint was involved); the static lint catches bypass patterns at review time. |
 | **The reviewer** auditing a diff before it lands. | **Yes.** | The static lint (PB1–PB4) and the `plumb-line-audit` skill surface laundering and bypass patterns in source. |
 | **A malicious actor with code execution in your process / language.** | **No — explicit non-goal.** | They can already do anything: mutate a Python dict, reflectively defeat a freeze, fabricate an envelope. The envelope is integrity *evidence*, not a sandbox. See §4. |
 
@@ -130,9 +130,12 @@ Findings from security review, with the guarantee each one restored.
 | **F2** | `derive` copied overrides in raw, bypassing the validation `makeMeta` enforces; an out-of-range `confidenceScore` was stored and then silently no-op'd the numeric over-claim check. | `derive` routes overrides through `makeMeta`; taint is still force-OR'd first (G1 intact). | G4 |
 | **F3** | Envelopes and lineage steps were mutable and shared by reference across parent/child metas, so editing one meta's history rewrote every sibling sharing that step. | `makeMeta` clones each lineage step; JS additionally freezes steps, the array, the meta, and the envelope. | G5 |
 | **F4** | The G3 totality clause was unmet in Python: `audit_meta` read each lineage step with an unguarded `s.get(...)`, so a malformed step (`None`, a bare string) raised `AttributeError` instead of returning an issue list — and JS, using `s?.field`, did not. | `audit_meta` reads fields through a dict-only `steps` view (non-dict steps count as no-signal), keeping the raw `lineage` only for the length check — matching JS exactly. | G3 |
+| **F5** | JS `makeMeta` copied a lineage step with its own fields only, so a step that inherited `derivedFromMock: true` through its prototype lost it: one combine cleared taint the audit had flagged, and the guard passed the result (#548). | For each law field the step does not hold as its own enumerable field, the copy takes the value the law and the audit read on the step (through a prototype, a getter or a `Proxy`), unless it is `undefined` or the chain reaches an `Object.prototype` holding it (another realm's recognised by shape; a bounded walk that cannot decide keeps the value). | G1 |
 
 F1–F3 have a regression test in `primitives/{js,python}` labelled with their ID;
 F4 was JS-total already, so its regression test lives in `primitives/python`.
+F5 is JS-only (Python has no prototype chain), so its tests live in
+`primitives/js/provenance.test.mjs`, labelled #548.
 
 ---
 

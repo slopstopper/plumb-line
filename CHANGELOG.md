@@ -443,6 +443,73 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **JS keeps a lineage step's inherited law fields, so a combine cannot
+  clear its taint**
+  ([#548](https://github.com/slopstopper/plumb-line/issues/548); SPEC §3;
+  threat model F5). `makeMeta` copied each object step with `{ ...s }`,
+  own fields only. A step that inherited `derivedFromMock: true` through its
+  prototype lost it in the copy. So an envelope the audit flagged as "taint
+  dropped" came out of `combineProvenance` clean, and the guard passed it.
+  The copy now also takes, for each step field the law reads (`of`,
+  `source`, `confidence`, `derivedFromMock`, `confidenceScore`, `id`) that
+  is not among the step's own enumerable fields, the value the law and the
+  audit read on the step: through its prototype, a getter or a `Proxy`. It
+  is left out when it reads `undefined`, or when the chain reaches an
+  `Object.prototype` holding it (another realm's is recognised by shape),
+  so a polluted global is not copied.
+  Nothing else is taken from the prototype, so an inherited method such as
+  `toJSON` cannot change what the stored step says. SPEC §3 now names the
+  one exception to the law's totality, in both languages: a field whose read
+  throws propagates the error. In JS that now includes a step that throws on
+  a law field it lacks: the law read a prior step's `source` and `id`
+  before, and now reads its other law fields too. JSON cannot build such a
+  step, so envelopes handed over as JSON, and Python, are unchanged.
+- **JS `derive`: an override whose value is `undefined` is no override, for
+  every key** ([#533](https://github.com/slopstopper/plumb-line/issues/533);
+  `docs/api.md`; ADR-0019 amendment). Since #177 it held for `source`, and
+  `basis` and `adapter` behaved the same, the law never setting them; not
+  for `confidence` or `confidenceScore`. `{ confidence:
+  undefined }` reset the combined rung to `"none"`, and `{ confidenceScore:
+  undefined }` dropped the combined score, so `derive(xs, f, { confidence:
+  opts.confidence })` with the option unset silently lost what the law
+  computed. Each result was weaker, never an over-claim, but the rule
+  differed by key. Python cannot express `undefined`, so it is unchanged. A
+  `null`/`None` override is a separate case: it still drops the combined
+  `confidenceScore` in both languages, and `basis`/`adapter` null differ
+  between them ([#566](https://github.com/slopstopper/plumb-line/issues/566)).
+- **The SARIF log names and describes PB1–PB4 as the lints and SPEC §6
+  do** ([#552](https://github.com/slopstopper/plumb-line/issues/552);
+  `adapters/sarif/assemble.py`, since #118). The catalogue published PB2 as
+  `HandBuiltLineage`, "lineage or weakestSource written by hand", and PB3 as
+  `DeriveOverrideClearsTaint`, "would clear taint or lineage". Each
+  described another rule, so a code-scanning viewer showed a finding under a
+  false label. SPEC §6's table gains a Name column taken from the lints' own
+  message titles: `LaunderedMeta`, `ManualTaintClear`,
+  `CleanSourceOverride`, and `RemarkOfAnUnwrappedValue` (PB4 was
+  `RemarkDropsLineage`). All four SARIF descriptions are SPEC §6's patterns
+  as plain text, and PB1's now says its clean sources are the default ones:
+  a project can change them through the JS rule's `sources` option or the
+  Python `check(clean_sources=…)` API (the Python CLI, which the Action
+  runs, has no flag for it). A test holds the SARIF catalogue
+  and both lints' message titles to the table. Rule ids are unchanged, so
+  existing code-scanning alerts keep matching; only the displayed name and
+  description change.
+- **The fit map labels an error-path default `fallback`, not `mock`**
+  ([#557](https://github.com/slopstopper/plumb-line/issues/557);
+  `reference/fit-map.md` Profile 1). The snippet marked the text returned on
+  an error path as `mock`. ADR-0012 §2 and Profile 5 mark a declared
+  substitute `fallback`. The snippet now does: the screen may show it
+  (`unwrap(guard(rendered))`), and the stored report refuses it with the
+  guard's source floor (`minSource: "semiReal"`). A new paragraph says when
+  `mock` is still right: a value that stands in for real data and could be
+  taken as it, including error-path text written to pass itself off as a
+  real answer. The snippet tests pin the exact refusal (no `mock:` reason),
+  the refusal text the doc quotes, the screen line passing, and the real
+  path. Also fixed: the "Worried about using it wrong?" section said JS
+  `derive` fed `undefined` into the function for an unmarked input, but
+  since #550 both languages raise the same `TypeError`. The threat model
+  spoke of "a fallback" tainting a result, which a fallback does not. The
+  `plumb-line-adopt` primer now explains `guard`, which the snippet calls.
 - **`derive` refuses an input that is not a marked value, in both
   languages (breaking for callers who passed one)**
   ([#550](https://github.com/slopstopper/plumb-line/issues/550); SPEC §2).

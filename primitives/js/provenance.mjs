@@ -52,6 +52,79 @@ function quote(value) {
   }
 }
 
+// The step fields the law, the audit and the guard read.
+const STEP_FIELDS = ["of", "source", "confidence", "derivedFromMock", "confidenceScore", "id"];
+
+// How many objects fromObjectPrototype examines, the step included. Only an
+// endless Proxy chain or an ordinary one over 10,000 deep reaches it; an
+// ordinary chain cannot cycle.
+const MAX_CHAIN = 10000;
+
+// The methods every Object.prototype holds, in any realm.
+const OBJECT_PROTOTYPE_METHODS = ["hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable"];
+
+/** Whether `o` is an Object.prototype, this realm's or another's (a `vm`
+ * context, an iframe): the end of an ordinary prototype chain, and no step's
+ * own. Another realm's is recognised by shape, as instanceof cannot: a null
+ * prototype and the three methods as its own non-enumerable function-valued
+ * data properties, as a real one holds them. An object built from data (JSON,
+ * Object.assign) holds them enumerable, so it is not taken for one. */
+function isObjectPrototype(o) {
+  if (o === Object.prototype) return true;
+  if (Object.getPrototypeOf(o) !== null) return false;
+  return OBJECT_PROTOTYPE_METHODS.every((k) => {
+    const d = Object.getOwnPropertyDescriptor(o, k);
+    return d !== undefined && !d.enumerable && typeof d.value === "function";
+  });
+}
+
+/** Whether `value`, read from step `s` as `s[k]`, comes from an
+ * Object.prototype (a polluted global) rather than from the step: the chain
+ * reaches an Object.prototype holding `k` before any object that defines it.
+ * There it is decided by the descriptor, never by reading again: a data
+ * field counts as pollution when it holds this value, and an accessor always
+ * does, since a getter can answer differently each time. Baked into a frozen
+ * copy, a polluted value would outlive the pollution, and a polluted source
+ * would pass for a known one. The walk examines at most MAX_CHAIN objects and
+ * stops at a cycle; if it cannot decide (the bound, a cycle, a throwing Proxy
+ * trap), the value counts as the step's, as the law reads it. */
+function fromObjectPrototype(s, k, value) {
+  const seen = new Set();
+  try {
+    for (let o = s; o !== null && !seen.has(o) && seen.size < MAX_CHAIN; o = Object.getPrototypeOf(o)) {
+      if (isObjectPrototype(o)) {
+        const d = Object.getOwnPropertyDescriptor(o, k);
+        return d !== undefined && (!("value" in d) || Object.is(d.value, value));
+      }
+      if (Object.hasOwn(o, k)) return false;
+      seen.add(o);
+    }
+  } catch {
+    // A Proxy trap that throws: undecided.
+  }
+  return false;
+}
+
+/** A frozen plain copy of an object lineage step (#548). Its own enumerable
+ * fields are copied, as before; a copy of those only lost a law field the
+ * step inherits, taint included, so one combine cleared it. So each law field
+ * the copy lacks is read from the step as the law and the audit read it,
+ * `s[k]`, whatever holds it (a prototype, a Proxy, a getter), and kept unless
+ * it is undefined or comes from an Object.prototype. Only law fields are
+ * read: an inherited method such as toJSON would change what the stored step
+ * says. A read that throws propagates (SPEC §3). Python has no prototype
+ * chain: a Mapping step is copied by its items. */
+function copyStep(s) {
+  const copy = { ...s };
+  for (const k of STEP_FIELDS) {
+    if (Object.hasOwn(copy, k)) continue;
+    const value = s[k];
+    if (value === undefined || fromObjectPrototype(s, k, value)) continue;
+    Object.defineProperty(copy, k, { value, enumerable: true, writable: true, configurable: true });
+  }
+  return Object.freeze(copy);
+}
+
 /**
  * Constructs a frozen provenance metadata envelope.
  * @param {object} opts
@@ -68,7 +141,8 @@ function quote(value) {
  * @throws {Error} When `source` is missing ("source is required", #177), or
  *   `source` is not in {@link STATUS} or `confidence` is not in
  *   {@link CONFIDENCE} (#443; the message starts "source must be one of" /
- *   "confidence must be one of").
+ *   "confidence must be one of"). An error thrown while a lineage step's
+ *   fields are read (a getter, a Proxy trap) propagates (SPEC §3).
  */
 export function makeMeta({
   source,
@@ -113,7 +187,7 @@ export function makeMeta({
       // became {"0": ..., "1": ...}, a history rewritten in the copy.
       (Array.isArray(lineage) ? lineage : []).map((s) =>
         Array.isArray(s) ? Object.freeze([...s])
-          : s && typeof s === "object" ? Object.freeze({ ...s }) : s,
+          : s && typeof s === "object" ? copyStep(s) : s,
       ),
     ),
   };

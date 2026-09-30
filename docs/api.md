@@ -85,7 +85,7 @@ The combination law is applied automatically:
 |---|---|---|
 | `inputs` | marked[] | Marked values from `mark` or `derive` |
 | `fn` | function | Pure function applied to the unwrapped input values |
-| `metaOverride` | object | Optional: override `source`, `confidence`, `confidenceScore`/`confidence_score`, `basis`, or `adapter`. `derivedFromMock`/`derived_from_mock` cannot be cleared. |
+| `metaOverride` | object | Optional: override `source`, `confidence`, `confidenceScore`/`confidence_score`, `basis`, or `adapter`. `derivedFromMock`/`derived_from_mock` cannot be cleared. In JS a key whose value is `undefined` is no override. |
 
 **Returns** a marked value with `source: "derived"`.
 
@@ -313,8 +313,11 @@ truthiness.
 derived, real)`, the same message in both languages. The old default,
 `"derived"`, was untrue of a leaf, which has no parents, and such an envelope
 audited as `unreproducible`. `confidence` still defaults to `"none"`. `derive`
-is not a leaf: its `source` comes from the combination law, and in JS an
-override of `source: undefined` counts as no override. Envelopes you are
+is not a leaf: its `source` comes from the combination law. In JS an
+override whose value is `undefined` counts as no override, for every key
+(since v0.12.0, #533; before, it reset `confidence` to `"none"` and dropped
+`confidenceScore`), so `derive(xs, f, { confidence: opts.confidence })`
+keeps the combined rung when the option is unset. Envelopes you are
 *handed*, such as parsed JSON, are not refused: `combineProvenance` and the
 audit still tolerate unknown values in them (SPEC §2).
 

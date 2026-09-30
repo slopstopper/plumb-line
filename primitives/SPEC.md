@@ -179,8 +179,24 @@ taint, its confidence reads as `none`, and it contributes no prior steps. A
 `lineage` that is not an array contributes no prior steps. Prior steps are
 kept whatever they are: an array step as an array, a value that is not an
 object as itself, and an object step as a copy of its fields. In JavaScript
-that copy has the step's own fields only, so a field it inherits through its
-prototype is lost, taint included (#548).
+that copy has the step's own enumerable fields and, for each step field the
+law reads (`of`, `source`, `confidence`, `derivedFromMock`, `confidenceScore`,
+`id`) that is not among them, the value the law and the audit read on the
+step, through its prototype, a getter or a `Proxy`, so an inherited taint
+flag is kept (#548). Such a field is left out when it reads `undefined`, or
+when the prototype chain reaches an `Object.prototype` holding it (as data
+with that value, or as an accessor) before any object that defines it: a
+polluted global is no step's own. Another realm's `Object.prototype` is
+recognised by shape (a null prototype, and `hasOwnProperty`,
+`isPrototypeOf` and `propertyIsEnumerable` as non-enumerable methods), so
+one whose builtins were deleted or redefined is not, and its pollution is
+kept; and an object built to copy an `Object.prototype` is taken for one. The walk
+is bounded and stops at a cycle; a chain it cannot decide keeps the value,
+as the law reads it. Nothing else is taken from the prototype. One
+exception to totality, in both languages: a field whose read throws (a
+getter, a `Proxy` trap, a `Mapping` whose lookup raises) propagates the
+error, for an input, for any step field the copy takes, and in JavaScript
+for a step that throws on a law field it lacks.
 
 ### Combining zero inputs
 
@@ -554,12 +570,20 @@ proven a violation and MUST NOT be flagged (under-claim over false positives).
 The fields are an object literal in JS (`mark(v, {…})`) and keyword arguments in
 Python (`mark(v, source=…)`); the rules are otherwise identical.
 
-| ID  | Pattern                                                                                              | Run-time analog (§5) |
-| --- | ---------------------------------------------------------------------------------------------------- | -------------------- |
-| PB1 | a clean `source` (`real`/`semiReal`/`fallback`) asserted together with `derivedFromMock` literal `true` | laundering (#1) |
-| PB2 | `derivedFromMock` literal `false` passed as a `derive` **override** (a genuine no-op the law ignores) | — |
-| PB3 | a clean `source` passed as a `derive` override (relabeling a derived value)                           | laundering (#1) when there is mock taint; source over-claim (#7) whenever the source is cleaner than the ancestry, with or without mock |
-| PB4 | `mark(unwrap(x), …)` — re-marking a value pulled out via the import-bound `unwrap`, dropping its lineage | unreproducible (#6) |
+| ID  | Name                       | Pattern                                                                                              | Run-time analog (§5) |
+| --- | -------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------- |
+| PB1 | `LaunderedMeta`            | a clean `source` (by default `real`/`semiReal`/`fallback`) asserted together with `derivedFromMock` literal `true` | laundering (#1) |
+| PB2 | `ManualTaintClear`         | `derivedFromMock` literal `false` passed as a `derive` **override** (a genuine no-op the law ignores) | — |
+| PB3 | `CleanSourceOverride`      | a clean `source` passed as a `derive` override (relabeling a derived value)                           | laundering (#1) when there is mock taint; source over-claim (#7) whenever the source is cleaner than the ancestry, with or without mock |
+| PB4 | `RemarkOfAnUnwrappedValue` | `mark(unwrap(x), …)` — re-marking a value pulled out via the import-bound `unwrap`, dropping its lineage | unreproducible (#6) |
+
+The name is the rule's name in the SARIF log (`adapters/sarif/assemble.py`),
+which a code-scanning viewer shows beside a finding, and both reference lints
+begin each message with the ID and the name in words (`PB2 manual taint
+clear: …`). A test holds the SARIF catalogue's names and descriptions and both
+lints' message titles to this table (#552). Another lint SHOULD use the same
+names, in its SARIF log and, in words, in its message titles, so a finding
+reads the same whichever lint reported it.
 
 Reference implementations: `adapters/js/provenance-lint/` (an ESLint rule,
 `no-provenance-bypass`) and `adapters/python/provenance_lint.py` (a stdlib-`ast`
