@@ -134,13 +134,13 @@ null/rejection outcome — but whether that is a **violation** or merely an
 architecture or practiced by sibling code, the missing reject path is a confirmed
 spine violation. If rejection is adopted nowhere — neither declared nor practiced
 anywhere — a deliberate stub on a layer that never claims to reject is the
-under-claim case: report it once as a `needs-review` advisory adoption gap, never
-as a confirmed violation.
+under-claim case: report it once as an adoption gap with Status `advisory`,
+never as a confirmed violation.
 
-- Default to under-claiming: if unsure a finding is real, mark it "needs review",
-  not "violation".
+- Default to under-claiming: if unsure a finding is real, set its Status to
+  `needs-review`, not `violation`.
 
-## Report (audit format) — report-format v3
+## Report (audit format) — report-format v4
 
 Every report has five parts in this order: **header**, **glossary**, **findings
 table**, **omission-pass table**, **coverage map**. The shape is fixed — same input, same shape, every run
@@ -154,7 +154,7 @@ checker (`scripts/check_report_format.py`) reads the first line as the contract
 key and fails a report that opens with anything else:
 
 ```
-report-format: v3
+report-format: v4
 scope:               <path, diff range, or "repository">
 principles-revision: <the "Principles revision" from reference/portable-principles.md>
 date:                <YYYY-MM-DD>
@@ -191,14 +191,20 @@ the omission-pass table. The checker scans the whole report for bare codes.
 **3. Findings table** — ALWAYS this table, never freeform prose. One row per
 finding, columns in this exact order:
 
-| Path | Line | Function | Issue | Suggested Fix | Principle |
-| ---- | ---- | -------- | ----- | ------------- | --------- |
-| `src/foo.py` | 42 | `load_scores` | mock value given a `real` source | tag via `derive`, keep `derivedFromMock` | P3 — Confidence + provenance |
+| Path | Line | Function | Status | Issue | Suggested Fix | Principle |
+| ---- | ---- | -------- | ------ | ----- | ------------- | --------- |
+| `src/foo.py` | 42 | `load_scores` | violation | mock value given a `real` source | tag via `derive`, keep `derivedFromMock` | P3 — Confidence + provenance |
 
 - **Path** — repo-relative (never a bare basename; large repos have same-named files).
 - **Line** — line or range; `—` if not line-anchored.
 - **Function** — enclosing function/symbol, or `—`.
-- **Issue** — one-line description.
+- **Status** — exactly one of three words, and nothing else in the cell:
+  `violation` (a confirmed finding), `needs-review` (a finding you are not sure
+  is real: the default when in doubt), or `advisory` (reported once and not
+  counted as a violation, such as an adoption gap under the calibration
+  above). The checker refuses any other word; say more in the Issue cell.
+- **Issue** — one-line description. The status is its own column; do not
+  repeat it here.
 - **Suggested Fix** — a direction, not a patch.
 - **Principle** — the inline-named principle (`P# — <name>`).
 
@@ -222,7 +228,8 @@ normally 100% — say so explicitly rather than omitting the map. The map is
 REQUIRED on every run: it is the artifact that stops the audit from implying it
 found everything when it only sampled.
 
-End with a one-line summary count (e.g. `4 findings: 2 violations, 2 needs-review`).
+End with a one-line summary count, counted from the Status column (e.g.
+`4 findings: 2 violations, 1 needs-review, 1 advisory`).
 A clean repo still emits the header, an empty/omitted glossary, an explicit
 `No findings.` line in place of table rows, the omission-pass table, and the
 coverage map — a clean result
@@ -232,7 +239,7 @@ The omission-pass enumeration table (defined in the Method section) is a separat
 REQUIRED report artifact with its own columns, emitted after the findings table
 and before the coverage map on every run, including clean ones. If the scope
 holds no output-producing unit at all, write `No output-producing units in
-scope.` on its own line in its place. The checker (v3 onward) fails a v3 report
+scope.` on its own line in its place. The checker (v3 onward) fails a v3 or later report
 with neither; a table whose columns are not those question words in that order;
 a table with no rows; or a row with the wrong number of cells or a blank cell. Its principle references are inline-named too, exactly like the
 findings table above. A worked

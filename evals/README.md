@@ -26,34 +26,58 @@ survive the strip.
 
 Graders per case:
 - `tool_used` (with-only): the audit skill was invoked. This shows whether the
-  plugin fired; it is not part of the score.
+  plugin fired; the no-plugin arm has no plugin skill to invoke.
 - `tool_used` (with-only): a Python interpreter **invoked** the report-format
   checker, as the audit skill instructs. It proves the call was made, not that
   it succeeded, because `tool_used` matches a call's input, never its outcome.
   The pattern needs the interpreter, so a heredoc whose report text names the
   checker does not count.
-- `regex` (with-only): the v3 report header. A format FAIL is scored
+- `regex` (with-only): the v4 report header. A format FAIL is scored
   independently of the findings, per the harness.
-- `regex` (with-only), one per planted violation: a findings-table row whose
-  Path cell names the file, whose Issue cell opens with a `violation` status
-  and whose Principle cell carries the principle's inline name.
+- `regex` (with-only), broken cases, one per planted violation: a
+  findings-table row whose Path cell names the file, whose Status cell is
+  `violation` and whose Principle cell carries the principle's inline name.
   - A needs-review or advisory row does not match, and neither does an
     omission-pass cell or a coverage line.
-  - The status word is the skill's reporting convention, not a contracted
-    field, so a report that words its status differently would be missed.
+  - The Status column is contracted by report-format v4 and checked by the
+    format checker (#530), so the grader reads a field, not a wording habit.
+    Grader and checker accept the same spellings: the word in any case, with
+    bold, italics or a code span around it (`scripts/test_eval_graders.py`).
+  - Together these hold the harness's scoring rule for a broken fixture:
+    every planted violation confirmed, none downgraded; extra findings are
+    acceptable.
   - A bare file-name pattern would pass on a run that only listed the
     fixture's files. The first real run did exactly that, crediting a run
     that had audited nothing (#291).
-- `llm` judge, holding the harness's scoring rule: a planted violation
-  downgraded to advisory is a FAIL, and on clean fixtures any confirmed
-  violation is a FAIL.
+- `llm` judge, clean cases only: any confirmed violation on a clean fixture
+  is a FAIL. The broken cases have no judge since #530 (owner decision
+  2026-09-28): the runner's judge failed 7 of 12 with-plugin broken-fixture
+  runs, each on a report that visibly confirms every planted violation, and
+  where the same criteria and evidence were given directly to haiku and
+  sonnet (js-broken, and py-broken run 2) both passed them (#291). On the
+  broken cases the verdict rests on the mechanical graders above.
 
-**What the with/without delta measures.** Every grader except the `llm` judge
-is with-only, because the no-plugin arm cannot pass it: it has no v3 header,
-no inline principle names and no checker. So the delta comes from the judge
-alone. On 2026-09-28 the runner's judge failed broken-fixture reports that it
-passes when asked directly (#291). Until that is resolved, the delta is not
-evidence of finding accuracy.
+**What to report: each arm's pass rate, and the difference only where it
+means something** (owner decision 2026-09-30, #530). Record each arm's pass
+rate for every case. Record the with-minus-without difference only for a
+grader that scores both arms: today that is the clean cases'
+`zero-confirmed-violations` judge, so the difference is that grader's pass
+rate with the plugin minus without it, not the case's. It is meant to measure
+confirmed violations the auditor reported on a clean fixture, but the judge's
+criteria use the plugin's vocabulary (advisory adoption gaps, needs-review),
+which the no-plugin arm is never taught, so it reflects framing too. Every
+other grader is with-only, because the no-plugin arm has no audit skill, no
+v4 header, no inline principle names and no checker; a difference on those
+would come from how the suite is built, not from the plugin, so record it as
+"n/a" with that reason, as for the broken cases.
+
+Until #530, `invoked-audit` had no `arm:` key, so it scored the no-plugin arm
+too, which cannot invoke a plugin skill. The 2026-09-28 run's no-plugin
+results (every case 0/3) and its with-minus-without figures were therefore
+set partly by that grader; later runs, where it scores the plugin arm only,
+do not compare with them. Graders that run in both arms
+without depending on the report format would give the broken cases a real
+difference (#571); so would a runner judge that can be trusted again.
 
 Each case lists the tools the auditor may use in `prompt.md`
 (`allowed_tools`). The sandbox grants none by default. Without `Read`, the

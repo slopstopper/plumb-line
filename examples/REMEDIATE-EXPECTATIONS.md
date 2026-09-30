@@ -25,7 +25,7 @@ runs it before tagging any release whose diff touches
    P3` in `gateway.js` — so two of the three answers survived the strip in every
    run recorded before then. Verify with `grep -ri violation <scratch>`, which
    must return nothing before the remediator is dispatched.
-2. Give the remediator a `report-format: v3` audit report containing exactly
+2. Give the remediator a `report-format: v4` audit report containing exactly
    the fixture's three planted findings (P2 upward import in
    `src/data/rates.js`, P5 hardcoded `FEE` in `src/engine/pricing.js`, P3
    unlabelled mock output in `src/services/gateway.js`), with the Suggested

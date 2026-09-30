@@ -26,7 +26,7 @@ _spec.loader.exec_module(crf)
 PRINCIPLES = crf.load_principles(
     open(os.path.join(_ROOT, "reference", "portable-principles.md"), encoding="utf-8").read())
 
-VALID_REPORT = """report-format: v3
+VALID_REPORT = """report-format: v4
 scope:               src/
 principles-revision: 1
 date:                2026-08-11
@@ -34,10 +34,10 @@ commit:              abab68d
 
 P3 — Confidence + provenance  P7 — Contracted outputs
 
-| Path | Line | Function | Issue | Suggested Fix | Principle |
-| ---- | ---- | -------- | ----- | ------------- | --------- |
-| `src/foo.py` | 42 | `load_scores` | mock given a real source | tag via derive | P3 — Confidence + provenance |
-| `src/bar.py` | — | — | output has no contract | add a version constant | P7 — Contracted outputs |
+| Path | Line | Function | Status | Issue | Suggested Fix | Principle |
+| ---- | ---- | -------- | ------ | ----- | ------------- | --------- |
+| `src/foo.py` | 42 | `load_scores` | violation | mock given a real source | tag via derive | P3 — Confidence + provenance |
+| `src/bar.py` | — | — | violation | output has no contract | add a version constant | P7 — Contracted outputs |
 
 | Output | Provenance | Confidence | Lineage | Contract | Null-expressible | Baseline |
 | ------ | ---------- | ---------- | ------- | -------- | ---------------- | -------- |
@@ -129,7 +129,7 @@ def test_malformed_date_is_flagged():
 
 
 def test_unknown_format_version_is_flagged():
-    text = VALID_REPORT.replace("report-format: v3", "report-format: v9")
+    text = VALID_REPORT.replace("report-format: v4", "report-format: v9")
     assert any("unknown report-format version" in i for i in issues_of(text))
 
 
@@ -149,8 +149,8 @@ def test_bad_commit_value_is_flagged():
 
 def test_wrong_findings_columns_are_flagged():
     text = VALID_REPORT.replace(
-        "| Path | Line | Function | Issue | Suggested Fix | Principle |",
-        "| Path | Line | Issue | Suggested Fix | Principle |")
+        "| Path | Line | Function | Status | Issue | Suggested Fix | Principle |",
+        "| Path | Line | Status | Issue | Suggested Fix | Principle |")
     assert any("findings table columns" in i for i in issues_of(text))
 
 
@@ -301,7 +301,7 @@ def test_record_row_with_wrong_cell_count_is_flagged():
 
 
 def test_bootstrap_report_is_header_only_by_design():
-    """Bootstrap shares the v3 header block and nothing else — glossary,
+    """Bootstrap shares the audit header block and nothing else — glossary,
     findings table and coverage map are audit-specific. Without this the
     checker failed a conformant bootstrap report three times over, and the
     harness runs it on every report."""
@@ -402,15 +402,15 @@ def test_unreadable_path_fails_cleanly_without_a_traceback():
 # Three of these made the checker print "conforms" on a report that violates
 # the contract — strictly worse than not shipping it.
 
-ALIGNED_REPORT = """report-format: v3
+ALIGNED_REPORT = """report-format: v4
 scope:               src/
 principles-revision: 1
 date:                2026-08-11
 commit:              abab68d
 
-| Path        | Line | Function | Issue | Suggested Fix | Principle              |
-| ----------- | ---- | -------- | ----- | ------------- | ---------------------- |
-| `src/a.py`  | 42   | `f`      | issue | fix           | P5 — Injectable priors |
+| Path        | Line | Function | Status       | Issue | Suggested Fix | Principle              |
+| ----------- | ---- | -------- | ------------ | ----- | ------------- | ---------------------- |
+| `src/a.py`  | 42   | `f`      | needs-review | issue | fix           | P5 — Injectable priors |
 
 | Output | Provenance | Confidence | Lineage | Contract | Null-expressible | Baseline |
 | ------ | ---------- | ---------- | ------- | -------- | ---------------- | -------- |
@@ -433,8 +433,8 @@ def test_no_findings_phrase_in_prose_does_not_excuse_a_bad_table():
     """'No findings.' stands IN PLACE OF the table; accepting it anywhere in the
     document let a prose sentence excuse a malformed one."""
     text = ALIGNED_REPORT.replace(
-        "| Path        | Line | Function | Issue | Suggested Fix | Principle              |",
-        "| Path | Line | Issue | Suggested Fix | Principle |").replace(
+        "| Path        | Line | Function | Status       | Issue | Suggested Fix | Principle              |",
+        "| Path | Line | Status | Issue | Suggested Fix | Principle |").replace(
         "scope note: no completeness claimed.",
         "scope note: No findings. in adapters/; completeness not claimed.")
     assert any("findings table columns" in i for i in _check(text))
@@ -442,13 +442,13 @@ def test_no_findings_phrase_in_prose_does_not_excuse_a_bad_table():
 
 def test_findings_row_missing_the_principle_cell_is_flagged():
     text = VALID_REPORT.replace(
-        "| `src/bar.py` | — | — | output has no contract | add a version constant | P7 — Contracted outputs |",
-        "| `src/bar.py` | — | — | output has no contract | add a version constant |")
+        "| `src/bar.py` | — | — | violation | output has no contract | add a version constant | P7 — Contracted outputs |",
+        "| `src/bar.py` | — | — | violation | output has no contract | add a version constant |")
     assert any("findings row" in i and "cells" in i for i in _check(text))
 
 
 def test_empty_contract_version_is_a_failure_not_a_default():
-    text = VALID_REPORT.replace("report-format: v3", "report-format:")
+    text = VALID_REPORT.replace("report-format: v4", "report-format:")
     assert any("has no value" in i for i in _check(text))
 
 
@@ -872,7 +872,7 @@ def test_shifted_omission_row_fails():
 
 
 def test_v2_report_is_not_judged_by_the_omission_rule():
-    text = _without_omission_table(VALID_REPORT).replace("report-format: v3", "report-format: v2")
+    text = _without_omission_table(V3_REPORT).replace("report-format: v3", "report-format: v2")
     assert not any("omission" in i for i in _check(text))
 
 
@@ -972,7 +972,7 @@ def test_checker_version_is_bumped_for_the_stamp_rule():
 
 def test_checker_version_is_bumped_for_joined_codes():
     # #527 changes verdicts (stricter), so a stored stamp must say which rule set.
-    assert crf.CHECKER_VERSION == "5"
+    assert int(crf.CHECKER_VERSION) >= 5
 
 
 def test_a_current_stamp_is_accepted_without_a_note():
@@ -1044,3 +1044,72 @@ def test_a_format_validation_line_in_any_other_form_is_rejected(line):
 def test_the_unfilled_template_names_the_placeholder():
     issues = _check(_with_validation("format-validation: scripts/check_report_format.py v<N> — clean"))
     assert any("v<N>" in i and "fill" in i for i in issues), issues
+
+
+# --- report-format v4: the finding status is a contracted column (#530) ----
+
+V3_REPORT = (VALID_REPORT.replace("report-format: v4", "report-format: v3")
+             .replace("| Path | Line | Function | Status | Issue |", "| Path | Line | Function | Issue |")
+             .replace("| ---- | ---- | -------- | ------ | ----- |", "| ---- | ---- | -------- | ----- |")
+             .replace("| `load_scores` | violation | ", "| `load_scores` | ")
+             .replace("| — | violation | output", "| — | output"))
+
+
+def test_a_stored_v3_report_still_conforms_under_v3_rules():
+    # A report is judged by the contract it declares: a v3 report has no
+    # Status column, and must not fail for lacking one.
+    assert "Status" not in V3_REPORT
+    assert crf.check_report(V3_REPORT, PRINCIPLES) == []
+
+
+def test_v4_findings_table_carries_the_status_column():
+    assert crf.FINDINGS_COLUMNS == ["Path", "Line", "Function", "Status", "Issue", "Suggested Fix", "Principle"]
+    assert crf.check_report(VALID_REPORT, PRINCIPLES) == []
+    # ALIGNED_REPORT lacks a glossary on purpose (see the glossary test); its
+    # columns and status are right.
+    assert not any("findings" in i for i in crf.check_report(ALIGNED_REPORT, PRINCIPLES))
+
+
+def test_a_v4_report_with_v3_columns_fails():
+    text = V3_REPORT.replace("report-format: v3", "report-format: v4")
+    assert any("findings table columns must be exactly" in i for i in crf.check_report(text, PRINCIPLES))
+
+
+def test_a_v3_report_with_a_status_column_fails():
+    text = VALID_REPORT.replace("report-format: v4", "report-format: v3")
+    assert any("findings table columns must be exactly" in i for i in crf.check_report(text, PRINCIPLES))
+
+
+@pytest.mark.parametrize("status", ["confirmed", "Violation: mock", "needs review", "", "advisory adoption gap"])
+def test_a_v4_status_outside_the_three_words_fails(status):
+    text = VALID_REPORT.replace("| `load_scores` | violation |", f"| `load_scores` | {status} |")
+    issues = crf.check_report(text, PRINCIPLES)
+    assert any(i.startswith("findings row 1 Status") and "violation, needs-review, advisory" in i
+               for i in issues), issues
+
+
+@pytest.mark.parametrize("status", ["violation", "needs-review", "advisory", "**violation**", "Needs-Review"])
+def test_a_v4_status_may_be_bold_or_capitalised(status):
+    text = VALID_REPORT.replace("| `load_scores` | violation |", f"| `load_scores` | {status} |")
+    assert crf.check_report(text, PRINCIPLES) == []
+
+
+def test_checker_version_moved_for_the_status_rule():
+    assert crf.CHECKER_VERSION == "6"
+    assert "v4" in crf.KNOWN_REPORT_VERSIONS and "v3" in crf.KNOWN_REPORT_VERSIONS
+
+
+def test_bootstrap_and_remediate_move_with_the_audit_contract():
+    # The lockstep the CHANGELOG claims (#530 review): bootstrap shares the
+    # audit header, and remediate names the current audit contract.
+    current = max(crf.KNOWN_REPORT_VERSIONS)
+    boot = _skill("plumb-line-bootstrap")
+    assert re.search(r"`report-format:\s*%s`" % current, boot), "bootstrap header is not " + current
+    assert "shares only the %s **header block**" % current in boot
+    assert "%s is current" % current in _skill("plumb-line-remediate")
+
+
+@pytest.mark.parametrize("status", ["`violation`", "**`advisory`**", "*needs-review*"])
+def test_a_v4_status_may_sit_in_a_code_span_or_italics(status):
+    text = VALID_REPORT.replace("| `load_scores` | violation |", f"| `load_scores` | {status} |")
+    assert crf.check_report(text, PRINCIPLES) == []
