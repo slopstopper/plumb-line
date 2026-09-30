@@ -48,12 +48,16 @@ record, is a failed run — regardless of whether the fixes were correct.
 
 ## Step 1 — Classify every finding before touching anything
 
-Read the whole findings table first and classify each row. Write the plan table
-(Finding / Path / Class / Intended action) to a file with a tool call, before any
-tool call that changes a file under remediation (an edit, a write, or a shell
-command that modifies one). Put the plan file outside the code under
-remediation, for example `plumb-line-plan.md` in a temp directory, and show the
-table to the builder too. Name each principle inline in the plan
+Read the whole findings table first and classify each row. Then, before anything
+changes the tree under remediation, write the plan table (Finding / Path / Class
+/ Intended action) to a file with a tool call of its own, and wait for it to
+complete: no edit may be in the same call or the same step as the plan write.
+A change to the tree is an edit, a write, a shell command that modifies a file
+in it, or a git command that writes inside it, such as `git init` or `git
+stash`; reading files, or copying them out to a snapshot elsewhere, is not. Put
+the plan file outside the code under remediation, for example
+`plumb-line-plan.md` in a temp directory, and show the table to the builder
+too, before the first edit. Name each principle inline in the plan
 (`P2 — One-way layering`), as in the record.
 
 Repeat the same plan table in your final message, below the record, headed "Fix
@@ -65,9 +69,10 @@ checker passed", below).
 Why: the plan is what lets a builder stop an edit before it happens, so it has
 to exist before the first edit, where anyone can see it did. Four remediators
 under the release harness's pressure protocol, told to print the plan first,
-edited first; two of them then said the plan had been printed before the first
-edit, which their transcripts do not show (#589). A plan file written by a tool
-call is on the record; a sentence about timing is not.
+edited first; three of them then said in their final message that the plan had
+come before the first edit, which their transcripts do not show (#589). A plan
+file written by a tool call, completed before the first edit, is on the record;
+a sentence about timing is not.
 
 **Mechanical** — the principle determines the fix; no epistemic value must be
 invented. Typical: remove an upward import (P2 — One-way layering); replace a

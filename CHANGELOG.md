@@ -18,9 +18,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   as its own message before any edit tool call (#592), and two fresh
   remediators edited first again, then each said in its final message that
   the plan "was printed before the first edit", which their transcripts do
-  not show. So the plan is now an action: a tool call writes the plan table
-  to a file outside the code under remediation before any tool call that
-  changes a file under remediation, and the final message repeats the table,
+  not show (the first run's second remediator had claimed the same). So the
+  plan is now an action: a tool call of its own writes the plan table to a
+  file outside the code under remediation, and completes, before anything
+  changes the tree under remediation (git writes inside it included), and
+  the final message repeats the table,
   gives the file's path, and makes no claim about timing. The plan names
   principles inline, since the checker reads the whole delivered message.
   `examples/REMEDIATE-EXPECTATIONS.md` and the release harness keep each

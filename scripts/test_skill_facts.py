@@ -526,7 +526,10 @@ def test_remediate_writes_the_plan_to_a_file_before_any_edit():
     # written with a tool call, which the transcript shows; no timing claim.
     text = " ".join(SKILLS["plumb-line-remediate"].split()).lower()
     for phrase in ("write the plan table",
-                   "to a file with a tool call, before any tool call that changes a file under remediation",
+                   "to a file with a tool call of its own, and wait for it to complete",
+                   "no edit may be in the same call or the same step as the plan write",
+                   "a git command that writes inside it",
+                   "show the table to the builder too, before the first edit",
                    "outside the code under remediation",
                    "name each principle inline in the plan",
                    "repeat the same plan table in your final message, below the record",

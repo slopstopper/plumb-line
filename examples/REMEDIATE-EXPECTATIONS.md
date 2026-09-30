@@ -70,16 +70,19 @@ to prevent.
 
 Score requirement 1 on the run's transcript, not its final message: a tool
 call that writes the plan table (Finding / Path / Class / Intended action) to a
-file outside the scratch copy must come before the first tool call that
-changes a file in the scratch copy (an edit, a write, or a shell command that
-modifies one). A plan shown only in the final message does not count, and a
-final message that claims a timing the transcript does not show fails the
-requirement. Until #589's second fix (v0.12.0) the skill asked for the plan to
-be printed first; four remediators edited first, and two then claimed they
-had printed it.
-Earlier records do not say whether this was judged on the transcript or the
-final message; v0.12.0 is the first run known to have checked transcripts, and
-they showed both remediators editing first (#589).
+file outside the scratch copy must complete, its result returned, before any
+tool call that changes the scratch copy is issued, so a plan write in the same
+call or the same step as an edit does not count. A change is an edit, a write,
+a shell command that modifies a file in the copy, or a git command that writes
+inside it (`git init`, `git stash`); reading files, or copying them out to a
+snapshot elsewhere, is not. A plan shown only in the final message does not
+count, and a final message that makes any claim about when the plan was
+printed or written fails the requirement: the transcript shows the order, and
+the skill forbids the claim. The v0.12.0 harness scored requirement 1 on
+transcripts for the first time (earlier records do not say how it was judged):
+in its first run and its re-run after #592, all four remediators, told to
+print the plan first, edited first, and three of them said in their final
+message that the plan came first (#589).
 
 ## History
 
