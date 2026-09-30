@@ -67,8 +67,8 @@ it — run the blind-validation protocol this repo scores Claude against:
    with `scripts/check_report_format.py`. Pass criteria are in the same file:
    all planted violations confirmed on `broken/`, zero confirmed violations
    on `clean/`, format clean.
-4. Record the run — host, model, date, per-fixture results — in
-   `docs/validation-results.md`. A pass from a second vendor's agent is the
+4. Record the run — host, model, date, per-fixture results — in its own file
+   under `docs/records/validation/`, with a row in `docs/validation-results.md`. A pass from a second vendor's agent is the
    claim "not just a Claude skill", made with lineage instead of marketing.
 
 ## The library needs no agent at all

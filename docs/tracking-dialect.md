@@ -13,7 +13,7 @@ sequencing agreed on #215.
 
 - **Deferral (mandatory):** label **`audit-deferral`** — an alias, not the
   convention's default `deferred`. The name predates the convention and is
-  cited from `CLAUDE.md`, `docs/dogfood.md`, and `ROADMAP.md`; renaming it
+  cited from `CLAUDE.md`, the dogfood records (`docs/records/dogfood/`), and `ROADMAP.md`; renaming it
   would break those references and rewrite ~20 existing issues for no
   epistemic gain.
 
@@ -133,8 +133,8 @@ written:
 | File | Old-org links | Why they stay |
 | --- | --- | --- |
 | `CHANGELOG.md` | 37 | released sections describe past releases (the `[Unreleased]` section carries none) |
-| `docs/dogfood.md` | 13 | versioned sections record dated dogfood passes |
-| `docs/validation-results.md` | 3 | dated validation runs |
+| `docs/records/dogfood/` (moved from `docs/dogfood.md`, #570) | 13 | versioned records of dated dogfood passes |
+| `docs/records/validation/` (moved from `docs/validation-results.md`, #570) | 3 | dated validation runs |
 | `docs/adr/0009-…` | 2 | ADRs are append-only |
 
 **Do not "fix" these.** GitHub redirects the old paths, so they resolve;

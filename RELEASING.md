@@ -48,8 +48,9 @@ fix-only release is a patch.
    diff touches `skills/`, `reference/portable-principles.md`, `primitives/`, or
    `adapters/`, follow [`docs/release-harness.md`](docs/release-harness.md): a
    blind validation run (release-blocking — a missed planted violation stops the
-   tag until fixed or waived in writing) plus a dogfood self-audit, both recorded
-   as dated sections. Docs/chore-only releases skip this.
+   tag until fixed or waived in writing) plus a dogfood self-audit, each recorded
+   as a dated file under `docs/records/` with a row on its index page (#570).
+   Docs/chore-only releases skip this.
 3. **Bump + promote notes in one step:**
    ```
    node scripts/bump-version.mjs 0.3.0
