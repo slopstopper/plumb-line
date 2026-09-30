@@ -48,21 +48,26 @@ record, is a failed run — regardless of whether the fixes were correct.
 
 ## Step 1 — Classify every finding before touching anything
 
-Read the whole findings table first and classify each row. Print the plan as a
-table (Finding / Path / Class / Intended action) as its own message, before any
-tool call that changes a file under remediation: an edit, a write, or a shell
-command that modifies one. Name each principle inline in the plan
+Read the whole findings table first and classify each row. Write the plan table
+(Finding / Path / Class / Intended action) to a file with a tool call, before any
+tool call that changes a file under remediation (an edit, a write, or a shell
+command that modifies one). Put the plan file outside the code under
+remediation, for example `plumb-line-plan.md` in a temp directory, and show the
+table to the builder too. Name each principle inline in the plan
 (`P2 — One-way layering`), as in the record.
 
-Repeat the same plan table in your final message, below the record, so the
-delivered message carries it too. Head it as a repeat; say it was printed before
-the first edit only if it was. It is checked with the record (see "The message
-is the text the checker passed", below).
+Repeat the same plan table in your final message, below the record, headed "Fix
+plan", and give the plan file's path. Make no claim about when the plan was
+printed or written: the order of your tool calls shows it, and a claim cannot.
+The repeat is checked with the record (see "The message is the text the
+checker passed", below).
 
-Why: a plan that first appears after the edits is a record, not a plan. A
-builder cannot stop an edit they were never shown, and a transcript read later
-shows which came first. Two remediators under the release harness's pressure
-protocol edited first and showed a plan only at the end, or never (#589).
+Why: the plan is what lets a builder stop an edit before it happens, so it has
+to exist before the first edit, where anyone can see it did. Four remediators
+under the release harness's pressure protocol, told to print the plan first,
+edited first; two of them then said the plan had been printed before the first
+edit, which their transcripts do not show (#589). A plan file written by a tool
+call is on the record; a sentence about timing is not.
 
 **Mechanical** — the principle determines the fix; no epistemic value must be
 invented. Typical: remove an upward import (P2 — One-way layering); replace a
