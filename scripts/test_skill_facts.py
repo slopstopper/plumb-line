@@ -519,17 +519,28 @@ def test_audit_check_10_a_citation_does_not_make_an_alongside_unit_test_the_requ
 # before the first edit" was written; what was missing was that it is its own
 # message, ahead of any edit tool call, and that the final message repeats it.
 
-def test_remediate_prints_the_plan_as_its_own_message_before_any_edit():
+def test_remediate_writes_the_plan_to_a_file_before_any_edit():
+    # Two re-validation runs after #592 again edited with no plan printed
+    # first, and both then claimed the plan "was printed before the first
+    # edit". Owner decision (#589, option A): the plan is an action, a file
+    # written with a tool call, which the transcript shows; no timing claim.
     text = " ".join(SKILLS["plumb-line-remediate"].split()).lower()
-    for phrase in ("as its own message, before any tool call that changes a file under remediation",
-                   "a plan that first appears after the edits is a record, not a plan",
-                   "repeat the same plan table in your final message, below the record",
-                   "head it as a repeat; say it was printed before the first edit only if it was",
+    for phrase in ("write the plan table",
+                   "to a file with a tool call of its own, and wait for it to complete",
+                   "no edit may be in the same call or the same step as the plan write",
+                   "a git command that writes inside it",
+                   "show the table to the builder too, before the first edit",
+                   "outside the code under remediation",
                    "name each principle inline in the plan",
+                   "repeat the same plan table in your final message, below the record",
+                   "give the plan file's path",
+                   "make no claim about when the plan was printed or written",
                    "in the same file, before you run the checker"):
         assert phrase in text, phrase
-    # The heading must not be required to claim a timing (#589 review round 2).
-    assert "head it as a repeat of the plan printed before the first edit" not in text
+    # The wording that invited the false claim is gone (#589 re-run).
+    for gone in ("printed before the first edit only if it was", "head it as a repeat",
+                 "as its own message, before any tool call"):
+        assert gone not in text, gone
 
 
 def test_a_repeated_plan_with_inline_names_keeps_the_delivered_record_clean():
