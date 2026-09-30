@@ -10,7 +10,9 @@ Each self-audit is recorded in its own file in
 [`records/dogfood/`](records/dogfood/). The records were moved here from
 this file's earlier single-page form (#570); their words are unchanged, as
 [`validation-results.md`](validation-results.md) describes. The two sections
-after the table are living sections of this page, not records.
+after the table are living sections of this page, not records; they stood
+before the v0.2.0 audit, and moved here unchanged except for the section rule
+that separated them from it.
 
 ## Self-audits
 

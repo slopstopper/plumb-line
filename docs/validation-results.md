@@ -8,8 +8,9 @@ records between releases for their date.
 
 The records were moved here from this file's earlier single-page form
 (#570). Their words are unchanged. What changed: each `##` heading became the
-record's title, and the first record, whose sections had none of their own,
-has a written one; relative links point from the record's new folder, and
+record's title, and the two v0.1.0 records (validation and dogfood), which had
+no heading of their own, have written ones; relative links point from the
+record's new folder, and
 each "see `dogfood.md`, vX section" link to that release's dogfood record;
 and four references to "above" or "this file" that now lie in another record
 are linked to it.
@@ -25,8 +26,9 @@ Newest first. The result columns quote each record's own result headings
 (`### Part 1`, or `### Finding accuracy` for the 2026-08-18 run, and
 `### Format scoring`). Records before v0.7.1 give their blind-validation
 result in prose. The format checker exists since v0.8.0 (#139); the v0.8.0
-to v0.9.0 records give its result in prose, and a dash means no format check
-ran.
+to v0.9.0 records give its result in prose. A dash means no tool-scored
+format check: from v0.5.0 to v0.7.3 the records note format by eye, in prose,
+and earlier ones not at all.
 
 | Run | Date | Blind validation (Part 1) | Format scoring |
 | --- | --- | --- | --- |
@@ -63,4 +65,4 @@ Newest first. No run is green yet; the first green run is planned (#530).
 
 | Run | Date | Result |
 | --- | --- | --- |
-| [First real run: drift pass, probes and full pass](records/evals/2026-09-28.md) | 2026-09-28 | Not a green run: it found and fixed drift, and the runner's LLM judge failed reports that confirm every planted violation (#291, #530) |
+| [2026-09-28 — first real run: drift pass, probes and full pass](records/evals/2026-09-28.md) | 2026-09-28 | Not a green run: it found and fixed drift, and the runner's LLM judge failed reports that confirm every planted violation (#291, #530). On every deterministic grader the plugin arm was clean and the no-plugin arm failed every case. |

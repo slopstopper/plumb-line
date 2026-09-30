@@ -13,7 +13,7 @@ sequencing agreed on #215.
 
 - **Deferral (mandatory):** label **`audit-deferral`** — an alias, not the
   convention's default `deferred`. The name predates the convention and is
-  cited from `CLAUDE.md`, the dogfood records (`docs/records/dogfood/`), and `ROADMAP.md`; renaming it
+  cited from `AGENTS.md`, the dogfood records (`docs/records/dogfood/`), and `ROADMAP.md`; renaming it
   would break those references and rewrite ~20 existing issues for no
   epistemic gain.
 
