@@ -138,7 +138,7 @@ function unreadable(meta) {
  * @param {string} [options.minSource="unavailable"] - Refuse when the weakest
  *   source the ancestry shows (the headline, weakestSource and every lineage
  *   step, skipping the law's own label "derived") is below this rung. Off by
- *   default, pending the owner's decision (#541): refuses fallback and
+ *   default, by the owner's decision (#541): refuses fallback and
  *   inferred data without a mock label; assumes a complete lineage.
  * @returns {object} `x`
  * @throws {ProvenanceRefused} when the value may not leave

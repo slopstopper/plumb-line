@@ -108,7 +108,8 @@ The behaviour is pinned for both languages by the `guard` kind in
   lets an output point refuse fallback and inferred data. Approximate and
   cached data still have no rung (#562).
   - **Off by default**, like `minConfidence`. The default is recorded as
-    Claude's choice, pending the owner's word on #541.
+    Claude's choice, confirmed by the owner on 2026-09-30 (#541), with
+    skipping `"derived"` rather than reading `weakestSource` literally.
   - **What it reads:** it refuses when the weakest source the ancestry shows
     (the headline, `weakestSource` and every lineage step) is below the
     floor, with the reason `source: <rung> is below the required <floor>`.

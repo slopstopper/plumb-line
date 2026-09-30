@@ -44,7 +44,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   - **A source floor lets an output point refuse fallback or inferred data**
     (`minSource` / `min_source`,
     [#541](https://github.com/slopstopper/plumb-line/issues/541)). It is off
-    by default, pending the owner's decision on #541. So unlike the mock
+    by default, by the owner's decision on #541. So unlike the mock
     clause, the caller opts in to refusing, where Principle 4 asks for
     exclusion unless opted out. An output point that should refuse `fallback` or
     `inferred` data passes a floor, for example `minSource: "semiReal"`, and

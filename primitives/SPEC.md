@@ -432,14 +432,14 @@ outputs unless explicitly opted in", at run time. A source floor the caller
 sets (`minSource`, #541) lets an output point refuse more of what Principle 4
 names, fallback data (source `fallback`) and inferred data (`inferred`), by
 opting in, where Principle 4 asks for exclusion unless opted out. The floor
-is off by default, pending the owner's decision on #541. Approximate and
+is off by default, by the owner's decision on #541. Approximate and
 cached data have no rung (the HTTP adapter marks a cache hit `real` with
 lower confidence), so neither can be refused specifically (#562).
 
 **Options.** `noMock` (a boolean, default **true**), `minConfidence` (a
 level on the confidence ladder, default `none`) and `minSource` (a rung on
-the source ladder, default `unavailable`, which is no floor, pending the
-owner's decision on #541). A default of
+the source ladder, default `unavailable`, which is no floor, by the owner's
+decision on #541). A default of
 true for `noMock` is normative: mock is excluded unless the caller opts in.
 With `minSource` above `unavailable`, the guard refuses, with a reason
 prefixed `source:` (`source: fallback is below the required semiReal`), when
