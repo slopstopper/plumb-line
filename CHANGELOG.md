@@ -151,15 +151,19 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   12 with-plugin broken-fixture runs on reports that confirmed every
   planted violation (#291), and on the clean cases it gave no reasoning
   for any vote in either 2026-09-30 run. Each clean case now fails on any
-  findings row whose Status is `violation` (`no-confirmed-violations.md`,
-  `match: not_contains`), the `finds-*` graders' reading, held to the checker
-  by `scripts/test_eval_graders.py`. Every grader is now plugin-only, so the
-  runner scores them all: the header grader gates the clean cases too, and
-  no with-minus-without difference is measured ("n/a", pending #571). The
-  judge returns only when it records its reasoning and reproduces the
-  mechanical verdicts on a calibration set. Runs now pass `--keep-temp`, so
-  each run's delivered message can be recovered from its trace and checked;
-  that the trace holds it is unverified until the first such run.
+  findings row whose Status is not `needs-review` or `advisory`
+  (`no-confirmed-violations.md`, `match: not_contains`). Inverted, a row it
+  missed would pass, so it fails closed, reading rows as the checker does;
+  `scripts/test_eval_graders.py` holds it to the checker and flips every
+  row of the committed reports to `violation`. Every grader is now
+  plugin-only, so the runner scores them all: the header grader gates the
+  clean cases too (owner decision, recorded on #591), clean-case pass
+  rates from before and after do not compare, no with-minus-without
+  difference is measured ("n/a", pending #571), and the runner's own Δ is
+  not cited. The judge returns only when it records its reasoning and
+  reproduces the mechanical verdicts on a calibration set. Runs pass
+  `--keep-temp`, which keeps each run's sandbox; whether that recovers the
+  delivered messages is unverified until the first such run.
 - **The audit report's finding status is a contracted column
   (`report-format: v3 → v4`), and the eval suite's broken cases are scored
   mechanically** ([#530](https://github.com/slopstopper/plumb-line/issues/530);
@@ -172,7 +176,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     missed a report that worded it otherwise. The skill defines the three
     words; an adoption gap is `advisory` (the skill had called the spine's
     adoption gap "a `needs-review` advisory adoption gap"), and the js-clean
-    judge and answer key accept it as advisory or needs-review.
+    judge (until #591) and answer key accept it as advisory or needs-review.
     `invoked-audit` is marked with-only, as the suite's README described it;
     until now it also scored the no-plugin arm, so the 2026-09-28 run's
     no-plugin results and difference do not compare with later runs (noted
@@ -193,10 +197,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     were given directly (js-broken, and py-broken run 2) it passed them
     (#291). Their verdict rests on the `finds-*` graders,
     which now read the Status column, with the header and checker graders.
-    The clean cases keep their judge.
+    The clean cases kept their judge until #591, which scores them
+    mechanically.
   - What a run reports: each arm's pass rate for every case, and the
     with-minus-without difference only where the same graders score both
-    arms (the clean cases); elsewhere "n/a" with the reason (#571 tracks
+    arms (the clean cases, until #591); elsewhere "n/a" with the reason (#571 tracks
     graders that would make the broken cases' difference real).
 - **The validation and dogfood records are one file per run, with index
   pages** ([#570](https://github.com/slopstopper/plumb-line/issues/570)).

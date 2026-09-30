@@ -40,18 +40,21 @@ Graders per case:
   all ("if every grader in a case is in the excluded set, they're scored
   normally instead", <https://code.claude.com/docs/en/plugin-evals.md>):
   the header is gated on the clean cases too, as it was on the broken
-  cases. Until #591 the clean cases scored only the judge, so their
-  format was recorded, not gated (owner decision 2026-09-30, #530).
+  cases (owner decision 2026-09-30, recorded on #591). Until #591 the
+  clean cases scored only the judge, so their format was recorded, not
+  gated (#530). Clean-case pass rates from before and after #591 do not
+  compare: two of the 2026-09-30 run's js-clean reports open with prose,
+  so the same reports would score 1/3 under the header grader.
   Every eval record also runs the checker on each report it can recover,
   as delivered, never a copy the auditor checked; a report that fails
   while stamped `— clean` by the current checker gets its own issue, the
   stamp not earned, and the record counts it as a false verdict, not
   only a format fail (#581). The checker cannot run inside the suite:
   the runner has no grader that executes code ("There are no custom-code
-  graders", same docs). The report text comes from each run's trace,
-  which the runner deletes unless `--keep-temp` is passed (below). Until
-  #591 the only text kept was the judge's evidence, on the clean cases;
-  the broken-case messages were lost (#585).
+  graders", same docs). In the 2026-09-30 runs the only report text the
+  runner kept was the judge's evidence, on the clean cases; each run's
+  `tracePath` was gone afterwards, and the broken-case messages were lost
+  (#585). `--keep-temp` may keep them (below).
 - `regex` (with-only), broken cases, one per planted violation: a
   findings-table row whose Path cell names the file, whose Status cell is
   `violation` and whose Principle cell carries the principle's inline name.
@@ -67,11 +70,16 @@ Graders per case:
   - A bare file-name pattern would pass on a run that only listed the
     fixture's files. The first real run did exactly that, crediting a run
     that had audited nothing (#291).
-- `regex` (with-only), clean cases: no findings-table row whose Status
-  cell is `violation` (`no-confirmed-violations.md`, `match:
-  not_contains`). It is the `finds-*` graders' Status reading with no file
-  or principle named, held to the checker by the same tests, and it
-  counts exactly the violation rows each v0.12.0 harness report declares.
+- `regex` (with-only), clean cases: no findings row whose Status is
+  anything but `needs-review` or `advisory` (`no-confirmed-violations.md`,
+  `match: not_contains`). Inverted, a row the pattern missed would pass the
+  case, so it fails closed: a `violation`, or any status the checker would
+  refuse, fails. It reads rows as the checker does (indented rows, escaped
+  pipes, decorated statuses) and is held to it by
+  `scripts/test_eval_graders.py`, which also flips every row of the
+  committed 2026-09-30 reports to `violation` to show each is caught. It
+  knows a findings row by its Principle cell opening with a principle
+  code; a row that does not is not seen (none in the committed reports).
   It replaces the runner's `llm` judge, which is out of scoring until it
   records its reasoning and reproduces the mechanical verdicts on a
   calibration set (#591, owner decision 2026-09-30). The judge failed 7
@@ -84,9 +92,13 @@ means something** (owner decision 2026-09-30, #530). Record each arm's pass
 rate for every case. Since #591 no grader measures both arms: every grader
 reads something only the plugin produces (the audit skill, the v4 header
 and Status column, inline principle names, the checker). The no-plugin
-arm passes the clean cases' Status grader trivially, having no Status
-column, and fails the header grader by construction. So record every
-with-minus-without difference as "n/a (suite construction)". Until #591
+arm can pass the clean cases' Status grader without a Status column (none
+of its 2026-09-30 reports wrote one), and fails the header grader by
+construction. So record every with-minus-without difference as "n/a
+(suite construction)". The runner's own difference (`aggregates.meanDelta`,
+each case's `delta`, and the report's "Plugin effect" headline) is then
+an artefact of that construction, as its docs warn for graders counted in
+both arms: never cite it. Until #591
 the clean cases' judge scored both arms, and its difference was recorded
 with the caveat that its criteria use the plugin's vocabulary.
 
@@ -120,15 +132,16 @@ Claude Code configuration are unreadable.
 ```sh
 claude plugin eval --scaffold --allow-tools Bash --no-publish --keep-temp \
     --max-cost-usd 15 --json results.json --report report.html
-claude plugin eval --scaffold --allow-tools Bash --no-publish \
+claude plugin eval --scaffold --allow-tools Bash --no-publish --keep-temp \
     --case "audit-py-*"                  # one fixture
 ```
 
-`--keep-temp` keeps every run's sandbox directory and prints its path
-(same docs), so each run's trace survives and the record can recover the
-delivered message of every run, broken cases included, and run the checker
-on it. That the kept trace holds the final message is unverified until
-the first run with the flag (#585, #591).
+`--keep-temp` "Keep[s] every run's sandbox directory and print[s] its
+path" (same docs). Whether that directory holds each run's trace, and
+the trace the delivered message, is not documented; the first run with
+the flag will show it. If it does, the record can recover every run's
+delivered message, broken cases included, and run the checker on it
+(#585, #591).
 
 `--no-publish` keeps the HTML report local; by default it is published to
 claude.ai. Pass `--trust-plugin` with no terminal, or with `--json`: in
