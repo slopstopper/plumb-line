@@ -29,8 +29,13 @@ function ancestryFloor(stated, lineage) {
 
 // An array copied by index, so a hole is the undefined it reads as, as Python's
 // None step is (#560 review): every, some, forEach, reduce and flatMap skip
-// holes, and Array.from reads through an iterator the array may override.
-const byIndex = (a) => Array.from({ length: a.length }, (_, i) => a[i]);
+// holes. A plain loop, because Array.from follows an iterator: the array's
+// own, or one polluted onto a prototype, which could cut the copy short.
+function byIndex(a) {
+  const out = new Array(a.length);
+  for (let i = 0; i < a.length; i++) out[i] = a[i];
+  return out;
+}
 
 /**
  * Checks a provenance metadata envelope for internal consistency.

@@ -518,8 +518,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   directly or after a `derive`, where all three skipped it before. The
   audit and guard read the lineage by index, once, so what the guard
   validates is what it judges. `combineConfidenceScore` reads a hole as a
-  gap and returns `undefined`, where it returned `NaN`, and accepts any
-  iterable, as Python does, where it threw on a non-array. Many
+  gap and returns `undefined`, where it returned `NaN`, and accepts a
+  collection that can be read twice, such as a Set, as Python does, where
+  it threw on a non-array. Many
   *inputs* (100,000 or more to `derive` or `combineProvenance`) still
   overflow in JS: [#586](https://github.com/slopstopper/plumb-line/issues/586).
 - **The eval suite audits the committed fixtures, and its header grader

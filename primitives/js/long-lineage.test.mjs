@@ -115,6 +115,20 @@ describe("a lineage whose iterator disagrees with its indices (#560 review)", ()
   Object.defineProperty(lineage, Symbol.iterator, { value: function* () { yield strong; } });
   const value = { ...mark(1, makeMeta({ source: "derived", confidence: "high", derivedFromMock: false, weakestSource: "real", lineage: [strong] })), lineage };
 
+  it("is judged by every index when Object.prototype's iterator is polluted", () => {
+    // The copy must not follow any iterator: Array.from over an array-like
+    // does, and one polluted onto Object.prototype cut the copy short.
+    const two = [strong, bad];
+    const polluted = { ...mark(1, makeMeta({ source: "derived", confidence: "high", derivedFromMock: false, weakestSource: "real", lineage: [strong] })), lineage: two };
+    Object.prototype[Symbol.iterator] = function* () { yield strong; };
+    try {
+      expect(auditMeta(polluted)).toContain("malformed taint flag: lineage step 1 derivedFromMock is not a boolean");
+      expect(reasons(() => guard(polluted, {}))).toContain("invalid envelope: lineage step 1 derivedFromMock must be a boolean");
+    } finally {
+      delete Object.prototype[Symbol.iterator];
+    }
+  });
+
   it("is judged by what its indices hold", () => {
     expect(auditMeta(value)).toContain("malformed taint flag: lineage step 0 derivedFromMock is not a boolean");
     expect(reasons(() => guard(value, {}))).toContain("invalid envelope: lineage step 0 derivedFromMock must be a boolean");
