@@ -179,8 +179,24 @@ taint, its confidence reads as `none`, and it contributes no prior steps. A
 `lineage` that is not an array contributes no prior steps. Prior steps are
 kept whatever they are: an array step as an array, a value that is not an
 object as itself, and an object step as a copy of its fields. In JavaScript
-that copy has the step's own fields only, so a field it inherits through its
-prototype is lost, taint included (#548).
+that copy has the step's own enumerable fields and, for each step field the
+law reads (`of`, `source`, `confidence`, `derivedFromMock`, `confidenceScore`,
+`id`) that is not among them, the value the law and the audit read on the
+step, through its prototype, a getter or a `Proxy`, so an inherited taint
+flag is kept (#548). Such a field is left out when it reads `undefined`, or
+when the prototype chain reaches an `Object.prototype` holding it (as data
+with that value, or as an accessor) before any object that defines it: a
+polluted global is no step's own. Another realm's `Object.prototype` is
+recognised by shape (a null prototype, and `hasOwnProperty`,
+`isPrototypeOf` and `propertyIsEnumerable` as non-enumerable methods), so
+one whose builtins were deleted or redefined is not, and its pollution is
+kept; and an object built to copy an `Object.prototype` is taken for one. The walk
+is bounded and stops at a cycle; a chain it cannot decide keeps the value,
+as the law reads it. Nothing else is taken from the prototype. One
+exception to totality, in both languages: a field whose read throws (a
+getter, a `Proxy` trap, a `Mapping` whose lookup raises) propagates the
+error, for an input, for any step field the copy takes, and in JavaScript
+for a step that throws on a law field it lacks.
 
 ### Combining zero inputs
 

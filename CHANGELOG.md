@@ -423,6 +423,27 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **JS keeps a lineage step's inherited law fields, so a combine cannot
+  clear its taint**
+  ([#548](https://github.com/slopstopper/plumb-line/issues/548); SPEC §3;
+  threat model F5). `makeMeta` copied each object step with `{ ...s }`,
+  own fields only. A step that inherited `derivedFromMock: true` through its
+  prototype lost it in the copy. So an envelope the audit flagged as "taint
+  dropped" came out of `combineProvenance` clean, and the guard passed it.
+  The copy now also takes, for each step field the law reads (`of`,
+  `source`, `confidence`, `derivedFromMock`, `confidenceScore`, `id`) that
+  is not among the step's own enumerable fields, the value the law and the
+  audit read on the step: through its prototype, a getter or a `Proxy`. It
+  is left out when it reads `undefined`, or when the chain reaches an
+  `Object.prototype` holding it (another realm's is recognised by shape),
+  so a polluted global is not copied.
+  Nothing else is taken from the prototype, so an inherited method such as
+  `toJSON` cannot change what the stored step says. SPEC §3 now names the
+  one exception to the law's totality, in both languages: a field whose read
+  throws propagates the error. In JS that now includes a step that throws on
+  a law field it lacks: the law read a prior step's `source` and `id`
+  before, and now reads its other law fields too. JSON cannot build such a
+  step, so envelopes handed over as JSON, and Python, are unchanged.
 - **JS `derive`: an override whose value is `undefined` is no override, for
   every key** ([#533](https://github.com/slopstopper/plumb-line/issues/533);
   `docs/api.md`; ADR-0019 amendment). Since #177 it held for `source`, and
