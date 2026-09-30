@@ -211,3 +211,42 @@ found one runtime use the first draft missed, now listed).
 
   Recorded here rather than by editing §1, §2 or the lists, because this
   record is append-only.
+- **2026-09-30 (v0.12.0 dogfood findings; owner decision).** One addition
+  to source truth, one more recorded use, and one ruling.
+  - **`adapters/commit-hook-cases.json` is source truth** for the branch
+    guard's git commit hook (#464, #547): the wrapper that reads the branch
+    from git, including during a rebase, and judges each staged path with the
+    guard's `decide`. `adapters/adapter-contract.md` already calls its cases
+    the hook's parity contract, and the #517 amendment above had not listed
+    it. It does now, on the same terms as `adapters/hook-cases.json`: the
+    table, not the prose, is the source truth; neither twin is the
+    reference, and a row records only what both twins produce; where a row
+    encodes git's own behaviour, git is the reference, and both runners
+    build each row's repository with real git (the contract records the
+    behaviour as checked with git 2.39). Both runners fail on a case field,
+    case kind or table version they do not interpret, each proven by a
+    planted test (#441's pattern).
+  - **The sixth recorded test use of a consumer, the second from the
+    adapters layer.** `adapters/js/hooks/__tests__/commit-hook-cases.test.mjs`
+    imports `primitives/conformance/table-guards.mjs`, as
+    `hook-cases.test.mjs` does. Test code only; no adapter runtime module
+    imports it. The Python twin, `adapters/python/hooks/test_commit_hook_cases.py`,
+    imports `primitives/python/tests/case_table_guards.py`, which §2's
+    adapters row already allows.
+  - **A link in prose is not a dependency.** The skills point readers to
+    `examples/` (the method skill's honest-deferral example) and to
+    `reference/fit-map.md` (the method skill's closing pointer), and docs
+    link across layers. §2 is about what code imports, runs or reads; a
+    sentence telling a human or an agent where they may look is none of
+    those, and the `planned` layering test checks code, not links. A link
+    whose target moves is a broken link, caught as one, not a layering
+    violation.
+  - **A required read is a dependency, and one is recorded here.** The
+    adopt skill makes `reference/fit-map.md` required reading, and stops
+    ("Cannot route") if it cannot be read. That is not a link a reader may
+    follow: an agent running the skill loads the file at run time. It is a
+    consumer-to-consumer use, stated here beside the others §2 lists: the
+    adopt skill reads `reference/fit-map.md`.
+
+  Recorded here rather than by editing §1, §2 or the lists, because this
+  record is append-only.
