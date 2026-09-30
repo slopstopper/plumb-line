@@ -59,8 +59,8 @@ wrong."* The mechanics bound that risk tightly:
   data; it cannot change it.
 - A forgotten `mark` does not silently corrupt anything: passing a bare
   value to `derive` raises a `TypeError` in both languages (`derive: input
-  0 is not a marked value (mark it first)`) — visible in the first test
-  run, not weeks later.
+  0 is not a marked value (mark it first)`) — visible the first time that
+  path runs, not weeks later.
 - Consistency is checkable, not assumed: `audit_meta` / `auditMeta`
   returns `[]` for a well-formed envelope and names the defect otherwise,
   and `plumb-line-bootstrap`'s scaffold step ends with a test asserting
@@ -95,47 +95,51 @@ canned value lands in front of a user — or in a stored report — labelled
 as the real thing.
 
 **Smallest useful integration.** Mark the two branches where they diverge;
-derive everything downstream; set a source floor where the output must not
-show the substitute.
+derive everything downstream; at each output, guard what it may show.
 
 ```js
-import { mark, derive, guard } from "plumb-line-provenance";
+import { mark, derive, guard, unwrap } from "plumb-line-provenance";
 
 const reply = ok
   ? mark(completion, { source: "real", confidence: "high" })
   : mark(FALLBACK_TEXT, { source: "fallback", confidence: "low" });
 
 const rendered = derive([reply], (r) => template.format(r));
-// On the error path metaOf(rendered).weakestSource is "fallback", and no
-// API exists to raise it. The output point refuses it:
-const page = guard(rendered, { minSource: "semiReal" });
+// On the error path the weakest source in rendered's ancestry is
+// "fallback", and no API exists to raise it. The screen may show it:
+const shown = unwrap(guard(rendered));
+// The stored report may not, so its output point sets a source floor:
+const stored = unwrap(guard(rendered, { minSource: "semiReal" }));
 // ProvenanceRefused on the fallback path:
 //   "source: fallback is below the required semiReal"
 ```
 
 ```python
-from plumb_line_provenance import mark, derive, guard
+from plumb_line_provenance import mark, derive, guard, unwrap
 
 reply = (mark(completion, source="real", confidence="high") if ok
          else mark(FALLBACK_TEXT, source="fallback", confidence="low"))
 rendered = derive([reply], lambda r: template.format(r))
-page = guard(rendered, min_source="semiReal")
+shown = unwrap(guard(rendered))  # the screen may show a fallback
+stored = unwrap(guard(rendered, min_source="semiReal"))  # the report may not
 # ProvenanceRefused on the fallback path:
 #   "source: fallback is below the required semiReal"
 ```
 
-**Fallback or mock.** A default substituted on an error path is
-`fallback`: the code declares it as a substitute (ADR-0012 §2), and
-Profile 5 marks it the same way. `mock` is for a value that stands in for
-real data and could be taken as it — a `USE_MOCK_LLM` stub whose canned
-completions read as real answers, or the fixture rows of Profile 3. Mock
-taint is carried whatever the floor, and the guard refuses it by default
-(`noMock`); the source floor is off by default, so an output that must not
-show a fallback sets it.
+**Fallback or mock.** A default the code substitutes on an error path is
+`fallback` (ADR-0012 §2), as in Profile 5, and a source floor keeps it out
+of an output that must not show it. `mock` is for a value that stands in
+for real data and could be taken as it: a `USE_MOCK_LLM` stub's canned
+completions, the fixture rows of Profile 3, or error-path text written to
+pass itself off as a real answer. Mock taint is carried whatever the
+floor, and the guard refuses it by default (`noMock`). The source floor is
+off by default, so an output that must not show a fallback sets it.
 
 **What the audit catches afterwards.** A fallback branch that hand-builds
 a `real` source; a render path that drops the envelope before the output
-boundary; a `derivedFromMock` value exported with no opt-in.
+boundary; a `derivedFromMock` value exported with no opt-in; a fallback
+reaching an output that should exclude it (the audit's escaped-fakery
+check).
 
 ## Profile 2 — agent-generated data pipeline
 

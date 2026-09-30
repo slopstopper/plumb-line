@@ -71,9 +71,10 @@ wraps a value with metadata at the point it enters; `derive` runs the
 builder's own function on the plain values and combines the metadata by
 law (taint ORs and cannot be cleared, confidence takes the weakest);
 `metaOf`/`meta_of` reads it back; `auditMeta`/`audit_meta` checks the
-envelope is consistent; `guard` stops a value at an output point unless
-its envelope meets what the output requires (no mock taint by default, and
-a source or confidence floor when asked). Say plainly what this bounds: the library never
+envelope is consistent; `guard` stops a value at an output point: by
+default one that is unmarked, malformed, flagged by the audit or tainted
+by mock, and one below a source or confidence floor when the output sets
+one. Say plainly what this bounds: the library never
 computes or modifies a value, so a labeling mistake misdescribes data
 but cannot corrupt it, and a forgotten `mark` fails visibly rather than
 silently (the fit map's "Worried about using it wrong?" section is the

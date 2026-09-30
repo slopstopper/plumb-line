@@ -40,9 +40,11 @@ const ALL_BLOCKS = [...text.matchAll(/```([^\n]*)\n([\s\S]*?)```/g)].map(
 );
 const JS_BLOCKS = ALL_BLOCKS.filter(([tag]) => tag === "js").map(([, b]) => b);
 
-// marker (unique structural substring) -> { prelude, exports, check }.
-// The prelude text is prepended (ESM hoists the snippet's imports above it),
-// the exports line is appended, and check() receives the exported namespace.
+// marker (unique structural substring) -> { prelude, exports, check } or,
+// for a snippet whose prose says an output point refuses the value,
+// { prelude, exports, refuses, upTo, beforeRefusal, checkReal }. The prelude text is prepended
+// (ESM hoists the snippet's imports above it), the exports line is appended,
+// and check() / checkReal() receive the exported namespace.
 const SNIPPETS = {
   FALLBACK_TEXT: {
     prelude: (ok) => `
@@ -51,19 +53,26 @@ const SNIPPETS = {
       const FALLBACK_TEXT = "canned";
       const template = { format: (r) => \`[\${r}]\` };
     `,
-    exports: "export const __ns = { rendered, page };",
+    exports: "export const __ns = { rendered, shown, stored };",
     // Fallback path (#557): the substitute is labelled "fallback", not mock,
-    // and the snippet's source floor refuses it at the output. The one exact
-    // reason proves both: guard's default noMock would add a "mock:" reason
-    // if the substitute were tainted.
+    // and the report's source floor refuses it. The one exact reason proves
+    // both: a tainted substitute would add a "mock:" reason (noMock is on by
+    // default). That the screen may show it is proved by running the block
+    // up to the report line (upTo, beforeRefusal).
     refuses: ["source: fallback is below the required semiReal"],
+    upTo: "const stored",
+    beforeRefusal: {
+      exports: "export const __ns = { shown };",
+      check: (ns) => expect(ns.shown).toBe("[canned]"),
+    },
     // Real path exercised separately below, so a defect in the branch the
     // parametrized run skips cannot hide behind lazy evaluation (the
-    // pre-#261 defect class): the floor passes the real reply through.
+    // pre-#261 defect class): both outputs get the real reply, unwrapped.
     checkReal: (ns) => {
-      expect(ns.page).toBe(ns.rendered);
-      expect(metaOf(ns.page).weakestSource).toBe("real");
-      expect(metaOf(ns.page).derivedFromMock).toBe(false);
+      expect(ns.shown).toBe("[real completion]");
+      expect(ns.stored).toBe("[real completion]");
+      expect(metaOf(ns.rendered).weakestSource).toBe("real");
+      expect(metaOf(ns.rendered).derivedFromMock).toBe(false);
     },
   },
   taggedFetch: {
@@ -135,6 +144,16 @@ describe("fit-map js snippets", () => {
         );
         expect(err).toBeInstanceOf(ProvenanceRefused);
         expect(err.reasons).toEqual(spec.refuses);
+        // The refusal comes from the line it is documented at: the block up
+        // to that line runs clean on the same path.
+        const cut = block.indexOf(spec.upTo);
+        expect(cut, `${spec.upTo} not found in the snippet`).toBeGreaterThan(0);
+        const before = spec.beforeRefusal;
+        before.check(await runSnippet(block.slice(0, cut), spec.prelude(false), before.exports));
+        // The refusal the doc quotes is the one the code gives: the quoted
+        // comment line is read out of the block, not trusted (#557 review).
+        const quoted = [...block.matchAll(/^\s*\/\/\s+"(.+)"\s*$/gm)].map((m) => m[1]);
+        expect(quoted).toEqual(spec.refuses);
         return;
       }
       const ns = await runSnippet(block, spec.prelude(false), spec.exports);
