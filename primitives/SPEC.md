@@ -189,7 +189,8 @@ with that value, or as an accessor) before any object that defines it: a
 polluted global is no step's own. Another realm's `Object.prototype` is
 recognised by shape (a null prototype, and `hasOwnProperty`,
 `isPrototypeOf` and `propertyIsEnumerable` as non-enumerable methods), so
-one whose builtins were deleted is not, and its pollution is kept. The walk
+one whose builtins were deleted or redefined is not, and its pollution is
+kept; and an object built to copy an `Object.prototype` is taken for one. The walk
 is bounded and stops at a cycle; a chain it cannot decide keeps the value,
 as the law reads it. Nothing else is taken from the prototype. One
 exception to totality, in both languages: a field whose read throws (a

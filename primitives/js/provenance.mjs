@@ -56,7 +56,8 @@ function quote(value) {
 const STEP_FIELDS = ["of", "source", "confidence", "derivedFromMock", "confidenceScore", "id"];
 
 // How many objects fromObjectPrototype examines, the step included. Only an
-// endless Proxy chain reaches it; an ordinary chain cannot cycle.
+// endless Proxy chain or an ordinary one over 10,000 deep reaches it; an
+// ordinary chain cannot cycle.
 const MAX_CHAIN = 10000;
 
 // The methods every Object.prototype holds, in any realm.
@@ -93,7 +94,7 @@ function fromObjectPrototype(s, k, value) {
     for (let o = s; o !== null && !seen.has(o) && seen.size < MAX_CHAIN; o = Object.getPrototypeOf(o)) {
       if (isObjectPrototype(o)) {
         const d = Object.getOwnPropertyDescriptor(o, k);
-        return d !== undefined && (!("value" in d) || d.value === value);
+        return d !== undefined && (!("value" in d) || Object.is(d.value, value));
       }
       if (Object.hasOwn(o, k)) return false;
       seen.add(o);

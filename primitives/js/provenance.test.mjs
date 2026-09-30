@@ -561,6 +561,16 @@ describe("copying an unusual lineage step (#548 review)", () => {
     }
   });
 
+  it("a polluted NaN is recognised as pollution (Object.is, not ===)", () => {
+    try {
+      Object.prototype.confidenceScore = NaN;
+      const copy = makeMeta({ source: "derived", lineage: [{ ...base }] }).lineage[0];
+      expect(Object.hasOwn(copy, "confidenceScore")).toBe(false);
+    } finally {
+      delete Object.prototype.confidenceScore;
+    }
+  });
+
   it("pollution reached through a deep prototype chain is not copied", () => {
     try {
       Object.prototype.source = "real";
