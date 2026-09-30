@@ -79,8 +79,9 @@ Graders per case:
   `scripts/test_eval_graders.py`, which also flips every row of the
   committed 2026-09-30 reports to `violation` to show each is caught. It
   knows a findings row by its Principle cell opening with a principle
-  code; a row whose Principle cell is empty or has no code is not seen
-  (none in the committed reports), and an omission-pass row whose last
+  code; a row whose Principle cell does not open, after whitespace, `*`,
+  backticks or `(`, with a code is not seen (none in the committed
+  reports), and an omission-pass row whose last
   cell opens with a code fails the case, on the safe side.
   It replaces the runner's `llm` judge, which is out of scoring until it
   records its reasoning and reproduces the mechanical verdicts on a

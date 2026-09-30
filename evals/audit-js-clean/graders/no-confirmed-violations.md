@@ -26,9 +26,10 @@ It tells a findings row from the omission-pass table's rows, which also have
 seven cells, by the Principle cell opening with a principle code: `P1` to
 `P9` or `spine` (any case), optionally inside `*`, backticks or a
 parenthesis, then a dash of any kind. Two known residuals, both pinned by
-tests. A findings row whose Principle cell is empty, or names the principle
-without its code, is not seen: a false PASS, since the checker does not
-validate that cell. And an omission-pass row whose last cell opens with a
+tests. A findings row whose Principle cell does not open, after whitespace,
+`*`, backticks or `(`, with a code is not seen: an empty cell, a name with
+no code, `_P3 — …_`, `[P3 — …]`, curly quotes, or text before the code. That
+is a false PASS, since the checker does not validate that cell. And an omission-pass row whose last cell opens with a
 principle code fails the case: a false FAIL, on the safe side. Every
 findings row in the committed 2026-09-30 reports opens with a code;
 `scripts/test_eval_graders.py` pins that, holds the pattern to the

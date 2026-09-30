@@ -319,6 +319,10 @@ def test_the_round_two_probes_are_caught(row):
     _clean_row("violation", principle=""),
     _clean_row("violation", principle="n/a"),
     _clean_row("violation", principle="Confidence + provenance"),
+    _clean_row("violation", principle="_P3 — Confidence + provenance_"),
+    _clean_row("violation", principle="[P3 — Confidence + provenance](x.md)"),
+    _clean_row("violation", principle="“P3 — Confidence + provenance”"),
+    _clean_row("violation", principle="see P3 — Confidence + provenance"),
 ])
 def test_known_residual_a_principle_cell_without_a_code_is_not_seen(row):
     # Documented in the grader and the README: a findings row is known by its
