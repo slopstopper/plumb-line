@@ -93,14 +93,14 @@ export function derive(inputs, fn, metaOverride = {}) {
   const value = fn(...items.map(unwrap));
   const combined = combineProvenance(...items.map(metaOf));
   const safeOverride = {};
+  // An undefined override is no override, for every key (#533): the law's
+  // result stands. For source, makeMeta's leaf rule (#177, source is
+  // required) is not for derive; for confidence it reset the combined rung to
+  // "none", and for confidenceScore it dropped the combined score, so a
+  // caller passing an unset option silently lost what the law computed.
   for (const key of OVERRIDE_KEYS) {
-    if (key in metaOverride) safeOverride[key] = metaOverride[key];
+    if (key in metaOverride && metaOverride[key] !== undefined) safeOverride[key] = metaOverride[key];
   }
-  // An undefined source is no override: derive's source comes from the law,
-  // and makeMeta's leaf rule (#177, source is required) is not for it. This
-  // covers source only; an undefined confidence still resets it to "none"
-  // (#533).
-  if (safeOverride.source === undefined) delete safeOverride.source;
   // Route the override through makeMeta so derive is never weaker than the
   // constructor: an out-of-range confidenceScore (or unrankable weakestSource)
   // is dropped by the same validation, not stored raw. derivedFromMock is

@@ -102,6 +102,19 @@ describe("mark / derive refuse an off-ladder confidence or source (#443)", () =>
     expect(out.source).toBe("derived");
     expect(derive([], () => 0, { source: undefined }).source).toBe("unavailable");
   });
+  it.each(["source", "confidence", "confidenceScore", "basis", "adapter"])(
+    "an undefined %s override on derive is no override (#533)",
+    (key) => {
+      // A caller writing derive(xs, f, { confidence: opts.confidence }) with
+      // the option unset must keep the law's result, not reset or drop it.
+      const a = mark(1, { source: "real", confidence: "high", confidenceScore: 0.9 });
+      const b = mark(2, { source: "fallback", confidence: "medium", confidenceScore: 0.6 });
+      const plain = derive([a, b], (x, y) => x + y);
+      const out = derive([a, b], (x, y) => x + y, { [key]: undefined });
+      expect(out).toEqual(plain);
+      expect(Object.keys(out)).toEqual(Object.keys(plain));
+    },
+  );
   it("a derive override is refused the same way", () => {
     const a = mark(1, { source: "real", confidence: "high" });
     expect(() => derive([a], (x) => x, { confidence: 0.8 })).toThrow(
