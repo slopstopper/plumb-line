@@ -524,7 +524,8 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   - The run itself: with the plugin every case passed 3/3 and every planted
     violation was confirmed; 4 of the 6 with-plugin clean reports conform to
     the format checker, and the two that fail print a "clean" stamp anyway
-    (#581). Its greenness is pending the owner; the record recommends not.
+    (#581). Not a green run, by owner decision; the first green run comes
+    from a re-run with these fixes.
     The 12 clean-case reports it could recover are committed beside it.
   - `evals/results/`, where the runner writes its raw output, is ignored.
 - **A `null` optional override on `derive` is no override, and a `null`
