@@ -124,6 +124,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   named, are #520 and #521.
 
 ### Changed
+- **The validation and dogfood records are one file per run, with index
+  pages** ([#570](https://github.com/slopstopper/plumb-line/issues/570)).
+  `docs/validation-results.md` (1,968 lines) and `docs/dogfood.md` (848)
+  had been appended to once per release since v0.1.0, and the trend across
+  releases was spread through all of it. Each run's record now lives in its
+  own file: `docs/records/validation/` (26 records, the release-harness runs
+  and three between releases) and `docs/records/dogfood/` (22). The records
+  moved verbatim; only their headings, promoted to each file's title, and
+  their relative links changed, checked mechanically. The two old files are
+  now index pages, newest first; the validation index quotes each record's
+  own `Part 1` and `Format scoring` headings, and says where a record gives
+  its result in prose. `docs/records/evals/` is ready for the first green
+  eval run (#530), which the validation index will list. The release
+  harness now writes a record per run plus an index row.
 - **The `claude plugin eval` suite runs, after its first real run found it
   measured nothing** ([#291](https://github.com/slopstopper/plumb-line/issues/291)).
   The August suite granted no tools, so the audit skill could not read its

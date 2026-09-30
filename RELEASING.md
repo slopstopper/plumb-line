@@ -84,7 +84,8 @@ fix-only release is a patch.
    what actually shipped, under [`docs/content/TEMPLATE.md`](docs/content/TEMPLATE.md)
    and its four gates (audit, language standard, disclosure, venue courtesy). Source
    material is the CHANGELOG section, the harness record in
-   `docs/validation-results.md`, the dogfood section, and the closed
+   `docs/records/validation/`, the dogfood record in `docs/records/dogfood/`
+   (both indexed from `docs/validation-results.md` and `docs/dogfood.md`), and the closed
    milestone. The normal route is to draft it during the release harness
    and ship it in the release PR: the owner edits and approves by merging,
    and the release workflow then puts it at the top of the GitHub release

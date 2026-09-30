@@ -154,6 +154,9 @@ def test_historical_paths_are_exempt():
     assert cvp.is_exempt_path("docs/adr/0010-wire-v2-schema-batch.md")
     assert cvp.is_exempt_path("docs/dogfood.md")
     assert cvp.is_exempt_path("docs/validation-results.md")
+    # #570: the per-run records moved here, and stay exempt.
+    assert cvp.is_exempt_path("docs/records/validation/v0.11.5.md")
+    assert cvp.is_exempt_path("docs/records/dogfood/v0.2.0.md")
     assert not cvp.is_exempt_path("README.md")
     assert not cvp.is_exempt_path("ROADMAP.md")
 

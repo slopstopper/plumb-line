@@ -63,7 +63,8 @@ planted violation blocks the release.
    python3 scripts/check_report_format.py <each saved report>
    ```
 
-   Record the command and its exit code in `docs/validation-results.md`, not an
+   Record the command and its exit code in the run's record under
+   `docs/records/validation/` (indexed from `docs/validation-results.md`), not an
    impression. Up to v0.7.3 every "no format FAILs" line here was a human reading
    the report and deciding — the P7 gap
    [#139](https://github.com/slopstopper/plumb-line/issues/139) was filed for.

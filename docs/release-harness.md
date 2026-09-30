@@ -68,7 +68,7 @@ re-ran → 2/2 caught → then released.
 
 **Scoring rules are fixed before results are read, and judgement calls go to
 the owner.** Owner decision, 2026-09-26, from the impossible-task spike (#462,
-`validation-results.md`).
+[`records/validation/2026-09-26-impossible-task-spike-462.md`](records/validation/2026-09-26-impossible-task-spike-462.md)).
 - **Fix the rules first.** The scoring rules for a run (what counts as a
   catch, a miss or a cheat) are the ones written down before its results are
   read. They are never amended afterwards to settle a case.
@@ -113,17 +113,24 @@ block the release; the tracker is the enforcement.
 
 ## Recording (always)
 
-Append a dated, version-tagged section — same shape as the existing v0.2.0 ones:
+Write one dated, version-tagged record per run, each in its own file, the
+same shape as the existing ones, and add a row for it to the index page (#570):
 
-- Validation → [`validation-results.md`](validation-results.md): date, version,
-  base commit, what ran, per-fixture pass/fail, and **calibration notes** —
-  record false positives honestly (e.g. the v0.2.0 stub-confidence FP), since the
-  LLM audit is a review aid, not a gate.
-- Dogfood → [`dogfood.md`](dogfood.md): findings table (fixed / deferred), what
-  was clean, calibration notes.
+- Validation → `records/validation/v<version>.md` (a run between releases:
+  `records/validation/<date>-<slug>.md`), listed in
+  [`validation-results.md`](validation-results.md): date, version, base
+  commit, what ran, per-fixture pass/fail, and **calibration notes** — record
+  false positives honestly (e.g. the v0.2.0 stub-confidence FP), since the LLM
+  audit is a review aid, not a gate. Head the results `### Part 1 — …: <result>`
+  and `### Format scoring … — <result>`: the index quotes those headings.
+- Dogfood → `records/dogfood/v<version>.md`, listed in
+  [`dogfood.md`](dogfood.md): findings table (fixed / deferred), what was
+  clean, calibration notes.
+- An eval suite run → `records/evals/<date>.md`, listed in
+  [`validation-results.md`](validation-results.md#eval-suite-runs).
 
-A run that found nothing still gets a recorded section saying so — a missing
-section is indistinguishable from "never run."
+A run that found nothing still gets a record saying so — a missing record is
+indistinguishable from "never run."
 
 ## Deterministic pre-tag checks
 
