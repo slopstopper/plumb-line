@@ -3,8 +3,10 @@
 
 Run from the repo root:  python3 -m pytest -q adapters/sarif
 """
+import importlib.util
 import json
 import os
+import re
 
 import pytest
 
@@ -172,6 +174,84 @@ def test_parse_import_linter_garbled_is_unparsed():
     r = A.parse_import_linter(_fx("garbled.txt"), root="/repo", root_package="src")
     assert r == [A.unparsed("this line is not any format the assembler knows", "import-linter", whole=True)]
     assert r[0]["ruleId"] == "PL/unparsed"
+
+
+_ROOT = os.path.join(os.path.dirname(_FX), "..", "..")
+
+
+def _spec_pb_table():
+    """SPEC §6's PB rows as {id: (name, pattern)}, the pattern as plain text:
+    the one table the SARIF catalogue and both lints are checked against
+    (#552). The rows must follow the table's own header and separator, and
+    no fence, comment or <pre> may be left open above the header, so a table
+    GitHub would not render as one fails."""
+    with open(os.path.join(_ROOT, "primitives", "SPEC.md"), encoding="utf-8") as fh:
+        text = fh.read()
+    section = text[text.index("## 6. Static enforcement"):text.index("## 7. Conformance")]
+    lines = section.splitlines()
+    head = next(i for i, line in enumerate(lines) if line.startswith("| ID ") and "| Name " in line)
+    # A GFM delimiter cell: hyphens, with an optional colon at either end.
+    assert re.fullmatch(r"\|(\s*:?-+:?\s*\|){4}", lines[head + 1].strip()), lines[head + 1]
+    above = "\n".join(lines[:head])
+    fences = [line for line in lines[:head] if re.match(r"\s*(```|~~~)", line)]
+    assert len(fences) % 2 == 0, "an unclosed code fence above the PB table"
+    assert above.count("<!--") == above.count("-->"), "an unclosed comment above the PB table"
+    assert above.count("<pre") == above.count("</pre>"), "an unclosed <pre> above the PB table"
+    ids, rows = [], {}
+    for line in lines[head + 2:]:
+        if not line.startswith("|"):
+            break
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        assert len(cells) == 4 and re.fullmatch(r"PB\d+", cells[0]), line
+        ids.append(cells[0])
+        rows[cells[0]] = (cells[1].strip("`"), cells[2].replace("`", "").replace("**", ""))
+    assert len(ids) == len(set(ids)), f"duplicate PB ids in SPEC §6: {ids}"
+    return rows
+
+
+def _lint_titles():
+    """Each lint's message title per PB id: the words between the id and the
+    first colon ("PB2 manual taint clear: ...")."""
+    spec = importlib.util.spec_from_file_location(
+        "provenance_lint_552", os.path.join(_ROOT, "adapters", "python", "provenance_lint.py"))
+    lint = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lint)
+    py = {pb: re.match(rf"{pb} ([^:]+):", msg).group(1) for pb, msg in lint.MESSAGES.items()}
+    with open(os.path.join(_ROOT, "adapters", "js", "provenance-lint", "no-provenance-bypass.cjs"),
+              encoding="utf-8") as fh:
+        cjs = fh.read()
+    # Only the rule's messages block, and each id once: a stale "pbN:" string
+    # elsewhere in the file (a comment, a legacy table) must not stand in.
+    block = re.search(r"\n\s*messages: \{\n(.*?)\n\s*\},", cjs, re.S).group(1)
+    found = re.findall(r'\bpb(\d+): "PB\1 ([^:]+):', block)
+    assert len(found) == len({n for n, _ in found}), f"a PB message defined twice: {found}"
+    js = {f"PB{n}": title for n, title in found}
+    return {"python": py, "js": js}
+
+
+def test_pb_rules_are_named_and_described_as_spec_section_6_says():
+    # #552: PB2 was published as HandBuiltLineage and PB3 as
+    # DeriveOverrideClearsTaint, each describing another rule, so a code
+    # scanning viewer showed a finding under a false label.
+    table = _spec_pb_table()
+    assert sorted(table) == ["PB1", "PB2", "PB3", "PB4"], table
+    assert sorted(r for r in A.RULES if r.startswith("PL/PB")) == [f"PL/{pb}" for pb in sorted(table)]
+    for pb, (name, pattern) in table.items():
+        rule = A.RULES[f"PL/{pb}"]
+        assert rule["name"] == name, pb
+        assert rule["shortDescription"] == f"{pb}: {pattern}.", pb
+
+
+def test_both_lints_title_their_messages_with_the_spec_name():
+    # The other half of #552: a finding reads the same in the lint's own
+    # output and in the SARIF viewer. The name in words, spaces and hyphens
+    # dropped, is the SPEC name: "re-mark of an unwrapped value" is
+    # RemarkOfAnUnwrappedValue.
+    table = _spec_pb_table()
+    for lang, titles in _lint_titles().items():
+        assert sorted(titles) == sorted(table), lang
+        for pb, title in titles.items():
+            assert re.sub(r"[\s-]", "", title).lower() == table[pb][0].lower(), (lang, pb, title)
 
 
 def test_pb_help_uris_point_at_the_spec_section_that_holds_the_pb_table():

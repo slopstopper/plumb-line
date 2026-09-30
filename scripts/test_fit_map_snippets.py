@@ -14,10 +14,11 @@ so the snippets run exactly as written for a consumer.
 
 Each snippet's free names (the surrounding code a doc snippet elides) are
 supplied by a per-snippet prelude below, keyed by a marker string unique to
-that snippet. A snippet with no matching prelude, or a prelude whose marker no
-longer matches — or a fence tag the extractor does not recognize — fails the
-suite: additions, removals and renames in the fit-map must be mirrored here,
-loudly.
+that snippet. Profile 1, whose output point refuses the fallback path, runs in
+its own two tests instead (PROFILE1). A snippet with no matching marker, or a
+marker that no longer matches — or a fence tag the extractor does not
+recognize — fails the suite: additions, removals and renames in the fit-map
+must be mirrored here, loudly.
 """
 import importlib.util
 import os
@@ -92,12 +93,11 @@ class _Template:
 # marker (unique structural substring of the snippet) -> (free names,
 # postcondition). The postcondition receives the snippet's namespace after
 # exec and asserts the behavior the surrounding prose claims.
-def _check_profile1(ns):
-    # Prelude runs the snippet on the fallback path (ok=False): taint must be
-    # carried, as the snippet's comment claims. The real branch is exercised
-    # separately in test_profile1_real_branch.
-    from plumb_line_provenance import meta_of
-    assert meta_of(ns['rendered'])['derived_from_mock'] is True
+# Profile 1 is not run through PRELUDES: on the fallback path the snippet's
+# source floor refuses the value at the output, so exec raises (#557).
+# test_profile1_fallback_refused and test_profile1_real_branch run each branch.
+PROFILE1 = 'FALLBACK_TEXT'
+PROFILE1_REFUSES = ['source: fallback is below the required semiReal']
 
 
 def _check_profile2(ns):
@@ -131,7 +131,6 @@ def _profile1_names(ok):
 
 
 PRELUDES = {
-    'FALLBACK_TEXT': (lambda: _profile1_names(ok=False), _check_profile1),
     'basis="agent run': (
         lambda: (lambda m: {'agent_row': {'a': 1},
                             'verified': m.mark({'b': 2}, source='real',
@@ -176,7 +175,7 @@ def test_extraction_found_the_snippets():
     # verified everything. Every prelude marker must match exactly one block.
     assert len(BLOCKS) >= len(PRELUDES), (
         f'only {len(BLOCKS)} python blocks extracted from {_FIT_MAP}')
-    for marker in PRELUDES:
+    for marker in [*PRELUDES, PROFILE1]:
         hits = [b for b in BLOCKS if marker in b]
         assert len(hits) == 1, (
             f'marker {marker!r} matched {len(hits)} snippets — fit-map and '
@@ -187,7 +186,8 @@ def test_every_python_block_has_a_prelude():
     # A new snippet added to the fit-map without a prelude here would
     # otherwise run in no test at all.
     for block in BLOCKS:
-        assert any(marker in block for marker in PRELUDES), (
+        assert any(marker in block
+                   for marker in [*PRELUDES, PROFILE1]), (
             'fit-map python snippet has no matching prelude — add one:\n'
             + block)
 
@@ -215,15 +215,45 @@ def test_profile5_leaves_no_temp_dir():
     assert not os.path.exists(ns['dir']), f'leaked {ns["dir"]}'
 
 
-def test_profile1_real_branch():
-    # The snippet is a conditional expression; the parametrized run takes the
-    # fallback path only. Execute the same block with ok=True so a defect in
-    # the real branch (the pre-#261 class: a wrong kwarg) cannot hide behind
-    # lazy evaluation.
-    from plumb_line_provenance import meta_of
-    block = next((b for b in BLOCKS if 'FALLBACK_TEXT' in b), None)
+def _profile1_block():
+    block = next((b for b in BLOCKS if PROFILE1 in b), None)
     assert block is not None, 'profile 1 snippet not found'
-    ns = _run_snippet(block, _profile1_names(ok=True), 'fit-map.md[real]')
+    return block
+
+
+def test_profile1_fallback_refused():
+    # The error path (#557): the substitute is labelled "fallback", not mock,
+    # and the report's source floor refuses it. The one exact reason proves
+    # both: a tainted substitute would add a "mock:" reason (no_mock is on by
+    # default).
+    from plumb_line_provenance import ProvenanceRefused
+    block = _profile1_block()
+    with pytest.raises(ProvenanceRefused) as exc:
+        _run_snippet(block, _profile1_names(ok=False), 'fit-map.md[fallback]')
+    assert exc.value.reasons == PROFILE1_REFUSES
+    # The refusal comes from the report line: the block up to it runs clean on
+    # the same path, and the screen gets the fallback text.
+    cut = block.find('stored = ')
+    assert cut > 0, 'profile 1 report line not found'
+    ns = _run_snippet(block[:cut], _profile1_names(ok=False),
+                      'fit-map.md[screen]')
+    assert ns['shown'] == '[canned]'
+    # The refusal the doc quotes is the one the code gives: the quoted comment
+    # line is read out of the block, not trusted (#557 review).
+    assert re.findall(r'^\s*#\s+"(.+)"\s*$', block, re.M) == PROFILE1_REFUSES
+
+
+def test_profile1_real_branch():
+    # The snippet is a conditional expression; the fallback test takes the
+    # error path only. Execute the same block with ok=True so a defect in
+    # the real branch (the pre-#261 class: a wrong kwarg) cannot hide behind
+    # lazy evaluation: both outputs get the real reply, unwrapped.
+    from plumb_line_provenance import meta_of
+    ns = _run_snippet(_profile1_block(), _profile1_names(ok=True),
+                      'fit-map.md[real]')
+    assert ns['shown'] == '[real completion]'
+    assert ns['stored'] == '[real completion]'
+    assert meta_of(ns['rendered'])['weakest_source'] == 'real'
     assert meta_of(ns['rendered'])['derived_from_mock'] is False
 
 

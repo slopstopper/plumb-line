@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """assemble.py — turn plumb-line tool outputs into one SARIF 2.1.0 log (#118).
 
-One assembler, one rules catalogue (RULES, below — the only copy). Each tool
+One assembler, one rules catalogue (RULES, below — the only copy, except
+PB1-PB4, which mirror SPEC §6's table and are held to it by a test). Each tool
 speaks its own machine-readable form:
 
     eslint --format json                 -> parse_eslint
@@ -35,17 +36,20 @@ RULES = {
     "PL/boundary": {"name": "OneWayLayering", "level": "error",
                     "shortDescription": "An import crosses a layer boundary in the forbidden direction (Principle 2).",
                     "helpUri": _BLOB + "reference/portable-principles.md#principle-2--one-way-layering"},
+    # PB1-PB4: name and pattern from SPEC §6's table, as plain text (#552: PB2
+    # and PB3 were published under names describing other rules);
+    # test_assemble holds them to it.
     "PL/PB1": {"name": "LaunderedMeta", "level": "error",
-               "shortDescription": "PB1: a clean source asserted on an explicitly mock-tainted value.",
+               "shortDescription": "PB1: a clean source (by default real/semiReal/fallback) asserted together with derivedFromMock literal true.",
                "helpUri": _BLOB + "primitives/SPEC.md#6-static-enforcement-review-time"},
-    "PL/PB2": {"name": "HandBuiltLineage", "level": "error",
-               "shortDescription": "PB2: lineage or weakestSource written by hand instead of computed.",
+    "PL/PB2": {"name": "ManualTaintClear", "level": "error",
+               "shortDescription": "PB2: derivedFromMock literal false passed as a derive override (a genuine no-op the law ignores).",
                "helpUri": _BLOB + "primitives/SPEC.md#6-static-enforcement-review-time"},
-    "PL/PB3": {"name": "DeriveOverrideClearsTaint", "level": "error",
-               "shortDescription": "PB3: a derive override that would clear taint or lineage.",
+    "PL/PB3": {"name": "CleanSourceOverride", "level": "error",
+               "shortDescription": "PB3: a clean source passed as a derive override (relabeling a derived value).",
                "helpUri": _BLOB + "primitives/SPEC.md#6-static-enforcement-review-time"},
-    "PL/PB4": {"name": "RemarkDropsLineage", "level": "error",
-               "shortDescription": "PB4: re-marking an unwrapped value, dropping its lineage.",
+    "PL/PB4": {"name": "RemarkOfAnUnwrappedValue", "level": "error",
+               "shortDescription": "PB4: mark(unwrap(x), …) — re-marking a value pulled out via the import-bound unwrap, dropping its lineage.",
                "helpUri": _BLOB + "primitives/SPEC.md#6-static-enforcement-review-time"},
     "PL/untagged-output": {"name": "UntaggedOutput", "level": "error",
                            "shortDescription": "An exported function in the declared surface returns a raw computation not wrapped by mark/derive (ADR-0011).",

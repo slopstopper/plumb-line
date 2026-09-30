@@ -436,6 +436,39 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `null`/`None` override is a separate case: it still drops the combined
   `confidenceScore` in both languages, and `basis`/`adapter` null differ
   between them ([#566](https://github.com/slopstopper/plumb-line/issues/566)).
+- **The SARIF log names and describes PB1–PB4 as the lints and SPEC §6
+  do** ([#552](https://github.com/slopstopper/plumb-line/issues/552);
+  `adapters/sarif/assemble.py`, since #118). The catalogue published PB2 as
+  `HandBuiltLineage`, "lineage or weakestSource written by hand", and PB3 as
+  `DeriveOverrideClearsTaint`, "would clear taint or lineage". Each
+  described another rule, so a code-scanning viewer showed a finding under a
+  false label. SPEC §6's table gains a Name column taken from the lints' own
+  message titles: `LaunderedMeta`, `ManualTaintClear`,
+  `CleanSourceOverride`, and `RemarkOfAnUnwrappedValue` (PB4 was
+  `RemarkDropsLineage`). All four SARIF descriptions are SPEC §6's patterns
+  as plain text, and PB1's now says its clean sources are the default ones:
+  a project can change them through the JS rule's `sources` option or the
+  Python `check(clean_sources=…)` API (the Python CLI, which the Action
+  runs, has no flag for it). A test holds the SARIF catalogue
+  and both lints' message titles to the table. Rule ids are unchanged, so
+  existing code-scanning alerts keep matching; only the displayed name and
+  description change.
+- **The fit map labels an error-path default `fallback`, not `mock`**
+  ([#557](https://github.com/slopstopper/plumb-line/issues/557);
+  `reference/fit-map.md` Profile 1). The snippet marked the text returned on
+  an error path as `mock`. ADR-0012 §2 and Profile 5 mark a declared
+  substitute `fallback`. The snippet now does: the screen may show it
+  (`unwrap(guard(rendered))`), and the stored report refuses it with the
+  guard's source floor (`minSource: "semiReal"`). A new paragraph says when
+  `mock` is still right: a value that stands in for real data and could be
+  taken as it, including error-path text written to pass itself off as a
+  real answer. The snippet tests pin the exact refusal (no `mock:` reason),
+  the refusal text the doc quotes, the screen line passing, and the real
+  path. Also fixed: the "Worried about using it wrong?" section said JS
+  `derive` fed `undefined` into the function for an unmarked input, but
+  since #550 both languages raise the same `TypeError`. The threat model
+  spoke of "a fallback" tainting a result, which a fallback does not. The
+  `plumb-line-adopt` primer now explains `guard`, which the snippet calls.
 - **`derive` refuses an input that is not a marked value, in both
   languages (breaking for callers who passed one)**
   ([#550](https://github.com/slopstopper/plumb-line/issues/550); SPEC §2).
