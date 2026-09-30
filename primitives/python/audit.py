@@ -34,7 +34,14 @@ def audit_meta(meta):
 
     - ``"laundering:"`` — a clean source combined with mock taint
     - ``"over-claiming:"`` — confidence or confidence_score higher than lineage supports
-    - ``"source over-claim:"`` — weakest_source cleaner than lineage proves
+    - ``"source over-claim:"`` — weakest_source cleaner than lineage proves, or
+      stated over a lineage with an unknown source; a source (other than
+      ``"derived"``) cleaner than its ancestry's weakest source (#556); with
+      no lineage, weakest_source cleaner than source (#553)
+    - ``"unknown source:"`` — a lineage step that is not a dict, or whose
+      source is missing, None or off the ladder (#551)
+    - ``"malformed taint flag:"`` — a lineage step whose derived_from_mock is
+      not a bool; None counts as absent (#551, #555)
     - ``"taint dropped:"`` — a tainted lineage step but derived_from_mock is False
     - ``"unreproducible:"`` — source is ``"derived"`` but lineage is empty
     - ``"missing meta"`` — None, a scalar, a list, or any object outside the
@@ -157,7 +164,80 @@ def audit_meta(meta):
     if meta.get('source') == 'derived' and len(lineage) == 0:
         issues.append('unreproducible: derived value has no lineage')
 
+    src, weakest = meta.get('source'), meta.get('weakest_source')
+    ranked = _is_ranked(src) and _is_ranked(weakest)
+    # A value relabelled above its own ancestry (#556): a source cleaner than
+    # the weakest source its ancestry shows, from the stated weakest_source
+    # and, when every step's source is known, the lineage itself (a handed
+    # envelope can omit weakest_source). 'derived' is the law's own label for
+    # a computed value, not a claim about its inputs, so it is exempt as the
+    # source. A floor of 'derived' is exempt only when the lineage also shows
+    # a real step, as a derive of a derive of real data has (#556 review): a
+    # lineage of derived steps alone, or a leaf that states it, shows no real
+    # data at all, for example a value re-marked 'derived' with its lineage
+    # dropped (#551 verification).
+    floor = _ancestry_floor(weakest, lineage)
+    real_shown = any(_step_source(s) == 'real' for s in lineage)
+    if (_is_ranked(src) and src != 'derived' and floor is not None
+            and not (floor == 'derived' and real_shown)
+            and STATUS.index(src) > STATUS.index(floor)):
+        issues.append(f"source over-claim: source '{src}' is cleaner than its ancestry's weakest source '{floor}'")
+    # A stated weakest_source over a lineage with an unknown source cannot be
+    # shown: the law omits it there (§3 rule 6), and check 4 reads the known
+    # steps alone (#551 review).
+    if _is_ranked(weakest) and any(not _is_ranked(_step_source(s)) for s in lineage):
+        issues.append(f"source over-claim: weakestSource '{weakest}' cannot be shown: "
+                      "a lineage step's source is unknown")
+    # A leaf's weakest_source cleaner than its own source, with no lineage to
+    # show it (#553): check 4 above has nothing to compare it with.
+    if ranked and len(lineage) == 0 and STATUS.index(weakest) > STATUS.index(src):
+        issues.append(f"source over-claim: weakestSource '{weakest}' is cleaner than source '{src}', "
+                      'with no lineage to show it')
+
+    # Name what cannot be read, rather than reading it as clean (#551): a step
+    # whose source is unknown, and a step whose taint flag is not a bool (#555
+    # made that neither taint nor clean). The value is not quoted, so the
+    # message is the same in both twins.
+    for i, s in enumerate(lineage):
+        if not isinstance(s, dict):
+            issues.append(f'unknown source: lineage step {i} is not an object')
+            continue
+        if s.get('source') is None:
+            issues.append(f'unknown source: lineage step {i} has no source')
+        elif not _is_ranked(s.get('source')):
+            issues.append(f'unknown source: lineage step {i} source is not on the source ladder')
+        flag = s.get('derived_from_mock')
+        if flag is not None and not isinstance(flag, bool):
+            issues.append(f'malformed taint flag: lineage step {i} derivedFromMock is not a boolean')
+
     return issues
+
+
+def _step_source(step):
+    """A lineage step's source, or None for a step that is not a dict."""
+    return step.get('source') if isinstance(step, dict) else None
+
+
+def _ancestry_floor(stated, lineage):
+    """The weakest of a stated weakest_source and every lineage step whose
+    source is on the ladder; None when none is known. Steps with an unknown
+    source are skipped: the weakest known source is an upper bound on the
+    true floor, so a source cleaner than it is an over-claim whatever the
+    unknown steps hold (#551 verification). JS twin: ancestryFloor."""
+    floor = STATUS.index(stated) if _is_ranked(stated) else -1
+    for s in lineage:
+        src = _step_source(s)
+        if not _is_ranked(src):
+            continue
+        i = STATUS.index(src)
+        if floor == -1 or i < floor:
+            floor = i
+    return None if floor == -1 else STATUS[floor]
+
+
+def _is_ranked(source):
+    """On the status ladder; tested by string, so an unhashable value is simply not ranked."""
+    return isinstance(source, str) and source in STATUS
 
 
 # The four required fields (SPEC §1) and their type predicates. Keys are the

@@ -104,13 +104,14 @@
       "expectLineageIds": ["sha256:7f455f6cba9e", "sha256:7f455f6cba9e", "sha256:4e93a0381654"]
     },
     {
-      "name": "a handed array or object confidence, or a boolean source, serializes by type (<array>, <object>, false), the same in both languages (#525)",
+      "name": "a handed array or object confidence, or a boolean source, serializes by type (<array>, <object>, false), the same in both languages; the unknown source omits weakestSource (#525; #551)",
       "inputs": [
         { "source": "real", "confidence": ["a", 1], "derivedFromMock": false, "lineage": [] },
         { "source": "real", "confidence": { "a": 1 }, "derivedFromMock": false, "lineage": [] },
         { "source": false, "confidence": "high", "derivedFromMock": false, "lineage": [] }
       ],
-      "expect": {"source": "derived", "confidence": "none", "derivedFromMock": false, "weakestSource": "real"},
+      "expect": {"source": "derived", "confidence": "none", "derivedFromMock": false},
+      "absent": ["weakestSource"],
       "expectLineageIds": ["sha256:2d2b46004459", "sha256:1226d4196f56", "sha256:d254157efc1a"]
     },
     {
@@ -146,11 +147,12 @@
       ]
     },
     {
-      "name": "prior lineage steps that are not objects are kept verbatim, an array as an array, and only string ids feed the new step's id (#525)",
+      "name": "prior lineage steps that are not objects are kept verbatim, an array as an array, and only string ids feed the new step's id; those steps have no known source, so weakestSource is omitted (#525; #551)",
       "inputs": [
         { "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": ["x", 3, null, ["a", "b"], { "id": 5, "source": "real" }, { "id": "sha256:aaaaaaaaaaaa", "source": "real" }] }
       ],
-      "expect": {"source": "derived", "confidence": "high", "derivedFromMock": false, "weakestSource": "real"},
+      "expect": {"source": "derived", "confidence": "high", "derivedFromMock": false},
+      "absent": ["weakestSource"],
       "expectLineage": [
         "x",
         3,
@@ -229,7 +231,8 @@
       ],
       "expect": {"source": "derived", "confidence": "high", "weakestSource": "real"},
       "expectLineageIds": ["😀", "￿", "z", "sha256:0da846167ea1"]
-    }
+    },
+    {"name": "a known and an unknown-source input: weakestSource is omitted, not read off the known one alone (#551)", "inputs": [{"source": "real", "confidence": "high", "derivedFromMock": false, "lineage": []}, {"confidence": "high", "derivedFromMock": false, "lineage": []}], "expect": {"source": "derived", "confidence": "high", "derivedFromMock": false}, "absent": ["weakestSource"]}
   ],
   "audit": [
     {
@@ -371,8 +374,21 @@
       "meta": { "provenanceVersion": 2, "source": "inferred", "confidence": "low", "derivedFromMock": false, "lineage": [] },
       "expectContains": []
     },
-    {"name": "a lineage step whose derivedFromMock is not a boolean ([] or 0) is not read as tainted, so the audit reports no dropped taint; the guard refuses such a step as invalid (§3; #555)", "meta": {"provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{"of": "input", "source": "real", "confidence": "high", "derivedFromMock": [], "id": "sha256:aaaaaaaaaaaa"}, {"of": "input", "source": "real", "confidence": "high", "derivedFromMock": 0, "id": "sha256:bbbbbbbbbbbb"}], "weakestSource": "real"}, "expectContains": []},
-    {"name": "only a boolean true taints: a lineage step whose derivedFromMock is the string \"true\" is malformed, not tainted, so the audit reports no dropped taint (§3; #555)", "meta": {"provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{"of": "input", "source": "real", "confidence": "high", "derivedFromMock": "true", "id": "sha256:bbbbbbbbbbbb"}], "weakestSource": "real"}, "expectContains": []}
+    {"name": "a lineage step whose derivedFromMock is not a boolean ([] or 0) is not read as tainted, so the audit names it as malformed, not as dropped taint; the guard refuses such a step as invalid (§3; #555; #551)", "meta": {"provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{"of": "input", "source": "real", "confidence": "high", "derivedFromMock": [], "id": "sha256:aaaaaaaaaaaa"}, {"of": "input", "source": "real", "confidence": "high", "derivedFromMock": 0, "id": "sha256:bbbbbbbbbbbb"}], "weakestSource": "real"}, "expectContains": ["malformed taint flag: lineage step 0 derivedFromMock is not a boolean"]},
+    {"name": "only a boolean true taints: a lineage step whose derivedFromMock is the string \"true\" is malformed, not tainted, so the audit names it as malformed, not as dropped taint (§3; #555; #551)", "meta": {"provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{"of": "input", "source": "real", "confidence": "high", "derivedFromMock": "true", "id": "sha256:bbbbbbbbbbbb"}], "weakestSource": "real"}, "expectContains": ["malformed taint flag: lineage step 0 derivedFromMock is not a boolean"]},
+    {"name": "a lineage step with a null source is named as an unknown source, not read as clean (#551)", "meta": {"provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{"of": "input", "confidence": "high", "derivedFromMock": false, "id": "sha256:aaaaaaaaaaaa", "source": null}]}, "expectContains": ["unknown source: lineage step 0 has no source"]},
+    {"name": "a lineage step with no source key is named as an unknown source (#551)", "meta": {"provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{"of": "input", "confidence": "high", "derivedFromMock": false, "id": "sha256:aaaaaaaaaaaa"}]}, "expectContains": ["unknown source: lineage step 0 has no source"]},
+    {"name": "a lineage step whose source is off the ladder is named as an unknown source (#551)", "meta": {"provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{"of": "input", "confidence": "high", "derivedFromMock": false, "id": "sha256:aaaaaaaaaaaa", "source": "bogus"}]}, "expectContains": ["unknown source: lineage step 0 source is not on the source ladder"]},
+    {"name": "a lineage step that is not an object is named: its source is unknown (#551)", "meta": {"provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": ["x"]}, "expectContains": ["unknown source: lineage step 0 is not an object"]},
+    {"name": "a relabelled derived value is a source over-claim: source 'real' above weakestSource 'fallback' (#556)", "meta": {"provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "weakestSource": "fallback", "lineage": [{"of": "input", "confidence": "high", "derivedFromMock": false, "id": "sha256:aaaaaaaaaaaa", "source": "fallback"}]}, "expectContains": ["source over-claim: source 'real' is cleaner than its ancestry's weakest source 'fallback'"]},
+    {"name": "a derived value over a fallback input is not an over-claim: derived is the law's own label (#556)", "meta": {"provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "weakestSource": "fallback", "lineage": [{"of": "input", "confidence": "high", "derivedFromMock": false, "id": "sha256:aaaaaaaaaaaa", "source": "fallback"}]}, "expectContains": []},
+    {"name": "a leaf whose weakestSource is cleaner than its own source, with no lineage to show it, is a source over-claim (#553)", "meta": {"provenanceVersion": 2, "source": "fallback", "confidence": "high", "derivedFromMock": false, "lineage": [], "weakestSource": "real"}, "expectContains": ["source over-claim: weakestSource 'real' is cleaner than source 'fallback', with no lineage to show it"]},
+    {"name": "a derive of a derive of real data relabelled real is not an over-claim: a floor of derived is the law's own label, as in the one-level case (#556 review)", "meta": {"provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "weakestSource": "derived", "lineage": [{"of": "input", "source": "real", "confidence": "high", "derivedFromMock": false, "id": "sha256:aaaaaaaaaaaa"}, {"of": "input", "source": "derived", "confidence": "high", "derivedFromMock": false, "id": "sha256:bbbbbbbbbbbb"}]}, "expectContains": []},
+    {"name": "a handed relabel with no weakestSource is still caught from the lineage: source real over a fallback step (#556 review)", "meta": {"provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [{"of": "input", "source": "fallback", "confidence": "high", "derivedFromMock": false, "id": "sha256:aaaaaaaaaaaa"}]}, "expectContains": ["source over-claim: source 'real' is cleaner than its ancestry's weakest source 'fallback'"]},
+    {"name": "a stated weakestSource over a lineage with an unknown source cannot be shown (#551 review)", "meta": {"provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "weakestSource": "real", "lineage": [{"of": "input", "source": "real", "confidence": "high", "derivedFromMock": false, "id": "sha256:aaaaaaaaaaaa"}, {"of": "input", "confidence": "high", "derivedFromMock": false, "id": "sha256:bbbbbbbbbbbb"}]}, "expectContains": ["source over-claim: weakestSource 'real' cannot be shown: a lineage step's source is unknown", "unknown source: lineage step 1 has no source"]},
+    {"name": "real over a lineage of derived steps alone is an over-claim: no real data is shown, as when a value re-marked derived had its lineage dropped (#551 verification)", "meta": {"provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "weakestSource": "derived", "lineage": [{"of": "input", "source": "derived", "confidence": "high", "derivedFromMock": false, "id": "sha256:aaaaaaaaaaaa"}]}, "expectContains": ["source over-claim: source 'real' is cleaner than its ancestry's weakest source 'derived'"]},
+    {"name": "a leaf stating weakestSource derived under a real source is an over-claim: it shows no real data (#551 verification)", "meta": {"provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "weakestSource": "derived", "lineage": []}, "expectContains": ["source over-claim: source 'real' is cleaner than its ancestry's weakest source 'derived'"]},
+    {"name": "a relabel the known steps prove is named even when another step is unknown (#551 verification)", "meta": {"provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "lineage": [{"of": "input", "source": "fallback", "confidence": "high", "derivedFromMock": false, "id": "sha256:aaaaaaaaaaaa"}, {"of": "input", "confidence": "high", "derivedFromMock": false, "id": "sha256:bbbbbbbbbbbb"}]}, "expectContains": ["source over-claim: source 'real' is cleaner than its ancestry's weakest source 'fallback'", "unknown source: lineage step 1 has no source"]}
   ],
   "validate": [
     {
@@ -707,6 +723,7 @@
       "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [7] },
       "expectRefused": ["invalid envelope: lineage step 0 is not a plain object"]
     },
-    {"name": "a lineage step with no source is refused: with no rung to degrade to, it cannot be shown not to be mock (fail closed; a missing confidence counts as none instead; #525 review)", "meta": {"provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{"of": "input", "confidence": "high", "derivedFromMock": false, "id": "sha256:aaaaaaaaaaaa"}]}, "expectRefused": ["invalid envelope: lineage step 0 has no source"]}
+    {"name": "a lineage step with no source is refused: with no rung to degrade to, it cannot be shown not to be mock (fail closed; a missing confidence counts as none instead; #525 review)", "meta": {"provenanceVersion": 2, "source": "derived", "confidence": "high", "derivedFromMock": false, "lineage": [{"of": "input", "confidence": "high", "derivedFromMock": false, "id": "sha256:aaaaaaaaaaaa"}]}, "expectRefused": ["invalid envelope: lineage step 0 has no source"]},
+    {"name": "a relabelled derived value is refused through the audit: source 'real' over a fallback ancestry (#556)", "meta": {"provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": false, "weakestSource": "fallback", "lineage": [{"of": "input", "source": "fallback", "confidence": "high", "derivedFromMock": false, "id": "sha256:aaaaaaaaaaaa"}]}, "expectRefused": ["audit: source over-claim: source 'real' is cleaner than its ancestry's weakest source 'fallback'"]}
   ]
 }

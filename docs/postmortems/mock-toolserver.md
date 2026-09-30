@@ -139,6 +139,7 @@ while explicitly claiming it is real:
 ```
 attempted launder (derive with source: "real"):
   laundering: clean source 'real' but derivedFromMock is true
+  source over-claim: source 'real' is cleaner than its ancestry's weakest source 'mock'
 ```
 
 The claim is accepted; the taint is not cleared; the library's runtime
