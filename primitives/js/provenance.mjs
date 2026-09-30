@@ -266,8 +266,12 @@ export function combineProvenance(...metas) {
     confidenceScore,
     derivedFromMock,
     lineage,
-    // Weakest source anywhere in the ancestry, read off the full lineage.
-    weakestSource: weakestSource(...lineage.map((s) => s?.source)),
+    // Weakest source anywhere in the ancestry, read off the full lineage, and
+    // omitted when any step's source cannot be ranked (#551): read off the
+    // known steps alone, an unknown ancestor left the result looking clean.
+    weakestSource: lineage.every((s) => STATUS.includes(s?.source))
+      ? weakestSource(...lineage.map((s) => s?.source))
+      : undefined,
   });
 }
 

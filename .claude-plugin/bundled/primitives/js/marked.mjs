@@ -53,6 +53,14 @@ export function metaOf(marked) {
   return meta;
 }
 
+/** A plain (object-literal or null-prototype) object holding `value`: the
+ * shape mark() and derive() build, and the one guard() reads (#550). */
+function isMarkedValue(x) {
+  if (x === null || typeof x !== "object" || Array.isArray(x)) return false;
+  const proto = Object.getPrototypeOf(x);
+  return (proto === Object.prototype || proto === null) && Object.hasOwn(x, "value");
+}
+
 /**
  * Derives a new marked value from one or more marked inputs.
  * The combination law is applied automatically: mock taint and the weakest
@@ -66,8 +74,24 @@ export function metaOf(marked) {
  * @returns {Readonly<{value: *, source: string, confidence: string, derivedFromMock: boolean, lineage: object[]}>}
  */
 export function derive(inputs, fn, metaOverride = {}) {
-  const value = fn(...inputs.map(unwrap));
-  const combined = combineProvenance(...inputs.map(metaOf));
+  // The inputs are read once, into an array (#550 review): a generator was
+  // otherwise used up by the check and combined as zero inputs, dropping its
+  // taint, and forEach skipped a sparse array's holes. A string or a
+  // non-iterable is not a list of inputs.
+  if (inputs == null || typeof inputs === "string" || typeof inputs[Symbol.iterator] !== "function")
+    throw new TypeError("derive: inputs must be a list of marked values");
+  const items = Array.from(inputs);
+  // Every input must be a marked value, as the egress guard reads one: a plain
+  // object holding `value` beside the envelope fields (#550). An unmarked
+  // object or null used to be combined as an unknown input here, while the
+  // Python twin raised; an input with no envelope is kept out at the source.
+  // Checked before fn runs.
+  for (let i = 0; i < items.length; i++) {
+    if (!isMarkedValue(items[i]))
+      throw new TypeError(`derive: input ${i} is not a marked value (mark it first)`);
+  }
+  const value = fn(...items.map(unwrap));
+  const combined = combineProvenance(...items.map(metaOf));
   const safeOverride = {};
   for (const key of OVERRIDE_KEYS) {
     if (key in metaOverride) safeOverride[key] = metaOverride[key];

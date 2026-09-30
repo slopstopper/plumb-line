@@ -423,6 +423,62 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **`derive` refuses an input that is not a marked value, in both
+  languages (breaking for callers who passed one)**
+  ([#550](https://github.com/slopstopper/plumb-line/issues/550); SPEC §2).
+  JS used to combine an unmarked object or `null` as an unknown input, giving
+  a result whose headline `derivedFromMock` was `false`. It threw an
+  unrelated `TypeError` on a number, and Python raised an unrelated
+  `KeyError` or `TypeError` on all three. Both now throw the same
+  `TypeError`, `derive: input N is not a marked value (mark it first)`,
+  before the function runs. A marked value is the shape the egress guard
+  reads. So JS callers who passed a `Map`, a `Date` or a class instance
+  holding `value`, and Python callers who passed a `Mapping` that is not a
+  `dict` (`MappingProxyType`), are refused too. `derive` now reads `inputs`
+  once into a list. Before, a generator was combined as zero inputs, so a
+  mock value from a generator came out labelled `unavailable` and passed
+  the egress guard, in both languages. `inputs` that are not a list of
+  values are refused with `derive: inputs must be a list of marked values`.
+- **The audit names an unknown or over-claimed source instead of reading it
+  as clean** ([#551](https://github.com/slopstopper/plumb-line/issues/551),
+  [#556](https://github.com/slopstopper/plumb-line/issues/556),
+  [#553](https://github.com/slopstopper/plumb-line/issues/553); SPEC §2,
+  §3 rule 6, §5 checks 7–10). Owner decisions of 2026-09-29, after the
+  ruling that a value must not be labelled as something it is not known to
+  be:
+  - **`combine` omits `weakestSource` when any ancestor's source is
+    unknown.** Before, `combine(real, <input with no source>)` said
+    `weakestSource: "real"`. Two rows that expected it now expect it
+    absent. A consumer that filters on `weakestSource` loses the known floor
+    in that case (`combine(fallback, <unknown>)` used to say `"fallback"`).
+    The guard loses nothing: it refuses the unknown step. A `weakestSource`
+    stated over such a lineage is flagged, since it cannot be shown.
+  - **New audit issues:** `unknown source:` for a lineage step that is not
+    an object or whose `source` is missing, `null` or off the ladder, and
+    `malformed taint flag:` for a step whose `derivedFromMock` is not a
+    boolean (#555 made that neither taint nor clean). Neither calls
+    anything mock. The egress guard already refuses such a step as an
+    `invalid envelope:`, and returns that alone, so these name it for the
+    audit's own readers.
+  - **`source over-claim:` covers a relabelled value.** A `source` cleaner
+    than its ancestry's weakest source (`derive([fallback], fn, {source:
+    "real"})`) is flagged, and so the guard refuses it, with `noMock: false`
+    too. The weakest source is read from `weakestSource`, and also from the
+    lineage when a handed envelope omits it. `"derived"` is exempt on both
+    sides, since it is the law's own label: a derive of a derive of real data
+    relabelled `real` passes, as the one-level case does. `"derived"` as a
+    floor is exempt only when the lineage shows a `real` step, so a `real`
+    source over a lineage of `derived` steps alone is flagged. So is a leaf
+    stating `weakestSource: "derived"`: it shows no real data, for example
+    a value re-marked `derived` with its lineage dropped. A leaf whose
+    `weakestSource` is dirtier than its `source` is flagged too. Unknown
+    steps do not excuse a relabel the known steps already prove.
+    `docs/threat-model.md` said the audit caught a relabel; it did so only
+    when mock taint was involved.
+  - **A leaf's hand-set `weakestSource` cleaner than its own `source` is
+    flagged** (`mark(v, {source: "fallback", weakestSource: "real"})`). The
+    primitives README and SPEC §4 said it could not be hand-set. It is not
+    refused, and both now say the audit flags it.
 - **`combine` agrees across languages on handed envelopes that are not
   well formed** ([#525](https://github.com/slopstopper/plumb-line/issues/525);
   SPEC §3, §4; `primitives/PARITY.md`). The same inputs gave different results

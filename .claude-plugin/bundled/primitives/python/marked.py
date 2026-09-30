@@ -1,4 +1,6 @@
 """marked — thin wrapper sugar over the provenance law. The law lives in provenance.py."""
+from collections.abc import Iterable, Mapping
+
 try:  # installed as a package (plumb_line_provenance)
     from .provenance import combine_provenance, make_meta
 except ImportError:  # flat / copy-paste usage (modules on sys.path)
@@ -73,8 +75,22 @@ def derive(inputs, fn, **meta_override):
     Returns:
         dict: ``{"value": ..., "meta": {...}}``.
     """
-    value = fn(*[unwrap(i) for i in inputs])
-    combined = combine_provenance(*[meta_of(i) for i in inputs])
+    # The inputs are read once, into a list (#550 review): a generator was
+    # otherwise used up by the check and combined as zero inputs, dropping its
+    # taint. A string, a mapping or a non-iterable is not a list of inputs.
+    if isinstance(inputs, (str, bytes, Mapping)) or not isinstance(inputs, Iterable):
+        raise TypeError('derive: inputs must be a list of marked values')
+    items = list(inputs)
+    # Every input must be a marked value, as the egress guard reads one: a dict
+    # holding 'value' and 'meta' (#550). Python raised an unrelated KeyError
+    # or TypeError here while the JS twin combined an unmarked object or None
+    # as an unknown input; an input with no envelope is kept out at the source.
+    # Checked before fn runs.
+    for i, item in enumerate(items):
+        if not (isinstance(item, dict) and 'value' in item and 'meta' in item):
+            raise TypeError(f'derive: input {i} is not a marked value (mark it first)')
+    value = fn(*[unwrap(i) for i in items])
+    combined = combine_provenance(*[meta_of(i) for i in items])
     overridden = dict(combined)
     # provenance_version is stamped by make_meta itself from the constant; it is
     # not one of make_meta's parameters, so it must not be re-forwarded here.

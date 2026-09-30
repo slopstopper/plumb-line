@@ -30,7 +30,7 @@ ancestry** — laundering, over-claiming, or a dropped taint.
 
 | Actor | In scope? | How they are served |
 | --- | --- | --- |
-| **The honest-but-careless developer** — the primary actor. Wants correct provenance, will make mistakes: combine values by hand, relabel a derived value, forget that a fallback tainted the result. | **Yes — the whole point.** | The combination law makes the right thing automatic; the audit catches inconsistent envelopes at run time; the static lint catches bypass patterns at review time. |
+| **The honest-but-careless developer** — the primary actor. Wants correct provenance, will make mistakes: combine values by hand, relabel a derived value, forget that a fallback tainted the result. | **Yes — the whole point.** | The combination law makes the right thing automatic; the audit catches inconsistent envelopes at run time, including a derived value relabelled above its ancestry (since v0.12.0, #556; before that only when mock taint was involved); the static lint catches bypass patterns at review time. |
 | **The reviewer** auditing a diff before it lands. | **Yes.** | The static lint (PB1–PB4) and the `plumb-line-audit` skill surface laundering and bypass patterns in source. |
 | **A malicious actor with code execution in your process / language.** | **No — explicit non-goal.** | They can already do anything: mutate a Python dict, reflectively defeat a freeze, fabricate an envelope. The envelope is integrity *evidence*, not a sandbox. See §4. |
 

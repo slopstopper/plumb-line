@@ -89,6 +89,14 @@ The combination law is applied automatically:
 
 **Returns** a marked value with `source: "derived"`.
 
+Every input must be a marked value (since v0.12.0, #550): in JS a plain
+object holding `value`, in Python a dict holding `value` and `meta`, as the
+egress guard reads them. Anything else is refused, before `fn` runs, with a
+`TypeError`: `derive: input 1 is not a marked value (mark it first)`, where
+the position counts from 0. `inputs` may be any iterable other than a string
+or a mapping (a generator is read once); anything else is refused with
+`derive: inputs must be a list of marked values`.
+
 ```js
 // JavaScript
 const a = mark(10, { source: "real", confidence: "high" });
@@ -147,7 +155,9 @@ a category:
 |---|---|
 | `"laundering:"` | A clean `source` (`real`, `semiReal`, `fallback`) but `derivedFromMock` is `true` |
 | `"over-claiming:"` | `confidence` or `confidenceScore` is higher than the lineage supports |
-| `"source over-claim:"` | `weakestSource` is cleaner than the lineage proves |
+| `"source over-claim:"` | `weakestSource` is cleaner than the lineage proves, or is stated over a lineage with an unknown source; or `source` (other than `"derived"`) is cleaner than its ancestry's weakest source, a relabelled value (#556); or, with no lineage, `weakestSource` is cleaner than `source` (#553) |
+| `"unknown source:"` | A lineage step that is not an object, or whose `source` is missing, `null` or off the ladder (#551) |
+| `"malformed taint flag:"` | A lineage step whose `derivedFromMock` is not a boolean; `null` counts as absent (#551, #555) |
 | `"taint dropped:"` | A lineage step that taints (by the rule of `taints`) but `derivedFromMock` is `false` |
 | `"unreproducible:"` | `source` is `"derived"` but `lineage` is empty |
 | `"version-legacy:"` | `provenanceVersion` is absent or lower than the current wire version (advisory; `{}` returns only this) |
