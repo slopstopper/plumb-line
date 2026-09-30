@@ -26,7 +26,10 @@ planted violation blocks the release.
    sources carry comments naming the planted violation *and its principle
    number* (`// VIOLATION P2: upward import …`), so an auditor reading the
    fixture is handed the answer key even with both files withheld. Run the
-   auditor against a scratch copy outside the repo with the key files deleted
+   auditor against a scratch copy outside the repo, of the fixture's
+   committed files only (`git archive HEAD:<fixture>`: an untracked
+   `node_modules` is not the fixture, and the strip below breaks ESLint's own
+   source), with the key files deleted
    and every line matching `violation` **case-insensitively** removed — the
    same treatment `REMEDIATE-EXPECTATIONS.md` step 1 applies. Verify the copy is
    clean (`grep -ri violation <scratch>` returns nothing) before dispatching:
