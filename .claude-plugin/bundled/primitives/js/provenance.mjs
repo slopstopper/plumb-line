@@ -271,7 +271,9 @@ export function combineConfidenceScore(scores) {
   if (scores.length === 0 || !scores.every(isScore)) return undefined;
   // -0 is returned as 0: Python's min() over 0.0 and -0.0 depends on argument
   // order, so the result would too (#525 review).
-  const min = Math.min(...scores);
+  // Folded pairwise, not spread: a spread passes one argument per score, and
+  // a long lineage overflowed the stack (#560).
+  const min = scores.reduce((a, b) => Math.min(a, b));
   return min === 0 ? 0 : min;
 }
 
@@ -346,8 +348,9 @@ export function combineProvenance(...metas) {
     // Weakest source anywhere in the ancestry, read off the full lineage, and
     // omitted when any step's source cannot be ranked (#551): read off the
     // known steps alone, an unknown ancestor left the result looking clean.
+    // Folded, not spread, so a long lineage cannot overflow the stack (#560).
     weakestSource: lineage.every((s) => STATUS.includes(s?.source))
-      ? weakestSource(...lineage.map((s) => s?.source))
+      ? lineage.reduce((weakest, s) => weakestSource(weakest, s?.source), undefined)
       : undefined,
   });
 }

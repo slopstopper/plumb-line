@@ -171,7 +171,9 @@ export function guard(x, options) {
   if (minConfidence !== "none") {
     // An absent step confidence counts as none: the guard vouches only for
     // what the lineage states.
-    const weakest = weakestConfidence(meta.confidence, ...steps.map((step) => step.confidence));
+    // Folded, not spread, so a long lineage cannot overflow the stack (#560).
+    const weakest = steps.reduce((w, step) => weakestConfidence(w, step.confidence),
+      weakestConfidence(meta.confidence));
     if (CONFIDENCE.indexOf(weakest) < CONFIDENCE.indexOf(minConfidence))
       reasons.push(`confidence: ${weakest} is below the required ${minConfidence}`);
   }

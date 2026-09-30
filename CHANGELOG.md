@@ -502,6 +502,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **JS combine, audit and guard no longer overflow the stack on a long
+  lineage** ([#560](https://github.com/slopstopper/plumb-line/issues/560);
+  `primitives/js`). With 200,000 steps, `combineProvenance`, `auditMeta` and
+  `guard` threw `RangeError: Maximum call stack size exceeded`, where Python
+  returned a result: each spread the whole lineage into one call
+  (`weakestSource(...)`, `weakestConfidence(...)`, `Math.min(...)`), one
+  argument per step. SPEC §5 requires the checker to be total. Each now
+  folds the lineage pairwise with the same function, so results are
+  unchanged; the public signatures are too. A 200,000-step test in each
+  language holds both to the same results.
 - **The eval suite audits the committed fixtures, and its header grader
   requires the header to open the report**
   ([#530](https://github.com/slopstopper/plumb-line/issues/530);

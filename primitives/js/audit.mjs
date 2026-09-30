@@ -114,7 +114,9 @@ export function auditMeta(meta) {
     .filter((c) => c != null)
     .map((c) => (CONFIDENCE.includes(c) ? c : "none"));
   if (lineageConfidences.length > 0) {
-    const weakest = weakestConfidence(...lineageConfidences);
+    // Folded pairwise, not spread: a spread passes one argument per step, and
+    // a long lineage overflowed the stack (#560). The same below.
+    const weakest = lineageConfidences.reduce((a, b) => weakestConfidence(a, b));
     if (CONFIDENCE.indexOf(meta.confidence) > CONFIDENCE.indexOf(weakest)) {
       issues.push(
         `over-claiming: confidence '${meta.confidence}' exceeds weakest lineage confidence '${weakest}'`,
@@ -128,7 +130,7 @@ export function auditMeta(meta) {
       .map((s) => s?.confidenceScore)
       .filter((c) => isScore(c));
     if (lineageScores.length > 0) {
-      const weakest = Math.min(...lineageScores);
+      const weakest = lineageScores.reduce((a, b) => Math.min(a, b));
       if (meta.confidenceScore > weakest) {
         issues.push(
           `over-claiming: confidenceScore ${meta.confidenceScore} exceeds weakest lineage score ${weakest}`,
@@ -139,7 +141,7 @@ export function auditMeta(meta) {
 
   // Source over-claim — weakestSource cannot look cleaner than the lineage proves.
   if (STATUS.includes(meta.weakestSource)) {
-    const actual = weakestSource(...lineage.map((s) => s?.source));
+    const actual = lineage.reduce((weakest, s) => weakestSource(weakest, s?.source), undefined);
     if (actual && STATUS.indexOf(meta.weakestSource) > STATUS.indexOf(actual)) {
       issues.push(
         `source over-claim: weakestSource '${meta.weakestSource}' is cleaner than lineage's '${actual}'`,
