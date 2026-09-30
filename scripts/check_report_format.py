@@ -246,6 +246,15 @@ def load_ruleset_revision(text):
     return int(m.group(1)) if m else None
 
 
+# How the issue for a report scored under an earlier ruleset begins its reason.
+# `_unearned_stamp` reads it: a stamp earned before the ruleset moved on was
+# honest when it was printed.
+_REVISION_BEHIND = "is older than the ruleset's revision"
+# The whole issue, anchored: other issues quote report text, which could
+# carry the phrase (#581 review).
+_REVISION_BEHIND_ISSUE = re.compile(r"^principles-revision [0-9]+ " + re.escape(_REVISION_BEHIND) + " ")
+
+
 def _header_lines(text):
     """The header's `key: value` lines.
 
@@ -339,8 +348,8 @@ def _check_header(pairs, required, version_key, known_versions, issues,
                     f"{ruleset_revision} and has never been higher")
             else:
                 issues.append(
-                    f"principles-revision {stated} is older than the ruleset's "
-                    f"revision {ruleset_revision}: this report was scored under "
+                    f"principles-revision {stated} {_REVISION_BEHIND} "
+                    f"{ruleset_revision}: this report was scored under "
                     f"an earlier ruleset, and is validated against the current one")
 
     commit = values.get("commit")
@@ -752,6 +761,33 @@ def _check_validation_stamps(text):
     return issues
 
 
+def _unearned_stamp(text, issues):
+    """A stamp claiming this checker's version, over text this checker fails
+    (#581): the stamp was not earned on this text, since this checker, on the
+    same ruleset, would not have printed it. Added only when `issues` is
+    already non-empty, so it never changes pass or fail and is not a rule
+    change (CHECKER_VERSION is unchanged). It names the failure a record must
+    not file as an ordinary format fail, a verdict asserted rather than
+    earned (#293).
+
+    Only a current stamp is accused. A stamp from an older checker, or none
+    recorded, may have been earned under rules that have since tightened
+    (validation_notes says which), and a report scored under an earlier
+    ruleset fails here for that: neither is evidence of a false claim. A
+    report behind the ruleset is not accused even when it fails for other
+    reasons too, since which rule a stale stamp would have met is unknown.
+    Seen live (#581): two 2026-09-30 eval reports carried a v6 stamp over a
+    message that opens with prose above the header. The transcripts were not
+    kept, so how each stamp came to be there is not known."""
+    current = any(ver == CHECKER_VERSION for ver in _validation_stamps(text))
+    if issues and current and not any(_REVISION_BEHIND_ISSUE.match(i) for i in issues):
+        return [f"format-validation claims clean under checker v{CHECKER_VERSION}, "
+                "but this text fails it (above): the stamp was not earned on the "
+                "text being returned; a stamp is only true of the exact text it "
+                "was run on (#581)"]
+    return []
+
+
 def check(text, principles, ruleset_revision=None):
     """`ruleset_revision` None means the caller does not know the ruleset's
     revision, and the comparison is skipped; `main` always supplies it."""
@@ -774,11 +810,13 @@ def check(text, principles, ruleset_revision=None):
                 f"cannot tell which one it is validating")
         checker = {"report": check_report, "remediation": check_remediation,
                    "routing": check_routing}[kind]
-        return issues + checker(text, principles, ruleset_revision) + _check_validation_stamps(text)
-    return ["unrecognised report contract: the first header key must be "
-            "'report-format:', 'remediation-format:' or 'routing-format:' — "
-            "check for a title line, prose, or an unclosed code fence above "
-            "the header block"]
+        issues += checker(text, principles, ruleset_revision) + _check_validation_stamps(text)
+        return issues + _unearned_stamp(text, issues)
+    issues = ["unrecognised report contract: the first header key must be "
+              "'report-format:', 'remediation-format:' or 'routing-format:' — "
+              "check for a title line, prose, or an unclosed code fence above "
+              "the header block"]
+    return issues + _unearned_stamp(text, issues)
 
 
 def main(argv):

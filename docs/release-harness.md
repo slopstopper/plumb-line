@@ -154,6 +154,14 @@ These are machine checks, not judgement calls — they either pass or block:
       (#221) — record that line with the verdict, since it is what makes the
       stored evidence attributable.
 
+      Run it on each report **as delivered**: the auditor's final message,
+      saved unchanged, never a copy the auditor saved or checked itself.
+      A report stamped `format-validation: … — clean` by the current
+      checker that fails gets its own issue, the stamp not earned on the
+      text returned: record it as a false verdict, not only a format fail.
+      Two 2026-09-30 eval reports were exactly that (#581, #293). An older
+      stamp is noted, not accused: the rules may have tightened since.
+
       **This replaces a human judgement.** Every "no format FAILs" line recorded
       in `validation-results.md` up to v0.7.3 was someone reading the report and
       deciding — which is exactly the P7 gap #139 was filed for. Score format

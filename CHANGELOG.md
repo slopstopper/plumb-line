@@ -10,6 +10,27 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Added
+- **The checker names a current `— clean` stamp over text it fails**
+  ([#581](https://github.com/slopstopper/plumb-line/issues/581);
+  `scripts/check_report_format.py`). Two with-plugin audit reports in the
+  2026-09-30 eval run printed `format-validation: … v6 — clean` over a
+  message checker v6 fails: both open with a prose summary above the
+  header, and one's body also fails. The transcripts were not kept, so
+  how the stamps got there is not known. Run on the delivered message,
+  the checker already failed them, as an ordinary format failure. It now
+  adds one more issue to failing text stamped clean by this checker's
+  version: the stamp was not earned on the text being returned. An older
+  or unversioned stamp, or a report scored under an earlier ruleset, is
+  noted as before, not accused. It never changes pass or fail, so the
+  checker version stays 6. The audit, adopt and remediate skills now say how the stamp stays
+  true: print the checked file as the message, unchanged, with nothing
+  above the header; re-run the checker after any edit; put anything else
+  after the report. The release harness, `AUDIT-EXPECTATIONS.md` and
+  `evals/README.md` check each report as delivered, and record a false
+  stamp as a false verdict. `claude plugin eval` has no grader that runs
+  code, so the check runs on the messages a record keeps, not inside the
+  suite; the runner kept no broken-case message text in the 2026-09-30
+  run, so a false stamp there is not caught yet (#585).
 - **The branch guard's commit hook knows the branch during a rebase**
   ([#547](https://github.com/slopstopper/plumb-line/issues/547);
   `adapters/adapter-contract.md`, `plumb-line-bootstrap`). HEAD is detached
@@ -502,6 +523,27 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **JS combine, audit and guard no longer overflow the stack on a long
+  lineage** ([#560](https://github.com/slopstopper/plumb-line/issues/560);
+  `primitives/js`). With 200,000 steps, `combineProvenance`, `auditMeta` and
+  `guard` threw `RangeError: Maximum call stack size exceeded`, where Python
+  returned a result: each spread the whole lineage into one call
+  (`weakestSource(...)`, `weakestConfidence(...)`, `Math.min(...)`), one
+  argument per step. SPEC §5 requires the checker to be total. Each now
+  folds the lineage pairwise with the same function, so results are
+  unchanged; the public signatures are too. A 200,000-step test in each
+  language holds both to the same results. A lineage with a hole (a sparse
+  JS array) is now read as Python reads a `None` step: the audit names it
+  as a step that is not an object, combine keeps it in the combined
+  lineage, and the guard refuses it as an invalid envelope, handed to it
+  directly or after a `derive`, where all three skipped it before. The
+  audit and guard read the lineage by index, once, so what the guard
+  validates is what it judges. `combineConfidenceScore` reads a hole as a
+  gap and returns `undefined`, where it returned `NaN`, and accepts a
+  collection that can be read twice, such as a Set, as Python does, where
+  it threw on a non-array. Many
+  *inputs* (100,000 or more to `derive` or `combineProvenance`) still
+  overflow in JS: [#586](https://github.com/slopstopper/plumb-line/issues/586).
 - **The eval suite audits the committed fixtures, and its header grader
   requires the header to open the report**
   ([#530](https://github.com/slopstopper/plumb-line/issues/530);

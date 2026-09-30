@@ -40,7 +40,17 @@ Graders per case:
   with-only, the broken cases; on the clean cases it and the checker grader
   are indicators, so format there is recorded by running the checker on the
   reports, not gated (owner decision 2026-09-30, #530): every eval record
-  runs the checker on each report it can recover.
+  runs the checker on each report it can recover. That is the message as
+  delivered, which the runner kept as the clean cases' judge evidence in
+  the 2026-09-30 run, never a copy the auditor checked; a report that fails while stamped
+  `— clean` by the current checker gets its own issue, the stamp not
+  earned, and the record counts it as a false verdict, not only a format
+  fail (#581). The checker cannot run inside the suite: the runner has no
+  grader that executes code ("There are no custom-code graders",
+  <https://code.claude.com/docs/en/plugin-evals.md>), and in the
+  2026-09-30 run it kept no text of the broken-case messages
+  (`docs/records/evals/2026-09-30.md`), so a false stamp there is not
+  caught (#585).
 - `regex` (with-only), broken cases, one per planted violation: a
   findings-table row whose Path cell names the file, whose Status cell is
   `violation` and whose Principle cell carries the principle's inline name.

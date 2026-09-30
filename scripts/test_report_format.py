@@ -1113,3 +1113,110 @@ def test_bootstrap_and_remediate_move_with_the_audit_contract():
 def test_a_v4_status_may_sit_in_a_code_span_or_italics(status):
     text = VALID_REPORT.replace("| `load_scores` | violation |", f"| `load_scores` | {status} |")
     assert crf.check_report(text, PRINCIPLES) == []
+
+
+# --- #581: a current clean stamp over text the checker fails is named ---------
+# The 2026-09-30 eval run delivered two audit reports stamped
+# `format-validation: ... v6 — clean` that checker v6 fails: both open with a
+# prose summary above the header, and run 3's body also fails on its glossary.
+# The transcripts were not kept, so how each stamp got there is not known. Run
+# on the delivered message, the checker already failed them; it now also says
+# the stamp was not earned on this text, so a record can tell a false verdict
+# from an ordinary format failure (#293). Only a stamp claiming this checker's
+# version is accused: an older one may have been earned under looser rules.
+
+_STAMP = f"format-validation: scripts/check_report_format.py v{crf.CHECKER_VERSION} — clean"
+_GLOSSARY_GAP = ("| mock given a real source |", "| mock given a real source (P6 — Maturity vocabulary) |")
+
+
+def _unearned(issues):
+    return [i for i in issues if "not earned" in i]
+
+
+def _revision(text, n):
+    return text.replace("principles-revision: 1\n", f"principles-revision: {n}\n")
+
+
+@pytest.mark.parametrize("text", [
+    # a prose summary above the header, as both 2026-09-30 reports open
+    "The audit found no confirmed violations.\n\n" + _with_validation(_STAMP),
+    # a body that fails on its own: a principle cited that the glossary lacks
+    _with_validation(_STAMP).replace(*_GLOSSARY_GAP),
+    # a revision ahead of the ruleset is never honest against a current checkout
+    _revision(_with_validation(_STAMP), REVISION + 1),
+    # another issue quoting the revision-behind phrase is not a revision behind
+    _with_validation(_STAMP).replace(
+        "date:                2026-08-11", "date:                is older than the ruleset's revision"),
+    # the same rule for the other contracts
+    "Summary first.\n\n" + VALID_REMEDIATION + "\n" + _STAMP + "\n",
+])
+def test_a_current_clean_stamp_over_failing_text_is_named_as_not_earned(text):
+    issues = _check(text)
+    assert len(_unearned(issues)) == 1, issues
+    assert "#581" in _unearned(issues)[0] and f"v{crf.CHECKER_VERSION}" in _unearned(issues)[0]
+
+
+def test_the_glossary_row_fails_for_the_glossary_before_the_stamp():
+    # The fixture above must fail on its own terms, or the row proves nothing.
+    text = _with_validation(_STAMP).replace(*_GLOSSARY_GAP)
+    assert any("P6 is cited but not in the glossary" in i for i in _check(text))
+
+
+# A report stamped clean by checker v4, then failed by v5's stricter rule on
+# slash-joined codes (#527): honest when printed. The review's counterexample.
+_V4_THEN_TIGHTENED = _with_validation(
+    "format-validation: scripts/check_report_format.py v4 — clean").replace(
+    "This audit does not claim completeness.", "This audit does not claim completeness. See P3/P7.")
+
+
+@pytest.mark.parametrize("text", [
+    _with_validation(_STAMP),                                     # earned: passes
+    "Summary first.\n\n" + VALID_REPORT,                          # fails, claims nothing
+    "Summary first.\n\n" + _with_validation(
+        "format-validation: not run (checker unavailable in this repo)"),  # fails, says so
+    _V4_THEN_TIGHTENED,                                           # older stamp, rules tightened
+    "Summary first.\n\n" + _with_validation(
+        "format-validation: scripts/check_report_format.py v2 — clean"),   # older stamp
+    "Summary first.\n\n" + _with_validation(
+        "format-validation: scripts/check_report_format.py — clean"),      # version unrecorded
+    _revision(_with_validation(_STAMP), REVISION - 1),            # the ruleset moved on
+])
+def test_no_unearned_issue_without_a_current_claim_over_a_failure(text):
+    assert _unearned(_check(text)) == []
+
+
+def test_the_tightened_v4_report_does_fail_and_is_noted_not_accused():
+    issues = _check(_V4_THEN_TIGHTENED)
+    assert issues and _unearned(issues) == [], issues
+    assert any("v4" in n for n in crf.validation_notes(_V4_THEN_TIGHTENED))
+
+
+@pytest.mark.parametrize("body", [
+    VALID_REPORT,
+    "Summary first.\n\n" + VALID_REPORT,
+    VALID_REPORT.replace(*_GLOSSARY_GAP),
+    _revision(VALID_REPORT, REVISION + 1),
+    _revision(VALID_REPORT, REVISION - 1),
+    "Summary first.\n\n" + VALID_REMEDIATION,
+    "not a report at all\n",
+])
+def test_the_unearned_issue_never_changes_a_verdict(body):
+    # Pass or fail with the current stamp is pass or fail without it, so the
+    # checker's rule set (CHECKER_VERSION) is unchanged.
+    assert bool(_check(body + "\n" + _STAMP + "\n")) == bool(_check(body))
+
+
+_EVAL_REPORTS = os.path.join(_ROOT, "docs", "records", "evals", "2026-09-30")
+
+
+@pytest.mark.parametrize("name,unearned", [
+    ("js-clean-with-1.md", False), ("js-clean-with-2.md", True), ("js-clean-with-3.md", True),
+    ("py-clean-with-1.md", False), ("py-clean-with-2.md", False), ("py-clean-with-3.md", False),
+])
+def test_the_delivered_eval_reports_are_judged_as_recorded(name, unearned):
+    # The messages the 2026-09-30 run delivered, committed unchanged: the
+    # checker names exactly the two stamps the record found false by hand.
+    with open(os.path.join(_EVAL_REPORTS, name), encoding="utf-8") as fh:
+        issues = _check(fh.read())
+    assert bool(_unearned(issues)) is unearned, (name, issues)
+    assert bool(issues) is unearned, (name, issues)
