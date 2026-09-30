@@ -60,7 +60,9 @@ planted violation blocks the release.
    finding accuracy — a report that can't be reproduced fails even if every
    finding is correct.
 
-   **Score this with the checker, not by reading.** Save each report and run:
+   **Score this with the checker, not by reading.** Save each report as
+   delivered, the auditor's final message unchanged (never a copy the auditor
+   saved or checked itself), and run:
 
    ```
    python3 scripts/check_report_format.py <each saved report>

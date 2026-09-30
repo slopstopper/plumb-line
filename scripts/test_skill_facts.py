@@ -511,3 +511,20 @@ def test_audit_check_10_outcome_bullet_agrees_with_the_evidence_rule():
 def test_audit_check_10_a_citation_does_not_make_an_alongside_unit_test_the_requirements():
     # Defect A: the unit-test exception wins over "cites the requirement".
     assert "a citation or a name alone" in _audit_check_10().lower()
+
+
+# --- #581: the message is the text the checker passed --------------------------
+# Two 2026-09-30 eval reports printed a clean stamp over a message the checker
+# fails: the auditor checked a saved copy, then returned a prose summary above
+# the header, or an edited body. "On the exact text being returned" was already
+# written; what was missing was how: print the checked file, unchanged.
+
+@pytest.mark.parametrize("skill", ["plumb-line-audit", "plumb-line-adopt", "plumb-line-remediate"])
+def test_the_validating_skills_print_the_checked_text_unchanged(skill):
+    text = " ".join(SKILLS[skill].split())
+    for phrase in ("the message is the text the checker passed",
+                   "as your message, unchanged",
+                   "nothing above the header",
+                   "re-run the checker on the changed text",
+                   "after its last line"):
+        assert phrase in text.lower(), (skill, phrase)

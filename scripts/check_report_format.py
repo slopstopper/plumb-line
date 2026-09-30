@@ -752,6 +752,21 @@ def _check_validation_stamps(text):
     return issues
 
 
+def _unearned_stamp(text, issues):
+    """A `— clean` stamp over text this checker fails: the verdict was earned,
+    if at all, on some other text (#581). Added only when `issues` is already
+    non-empty, so it never changes pass or fail and is not a rule change
+    (CHECKER_VERSION is unchanged); it names the failure a record must not
+    file as an ordinary format fail, a verdict asserted rather than earned
+    (#293). Seen live: the auditor checked a saved copy, then returned a prose
+    summary above the header, or an edited body."""
+    if issues and _VALIDATION_CLEAN.search(text):
+        return ["format-validation claims clean, but this text fails the checker "
+                "(above): the stamp was not earned on the text being returned — "
+                "a stamp is only true of the exact text it was run on (#581)"]
+    return []
+
+
 def check(text, principles, ruleset_revision=None):
     """`ruleset_revision` None means the caller does not know the ruleset's
     revision, and the comparison is skipped; `main` always supplies it."""
@@ -774,11 +789,13 @@ def check(text, principles, ruleset_revision=None):
                 f"cannot tell which one it is validating")
         checker = {"report": check_report, "remediation": check_remediation,
                    "routing": check_routing}[kind]
-        return issues + checker(text, principles, ruleset_revision) + _check_validation_stamps(text)
-    return ["unrecognised report contract: the first header key must be "
-            "'report-format:', 'remediation-format:' or 'routing-format:' — "
-            "check for a title line, prose, or an unclosed code fence above "
-            "the header block"]
+        issues += checker(text, principles, ruleset_revision) + _check_validation_stamps(text)
+        return issues + _unearned_stamp(text, issues)
+    issues = ["unrecognised report contract: the first header key must be "
+              "'report-format:', 'remediation-format:' or 'routing-format:' — "
+              "check for a title line, prose, or an unclosed code fence above "
+              "the header block"]
+    return issues + _unearned_stamp(text, issues)
 
 
 def main(argv):
