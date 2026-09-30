@@ -163,7 +163,8 @@ function describeThrown(e) {
 // plus the envelope fields, as mark() builds it); a non-object `meta` is
 // passed as is, to pin that a value with no envelope is refused. A refusal
 // is a ProvenanceRefused carrying `reasons`; any other throw is a programmer
-// error (a bad option), which only an expectError row accepts.
+// error (a bad option), which only an expectError row accepts, and which
+// must be a TypeError (SPEC §5c).
 function runGuard(impl, c) {
   const expectations = ["expectPass", "expectRefused", "expectError"].filter((k) => k in c);
   if (expectations.length !== 1)
@@ -227,11 +228,21 @@ function judgeGuardThrow(impl, c, e) {
   const proto = e !== null && typeof e === "object" ? Object.getPrototypeOf(e) : null;
   if (proto !== null && Object.prototype.isPrototypeOf.call(proto, impl.ProvenanceRefused.prototype))
     return "a bad option's error must not be a supertype of the refusal";
-  // SPEC §5c and ADR-0020: a bad option is a TypeError in both languages;
+  // SPEC §5c and ADR-0020: a bad option is a TypeError in JS and Python;
   // the Python runner requires one, and this runner accepted any other
-  // error until the v0.12.0 dogfood audit found it.
-  if (proto === null || !(proto === TypeError.prototype || Object.prototype.isPrototypeOf.call(TypeError.prototype, proto)))
-    return `a bad option's error must be a TypeError (SPEC §5c), got ${describeThrown(e)}`;
+  // error until the v0.12.0 dogfood audit found it. Judged against this
+  // runner's realm: a TypeError made in another realm (vm.runInNewContext)
+  // fails, as the implementation under test runs in this one.
+  if (proto === null || !(proto === TypeError.prototype || Object.prototype.isPrototypeOf.call(TypeError.prototype, proto))) {
+    let kind = "a value with no constructor name";
+    try {
+      const name = proto && Object.getOwnPropertyDescriptor(proto, "constructor")?.value?.name;
+      if (typeof name === "string" && name) kind = `a ${name}`;
+    } catch {
+      kind = "a value that cannot be inspected";
+    }
+    return `a bad option's error must be a TypeError (SPEC §5c), got ${kind}: ${describeThrown(e)}`;
+  }
   const message = describeThrown(e);
   return message.includes(c.expectError)
     ? null

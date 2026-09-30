@@ -314,7 +314,7 @@ describe("conformance runner — v0.12.0 dogfood", () => {
   it("fails a bad-option row whose error is not a TypeError (SPEC §5c, ADR-0020)", () => {
     const odd = { ...impl, guard: () => { throw new RangeError("guard: x"); } };
     const [r] = runCases(odd, table("guard", { name: "x", meta: clean, expectError: "guard: x" }));
-    expect(r.error).toMatch(/must be a TypeError/);
+    expect(r.error).toBe("a bad option's error must be a TypeError (SPEC §5c), got a RangeError: guard: x");
   });
 
   it("passes a bad-option row whose error is a TypeError or a subclass of one", () => {

@@ -556,9 +556,10 @@ reasons joined with `; `.
 `minConfidence` off the confidence ladder, or a `minSource` off the source
 ladder MUST raise an error, before the value is
 examined, with a message starting `guard: ` (an unknown option's naming it:
-`guard: unknown option <name>`). It MUST be a `TypeError` in both languages
-(ADR-0020), and every conformance runner asserts it. Its type MUST NOT be the refusal's type, or a
-supertype or subtype of it, so a caller catching one can never catch the
+`guard: unknown option <name>`). In JavaScript and Python it MUST be a
+`TypeError` (ADR-0020), and both conformance runners assert it; a port in
+another language uses its own argument-error type. Its type MUST NOT be the
+refusal's type, or a supertype or subtype of it, so a caller catching one can never catch the
 other: a bad option must never be read as a refused value, or a refused value
 as a bad option. Where the refusal is a subtype of a standard error callers
 catch (Python's `ValueError`), the bad option's error MUST NOT be one either,
