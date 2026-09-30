@@ -222,3 +222,74 @@ def test_javascript_reads_the_header_grader_as_python_does():
                          capture_output=True, text=True, check=True).stdout
     for name, js in zip(names, json.loads(out)):
         assert js == _search(p, OPENINGS[name]), name
+
+
+# --- no-confirmed-violations: the clean cases' mechanical grader (#591) ------
+#
+# The runner's llm judge is out of scoring until it records its reasoning and
+# passes a calibration set (#591, owner decision 2026-09-30). A clean case
+# fails on any findings row whose Status the checker reads as `violation`, the
+# `finds-*` graders' Status reading with no file or principle named, inverted
+# with `match: not_contains`.
+
+CLEAN = sorted(glob.glob(os.path.join(_ROOT, "evals", "*-clean", "graders", "no-confirmed-violations.md")))
+_DELIVERED = sorted(glob.glob(os.path.join(_ROOT, "docs", "records", "evals", "2026-09-30", "*-with-*.md")))
+
+
+def _front(path):
+    text = open(path, encoding="utf-8").read()
+    return dict(re.findall(r"^(\w+): (.*)$", text.split("---")[1], re.M))
+
+
+def test_two_clean_graders_share_one_pattern_and_invert_it():
+    assert len(CLEAN) == 2, CLEAN
+    assert len({_pattern(p) for p in CLEAN}) == 1
+    for p in CLEAN:
+        front = _front(p)
+        assert (front["type"], front["match"], front["flags"], front["arm"], front["target"]) == \
+            ("regex", "not_contains", "m", "with-only", "last_message"), front
+
+
+def test_no_llm_judge_grader_is_scored():
+    judged = [p for p in glob.glob(os.path.join(_ROOT, "evals", "*", "graders", "*.md"))
+              if _front(p).get("type") == "llm"]
+    assert judged == []
+
+
+@pytest.mark.parametrize("status", CONFIRMED)
+def test_the_clean_grader_finds_every_violation_spelling_the_checker_accepts(status):
+    assert _checker_status_ok(status)
+    assert _matches(_pattern(CLEAN[0]), _REPORT.replace("STATUS", status))
+
+
+@pytest.mark.parametrize("status", NOT_CONFIRMED)
+def test_the_clean_grader_finds_no_other_status(status):
+    assert not _matches(_pattern(CLEAN[0]), _REPORT.replace("STATUS", status))
+
+
+def test_the_clean_grader_finds_no_v3_row_omission_cell_or_row_split_across_lines():
+    p = _pattern(CLEAN[0])
+    v3 = "| `src/foo.py` | 42 | `f` | violation: an issue | a fix | P3 — Confidence + provenance |"
+    omission = "| `f` | yes | NO — violation (P3 — Confidence + provenance) | no | no | yes | no |"
+    split = "| `src/foo.py` | 42 | `f` |\nviolation | an issue | a fix | P3 — Confidence + provenance |"
+    for text in (v3, omission, split):
+        assert not _matches(p, "text\n" + text + "\nmore\n"), text
+
+
+def test_the_delivered_clean_reports_pass_it():
+    # The with-plugin clean reports the 2026-09-30 run delivered: 0 violations
+    # each, by their own summary line.
+    assert len(_DELIVERED) == 6, _DELIVERED
+    for path in _DELIVERED:
+        text = open(path, encoding="utf-8").read()
+        assert re.search(r"\b0 violations\b", text), path
+        assert not _matches(_pattern(CLEAN[0]), text), path
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not on PATH: the JavaScript half is not checked")
+def test_javascript_reads_the_clean_grader_as_python_does():
+    p = _pattern(CLEAN[0])
+    texts = [_REPORT.replace("STATUS", s) for s in CONFIRMED + NOT_CONFIRMED]
+    texts += [open(path, encoding="utf-8").read() for path in _DELIVERED]
+    for text in texts:
+        assert _js_matches(p, text) == _matches(p, text)
