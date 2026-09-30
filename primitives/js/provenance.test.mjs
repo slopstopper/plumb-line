@@ -534,6 +534,46 @@ describe("copying an unusual lineage step (#548 review)", () => {
     expect(() => guard({ value: 1, ...out })).toThrow(ProvenanceRefused);
   });
 
+  it("a parent shaped like Object.prototype, but plain data, keeps its taint", () => {
+    // A null-prototype object holding hasOwnProperty, isPrototypeOf and
+    // propertyIsEnumerable as data, as a pollution-safe JSON parser returns
+    // one: not an Object.prototype, so its derivedFromMock is the step's.
+    const parent = Object.assign(Object.create(null), JSON.parse(
+      '{"hasOwnProperty": 1, "isPrototypeOf": 1, "propertyIsEnumerable": 1, "derivedFromMock": true}'));
+    const step = Object.assign(Object.create(parent), { ...base });
+    const out = combined(step);
+    expect(out.lineage[0].derivedFromMock).toBe(true);
+    expect(() => guard({ value: 1, ...out })).toThrow(ProvenanceRefused);
+  });
+
+  it("a polluted getter on Object.prototype is not copied, whatever it returns", () => {
+    // A getter that answers differently on Object.prototype itself must not
+    // pass as the step's own value.
+    try {
+      Object.defineProperty(Object.prototype, "source", {
+        configurable: true,
+        get() { return this === Object.prototype ? undefined : "real"; },
+      });
+      const copy = makeMeta({ source: "derived", lineage: [{ of: "input", confidence: "high" }] }).lineage[0];
+      expect(Object.hasOwn(copy, "source")).toBe(false);
+    } finally {
+      delete Object.prototype.source;
+    }
+  });
+
+  it("pollution reached through a deep prototype chain is not copied", () => {
+    try {
+      Object.prototype.source = "real";
+      let proto = {};
+      for (let i = 0; i < 70; i++) proto = Object.create(proto);
+      const step = Object.assign(Object.create(proto), { of: "input", confidence: "high" });
+      const copy = makeMeta({ source: "derived", lineage: [step] }).lineage[0];
+      expect(Object.hasOwn(copy, "source")).toBe(false);
+    } finally {
+      delete Object.prototype.source;
+    }
+  });
+
   it("a law field far up a deep prototype chain is kept", () => {
     // confidence "low" 70 levels up: dropped, the output's high confidence
     // would no longer be an over-claim.

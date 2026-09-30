@@ -55,31 +55,46 @@ function quote(value) {
 // The step fields the law, the audit and the guard read.
 const STEP_FIELDS = ["of", "source", "confidence", "derivedFromMock", "confidenceScore", "id"];
 
-// How many objects fromObjectPrototype examines, the step included.
-const MAX_CHAIN = 64;
+// How many objects fromObjectPrototype examines, the step included. Only an
+// endless Proxy chain reaches it; an ordinary chain cannot cycle.
+const MAX_CHAIN = 10000;
+
+// The methods every Object.prototype holds, in any realm.
+const OBJECT_PROTOTYPE_METHODS = ["hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable"];
 
 /** Whether `o` is an Object.prototype, this realm's or another's (a `vm`
  * context, an iframe): the end of an ordinary prototype chain, and no step's
- * own. Another realm's is recognised by shape, as instanceof cannot. */
+ * own. Another realm's is recognised by shape, as instanceof cannot: a null
+ * prototype and the three methods as its own non-enumerable function-valued
+ * data properties, as a real one holds them. An object built from data (JSON,
+ * Object.assign) holds them enumerable, so it is not taken for one. */
 function isObjectPrototype(o) {
-  return o === Object.prototype || (Object.getPrototypeOf(o) === null
-    && Object.hasOwn(o, "hasOwnProperty") && Object.hasOwn(o, "isPrototypeOf")
-    && Object.hasOwn(o, "propertyIsEnumerable"));
+  if (o === Object.prototype) return true;
+  if (Object.getPrototypeOf(o) !== null) return false;
+  return OBJECT_PROTOTYPE_METHODS.every((k) => {
+    const d = Object.getOwnPropertyDescriptor(o, k);
+    return d !== undefined && !d.enumerable && typeof d.value === "function";
+  });
 }
 
 /** Whether `value`, read from step `s` as `s[k]`, comes from an
  * Object.prototype (a polluted global) rather than from the step: the chain
- * reaches an Object.prototype holding it before any object that defines `k`.
- * Baked into a frozen copy, a polluted value would outlive the pollution, and
- * a polluted source would pass for a known one. The walk examines at most
- * MAX_CHAIN objects and stops at a cycle; if it cannot decide (the bound, a
- * cycle, a throwing Proxy trap), the value counts as the step's, as the law
- * reads it. */
+ * reaches an Object.prototype holding `k` before any object that defines it.
+ * There it is decided by the descriptor, never by reading again: a data
+ * field counts as pollution when it holds this value, and an accessor always
+ * does, since a getter can answer differently each time. Baked into a frozen
+ * copy, a polluted value would outlive the pollution, and a polluted source
+ * would pass for a known one. The walk examines at most MAX_CHAIN objects and
+ * stops at a cycle; if it cannot decide (the bound, a cycle, a throwing Proxy
+ * trap), the value counts as the step's, as the law reads it. */
 function fromObjectPrototype(s, k, value) {
   const seen = new Set();
   try {
     for (let o = s; o !== null && !seen.has(o) && seen.size < MAX_CHAIN; o = Object.getPrototypeOf(o)) {
-      if (isObjectPrototype(o)) return Object.hasOwn(o, k) && o[k] === value;
+      if (isObjectPrototype(o)) {
+        const d = Object.getOwnPropertyDescriptor(o, k);
+        return d !== undefined && (!("value" in d) || d.value === value);
+      }
       if (Object.hasOwn(o, k)) return false;
       seen.add(o);
     }

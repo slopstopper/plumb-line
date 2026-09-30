@@ -434,13 +434,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `source`, `confidence`, `derivedFromMock`, `confidenceScore`, `id`) that
   is not among the step's own enumerable fields, the value the law and the
   audit read on the step: through its prototype, a getter or a `Proxy`. It
-  is left out when it reads `undefined`, or when it comes from an
-  `Object.prototype` of any realm, so a polluted global is not copied.
+  is left out when it reads `undefined`, or when the chain reaches an
+  `Object.prototype` holding it (another realm's is recognised by shape),
+  so a polluted global is not copied.
   Nothing else is taken from the prototype, so an inherited method such as
   `toJSON` cannot change what the stored step says. SPEC §3 now names the
   one exception to the law's totality, in both languages: a field whose read
   throws propagates the error. In JS that now includes a step that throws on
-  a law field it lacks, which main never read. JSON cannot build such a
+  a law field it lacks: the law read a prior step's `source` and `id`
+  before, and now reads its other law fields too. JSON cannot build such a
   step, so envelopes handed over as JSON, and Python, are unchanged.
 - **`derive` refuses an input that is not a marked value, in both
   languages (breaking for callers who passed one)**
