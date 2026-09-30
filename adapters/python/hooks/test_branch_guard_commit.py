@@ -8,7 +8,8 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from branch_guard_commit import branch_from_ref, judge_commit, rebase_branch, staged_paths  # noqa: E402
+from branch_guard_commit import (  # noqa: E402
+    branch_from_ref, judge_commit, rebase_branch, staged_paths, update_ref_branches)
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -231,3 +232,22 @@ def test_rebase_branch_refuses_a_head_name_that_is_not_a_branch_or_branch_name()
 
 def test_rebase_branch_decodes_a_head_name_that_is_not_utf8_with_replacement():
     assert rebase_branch("rebase-merge", b"refs/heads/f\xff\n", None)["branch"] == "f\ufffd"
+
+
+def test_rebase_branch_keeps_a_leading_bom_as_the_js_twin_does():
+    # #547 review: JS's default TextDecoder stripped it.
+    assert rebase_branch("rebase-merge", b"\xef\xbb\xbfrefs/heads/feat\n", None) == {
+        "branch": None, "why": 'HEAD is detached by a rebase of "\ufeffrefs/heads/feat", which is not a branch'}
+
+
+def test_rebase_branch_names_git_am_beside_a_rebase_for_rebase_apply():
+    assert rebase_branch("rebase-apply", None, "ENOENT")["why"] == (
+        "HEAD is detached by a rebase or git am whose rebase-apply/head-name cannot be read: ENOENT")
+
+
+def test_update_ref_branches_takes_each_refs_first_line_branches_only():
+    z = b"0" * 40
+    assert update_ref_branches(b"refs/heads/main\n" + b"a" * 40 + b"\n" + z + b"\nrefs/heads/other\n"
+                               + z + b"\n" + z + b"\n") == ["main", "other"]
+    assert update_ref_branches(b"refs/tags/v1\n" + z + b"\n" + z + b"\n") == []
+    assert update_ref_branches(b"") == []

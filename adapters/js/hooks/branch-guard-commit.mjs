@@ -42,9 +42,17 @@ export function stagedPaths(output) {
   return parts;
 }
 
+// A file git records for a rebase, decoded as the staged paths are: UTF-8
+// with U+FFFD for a bad sequence, and a leading BOM kept, as Python keeps it.
+const decodeState = (bytes) => new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes);
+
+// What a rebase-merge or rebase-apply directory is named for in a reason:
+// `git am` also stops in rebase-apply, and writes no head-name.
+const operation = (dir) => (dir === "rebase-apply" ? "a rebase or git am" : "a rebase");
+
 /**
- * The branch a rebase in progress will land on (#547), from the head-name
- * file git records in its rebase-merge or rebase-apply directory, given the
+ * The branch a rebase in progress is rebasing (#547), from the head-name file
+ * git records in its rebase-merge or rebase-apply directory, given the
  * file's bytes (null when it cannot be read) and the read error's code.
  * Returns { branch } for a branch; for anything else, the branch as far as it
  * is known and `why`, the reason it cannot be used. Python twin:
@@ -52,17 +60,33 @@ export function stagedPaths(output) {
  */
 export function rebaseBranch(dir, bytes, code) {
   if (bytes === null) {
-    return { branch: null, why: `HEAD is detached by a rebase whose ${dir}/head-name cannot be read: ${code}` };
+    return { branch: null, why: `HEAD is detached by ${operation(dir)} whose ${dir}/head-name cannot be read: ${code}` };
   }
-  const ref = new TextDecoder().decode(bytes).replace(/\n$/, "");
+  const ref = decodeState(bytes).replace(/\n$/, "");
   const branch = branchFromRef(ref);
   if (branch === null) {
-    return { branch: null, why: `HEAD is detached by a rebase of ${JSON.stringify(ref)}, which is not a branch` };
+    return { branch: null, why: `HEAD is detached by ${operation(dir)} of ${JSON.stringify(ref)}, which is not a branch` };
   }
   if (!isBranchName(branch)) {
-    return { branch, why: `HEAD is detached by a rebase of ${JSON.stringify(branch)}, which is not a branch name` };
+    return { branch, why: `HEAD is detached by ${operation(dir)} of ${JSON.stringify(branch)}, which is not a branch name` };
   }
   return { branch };
+}
+
+/**
+ * The other branches a rebase with --update-refs will move (#547 review),
+ * from its update-refs file: each ref takes three lines, the ref and two
+ * object ids, and only refs/heads/ refs are branches. Python twin:
+ * update_ref_branches.
+ */
+export function updateRefBranches(bytes) {
+  const lines = decodeState(bytes).split("\n");
+  const branches = [];
+  for (let i = 0; i < lines.length; i += 3) {
+    const branch = branchFromRef(lines[i]);
+    if (branch !== null) branches.push(branch);
+  }
+  return branches;
 }
 
 /**
@@ -134,9 +158,13 @@ function main() {
     ? branchFromRef(new TextDecoder().decode(head.stdout).replace(/\n$/, ""))
     : null;
   let why;
-  // HEAD is detached during a rebase (#547): the branch is the one git
-  // records for the rebase, the branch its commits will land on. A HEAD
-  // detached for any other reason stays unknown (#449).
+  let also = [];
+  let alsoWhy;
+  // HEAD is detached during a rebase (#547). While git's rebase directory
+  // exists, which git itself reads as a rebase in progress, the branch is the
+  // one it records as being rebased, and with --update-refs every other
+  // branch it will move is judged too. With no rebase directory a detached
+  // HEAD stays unknown (#449).
   if (head.status !== 0) {
     for (const dir of ["rebase-merge", "rebase-apply"]) {
       const where = new TextDecoder().decode(git(["rev-parse", "--git-path", dir], "find the rebase state").stdout)
@@ -150,6 +178,14 @@ function main() {
         code = e.code ?? e.message;
       }
       ({ branch = null, why } = rebaseBranch(dir, bytes, code));
+      const updateRefs = path.join(where, "update-refs");
+      if (fs.existsSync(updateRefs)) {
+        try {
+          also = updateRefBranches(fs.readFileSync(updateRefs));
+        } catch (e) {
+          alsoWhy = `HEAD is detached by a rebase whose ${dir}/update-refs cannot be read: ${e.code ?? e.message}`;
+        }
+      }
       break;
     }
   }
@@ -162,7 +198,17 @@ function main() {
   // `ignore` setting would otherwise hide a staged submodule bump.
   const diff = git(["diff", "--cached", "--name-only", "-z", "--no-renames", "--ignore-submodules=none"],
     "list the staged files");
-  return judgeCommit({ branch, paths: stagedPaths(diff.stdout), config, why });
+  const paths = stagedPaths(diff.stdout);
+  const r = judgeCommit({ branch, paths, config, why });
+  if (!r.allow) return r;
+  // Every branch the rebase will move must allow the commit (#547 review).
+  if (alsoWhy !== undefined) return judgeCommit({ branch: null, paths, config, why: alsoWhy });
+  for (const other of also) {
+    const r2 = judgeCommit({ branch: other, paths, config,
+      why: `the rebase also moves ${JSON.stringify(other)}, which is not a branch name` });
+    if (!r2.allow) return r2;
+  }
+  return r;
 }
 
 if (isMainModule()) {

@@ -24,7 +24,7 @@ _HOOK = os.path.join(_HERE, 'branch_guard_commit.py')
 # Every field, case kind and table version this runner interprets (#441). JS
 # twin: MODEL in adapters/js/hooks/__tests__/commit-hook-cases.test.mjs.
 _ROW = ['name', 'repo', 'committed', 'committedText', 'fakeGit', 'side', 'branch', 'tags', 'headRef', 'config', 'merge',
-        'rebaseStop', 'rebaseHeadName', 'rebaseHeadNameDir', 'remove', 'move', 'stage', 'stageHex', 'gitlink', 'stageCount', 'modify', 'env', 'commit',
+        'rebaseStop', 'rebaseApply', 'rebaseAlso', 'rebaseHeadName', 'rebaseHeadNameDir', 'rebaseUpdateRefsDir', 'remove', 'move', 'stage', 'stageHex', 'gitlink', 'stageCount', 'modify', 'env', 'commit',
         'expectExit', 'expectStderr']
 _MODEL = {'versions': [1], 'meta': ['_doc', 'version'], 'fields': {'commitHook': _ROW}}
 
@@ -103,6 +103,18 @@ def _type_problems(c):
         problems.append('rebaseHeadName must be a string or null')
     if 'rebaseHeadNameDir' in c and c['rebaseHeadNameDir'] is not True:
         problems.append('rebaseHeadNameDir must be true when present')
+    if 'rebaseApply' in c and c['rebaseApply'] is not True:
+        problems.append('rebaseApply must be true when present')
+    if 'rebaseAlso' in c and not isinstance(c['rebaseAlso'], str):
+        problems.append('rebaseAlso must be a string')
+    if 'rebaseUpdateRefsDir' in c and c['rebaseUpdateRefsDir'] is not True:
+        problems.append('rebaseUpdateRefsDir must be true when present')
+    if any(f in c for f in ('rebaseApply', 'rebaseAlso')) and 'rebaseStop' not in c:
+        problems.append('rebaseApply and rebaseAlso need rebaseStop')
+    if 'rebaseApply' in c and 'rebaseAlso' in c:
+        problems.append('rebaseApply cannot be combined with rebaseAlso')
+    if 'rebaseUpdateRefsDir' in c and 'rebaseAlso' not in c:
+        problems.append('rebaseUpdateRefsDir needs rebaseAlso')
     if 'rebaseStop' in c and 'committed' not in c:
         problems.append('rebaseStop needs committed')
     if ('rebaseHeadName' in c or 'rebaseHeadNameDir' in c) and 'rebaseStop' not in c:
@@ -167,15 +179,39 @@ def _build(c, repo):
         _git(repo, 'merge', '-q', *c['merge'])
     if 'rebaseStop' in c:
         _write(repo, c['rebaseStop'], 'rebased\n')
-        _git(repo, 'add', '--', c['rebaseStop'])
+        if c.get('rebaseApply'):
+            _write(repo, 'conflict.txt', 'branch\n')
+        _git(repo, 'add', '--', c['rebaseStop'], *(['conflict.txt'] if c.get('rebaseApply') else []))
         _git(repo, 'commit', '-q', '--no-verify', '-m', 'rebased')
+        args = ['rebase', '-q', '--exec', 'false', 'HEAD~1']
+        if c.get('rebaseApply'):
+            # The apply backend has no --exec: it stops on an add/add
+            # conflict, with rebase-apply/head-name written.
+            name = _git(repo, 'rev-parse', '--abbrev-ref', 'HEAD').decode().strip()
+            _git(repo, 'checkout', '-q', '-b', 'apply-onto', 'HEAD~1')
+            _write(repo, 'conflict.txt', 'onto\n')
+            _git(repo, 'add', '--', 'conflict.txt')
+            _git(repo, 'commit', '-q', '--no-verify', '-m', 'onto')
+            _git(repo, 'checkout', '-q', name)
+            args = ['rebase', '-q', '--apply', 'apply-onto']
+        elif 'rebaseAlso' in c:
+            # --update-refs: rebaseAlso points at the commit the rebase stops
+            # on, so the rebase will move it too.
+            _git(repo, 'branch', '-f', c['rebaseAlso'], 'HEAD')
+            _write(repo, 'tip.md', 'tip\n')
+            _git(repo, 'add', '--', 'tip.md')
+            _git(repo, 'commit', '-q', '--no-verify', '-m', 'tip')
+            args = ['rebase', '-q', '--update-refs', '--exec', 'false', 'HEAD~2']
         # --exec false stops the rebase after the commit is replayed, with
         # HEAD detached and rebase-merge/head-name written, as an `edit` stop is.
-        r = subprocess.run(['git', 'rebase', '-q', '--exec', 'false', 'HEAD~1'], cwd=repo, env=_BASE_ENV,
-                           capture_output=True)
+        r = subprocess.run(['git', *args], cwd=repo, env=_BASE_ENV, capture_output=True)
         if r.returncode == 0:
-            raise RuntimeError('git rebase --exec false did not stop')
-        rebase_dir = _git(repo, 'rev-parse', '--git-path', 'rebase-merge').decode().strip()
+            raise RuntimeError(f"git {' '.join(args)} did not stop")
+        rebase_dir = _git(repo, 'rev-parse', '--git-path',
+                          'rebase-apply' if c.get('rebaseApply') else 'rebase-merge').decode().strip()
+        if c.get('rebaseUpdateRefsDir'):
+            os.remove(os.path.join(repo, rebase_dir, 'update-refs'))
+            os.mkdir(os.path.join(repo, rebase_dir, 'update-refs'))
         head_name = os.path.join(repo, rebase_dir, 'head-name')
         if c.get('rebaseHeadNameDir'):
             os.remove(head_name)

@@ -8,7 +8,7 @@ import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from "
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { branchFromRef, judgeCommit, rebaseBranch, stagedPaths } from "../branch-guard-commit.mjs";
+import { branchFromRef, judgeCommit, rebaseBranch, stagedPaths, updateRefBranches } from "../branch-guard-commit.mjs";
 
 describe("branchFromRef", () => {
   it("strips refs/heads/ from a branch ref, slashes kept", () => {
@@ -91,6 +91,25 @@ describe("rebaseBranch (#547)", () => {
   it("decodes a head-name that is not UTF-8 with U+FFFD, as the Python twin does", () => {
     const r = rebaseBranch("rebase-merge", new Uint8Array([...bytes("refs/heads/f"), 0xff, 0x0a]));
     expect(r.branch).toBe("f\uFFFD");
+  });
+  it("keeps a leading BOM, as the Python twin does (#547 review)", () => {
+    expect(rebaseBranch("rebase-merge", new Uint8Array([0xef, 0xbb, 0xbf, ...bytes("refs/heads/feat\n")]))).toEqual({
+      branch: null, why: 'HEAD is detached by a rebase of "\uFEFFrefs/heads/feat", which is not a branch' });
+  });
+  it("names git am beside a rebase for rebase-apply, which git am also uses", () => {
+    expect(rebaseBranch("rebase-apply", null, "ENOENT").why).toBe(
+      "HEAD is detached by a rebase or git am whose rebase-apply/head-name cannot be read: ENOENT");
+  });
+});
+
+describe("updateRefBranches (#547 review)", () => {
+  const bytes = (s) => new TextEncoder().encode(s);
+  const z = "0".repeat(40);
+  it("takes each ref's first line, branches only", () => {
+    expect(updateRefBranches(bytes(`refs/heads/main\n${"a".repeat(40)}\n${z}\nrefs/heads/other\n${z}\n${z}\n`)))
+      .toEqual(["main", "other"]);
+    expect(updateRefBranches(bytes(`refs/tags/v1\n${z}\n${z}\n`))).toEqual([]);
+    expect(updateRefBranches(bytes(""))).toEqual([]);
   });
 });
 

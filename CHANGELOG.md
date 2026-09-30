@@ -18,11 +18,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   blocked a staged code path even on a feature branch. Both twins
   (`branch-guard-commit.mjs`, `branch_guard_commit.py`) now take the branch
   from the `head-name` git records for the rebase (`rebase-merge` or
-  `rebase-apply`), the branch its commits will land on. Rebasing `main`
-  still blocks a code path; a HEAD detached for any other reason stays
-  unknown (#449); and a `head-name` that cannot be read, or names no valid
-  branch, leaves the branch unknown with a reason saying which. Seven rows in
-  `adapters/commit-hook-cases.json`, each against a real rebase stop.
+  `rebase-apply`) while that directory exists, as git itself reads a rebase
+  in progress, and judge every branch `--update-refs` will move as well. A
+  commit made by hand at a stop of a rebase of `main`, or of one that will
+  move `main`, still blocks a code path; `git rebase --continue` runs no
+  hook, so a change it carries on is not judged. With no rebase directory a
+  detached HEAD stays unknown (#449); a `head-name` or `update-refs` that
+  cannot be read, or names no valid branch, leaves the branch unknown with a
+  reason saying which. Eleven rows in `adapters/commit-hook-cases.json`,
+  each against a real rebase stop (merge and apply backends,
+  `--update-refs`).
 - **The branch guard works as a git commit hook**
   ([#464](https://github.com/slopstopper/plumb-line/issues/464)). Git gives
   a hook neither the `{filePath}` stdin nor `PLUMBLINE_BRANCH`, so since
