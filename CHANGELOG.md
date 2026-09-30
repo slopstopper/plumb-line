@@ -423,6 +423,23 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **The SARIF log names and describes PB1–PB4 as the lints and SPEC §6
+  do** ([#552](https://github.com/slopstopper/plumb-line/issues/552);
+  `adapters/sarif/assemble.py`, since #118). The catalogue published PB2 as
+  `HandBuiltLineage`, "lineage or weakestSource written by hand", and PB3 as
+  `DeriveOverrideClearsTaint`, "would clear taint or lineage". Each
+  described another rule, so a code-scanning viewer showed a finding under a
+  false label. SPEC §6's table gains a Name column taken from the lints' own
+  message titles: `LaunderedMeta`, `ManualTaintClear`,
+  `CleanSourceOverride`, and `RemarkOfAnUnwrappedValue` (PB4 was
+  `RemarkDropsLineage`). All four SARIF descriptions are SPEC §6's patterns
+  as plain text, and PB1's now says its clean sources are the default ones:
+  a project can change them through the JS rule's `sources` option or the
+  Python `check(clean_sources=…)` API (the Python CLI, which the Action
+  runs, has no flag for it). A test holds the SARIF catalogue
+  and both lints' message titles to the table. Rule ids are unchanged, so
+  existing code-scanning alerts keep matching; only the displayed name and
+  description change.
 - **The fit map labels an error-path default `fallback`, not `mock`**
   ([#557](https://github.com/slopstopper/plumb-line/issues/557);
   `reference/fit-map.md` Profile 1). The snippet marked the text returned on
