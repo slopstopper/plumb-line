@@ -62,14 +62,20 @@ means something** (owner decision 2026-09-30, #530). Record each arm's pass
 rate for every case. Record the with-minus-without difference only for a
 grader that scores both arms: today that is the clean cases'
 `zero-confirmed-violations` judge, so the difference is that grader's pass
-rate with the plugin minus without it, not the case's. It mostly measures
+rate with the plugin minus without it, not the case's. It is meant to measure
 confirmed violations the auditor reported on a clean fixture, but the judge's
 criteria use the plugin's vocabulary (advisory adoption gaps, needs-review),
 which the no-plugin arm is never taught, so it reflects framing too. Every
 other grader is with-only, because the no-plugin arm has no audit skill, no
 v4 header, no inline principle names and no checker; a difference on those
 would come from how the suite is built, not from the plugin, so record it as
-"n/a" with that reason, as for the broken cases. Graders that run in both arms
+"n/a" with that reason, as for the broken cases.
+
+Until #530, `invoked-audit` had no `arm:` key, so it scored the no-plugin arm
+too, which cannot invoke a plugin skill. The 2026-09-28 run's no-plugin
+results (every case 0/3) and its with-minus-without figures were therefore
+set partly by that grader; later runs, where it scores the plugin arm only,
+do not compare with them. Graders that run in both arms
 without depending on the report format would give the broken cases a real
 difference (#571); so would a runner judge that can be trusted again.
 

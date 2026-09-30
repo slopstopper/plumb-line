@@ -5,7 +5,9 @@ A broken case's verdict rests on these graders (the runner's LLM judge was
 dropped there, #530), so a grader and the checker must agree on what a
 confirmed row is: a Status cell that the checker accepts as `violation`
 matches, and any other status does not. Each pattern is checked with Python's
-`re`, and with JavaScript's RegExp when node is on PATH.
+`re`, and with JavaScript's RegExp when node is on PATH (a visible skip
+otherwise; CI installs node). The spellings are a fixed list, each confirmed
+by the real checker.
 
 Run from the repo root:  python3 -m pytest -q scripts/test_eval_graders.py
 """
@@ -45,13 +47,14 @@ def _row(pattern, status):
 
 
 def _matches(pattern, text):
-    py = re.search(pattern, text, re.M) is not None
-    if shutil.which("node"):
-        js = subprocess.run(
-            ["node", "-e", "const [p,t]=process.argv.slice(1);process.stdout.write(String(new RegExp(p,'m').test(t)))",
-             pattern, text], capture_output=True, text=True).stdout == "true"
-        assert py == js, f"Python and JS disagree on {text!r}"
-    return py
+    return re.search(pattern, text, re.M) is not None
+
+
+def _js_matches(pattern, text):
+    out = subprocess.run(
+        ["node", "-e", "const [p,t]=process.argv.slice(1);process.stdout.write(String(new RegExp(p,'m').test(t)))",
+         pattern, text], capture_output=True, text=True).stdout
+    return out == "true"
 
 
 PRINCIPLES = crf.load_principles(
@@ -113,12 +116,35 @@ def test_a_grader_matches_no_other_status(path):
 
 
 @pytest.mark.parametrize("path", GRADERS, ids=os.path.basename)
-def test_a_grader_matches_no_v3_row_and_no_omission_row(path):
+def test_a_grader_matches_no_v3_row_and_no_shifted_row(path):
     p = _pattern(path)
     row = _row(p, "violation")
     cells = row.split(" | ")
     v3 = " | ".join(cells[:3] + ["violation: " + cells[4]] + cells[5:])  # status inside Issue, six cells
     assert not _matches(p, "text\n" + v3 + "\nmore\n")
-    fname = cells[0].strip("| ")
-    omission = f"| {fname} | yes | yes | NO | yes | yes | no |"
+    # An extra leading cell shifts every column: the row is anchored at `^|`.
+    shifted = "| x " + row
+    assert not _matches(p, "text\n" + shifted + "\nmore\n")
+
+
+@pytest.mark.parametrize("path", GRADERS, ids=os.path.basename)
+def test_a_grader_matches_no_omission_pass_row(path):
+    # An omission-pass row as the skill writes it: yes / no cells. (A seven-
+    # cell row holding the word `violation` and a principle name in the right
+    # cells would match; no omission-pass row has that shape.)
+    p = _pattern(path)
+    fname = _row(p, "violation").split(" | ")[0].strip("| ")
+    omission = f"| {fname} | yes | yes | no | NO | yes | no |"
     assert not _matches(p, "text\n" + omission + "\nmore\n")
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not on PATH: the JavaScript half is not checked")
+@pytest.mark.parametrize("path", GRADERS, ids=os.path.basename)
+def test_javascript_reads_each_grader_as_python_does(path):
+    # The eval runner is JavaScript; the Python checks above must hold there.
+    p = _pattern(path)
+    for status in CONFIRMED + NOT_CONFIRMED:
+        text = "text\n" + _row(p, status) + "\nmore\n"
+        assert _js_matches(p, text) == _matches(p, text), status
+    shifted = "text\n| x " + _row(p, "violation") + "\nmore\n"
+    assert _js_matches(p, shifted) == _matches(p, shifted)

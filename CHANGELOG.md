@@ -137,9 +137,12 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     words; an adoption gap is `advisory` (the skill had called the spine's
     adoption gap "a `needs-review` advisory adoption gap"), and the js-clean
     judge and answer key accept it as advisory or needs-review.
-    `invoked-audit` is marked with-only, as the suite's README described it.
-    The README's showcase stays the committed v3 report, noted as such; a v4
-    run replaces it at the release harness.
+    `invoked-audit` is marked with-only, as the suite's README described it;
+    until now it also scored the no-plugin arm, so the 2026-09-28 run's
+    no-plugin results and difference do not compare with later runs (noted
+    on that record). The README's showcase stays the committed v3 report,
+    noted as such; a v4 run replaces it at the release harness
+    ([#576](https://github.com/slopstopper/plumb-line/issues/576)).
   - `check_report_format.py` v6 knows `report-format: v4` and refuses a v4
     row whose Status is any other word (case, bold, italics and a code span
     around the word are ignored, as in the eval graders). A report is judged

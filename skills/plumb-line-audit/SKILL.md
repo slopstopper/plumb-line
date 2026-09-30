@@ -239,7 +239,7 @@ The omission-pass enumeration table (defined in the Method section) is a separat
 REQUIRED report artifact with its own columns, emitted after the findings table
 and before the coverage map on every run, including clean ones. If the scope
 holds no output-producing unit at all, write `No output-producing units in
-scope.` on its own line in its place. The checker (v3 onward) fails a v3 or v4 report
+scope.` on its own line in its place. The checker (v3 onward) fails a v3 or later report
 with neither; a table whose columns are not those question words in that order;
 a table with no rows; or a row with the wrong number of cells or a blank cell. Its principle references are inline-named too, exactly like the
 findings table above. A worked
