@@ -69,7 +69,9 @@ def derive(inputs, fn, **meta_override):
         fn: Pure function applied to the unwrapped input values.
         **meta_override: Optional overrides for ``source``, ``confidence``,
             ``confidence_score``, ``basis``, or ``adapter``.
-            ``derived_from_mock`` cannot be cleared via override.
+            ``derived_from_mock`` cannot be cleared via override. None is no
+            override for ``confidence_score``, ``basis`` or ``adapter`` (#566,
+            SPEC §2); a None ``source`` or ``confidence`` is refused.
             By convention ``basis`` is an operation label naming the transform
             ``fn`` (e.g. ``"aggregate.sum"``) — lineage records input states,
             not ``fn``. See SPEC §4.

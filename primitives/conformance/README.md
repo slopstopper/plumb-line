@@ -56,15 +56,18 @@ Generate it (and verify you actually pass before claiming it) with
 A new-language port conforms to **envelope schema version 2** when it produces
 the expected result for every case in `cases.json` — see [SPEC §7](../SPEC.md).
 Mirror the runner pattern: load `cases.json`, translate the camelCase field
-names to your language's binding, run `combine`/`audit`/`validate`/`construct`/`guard`,
+names to your language's binding, run `combine`/`audit`/`validate`/`construct`/`derive`/`guard`,
 and assert every field a case carries (including `expectLineageIds`). A
 `construct` case expects your envelope constructor to refuse an off-ladder
 `source` or `confidence` with a message containing the pinned text (v0.12.0,
 #443), and to refuse a missing `source` rather than default it (v0.12.0,
 #177). JSON cannot write "left out", so those rows omit `source` from `input`;
-pass only the keys a row carries. A `construct` row's `absent` list names
-fields the envelope must not have at all: a `null` `basis`, `adapter` or
-`confidenceScore` is no field (v0.12.0, #566). A port certified against schema version 2 before v0.12.0 must re-run:
+pass only the keys a row carries. A `construct` or `derive` row's `absent`
+list names fields the envelope must not have at all (SPEC §2; the rows since
+v0.12.0, #566). A `derive` row marks each of its `inputs` with those fields,
+then derives with its `override` and any function: the envelope is under
+test, not the value. `derive` is a new kind at the same schema version, so a
+port certified before it must re-run. A port certified against schema version 2 before v0.12.0 must re-run:
 `construct` is a new requirement at the same schema version, signalled by the
 table's sha256 and its per-kind counts, not by a version number. So is `guard`
 (v0.12.0, #120): a port provides the egress guard of SPEC §5c, and a `guard`

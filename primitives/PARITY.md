@@ -29,7 +29,8 @@ guard passes and refuses, v0.12.0, #120; SPEC §5c), and `construct` (what
 `makeMeta` / `make_meta` accepts and refuses, v0.12.0, #443 and #177; both languages
 refuse the same JSON-expressible inputs, and the refusal message starts the same; the quoted
 value after "got" is each language's JSON rendering and can differ in form for
-floats, non-ASCII text and containers). Both checkers report the four
+floats, non-ASCII text and containers), and `derive` (what `derive`
+writes for an override, v0.12.0, #566). Both checkers report the four
 required fields by their canonical camelCase names in both languages, so the
 conformance needles match verbatim.
 
@@ -162,6 +163,10 @@ each pinned by a `combine` row in `cases.json` (the rows marked #525):
   wrote `null` where JS left the field off (in memory, `undefined`); both now
   write `null`, so every step has both keys. JS spread an array lineage step
   into an object (`{"0": ...}`); both now keep it as an array.
+- **A `null` `basis` or `adapter`.** JS `makeMeta` stored it as `null`, and
+  Python's `make_meta` left it out; both now leave it out, as SPEC §2
+  requires of an optional field with no value. A `null` optional override
+  on `derive` is no override in both (#566), pinned by the `derive` kind.
 
 The independent review of the first fix found more, all now resolved and
 pinned by rows marked "#525 review": a number beyond double range crashed

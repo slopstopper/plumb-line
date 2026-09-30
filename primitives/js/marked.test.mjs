@@ -122,7 +122,7 @@ describe("mark / derive refuse an off-ladder confidence or source (#443)", () =>
   });
 });
 
-describe("derive: an undefined override is no override (#533)", () => {
+describe("derive: an unset override is no override (#533 undefined, #566 null)", () => {
   it.each(["source", "confidence", "confidenceScore", "basis", "adapter"])(
     "an undefined %s override on derive is no override (#533)",
     (key) => {

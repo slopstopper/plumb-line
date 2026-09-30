@@ -320,10 +320,11 @@ override whose value is `undefined` counts as no override, for every key
 keeps the combined rung when the option is unset. `null` (Python `None`) is
 no override too for the optional keys, `confidenceScore` /
 `confidence_score`, `basis` and `adapter`, in both languages (since v0.12.0,
-#566; before, it dropped the combined score). A `null` `source` or
-`confidence` is still refused (#443). A `null` `basis` or `adapter` given to
-the constructor is no field in both languages; JS used to store it as
-`null`. Envelopes you are
+#566; before, a `null` `confidenceScore` dropped the combined score, and JS
+stored a `null` `basis` or `adapter`). A `null` `source` or `confidence` is
+still refused (#443). A `null` `basis` or `adapter` given to the constructor
+is no field in both languages, as SPEC §2 requires of an optional field with
+no value. Envelopes you are
 *handed*, such as parsed JSON, are not refused: `combineProvenance` and the
 audit still tolerate unknown values in them (SPEC §2).
 

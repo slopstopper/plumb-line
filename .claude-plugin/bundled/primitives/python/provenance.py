@@ -83,8 +83,10 @@ def make_meta(source=_REQUIRED, confidence='none', confidence_score=None,
         derived_from_mock: Defaults to ``source == "mock"``.
         lineage: List of prior lineage step dicts; each step is shallow-copied.
         weakest_source: Lowest-ranked source in ancestry; one of STATUS.
-        basis: Arbitrary domain metadata (passed through unchanged).
-        adapter: Adapter identifier (passed through unchanged).
+        basis: Arbitrary domain metadata (passed through unchanged; None
+            writes no field, SPEC §2).
+        adapter: Adapter identifier (passed through unchanged; None writes no
+            field).
 
     Returns:
         dict: Provenance metadata envelope.

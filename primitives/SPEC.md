@@ -39,8 +39,10 @@ the two are the same envelope under a naming convention, and
 needed.
 
 Optional fields MUST be **absent** when they have no value — an implementation
-MUST NOT emit `confidenceScore: null` or `weakestSource: undefined`. Absence is
-meaningful: it denotes "unknown", which is distinct from any present value.
+MUST NOT emit `confidenceScore: null` or `weakestSource: undefined`, and a
+`basis` or `adapter` given as `null` is no value, so it is absent too (#566).
+Absence is meaningful: it denotes "unknown", which is distinct from any present
+value.
 
 ### Envelope versioning
 
@@ -113,7 +115,13 @@ contains `source is required (one of <the ladder, comma-separated>)`;
 `confidence` still defaults to `none`. `derive` is not a leaf constructor: its
 `source` comes from the combination law (§3), so a `derive` whose override
 leaves `source` out MUST NOT refuse for that reason. Added
-in v0.12.0 (#177, ADR-0019 amendment). Before that, `source` defaulted to
+in v0.12.0 (#177, ADR-0019 amendment). A `derive` override that is unset,
+left out, or `null` for an optional field (`confidenceScore`, `basis`,
+`adapter`), MUST be treated as no override: the combination law's value
+stands, and an optional field with no value is absent, as below. A `null`
+`source` or `confidence` is a value off its ladder and MUST be refused, as
+above. Added in v0.12.0 (#533, #566; `derive` rows in
+`conformance/cases.json`). Before that, `source` defaulted to
 `derived`, which is untrue of a leaf with no parents and audits as
 `unreproducible` (§5).
 
@@ -611,6 +619,10 @@ An implementation **conforms to envelope schema version 2** if, for every case i
 - each `construct` case either builds an envelope with the expected fields,
   and none of the declared `absent` fields, or is refused with an error
   containing the expected substring (§2), and
+- each `derive` case, marking each input with its fields and deriving with its
+  `override`, either gives an envelope with the expected fields and none of
+  the `absent` ones, or is refused with an error containing the expected
+  substring (§2), and
 - each `guard` case passes (returning the value it was given), is refused with
   reasons containing the expected substrings and none of the `expectAbsent`
   ones, or raises a programmer error containing the expected substring (§5c).

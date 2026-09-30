@@ -71,6 +71,9 @@ function isMarkedValue(x) {
  * @param {Function} fn - Pure function applied to the unwrapped input values
  * @param {object} [metaOverride={}] - Optional overrides for `source`, `confidence`,
  *   `confidenceScore`, `basis`, or `adapter`; `derivedFromMock` cannot be cleared.
+ *   A key whose value is undefined, or null for `confidenceScore`, `basis` or
+ *   `adapter`, is no override (#533, #566; SPEC §2); a null `source` or
+ *   `confidence` is refused.
  *   By convention `basis` is an operation label naming the transform `fn`
  *   (e.g. `"pricing.applyFx@v3"`) — lineage records input states, not `fn`. See SPEC §4.
  * @returns {Readonly<{value: *, source: string, confidence: string, derivedFromMock: boolean, lineage: object[]}>}

@@ -5,8 +5,8 @@
 // one and silently ignored by the other (#369). An alternative JS
 // implementation self-certifies by passing its own module as `impl`.
 //
-// impl: { combineProvenance, makeMeta, auditMeta, validateEnvelope, guard,
-//         ProvenanceRefused, __resetStepCounter }
+// impl: { combineProvenance, makeMeta, mark, derive, auditMeta,
+//         validateEnvelope, guard, ProvenanceRefused, __resetStepCounter }
 // Returns one { kind, name, error } per case; error is null on a pass.
 import { createHash } from "node:crypto";
 // Deep equality, as the Python runners' `==` has always been: JSON text
@@ -20,6 +20,7 @@ const KNOWN_FIELDS = {
   audit: new Set(["name", "meta", "expectContains"]),
   validate: new Set(["name", "meta", "expectContains"]),
   construct: new Set(["name", "input", "expect", "expectError", "absent"]),
+  derive: new Set(["name", "inputs", "override", "expect", "expectError", "absent"]),
   guard: new Set(["name", "meta", "options", "expectPass", "expectRefused", "expectAbsent", "expectError"]),
 };
 
@@ -70,11 +71,58 @@ function runIssueList(issues, c) {
 
 // What makeMeta accepts and refuses (#443). A refusal throws; the case pins a
 // substring of the message, whose prefix both languages word identically.
-function runConstruct(impl, c) {
-  // Exactly one expectation: a row with neither would check nothing, and one
-  // with both would silently ignore `expect` (#443 review).
+// The shape of a construct or derive row: exactly one expectation, since a row
+// with neither would check nothing and one with both would silently ignore
+// `expect` (#443 review); and `absent`, a list of field names, only beside
+// `expect`, where it can be checked (#566 review).
+function shapeProblem(kind, c) {
   if (("expect" in c) === ("expectError" in c))
-    return "a construct case needs exactly one of expect or expectError";
+    return `a ${kind} case needs exactly one of expect or expectError`;
+  if ("absent" in c && !(Array.isArray(c.absent) && c.absent.every((k) => typeof k === "string")))
+    return "absent must be a list of field names";
+  if ("absent" in c && !("expect" in c)) return "absent applies only to an expect case";
+  return null;
+}
+
+// The envelope a construct or derive row expects: each `expect` field equal,
+// each `absent` field not written at all (JSON cannot say `undefined`, and
+// `null` is a value, #566).
+function envelopeProblem(out, c) {
+  for (const [k, v] of Object.entries(c.expect)) {
+    if (!isDeepStrictEqual(out[k], v))
+      return `expected ${k}=${JSON.stringify(v)}, got ${JSON.stringify(out[k])}`;
+  }
+  for (const k of c.absent || []) {
+    if (Object.hasOwn(out, k)) return `expected ${k} to be absent`;
+  }
+  return null;
+}
+
+// A derive row (#566): each input is marked with its `inputs` fields, then
+// derive runs a constant function over them with `override`. The function's
+// value is not under test; the envelope is.
+function runDerive(impl, c) {
+  const shape = shapeProblem("derive", c);
+  if (shape) return shape;
+  impl.__resetStepCounter();
+  let out;
+  try {
+    const items = c.inputs.map((fields, i) => impl.mark(i, fields));
+    out = impl.derive(items, () => 0, c.override ?? {});
+  } catch (e) {
+    if (c.expectError === undefined) return `expected an envelope, got an error: ${describeThrown(e)}`;
+    const message = describeThrown(e);
+    return message.includes(c.expectError)
+      ? null
+      : `expected an error containing "${c.expectError}", got "${message}"`;
+  }
+  if (c.expectError !== undefined) return `expected an error containing "${c.expectError}", got an envelope`;
+  return envelopeProblem(out, c);
+}
+
+function runConstruct(impl, c) {
+  const shape = shapeProblem("construct", c);
+  if (shape) return shape;
   let out;
   try {
     out = impl.makeMeta(c.input);
@@ -85,16 +133,7 @@ function runConstruct(impl, c) {
       : `expected an error containing "${c.expectError}", got "${e.message}"`;
   }
   if (c.expectError !== undefined) return `expected an error containing "${c.expectError}", got an envelope`;
-  for (const [k, v] of Object.entries(c.expect)) {
-    if (!isDeepStrictEqual(out[k], v))
-      return `expected ${k}=${JSON.stringify(v)}, got ${JSON.stringify(out[k])}`;
-  }
-  // A field that must not be written at all: JSON cannot say `undefined`,
-  // and `null` is a value (#566).
-  for (const k of c.absent || []) {
-    if (k in out) return `expected ${k} to be absent`;
-  }
-  return null;
+  return envelopeProblem(out, c);
 }
 
 // A thrown value as text, for a failure message; never throws, whatever the
@@ -184,6 +223,7 @@ function judgeGuardThrow(impl, c, e) {
 const RUN = {
   combine: (impl, c) => runCombine(impl, c),
   construct: (impl, c) => runConstruct(impl, c),
+  derive: (impl, c) => runDerive(impl, c),
   audit: (impl, c) => runIssueList(impl.auditMeta(c.meta), c),
   validate: (impl, c) => runIssueList(impl.validateEnvelope(c.meta), c),
   guard: (impl, c) => runGuard(impl, c),

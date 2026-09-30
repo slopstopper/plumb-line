@@ -135,8 +135,9 @@ function copyStep(s) {
  * @param {boolean} [opts.derivedFromMock] - Defaults to `source === "mock"`
  * @param {object[]} [opts.lineage=[]] - Prior lineage steps; each step is frozen
  * @param {string} [opts.weakestSource] - Lowest-ranked source in ancestry; one of {@link STATUS}
- * @param {*} [opts.basis] - Arbitrary domain metadata (passed through unchanged)
- * @param {*} [opts.adapter] - Adapter identifier (passed through unchanged)
+ * @param {*} [opts.basis] - Arbitrary domain metadata (passed through unchanged;
+ *   null, like undefined, writes no field: SPEC §2, #566)
+ * @param {*} [opts.adapter] - Adapter identifier (passed through unchanged; null writes no field)
  * @returns {Readonly<object>} Frozen envelope
  * @throws {Error} When `source` is missing ("source is required", #177), or
  *   `source` is not in {@link STATUS} or `confidence` is not in
