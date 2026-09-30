@@ -152,7 +152,7 @@ second `routing-format:` line — a duplicate header key makes the report
 ambiguous and the checker rejects it.
 
 **The message is the text the checker passed.** Write the report to a
-temp file (or use the saved one), run the checker on that file, then print the file's text as your
+temp file, run the checker on that file, then print the file's text as your
 message, unchanged: nothing above the header (no summary, heading or
 preamble), and no edit between the check and the message. If you change
 anything after the check, however small, re-run the checker on the changed

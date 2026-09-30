@@ -250,6 +250,9 @@ def load_ruleset_revision(text):
 # `_unearned_stamp` reads it: a stamp earned before the ruleset moved on was
 # honest when it was printed.
 _REVISION_BEHIND = "is older than the ruleset's revision"
+# The whole issue, anchored: other issues quote report text, which could
+# carry the phrase (#581 review).
+_REVISION_BEHIND_ISSUE = re.compile(r"^principles-revision [0-9]+ " + re.escape(_REVISION_BEHIND) + " ")
 
 
 def _header_lines(text):
@@ -770,12 +773,14 @@ def _unearned_stamp(text, issues):
     Only a current stamp is accused. A stamp from an older checker, or none
     recorded, may have been earned under rules that have since tightened
     (validation_notes says which), and a report scored under an earlier
-    ruleset fails here for that alone: neither is evidence of a false claim.
+    ruleset fails here for that: neither is evidence of a false claim. A
+    report behind the ruleset is not accused even when it fails for other
+    reasons too, since which rule a stale stamp would have met is unknown.
     Seen live (#581): two 2026-09-30 eval reports carried a v6 stamp over a
     message that opens with prose above the header. The transcripts were not
     kept, so how each stamp came to be there is not known."""
     current = any(ver == CHECKER_VERSION for ver in _validation_stamps(text))
-    if issues and current and not any(_REVISION_BEHIND in i for i in issues):
+    if issues and current and not any(_REVISION_BEHIND_ISSUE.match(i) for i in issues):
         return [f"format-validation claims clean under checker v{CHECKER_VERSION}, "
                 "but this text fails it (above): the stamp was not earned on the "
                 "text being returned; a stamp is only true of the exact text it "

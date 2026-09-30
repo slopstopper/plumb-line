@@ -1142,8 +1142,11 @@ def _revision(text, n):
     "The audit found no confirmed violations.\n\n" + _with_validation(_STAMP),
     # a body that fails on its own: a principle cited that the glossary lacks
     _with_validation(_STAMP).replace(*_GLOSSARY_GAP),
-    # a revision ahead of the ruleset is never honest
+    # a revision ahead of the ruleset is never honest against a current checkout
     _revision(_with_validation(_STAMP), REVISION + 1),
+    # another issue quoting the revision-behind phrase is not a revision behind
+    _with_validation(_STAMP).replace(
+        "date:                2026-08-11", "date:                is older than the ruleset's revision"),
     # the same rule for the other contracts
     "Summary first.\n\n" + VALID_REMEDIATION + "\n" + _STAMP + "\n",
 ])

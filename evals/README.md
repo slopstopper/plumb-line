@@ -41,8 +41,8 @@ Graders per case:
   are indicators, so format there is recorded by running the checker on the
   reports, not gated (owner decision 2026-09-30, #530): every eval record
   runs the checker on each report it can recover. That is the message as
-  delivered, which the runner keeps as the clean cases' judge evidence,
-  never a copy the auditor checked; a report that fails while stamped
+  delivered, which the runner kept as the clean cases' judge evidence in
+  the 2026-09-30 run, never a copy the auditor checked; a report that fails while stamped
   `— clean` by the current checker gets its own issue, the stamp not
   earned, and the record counts it as a false verdict, not only a format
   fail (#581). The checker cannot run inside the suite: the runner has no
