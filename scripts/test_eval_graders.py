@@ -13,6 +13,7 @@ Run from the repo root:  python3 -m pytest -q scripts/test_eval_graders.py
 """
 import glob
 import importlib.util
+import json
 import os
 import re
 import shutil
@@ -151,41 +152,73 @@ def test_javascript_reads_each_grader_as_python_does(path):
 
 
 # --- format-header: the header opens the message (2026-09-30 run) ----------
+#
+# The grader must say what the checker says about where the header is: the
+# message opens with a `report-format: v4` header, after nothing but blank or
+# fence lines. The openings are the #530 review's probes.
 
 HEADERS = sorted(glob.glob(os.path.join(_ROOT, "evals", "*", "graders", "format-header.md")))
-_REPORT_V4 = _REPORT.replace("STATUS", "violation")
-HEADER_OK = [_REPORT_V4, "\n\n" + _REPORT_V4, "```\n" + _REPORT_V4, "```text\n" + _REPORT_V4]
-HEADER_NOT_OK = ["The audit found no confirmed violations.\n\n" + _REPORT_V4,
-                 "# Plumb-line audit\n\n" + _REPORT_V4,
-                 _REPORT_V4.replace("report-format: v4", "report-format: v3")]
+_V4 = _REPORT.replace("STATUS", "violation")
+OPENINGS = {
+    "as is": _V4,
+    "leading blank lines": "\n\n\n" + _V4,
+    "a spaces-only line first": "   \n" + _V4,
+    "``` fence": "```\n" + _V4,
+    "```text fence": "```text\n" + _V4,
+    "```Text fence": "```Text\n" + _V4,
+    "```yaml-x fence": "```yaml-x\n" + _V4,
+    "```md5 fence": "```md5\n" + _V4,
+    "~~~ fence": "~~~\n" + _V4,
+    "four-backtick fence": "````\n" + _V4,
+    "indented fence": "  ```\n" + _V4,
+    "two fence lines": "```\n```text\n" + _V4,
+    "blank, fence, blank": "\n```\n\n" + _V4,
+    "CRLF": _V4.replace("\n", "\r\n"),
+    "BOM": "\ufeff" + _V4,
+    "indented header": "  " + _V4,
+    "no space after the colon": _V4.replace("report-format: v4", "report-format:v4", 1),
+    "two spaces after the colon": _V4.replace("report-format: v4", "report-format:  v4", 1),
+    "a tab after the colon": _V4.replace("report-format: v4", "report-format:\tv4", 1),
+    "v4. suffix": _V4.replace("report-format: v4", "report-format: v4.", 1),
+    "v41": _V4.replace("report-format: v4", "report-format: v41", 1),
+    "prose first": "Summary line.\n\n" + _V4,
+    "heading first": "# Audit\n\n" + _V4,
+    "header in a later fence": "Intro\n\n```\n" + _V4,
+    "fence, prose, header": "```\nnote\n" + _V4,
+    "v3 header": _V4.replace("report-format: v4", "report-format: v3", 1),
+    "a non-breaking-space line first": "\u00a0\n" + _V4,
+}
+
+
+def _checker_header_is_v4(text):
+    """The checker recognises a report contract here, and it is v4."""
+    if any("unrecognised report contract" in i for i in crf.check(text, PRINCIPLES)):
+        return False
+    return dict(crf._header_lines(text)).get("report-format") == "v4"
 
 
 def _search(pattern, text):
     return re.search(pattern, text) is not None  # no multiline flag, as in the grader
 
 
-def test_four_header_graders_found():
+def test_four_header_graders_share_one_pattern():
     assert len(HEADERS) == 4, HEADERS
+    assert len({_pattern(p) for p in HEADERS}) == 1
 
 
-@pytest.mark.parametrize("path", HEADERS, ids=lambda p: p.split(os.sep)[-3])
-def test_the_header_grader_agrees_with_the_checker_on_where_the_header_is(path):
-    p = _pattern(path)
-    for text in HEADER_OK:
-        assert crf.check(text, PRINCIPLES) == [], text[:40]
-        assert _search(p, text), text[:40]
-    for text in HEADER_NOT_OK[:2]:
-        assert any("unrecognised report contract" in i for i in crf.check(text, PRINCIPLES))
-        assert not _search(p, text), text[:40]
-    assert not _search(p, HEADER_NOT_OK[2])
+@pytest.mark.parametrize("name", sorted(OPENINGS))
+def test_the_header_grader_agrees_with_the_checker(name):
+    text = OPENINGS[name]
+    assert _search(_pattern(HEADERS[0]), text) == _checker_header_is_v4(text), name
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not on PATH: the JavaScript half is not checked")
-@pytest.mark.parametrize("path", HEADERS, ids=lambda p: p.split(os.sep)[-3])
-def test_javascript_reads_the_header_grader_as_python_does(path):
-    p = _pattern(path)
-    for text in HEADER_OK + HEADER_NOT_OK:
-        out = subprocess.run(
-            ["node", "-e", "const [p,t]=process.argv.slice(1);process.stdout.write(String(new RegExp(p).test(t)))",
-             p, text], capture_output=True, text=True).stdout
-        assert (out == "true") == _search(p, text), text[:40]
+def test_javascript_reads_the_header_grader_as_python_does():
+    p = _pattern(HEADERS[0])
+    src = ("let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const a=JSON.parse(d);"
+           "process.stdout.write(JSON.stringify(a.t.map(t=>new RegExp(a.p).test(t))))})")
+    names = sorted(OPENINGS)
+    out = subprocess.run(["node", "-e", src], input=json.dumps({"p": p, "t": [OPENINGS[n] for n in names]}),
+                         capture_output=True, text=True, check=True).stdout
+    for name, js in zip(names, json.loads(out)):
+        assert js == _search(p, OPENINGS[name]), name
