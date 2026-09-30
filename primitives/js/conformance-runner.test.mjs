@@ -181,13 +181,14 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
   });
   // The runner judges a thrown value on its prototype chain, whatever its
   // `constructor` says, and must not crash on it. A null-prototype object is
-  // unrelated to the refusal, so it conforms (SPEC §5c); a plain object has
-  // Object.prototype, a supertype of the refusal, however it fakes its
-  // `constructor`.
-  it("judges a null-prototype thrown value as unrelated to the refusal", () => {
+  // unrelated to the refusal, but it is not a TypeError, which SPEC §5c now
+  // requires (ADR-0020; the Python runner always did): it passed until the
+  // v0.12.0 dogfood audit. A plain object has Object.prototype, a supertype of
+  // the refusal, however it fakes its `constructor`.
+  it("fails a null-prototype thrown value as not a TypeError", () => {
     const odd = { ...impl, guard: () => { throw Object.assign(Object.create(null), { message: "guard: x" }); } };
     const [r] = runCases(odd, guardRow({ name: "x", meta: clean, expectError: "guard: x" }));
-    expect(r.error).toBeNull();
+    expect(r.error).toMatch(/must be a TypeError/);
   });
   it.each([
     () => ({ message: "guard: x", constructor: 1 }),
@@ -301,5 +302,35 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
     expect(results.filter((r) => r.error).map((r) => r.error)).toEqual([
       expect.stringMatching(/unknown case kind.*clone/),
     ]);
+  });
+});
+
+// v0.12.0 dogfood findings: two runner judgements the Python runner already
+// made and this one did not.
+describe("conformance runner — v0.12.0 dogfood", () => {
+  const table = (kind, c) => ({ version: cases.version, combine: [], audit: [], validate: [], construct: [], derive: [], guard: [], [kind]: [c] });
+  const clean = { provenanceVersion: 2, source: "real", confidence: "high", derivedFromMock: false, lineage: [] };
+
+  it("fails a bad-option row whose error is not a TypeError (SPEC §5c, ADR-0020)", () => {
+    const odd = { ...impl, guard: () => { throw new RangeError("guard: x"); } };
+    const [r] = runCases(odd, table("guard", { name: "x", meta: clean, expectError: "guard: x" }));
+    expect(r.error).toMatch(/must be a TypeError/);
+  });
+
+  it("passes a bad-option row whose error is a TypeError or a subclass of one", () => {
+    class OptionError extends TypeError {}
+    for (const make of [() => new TypeError("guard: x"), () => new OptionError("guard: x")]) {
+      const odd = { ...impl, guard: () => { throw make(); } };
+      expect(runCases(odd, table("guard", { name: "x", meta: clean, expectError: "guard: x" }))[0].error).toBe(null);
+    }
+  });
+
+  it("fails a derive row when marking its inputs throws, even with the expected message", () => {
+    // Marking was inside the try that judges expectError, so a port whose
+    // mark threw the expected words passed a row about derive.
+    const odd = { ...impl, mark: () => { throw new Error("source must be one of these"); } };
+    const [r] = runCases(odd, table("derive", {
+      name: "x", inputs: [{ source: "real", confidence: "high" }], override: { source: null }, expectError: "source must be one of" }));
+    expect(r.error).toMatch(/marking the inputs failed/);
   });
 });

@@ -556,7 +556,8 @@ reasons joined with `; `.
 `minConfidence` off the confidence ladder, or a `minSource` off the source
 ladder MUST raise an error, before the value is
 examined, with a message starting `guard: ` (an unknown option's naming it:
-`guard: unknown option <name>`). Its type MUST NOT be the refusal's type, or a
+`guard: unknown option <name>`). It MUST be a `TypeError` in both languages
+(ADR-0020), and every conformance runner asserts it. Its type MUST NOT be the refusal's type, or a
 supertype or subtype of it, so a caller catching one can never catch the
 other: a bad option must never be read as a refused value, or a refused value
 as a bad option. Where the refusal is a subtype of a standard error callers
@@ -613,7 +614,8 @@ An implementation **conforms to envelope schema version 2** if, for every case i
 `conformance/cases.json`:
 
 - each `combine` case's output matches the expected fields and respects the
-  declared `absent` fields,
+  declared `absent` fields, and, where the case gives them, its whole
+  lineage (`expectLineage`) and its step ids (`expectLineageIds`),
 - each `audit` case's issue list contains the expected substrings (or is empty
   when none are expected), and
 - each `validate` case's issue list contains the expected substrings (or is empty

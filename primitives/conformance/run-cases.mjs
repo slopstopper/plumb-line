@@ -110,9 +110,17 @@ function runDerive(impl, c) {
   const shape = shapeProblem("derive", c);
   if (shape) return shape;
   impl.__resetStepCounter();
+  // The inputs are marked outside the try that judges expectError, as the
+  // Python runner does: a row is about derive, so a mark that throws the
+  // expected words must fail it, not pass it (v0.12.0 dogfood).
+  let items;
+  try {
+    items = c.inputs.map((fields, i) => impl.mark(i, fields));
+  } catch (e) {
+    return `marking the inputs failed: ${describeThrown(e)}`;
+  }
   let out;
   try {
-    const items = c.inputs.map((fields, i) => impl.mark(i, fields));
     out = impl.derive(items, () => 0, c.override || {});
   } catch (e) {
     if (c.expectError === undefined) return `expected an envelope, got an error: ${describeThrown(e)}`;
@@ -219,6 +227,11 @@ function judgeGuardThrow(impl, c, e) {
   const proto = e !== null && typeof e === "object" ? Object.getPrototypeOf(e) : null;
   if (proto !== null && Object.prototype.isPrototypeOf.call(proto, impl.ProvenanceRefused.prototype))
     return "a bad option's error must not be a supertype of the refusal";
+  // SPEC §5c and ADR-0020: a bad option is a TypeError in both languages;
+  // the Python runner requires one, and this runner accepted any other
+  // error until the v0.12.0 dogfood audit found it.
+  if (proto === null || !(proto === TypeError.prototype || Object.prototype.isPrototypeOf.call(TypeError.prototype, proto)))
+    return `a bad option's error must be a TypeError (SPEC §5c), got ${describeThrown(e)}`;
   const message = describeThrown(e);
   return message.includes(c.expectError)
     ? null
