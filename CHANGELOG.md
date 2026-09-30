@@ -523,6 +523,27 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **JS combine, audit and guard no longer overflow the stack on a long
+  lineage** ([#560](https://github.com/slopstopper/plumb-line/issues/560);
+  `primitives/js`). With 200,000 steps, `combineProvenance`, `auditMeta` and
+  `guard` threw `RangeError: Maximum call stack size exceeded`, where Python
+  returned a result: each spread the whole lineage into one call
+  (`weakestSource(...)`, `weakestConfidence(...)`, `Math.min(...)`), one
+  argument per step. SPEC §5 requires the checker to be total. Each now
+  folds the lineage pairwise with the same function, so results are
+  unchanged; the public signatures are too. A 200,000-step test in each
+  language holds both to the same results. A lineage with a hole (a sparse
+  JS array) is now read as Python reads a `None` step: the audit names it
+  as a step that is not an object, combine keeps it in the combined
+  lineage, and the guard refuses it as an invalid envelope, handed to it
+  directly or after a `derive`, where all three skipped it before. The
+  audit and guard read the lineage by index, once, so what the guard
+  validates is what it judges. `combineConfidenceScore` reads a hole as a
+  gap and returns `undefined`, where it returned `NaN`, and accepts a
+  collection that can be read twice, such as a Set, as Python does, where
+  it threw on a non-array. Many
+  *inputs* (100,000 or more to `derive` or `combineProvenance`) still
+  overflow in JS: [#586](https://github.com/slopstopper/plumb-line/issues/586).
 - **The eval suite audits the committed fixtures, and its header grader
   requires the header to open the report**
   ([#530](https://github.com/slopstopper/plumb-line/issues/530);

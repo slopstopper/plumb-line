@@ -268,10 +268,15 @@ export function weakestSource(...sources) {
  * @returns {number|undefined}
  */
 export function combineConfidenceScore(scores) {
+  // Array.from, so a hole in a sparse array is a gap, as undefined is: every
+  // and reduce skip holes (#560 review).
+  scores = Array.from(scores);
   if (scores.length === 0 || !scores.every(isScore)) return undefined;
   // -0 is returned as 0: Python's min() over 0.0 and -0.0 depends on argument
   // order, so the result would too (#525 review).
-  const min = Math.min(...scores);
+  // Folded pairwise, not spread: a spread passes one argument per score, and
+  // a long lineage overflowed the stack (#560).
+  const min = scores.reduce((a, b) => Math.min(a, b));
   return min === 0 ? 0 : min;
 }
 
@@ -279,6 +284,16 @@ export function combineConfidenceScore(scores) {
 // content-addressed (see stepId, #52) — there is no counter or other shared
 // state to reset between runs. Safe to delete from call sites.
 export function __resetStepCounter() {}
+
+// An array copied by index, so a hole is the undefined it reads as, as Python's
+// None step is (#560 review): every, some, forEach, reduce and flatMap skip
+// holes. A plain loop, because Array.from follows an iterator: the array's
+// own, or one polluted onto a prototype, which could cut the copy short.
+function byIndex(a) {
+  const out = new Array(a.length);
+  for (let i = 0; i < a.length; i++) out[i] = a[i];
+  return out;
+}
 
 /**
  * Applies the taint-propagation combination law to one or more metadata envelopes
@@ -311,8 +326,10 @@ export function combineProvenance(...metas) {
   );
   // Prior steps keep their content-addressed ids verbatim — a subtree's id must
   // not change because it was recombined (#52). Only new input steps are minted.
+  // Copied by index (byIndex): flatMap drops a hole, and Python keeps its
+  // None step (#560 review).
   const priorLineage = metas.flatMap((m) =>
-    Array.isArray(m?.lineage) ? m.lineage : [],
+    Array.isArray(m?.lineage) ? byIndex(m.lineage) : [],
   );
   const inputSteps = metas.map((m) => {
     // The input's source and confidence, read as taint is read (through the
@@ -346,8 +363,9 @@ export function combineProvenance(...metas) {
     // Weakest source anywhere in the ancestry, read off the full lineage, and
     // omitted when any step's source cannot be ranked (#551): read off the
     // known steps alone, an unknown ancestor left the result looking clean.
+    // Folded, not spread, so a long lineage cannot overflow the stack (#560).
     weakestSource: lineage.every((s) => STATUS.includes(s?.source))
-      ? weakestSource(...lineage.map((s) => s?.source))
+      ? lineage.reduce((weakest, s) => weakestSource(weakest, s?.source), undefined)
       : undefined,
   });
 }

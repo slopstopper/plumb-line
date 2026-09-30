@@ -27,6 +27,16 @@ function ancestryFloor(stated, lineage) {
   return floor === -1 ? undefined : STATUS[floor];
 }
 
+// An array copied by index, so a hole is the undefined it reads as, as Python's
+// None step is (#560 review): every, some, forEach, reduce and flatMap skip
+// holes. A plain loop, because Array.from follows an iterator: the array's
+// own, or one polluted onto a prototype, which could cut the copy short.
+function byIndex(a) {
+  const out = new Array(a.length);
+  for (let i = 0; i < a.length; i++) out[i] = a[i];
+  return out;
+}
+
 /**
  * Checks a provenance metadata envelope for internal consistency.
  * Returns an empty array when the envelope is consistent; otherwise returns
@@ -97,7 +107,8 @@ export function auditMeta(meta) {
     issues.push(`version-future: envelope version ${v} is newer than supported ${PROVENANCE_VERSION}`);
   }
 
-  const lineage = Array.isArray(meta.lineage) ? meta.lineage : [];
+  // Read once, by index (byIndex), so a hole is named as Python names None.
+  const lineage = Array.isArray(meta.lineage) ? byIndex(meta.lineage) : [];
 
   if (CLEAN_SOURCES.includes(meta.source) && meta.derivedFromMock === true) {
     issues.push(
@@ -114,7 +125,9 @@ export function auditMeta(meta) {
     .filter((c) => c != null)
     .map((c) => (CONFIDENCE.includes(c) ? c : "none"));
   if (lineageConfidences.length > 0) {
-    const weakest = weakestConfidence(...lineageConfidences);
+    // Folded pairwise, not spread: a spread passes one argument per step, and
+    // a long lineage overflowed the stack (#560). The same below.
+    const weakest = lineageConfidences.reduce((a, b) => weakestConfidence(a, b));
     if (CONFIDENCE.indexOf(meta.confidence) > CONFIDENCE.indexOf(weakest)) {
       issues.push(
         `over-claiming: confidence '${meta.confidence}' exceeds weakest lineage confidence '${weakest}'`,
@@ -128,7 +141,7 @@ export function auditMeta(meta) {
       .map((s) => s?.confidenceScore)
       .filter((c) => isScore(c));
     if (lineageScores.length > 0) {
-      const weakest = Math.min(...lineageScores);
+      const weakest = lineageScores.reduce((a, b) => Math.min(a, b));
       if (meta.confidenceScore > weakest) {
         issues.push(
           `over-claiming: confidenceScore ${meta.confidenceScore} exceeds weakest lineage score ${weakest}`,
@@ -139,7 +152,7 @@ export function auditMeta(meta) {
 
   // Source over-claim — weakestSource cannot look cleaner than the lineage proves.
   if (STATUS.includes(meta.weakestSource)) {
-    const actual = weakestSource(...lineage.map((s) => s?.source));
+    const actual = lineage.reduce((weakest, s) => weakestSource(weakest, s?.source), undefined);
     if (actual && STATUS.indexOf(meta.weakestSource) > STATUS.indexOf(actual)) {
       issues.push(
         `source over-claim: weakestSource '${meta.weakestSource}' is cleaner than lineage's '${actual}'`,

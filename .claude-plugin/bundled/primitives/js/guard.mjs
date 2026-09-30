@@ -123,6 +123,16 @@ function unreadable(meta) {
   return issues;
 }
 
+// An array copied by index, so a hole is the undefined it reads as, as Python's
+// None step is (#560 review): every, some, forEach, reduce and flatMap skip
+// holes. A plain loop, because Array.from follows an iterator: the array's
+// own, or one polluted onto a prototype, which could cut the copy short.
+function byIndex(a) {
+  const out = new Array(a.length);
+  for (let i = 0; i < a.length; i++) out[i] = a[i];
+  return out;
+}
+
 /**
  * Lets a marked value through an output point only if its envelope backs it.
  * Returns the value it was given, unchanged, so an output point writes
@@ -157,6 +167,10 @@ export function guard(x, options) {
   // The audit wants a plain object, and reads a polluted prototype as any
   // plain-object reader does (the threat model's in-process attacker).
   const own = Object.fromEntries(Object.entries(metaOf(x)).filter(([key]) => Object.hasOwn(x, key)));
+  // The lineage is copied once, by index, and that copy is what is both
+  // validated and judged, as Python rebuilds meta['lineage'] once (#560
+  // review): a hole is refused as a step that is not a plain object.
+  if (Array.isArray(own.lineage)) own.lineage = byIndex(own.lineage);
   const meta = { ...own };
   const bare = Object.assign(Object.create(null), own);
   const invalid = validateEnvelope(bare);
@@ -171,7 +185,9 @@ export function guard(x, options) {
   if (minConfidence !== "none") {
     // An absent step confidence counts as none: the guard vouches only for
     // what the lineage states.
-    const weakest = weakestConfidence(meta.confidence, ...steps.map((step) => step.confidence));
+    // Folded, not spread, so a long lineage cannot overflow the stack (#560).
+    const weakest = steps.reduce((w, step) => weakestConfidence(w, step.confidence),
+      weakestConfidence(meta.confidence));
     if (CONFIDENCE.indexOf(weakest) < CONFIDENCE.indexOf(minConfidence))
       reasons.push(`confidence: ${weakest} is below the required ${minConfidence}`);
   }
