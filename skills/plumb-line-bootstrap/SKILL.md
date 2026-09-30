@@ -203,7 +203,8 @@ an `edit`) is judged on the branch being rebased, which git records while
 HEAD is detached, and on every branch `--update-refs` will move: it passes
 on a feature branch, and a code path blocks when one of those is protected
 (#547). Staging the change and running `git rebase --continue` runs no
-hook, so a rebase of a protected branch carries it on unjudged, and
+hook, so a rebase of a protected branch, or one that will move one,
+carries it on unjudged, and
 `--no-verify` is the other way through. This is git's
 behaviour (checked with git 2.39) and may differ between versions. `git commit --no-verify` skips the hook in general, so it
 catches an accident rather than locking anything.

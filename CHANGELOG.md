@@ -19,9 +19,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   (`branch-guard-commit.mjs`, `branch_guard_commit.py`) now take the branch
   from the `head-name` git records for the rebase (`rebase-merge` or
   `rebase-apply`) while that directory exists, as git itself reads a rebase
-  in progress, and judge every branch `--update-refs` will move as well. A
-  commit made by hand at a stop of a rebase of `main`, or of one that will
-  move `main`, still blocks a code path; `git rebase --continue` runs no
+  in progress, and judge every branch listed in its `update-refs` as well
+  (`--update-refs`; a branch whose `update-ref` step has already run is
+  still judged, which can block a commit that could no longer move it). A
+  commit made by hand at a stop of a rebase of `main`, or of one listing
+  `main`, still blocks a code path; `git rebase --continue` runs no
   hook, so a change it carries on is not judged. With no rebase directory a
   detached HEAD stays unknown (#449); a `head-name` or `update-refs` that
   cannot be read, or names no valid branch, leaves the branch unknown with a
