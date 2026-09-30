@@ -104,18 +104,6 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   named, are #520 and #521.
 
 ### Changed
-- **JS `derive`: an override whose value is `undefined` is no override, for
-  every key** ([#533](https://github.com/slopstopper/plumb-line/issues/533);
-  `docs/api.md`). Since #177 this held for `source` only. `{ confidence:
-  undefined }` reset the combined rung to `"none"`, and `{ confidenceScore:
-  undefined }` dropped the combined score, so `derive(xs, f, { confidence:
-  opts.confidence })` with the option unset silently lost what the law
-  computed. Each result was weaker, never an over-claim, but the rule
-  differed by key. `basis` and `adapter` already behaved this way; the law
-  never sets them. Python cannot express `undefined`, so it is unchanged. A
-  `null`/`None` override is a separate case: it still drops the combined
-  `confidenceScore` in both languages, and `basis`/`adapter` null differ
-  between them ([#566](https://github.com/slopstopper/plumb-line/issues/566)).
 - **The `claude plugin eval` suite runs, after its first real run found it
   measured nothing** ([#291](https://github.com/slopstopper/plumb-line/issues/291)).
   The August suite granted no tools, so the audit skill could not read its
@@ -435,6 +423,19 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **JS `derive`: an override whose value is `undefined` is no override, for
+  every key** ([#533](https://github.com/slopstopper/plumb-line/issues/533);
+  `docs/api.md`; ADR-0019 amendment). Since #177 it held for `source`, and
+  `basis` and `adapter` behaved the same, the law never setting them; not
+  for `confidence` or `confidenceScore`. `{ confidence:
+  undefined }` reset the combined rung to `"none"`, and `{ confidenceScore:
+  undefined }` dropped the combined score, so `derive(xs, f, { confidence:
+  opts.confidence })` with the option unset silently lost what the law
+  computed. Each result was weaker, never an over-claim, but the rule
+  differed by key. Python cannot express `undefined`, so it is unchanged. A
+  `null`/`None` override is a separate case: it still drops the combined
+  `confidenceScore` in both languages, and `basis`/`adapter` null differ
+  between them ([#566](https://github.com/slopstopper/plumb-line/issues/566)).
 - **`derive` refuses an input that is not a marked value, in both
   languages (breaking for callers who passed one)**
   ([#550](https://github.com/slopstopper/plumb-line/issues/550); SPEC §2).

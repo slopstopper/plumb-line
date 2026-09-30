@@ -98,8 +98,12 @@ export function derive(inputs, fn, metaOverride = {}) {
   // required) is not for derive; for confidence it reset the combined rung to
   // "none", and for confidenceScore it dropped the combined score, so a
   // caller passing an unset option silently lost what the law computed.
+  // Each value is read once, so a getter cannot pass the check with one
+  // value and be copied with another (#533 review).
   for (const key of OVERRIDE_KEYS) {
-    if (key in metaOverride && metaOverride[key] !== undefined) safeOverride[key] = metaOverride[key];
+    if (!(key in metaOverride)) continue;
+    const v = metaOverride[key];
+    if (v !== undefined) safeOverride[key] = v;
   }
   // Route the override through makeMeta so derive is never weaker than the
   // constructor: an out-of-range confidenceScore (or unrankable weakestSource)
