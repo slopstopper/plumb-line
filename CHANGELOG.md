@@ -511,9 +511,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     and caches git ignores, then deleted every line naming a violation from
     every file. In the js fixtures that broke ESLint's own source, so every
     js run, in both arms, audited a fixture whose linter crashed. They now
-    stage the fixture's tracked files only (`scripts/test_eval_scaffolds.py`),
-    and the manual protocols (`AUDIT-EXPECTATIONS`, `REMEDIATE-EXPECTATIONS`)
-    say the same.
+    stage the fixture's files at the commit (`git archive`) and fail rather
+    than stage nothing (`scripts/test_eval_scaffolds.py`), and the manual
+    protocols (`AUDIT-EXPECTATIONS`, `REMEDIATE-EXPECTATIONS`) say the same.
   - `format-header` matched `report-format: v4` anywhere in the message, and
     passed two js-clean reports that open with a prose summary above the
     header, which the checker fails. It now requires the header first,
@@ -524,7 +524,8 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   - The run itself: with the plugin every case passed 3/3 and every planted
     violation was confirmed; 4 of the 6 with-plugin clean reports conform to
     the format checker, and the two that fail print a "clean" stamp anyway
-    (#581). Not counted as green, pending the owner.
+    (#581). Its greenness is pending the owner; the record recommends not.
+    The 12 clean-case reports it could recover are committed beside it.
   - `evals/results/`, where the runner writes its raw output, is ignored.
 - **A `null` optional override on `derive` is no override, and a `null`
   `basis` or `adapter` is no field, in both languages**

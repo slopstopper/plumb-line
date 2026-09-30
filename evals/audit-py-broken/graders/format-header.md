@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: '^(?:[ \t ]*(?:(?:```+|~~~+)[ \t]*[A-Za-z0-9_-]*[ \t]*)?\r?\n)*report-format:[ \t]*v4[ \t]*\r?(?:\n|$)'
+pattern: '^(?:[ \t\u00a0]*(?:(?:```+|~~~+)[ \t]*[A-Za-z0-9_-]*[ \t]*)?\r?\n)*report-format:[ \t]*v4[ \t]*\r?(?:\n|$)'
 match: contains
 target: last_message
 arm: with-only

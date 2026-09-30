@@ -16,9 +16,10 @@ runs it before tagging any release whose diff touches
 
 ## Protocol (one remediator per run; ≥2 independent runs)
 
-1. Copy `js-payments-service/broken/`'s tracked files (`git ls-files`; an
-   untracked `node_modules` is not the fixture, and the strip below breaks
-   ESLint's own source) to a scratch directory **outside the repo**. Delete `VIOLATIONS.md` and `README.md` from the copy and strip every
+1. Copy `js-payments-service/broken/`'s committed files (`git archive
+   HEAD:<fixture>`; an untracked `node_modules` is not the fixture, and the
+   strip below breaks ESLint's own source) to a scratch directory **outside
+   the repo**. Delete `VIOLATIONS.md` and `README.md` from the copy and strip every
    line matching `violation` **case-insensitively** from the sources (the
    fixture's answer annotations must not coach the remediator). Case matters:
    this step said `VIOLATION` until v0.8.0, and the fixture also carries
