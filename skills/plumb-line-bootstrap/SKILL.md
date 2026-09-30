@@ -168,8 +168,9 @@ not git hooks on their own. The pre-commit gate needs only
 `PLUMBLINE_TEST_CMD`, so a pre-commit hook that sets it and runs the gate
 works. The branch guard runs from git through its commit-hook wrapper, which
 reads the branch from git (a detached HEAD is an unknown branch, so a code
-commit there blocks) and judges every staged path, a rename as both of its
-paths. Keep the builder's protected branches and docs allowlist in one
+commit there blocks, except during a rebase, when the branch is the one
+being rebased and any it will move) and judges every staged path, a rename
+as both of its paths. Keep the builder's protected branches and docs allowlist in one
 committed file, such as `.claude/guards/branch-guard.json`, and read it into
 `PLUMBLINE_CFG` in every wiring (this hook and the PreToolUse hook below), so
 the two cannot protect different branches; a missing file leaves the
@@ -198,9 +199,13 @@ that stops (a conflict, or a merge with `--no-commit` or `--squash`) and is
 finished with `git commit` or `--continue` runs the hook, which judges
 everything it brings in, so bringing code into a protected branch that way
 is refused. A commit made by hand at a rebase stop (`git commit --amend` at
-an `edit`) has HEAD detached, so it blocks when a code path is staged, even
-on a feature branch; staging the change and running `git rebase --continue`
-runs no hook, and `--no-verify` is the other way through. This is git's
+an `edit`) is judged on the branch being rebased, which git records while
+HEAD is detached, and on every branch `--update-refs` will move: it passes
+on a feature branch, and a code path blocks when one of those is protected
+(#547). Staging the change and running `git rebase --continue` runs no
+hook, so a rebase of a protected branch, or one that will move one,
+carries it on unjudged, and
+`--no-verify` is the other way through. This is git's
 behaviour (checked with git 2.39) and may differ between versions. `git commit --no-verify` skips the hook in general, so it
 catches an accident rather than locking anything.
 

@@ -1,5 +1,5 @@
 {
-  "_doc": "Cases for the branch guard's git commit hook (#464), run against a real temporary git repository by both twins: adapters/js/hooks/__tests__/commit-hook-cases.test.mjs and adapters/python/hooks/test_commit_hook_cases.py. Each row builds the repository in this order: `git init` on an unborn main; `committed` paths committed as the base, with `committedText` files (path to content) committed beside them (absent: main stays unborn); `side` paths committed on a branch named side, made from the base, then main checked out again; `branch` checked out as a new branch (null: HEAD detached at the base; \"main\": stay); `tags` created at HEAD; `headRef` given to `git symbolic-ref HEAD`; `config` pairs set with `git config`; `merge` arguments given to `git merge`; `remove` and `move` applied with `git rm` and `git mv`; `stage` paths written and added; `stageHex` paths (hex bytes, which need not be UTF-8) added to the index only; `gitlink` paths added to the index as submodule commits (HEAD's); `stageCount` [prefix, n] adds n index-only paths prefix0 to prefix(n-1); `modify` paths rewritten without staging. Then the wrapper runs in the repository with `env` applied (null unsets) and every PLUMBLINE_* variable cleared first, or, when `commit` is present, a pre-commit hook that runs the wrapper is installed and `git commit` runs with those arguments, and a commit must be made exactly when `expectExit` is 0. `repo: false` runs the wrapper outside any repository instead. `fakeGit` ({script, executable}) runs the wrapper with PATH holding only a directory whose `git` is that script, made executable or not; it cannot be combined with `commit`. `expectStderr` is compared exactly.",
+  "_doc": "Cases for the branch guard's git commit hook (#464), run against a real temporary git repository by both twins: adapters/js/hooks/__tests__/commit-hook-cases.test.mjs and adapters/python/hooks/test_commit_hook_cases.py. Each row builds the repository in this order: `git init` on an unborn main; `committed` paths committed as the base, with `committedText` files (path to content) committed beside them (absent: main stays unborn); `side` paths committed on a branch named side, made from the base, then main checked out again; `branch` checked out as a new branch (null: HEAD detached at the base; \"main\": stay); `tags` created at HEAD; `headRef` given to `git symbolic-ref HEAD`; `config` pairs set with `git config`; `merge` arguments given to `git merge`; `rebaseStop` path committed on the current branch, then `git rebase --exec false HEAD~1` run so the rebase stops with HEAD detached and `rebase-merge/head-name` written, as at an `edit` stop; with `rebaseAlso`, that branch is pointed at the commit, a tip commit is added and `git rebase --update-refs --exec false HEAD~2` runs instead, so the rebase will move `rebaseAlso` too (`rebaseUpdateRefsDir` then replaces `update-refs` with a directory); with `rebaseApply`, `conflict.txt` is committed beside the path and `git rebase --apply` onto a branch that adds it differently stops on the conflict, writing `rebase-apply/head-name`; the rebase directory's `head-name` `rebaseHeadName` then deletes (null) or overwrites (text), or `rebaseHeadNameDir` replaces with a directory; `remove` and `move` applied with `git rm` and `git mv`; `stage` paths written and added; `stageHex` paths (hex bytes, which need not be UTF-8) added to the index only; `gitlink` paths added to the index as submodule commits (HEAD's); `stageCount` [prefix, n] adds n index-only paths prefix0 to prefix(n-1); `modify` paths rewritten without staging. Then the wrapper runs in the repository with `env` applied (null unsets) and every PLUMBLINE_* variable cleared first, or, when `commit` is present, a pre-commit hook that runs the wrapper is installed and `git commit` runs with those arguments, and a commit must be made exactly when `expectExit` is 0. `repo: false` runs the wrapper outside any repository instead. `fakeGit` ({script, executable}) runs the wrapper with PATH holding only a directory whose `git` is that script, made executable or not; it cannot be combined with `commit`. `expectStderr` is compared exactly.",
   "version": 1,
   "commitHook": [
     {
@@ -367,6 +367,120 @@
       "commit": [],
       "expectExit": 1,
       "expectStderr": "blocked: code edit to src/a.js with the branch unknown (HEAD is not on a branch). Switch to a branch first.\n"
+    },
+    {
+      "name": "at a rebase stop on a feature branch, a code amend passes: the branch is the one being rebased (#547)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "rebaseStop": "src/r.js",
+      "stage": ["src/a.js"],
+      "commit": ["--amend"],
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "at a rebase stop on main, a code amend blocks: main is the branch being rebased (#547)",
+      "committed": ["README.md"],
+      "branch": "main",
+      "rebaseStop": "src/r.js",
+      "stage": ["src/a.js"],
+      "commit": ["--amend"],
+      "expectExit": 1,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "at a rebase stop whose head-name is missing, a code file blocks, naming it (#547)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "rebaseStop": "src/r.js",
+      "rebaseHeadName": null,
+      "stage": ["src/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js with the branch unknown (HEAD is detached by a rebase whose rebase-merge/head-name cannot be read: ENOENT). Switch to a branch first.\n"
+    },
+    {
+      "name": "at a rebase stop whose head-name cannot be read, a code file blocks, naming it (#547)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "rebaseStop": "src/r.js",
+      "rebaseHeadNameDir": true,
+      "stage": ["src/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js with the branch unknown (HEAD is detached by a rebase whose rebase-merge/head-name cannot be read: EISDIR). Switch to a branch first.\n"
+    },
+    {
+      "name": "a rebase of a detached HEAD records no branch: a code file blocks (#547)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "rebaseStop": "src/r.js",
+      "rebaseHeadName": "detached HEAD\n",
+      "stage": ["src/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js with the branch unknown (HEAD is detached by a rebase of \"detached HEAD\", which is not a branch). Switch to a branch first.\n"
+    },
+    {
+      "name": "a rebase recording a ref that is not a branch name blocks a code file (#547)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "rebaseStop": "src/r.js",
+      "rebaseHeadName": "refs/heads/-x\n",
+      "stage": ["src/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js with the branch unknown (HEAD is detached by a rebase of \"-x\", which is not a branch name). Switch to a branch first.\n"
+    },
+    {
+      "name": "at a rebase stop whose head-name is missing, a docs-only commit passes, as every branch allows it (#547)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "rebaseStop": "src/r.js",
+      "rebaseHeadName": null,
+      "stage": ["docs/a.md"],
+      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"docs/\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "a rebase with --update-refs that will move main blocks a code amend, though the branch rebased is not protected (#547 review)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "rebaseStop": "src/r.js",
+      "rebaseAlso": "main",
+      "stage": ["src/a.js"],
+      "commit": ["--amend"],
+      "expectExit": 1,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "a rebase with --update-refs moving only unprotected branches passes a code amend (#547 review)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "rebaseStop": "src/r.js",
+      "rebaseAlso": "other",
+      "stage": ["src/a.js"],
+      "commit": ["--amend"],
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "a rebase whose update-refs cannot be read blocks a code file, naming it (#547 review)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "rebaseStop": "src/r.js",
+      "rebaseAlso": "other",
+      "rebaseUpdateRefsDir": true,
+      "stage": ["src/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js with the branch unknown (HEAD is detached by a rebase whose rebase-merge/update-refs cannot be read: EISDIR). Switch to a branch first.\n"
+    },
+    {
+      "name": "at a stop of the apply backend on a feature branch, a code file passes: rebase-apply/head-name names the branch (#547 review)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "rebaseStop": "src/r.js",
+      "rebaseApply": true,
+      "stage": ["src/a.js"],
+      "expectExit": 0,
+      "expectStderr": ""
     }
   ]
 }

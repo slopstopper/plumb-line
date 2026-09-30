@@ -36,7 +36,46 @@ def staged_paths(output):
     return [p.decode("utf-8", "replace") for p in output.split(b"\0")[:-1]]
 
 
-def judge_commit(branch, paths, config):
+def _operation(dir_name):
+    """What a rebase-merge or rebase-apply directory is named for in a reason:
+    `git am` also stops in rebase-apply, and writes no head-name."""
+    return "a rebase or git am" if dir_name == "rebase-apply" else "a rebase"
+
+
+def rebase_branch(dir_name, data, code):
+    """The branch a rebase in progress is rebasing (#547), from the head-name
+    file git records in its rebase-merge or rebase-apply directory, given the
+    file's bytes (None when it cannot be read) and the read error's errno
+    name. Returns {"branch": ...} for a branch; for anything else, the branch
+    as far as it is known and "why", the reason it cannot be used. JS twin:
+    rebaseBranch."""
+    op = _operation(dir_name)
+    if data is None:
+        return {"branch": None,
+                "why": f"HEAD is detached by {op} whose {dir_name}/head-name cannot be read: {code}"}
+    ref = data.decode("utf-8", "replace").removesuffix("\n")
+    branch = branch_from_ref(ref)
+    if branch is None:
+        return {"branch": None,
+                "why": f"HEAD is detached by {op} of {json.dumps(ref, ensure_ascii=False)}, "
+                       "which is not a branch"}
+    if not _is_branch_name(branch):
+        return {"branch": branch,
+                "why": f"HEAD is detached by {op} of {json.dumps(branch, ensure_ascii=False)}, "
+                       "which is not a branch name"}
+    return {"branch": branch}
+
+
+def update_ref_branches(data):
+    """The other branches a rebase with --update-refs will move (#547
+    review), from its update-refs file: each ref takes three lines, the ref
+    and two object ids, and only refs/heads/ refs are branches. JS twin:
+    updateRefBranches."""
+    lines = data.decode("utf-8", "replace").split("\n")
+    return [b for b in (branch_from_ref(line) for line in lines[::3]) if b is not None]
+
+
+def judge_commit(branch, paths, config, why=None):
     """Judge a commit: every staged path through decide(), stopping at the
     first block. The branch is unknown when HEAD is on no branch (`branch`
     None) or on one git would not accept as a branch name, such as `-x`, which
@@ -44,7 +83,8 @@ def judge_commit(branch, paths, config):
     every branch passes (#449). With the config already checked and a
     non-empty path, decide()'s only block on an unknown branch is the code
     edit, so that reason is replaced with one naming HEAD rather than
-    PLUMBLINE_BRANCH, which this hook never reads. JS twin: judgeCommit."""
+    PLUMBLINE_BRANCH, which this hook never reads; `why`, when given, says why
+    the branch is unknown (a rebase in progress, #547). JS twin: judgeCommit."""
     known = branch is not None and _is_branch_name(branch)
     for file_path in paths:
         r = decide(
@@ -57,8 +97,9 @@ def judge_commit(branch, paths, config):
             continue
         if known:
             return r
-        why = ("HEAD is not on a branch" if branch is None
-               else f"HEAD is on {json.dumps(branch, ensure_ascii=False)}, which is not a branch name")
+        if why is None:
+            why = ("HEAD is not on a branch" if branch is None
+                   else f"HEAD is on {json.dumps(branch, ensure_ascii=False)}, which is not a branch name")
         return {"allow": False,
                 "reason": f"blocked: code edit to {file_path} with the branch unknown "
                           f"({why}). Switch to a branch first."}
@@ -100,6 +141,36 @@ def _main():
     head = _git(["symbolic-ref", "--quiet", "HEAD"], "read the branch", (0, 1))
     branch = (branch_from_ref(head.stdout.decode("utf-8", "replace").removesuffix("\n"))
               if head.returncode == 0 else None)
+    why = None
+    also, also_why = [], None
+    # HEAD is detached during a rebase (#547). While git's rebase directory
+    # exists, which git itself reads as a rebase in progress, the branch is
+    # the one it records as being rebased, and with --update-refs every other
+    # branch it will move is judged too. With no rebase directory a detached
+    # HEAD stays unknown (#449).
+    if head.returncode != 0:
+        for dir_name in ("rebase-merge", "rebase-apply"):
+            where = _git(["rev-parse", "--git-path", dir_name], "find the rebase state").stdout
+            where = where.decode("utf-8", "replace").removesuffix("\n")
+            if not os.path.exists(where):
+                continue
+            data, code = None, None
+            try:
+                with open(os.path.join(where, "head-name"), "rb") as f:
+                    data = f.read()
+            except OSError as e:
+                code = errno.errorcode.get(e.errno, str(e)) if e.errno else str(e)
+            r = rebase_branch(dir_name, data, code)
+            branch, why = r["branch"], r.get("why")
+            update_refs = os.path.join(where, "update-refs")
+            if os.path.exists(update_refs):
+                try:
+                    with open(update_refs, "rb") as f:
+                        also = update_ref_branches(f.read())
+                except OSError as e:
+                    ucode = errno.errorcode.get(e.errno, str(e)) if e.errno else str(e)
+                    also_why = f"HEAD is detached by a rebase whose {dir_name}/update-refs cannot be read: {ucode}"
+            break
     # --cached against HEAD (or the empty tree on an unborn branch), in the
     # index git is committing: during `git commit -a` or `git commit <path>`
     # that is the temporary index GIT_INDEX_FILE names. --no-renames: a rename
@@ -109,7 +180,20 @@ def _main():
     # `ignore` setting would otherwise hide a staged submodule bump.
     diff = _git(["diff", "--cached", "--name-only", "-z", "--no-renames", "--ignore-submodules=none"],
                 "list the staged files")
-    return judge_commit(branch, staged_paths(diff.stdout), config)
+    paths = staged_paths(diff.stdout)
+    r = judge_commit(branch, paths, config, why)
+    if not r["allow"]:
+        return r
+    # Every branch the rebase will move must allow the commit (#547 review).
+    if also_why is not None:
+        return judge_commit(None, paths, config, also_why)
+    for other in also:
+        r2 = judge_commit(other, paths, config,
+                          f"the rebase also moves {json.dumps(other, ensure_ascii=False)}, "
+                          "which is not a branch name")
+        if not r2["allow"]:
+            return r2
+    return r
 
 
 if __name__ == "__main__":

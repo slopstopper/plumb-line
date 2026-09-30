@@ -5,7 +5,7 @@
 // the table, so neither twin can quietly miss it.
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, chmodSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +18,7 @@ const HOOK = fileURLToPath(new URL("../branch-guard-commit.mjs", import.meta.url
 // Every field, case kind and table version this runner interprets (#441).
 // Python twin: _MODEL in adapters/python/hooks/test_commit_hook_cases.py.
 const ROW = ["name", "repo", "committed", "committedText", "fakeGit", "side", "branch", "tags", "headRef", "config", "merge",
-  "remove", "move", "stage", "stageHex", "gitlink", "stageCount", "modify", "env", "commit",
+  "rebaseStop", "rebaseApply", "rebaseAlso", "rebaseHeadName", "rebaseHeadNameDir", "rebaseUpdateRefsDir", "remove", "move", "stage", "stageHex", "gitlink", "stageCount", "modify", "env", "commit",
   "expectExit", "expectStderr"];
 const MODEL = { versions: [1], meta: ["_doc", "version"], fields: { commitHook: ROW } };
 
@@ -75,6 +75,25 @@ function typeProblems(c) {
     problems.push("branch null, tags, headRef, side and gitlink need committed");
   }
   if ("merge" in c && !("side" in c)) problems.push("merge needs side");
+  if ("rebaseStop" in c && typeof c.rebaseStop !== "string") problems.push("rebaseStop must be a string");
+  if ("rebaseHeadName" in c && c.rebaseHeadName !== null && typeof c.rebaseHeadName !== "string") {
+    problems.push("rebaseHeadName must be a string or null");
+  }
+  if ("rebaseHeadNameDir" in c && c.rebaseHeadNameDir !== true) problems.push("rebaseHeadNameDir must be true when present");
+  if ("rebaseApply" in c && c.rebaseApply !== true) problems.push("rebaseApply must be true when present");
+  if ("rebaseAlso" in c && typeof c.rebaseAlso !== "string") problems.push("rebaseAlso must be a string");
+  if ("rebaseUpdateRefsDir" in c && c.rebaseUpdateRefsDir !== true) {
+    problems.push("rebaseUpdateRefsDir must be true when present");
+  }
+  if (["rebaseApply", "rebaseAlso"].some((f) => f in c) && !("rebaseStop" in c)) {
+    problems.push("rebaseApply and rebaseAlso need rebaseStop");
+  }
+  if ("rebaseApply" in c && "rebaseAlso" in c) problems.push("rebaseApply cannot be combined with rebaseAlso");
+  if ("rebaseUpdateRefsDir" in c && !("rebaseAlso" in c)) problems.push("rebaseUpdateRefsDir needs rebaseAlso");
+  if ("rebaseStop" in c && !("committed" in c)) problems.push("rebaseStop needs committed");
+  if (("rebaseHeadName" in c || "rebaseHeadNameDir" in c) && !("rebaseStop" in c)) {
+    problems.push("rebaseHeadName and rebaseHeadNameDir need rebaseStop");
+  }
   return problems;
 }
 
@@ -126,6 +145,47 @@ function build(c) {
   if (c.headRef !== undefined) git(repo, ["symbolic-ref", "HEAD", c.headRef]);
   for (const [k, v] of c.config ?? []) git(repo, ["config", k, v]);
   if (c.merge) git(repo, ["merge", "-q", ...c.merge]);
+  if (c.rebaseStop !== undefined) {
+    write(repo, c.rebaseStop, "rebased\n");
+    if (c.rebaseApply) write(repo, "conflict.txt", "branch\n");
+    git(repo, ["add", "--", c.rebaseStop, ...(c.rebaseApply ? ["conflict.txt"] : [])]);
+    git(repo, ["commit", "-q", "--no-verify", "-m", "rebased"]);
+    let args = ["rebase", "-q", "--exec", "false", "HEAD~1"];
+    if (c.rebaseApply) {
+      // The apply backend has no --exec: it stops on an add/add conflict,
+      // with rebase-apply/head-name written.
+      const name = git(repo, ["rev-parse", "--abbrev-ref", "HEAD"]).toString().trim();
+      git(repo, ["checkout", "-q", "-b", "apply-onto", "HEAD~1"]);
+      write(repo, "conflict.txt", "onto\n");
+      git(repo, ["add", "--", "conflict.txt"]);
+      git(repo, ["commit", "-q", "--no-verify", "-m", "onto"]);
+      git(repo, ["checkout", "-q", name]);
+      args = ["rebase", "-q", "--apply", "apply-onto"];
+    } else if (c.rebaseAlso !== undefined) {
+      // --update-refs: rebaseAlso points at the commit the rebase stops on,
+      // so the rebase will move it too.
+      git(repo, ["branch", "-f", c.rebaseAlso, "HEAD"]);
+      write(repo, "tip.md", "tip\n");
+      git(repo, ["add", "--", "tip.md"]);
+      git(repo, ["commit", "-q", "--no-verify", "-m", "tip"]);
+      args = ["rebase", "-q", "--update-refs", "--exec", "false", "HEAD~2"];
+    }
+    // --exec false stops the rebase after the commit is replayed, with HEAD
+    // detached and rebase-merge/head-name written, as an `edit` stop is.
+    const r = spawnSync("git", args, { cwd: repo, env: BASE_ENV });
+    if (r.status === 0) throw new Error(`git ${args.join(" ")} did not stop`);
+    const dir = git(repo, ["rev-parse", "--git-path", c.rebaseApply ? "rebase-apply" : "rebase-merge"]).toString().trim();
+    if (c.rebaseUpdateRefsDir) {
+      rmSync(path.resolve(repo, dir, "update-refs"));
+      mkdirSync(path.resolve(repo, dir, "update-refs"));
+    }
+    const headName = path.resolve(repo, dir, "head-name");
+    if (c.rebaseHeadNameDir) {
+      rmSync(headName);
+      mkdirSync(headName);
+    } else if (c.rebaseHeadName === null) rmSync(headName);
+    else if (c.rebaseHeadName !== undefined) writeFileSync(headName, c.rebaseHeadName);
+  }
   for (const p of c.remove ?? []) git(repo, ["rm", "-q", "--", p]);
   for (const [from, to] of c.move ?? []) {
     mkdirSync(path.dirname(path.join(repo, to)), { recursive: true });

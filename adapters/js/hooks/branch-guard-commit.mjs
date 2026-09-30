@@ -9,6 +9,7 @@
 // adapters/commit-hook-cases.json.
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { configFromEnv, decide, isBranchName } from "./branch-guard.mjs";
 
@@ -41,6 +42,53 @@ export function stagedPaths(output) {
   return parts;
 }
 
+// A file git records for a rebase, decoded as the staged paths are: UTF-8
+// with U+FFFD for a bad sequence, and a leading BOM kept, as Python keeps it.
+const decodeState = (bytes) => new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes);
+
+// What a rebase-merge or rebase-apply directory is named for in a reason:
+// `git am` also stops in rebase-apply, and writes no head-name.
+const operation = (dir) => (dir === "rebase-apply" ? "a rebase or git am" : "a rebase");
+
+/**
+ * The branch a rebase in progress is rebasing (#547), from the head-name file
+ * git records in its rebase-merge or rebase-apply directory, given the
+ * file's bytes (null when it cannot be read) and the read error's code.
+ * Returns { branch } for a branch; for anything else, the branch as far as it
+ * is known and `why`, the reason it cannot be used. Python twin:
+ * rebase_branch.
+ */
+export function rebaseBranch(dir, bytes, code) {
+  if (bytes === null) {
+    return { branch: null, why: `HEAD is detached by ${operation(dir)} whose ${dir}/head-name cannot be read: ${code}` };
+  }
+  const ref = decodeState(bytes).replace(/\n$/, "");
+  const branch = branchFromRef(ref);
+  if (branch === null) {
+    return { branch: null, why: `HEAD is detached by ${operation(dir)} of ${JSON.stringify(ref)}, which is not a branch` };
+  }
+  if (!isBranchName(branch)) {
+    return { branch, why: `HEAD is detached by ${operation(dir)} of ${JSON.stringify(branch)}, which is not a branch name` };
+  }
+  return { branch };
+}
+
+/**
+ * The other branches a rebase with --update-refs will move (#547 review),
+ * from its update-refs file: each ref takes three lines, the ref and two
+ * object ids, and only refs/heads/ refs are branches. Python twin:
+ * update_ref_branches.
+ */
+export function updateRefBranches(bytes) {
+  const lines = decodeState(bytes).split("\n");
+  const branches = [];
+  for (let i = 0; i < lines.length; i += 3) {
+    const branch = branchFromRef(lines[i]);
+    if (branch !== null) branches.push(branch);
+  }
+  return branches;
+}
+
 /**
  * Judge a commit: every staged path through decide(), stopping at the first
  * block. The branch is unknown when HEAD is on no branch (`branch` null) or on
@@ -49,9 +97,10 @@ export function stagedPaths(output) {
  * every branch passes (#449). With the config already checked and a non-empty
  * path, decide()'s only block on an unknown branch is the code edit, so that
  * reason is replaced with one naming HEAD rather than PLUMBLINE_BRANCH, which
- * this hook never reads.
+ * this hook never reads; `why`, when given, says why the branch is unknown
+ * (a rebase in progress, #547).
  */
-export function judgeCommit({ branch, paths, config }) {
+export function judgeCommit({ branch, paths, config, why: given }) {
   const known = branch !== null && isBranchName(branch);
   for (const filePath of paths) {
     const r = decide({
@@ -62,9 +111,9 @@ export function judgeCommit({ branch, paths, config }) {
     });
     if (r.allow) continue;
     if (known) return r;
-    const why = branch === null
+    const why = given ?? (branch === null
       ? "HEAD is not on a branch"
-      : `HEAD is on ${JSON.stringify(branch)}, which is not a branch name`;
+      : `HEAD is on ${JSON.stringify(branch)}, which is not a branch name`);
     return {
       allow: false,
       reason: `blocked: code edit to ${filePath} with the branch unknown (${why}). Switch to a branch first.`,
@@ -105,9 +154,41 @@ function main() {
   if (reason) return { allow: false, reason };
   // --quiet: exit 1, silently, when HEAD is detached.
   const head = git(["symbolic-ref", "--quiet", "HEAD"], "read the branch", [0, 1]);
-  const branch = head.status === 0
+  let branch = head.status === 0
     ? branchFromRef(new TextDecoder().decode(head.stdout).replace(/\n$/, ""))
     : null;
+  let why;
+  let also = [];
+  let alsoWhy;
+  // HEAD is detached during a rebase (#547). While git's rebase directory
+  // exists, which git itself reads as a rebase in progress, the branch is the
+  // one it records as being rebased, and with --update-refs every other
+  // branch it will move is judged too. With no rebase directory a detached
+  // HEAD stays unknown (#449).
+  if (head.status !== 0) {
+    for (const dir of ["rebase-merge", "rebase-apply"]) {
+      const where = new TextDecoder().decode(git(["rev-parse", "--git-path", dir], "find the rebase state").stdout)
+        .replace(/\n$/, "");
+      if (!fs.existsSync(where)) continue;
+      let bytes = null;
+      let code;
+      try {
+        bytes = fs.readFileSync(path.join(where, "head-name"));
+      } catch (e) {
+        code = e.code ?? e.message;
+      }
+      ({ branch = null, why } = rebaseBranch(dir, bytes, code));
+      const updateRefs = path.join(where, "update-refs");
+      if (fs.existsSync(updateRefs)) {
+        try {
+          also = updateRefBranches(fs.readFileSync(updateRefs));
+        } catch (e) {
+          alsoWhy = `HEAD is detached by a rebase whose ${dir}/update-refs cannot be read: ${e.code ?? e.message}`;
+        }
+      }
+      break;
+    }
+  }
   // --cached against HEAD (or the empty tree on an unborn branch), in the
   // index git is committing: during `git commit -a` or `git commit <path>`
   // that is the temporary index GIT_INDEX_FILE names. --no-renames: a rename
@@ -117,7 +198,17 @@ function main() {
   // `ignore` setting would otherwise hide a staged submodule bump.
   const diff = git(["diff", "--cached", "--name-only", "-z", "--no-renames", "--ignore-submodules=none"],
     "list the staged files");
-  return judgeCommit({ branch, paths: stagedPaths(diff.stdout), config });
+  const paths = stagedPaths(diff.stdout);
+  const r = judgeCommit({ branch, paths, config, why });
+  if (!r.allow) return r;
+  // Every branch the rebase will move must allow the commit (#547 review).
+  if (alsoWhy !== undefined) return judgeCommit({ branch: null, paths, config, why: alsoWhy });
+  for (const other of also) {
+    const r2 = judgeCommit({ branch: other, paths, config,
+      why: `the rebase also moves ${JSON.stringify(other)}, which is not a branch name` });
+    if (!r2.allow) return r2;
+  }
+  return r;
 }
 
 if (isMainModule()) {

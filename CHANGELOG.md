@@ -10,6 +10,26 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Added
+- **The branch guard's commit hook knows the branch during a rebase**
+  ([#547](https://github.com/slopstopper/plumb-line/issues/547);
+  `adapters/adapter-contract.md`, `plumb-line-bootstrap`). HEAD is detached
+  during a rebase, so a commit made by hand at a rebase stop, such as `git
+  commit --amend` at an `edit`, was judged with the branch unknown and
+  blocked a staged code path even on a feature branch. Both twins
+  (`branch-guard-commit.mjs`, `branch_guard_commit.py`) now take the branch
+  from the `head-name` git records for the rebase (`rebase-merge` or
+  `rebase-apply`) while that directory exists, as git itself reads a rebase
+  in progress, and judge every branch listed in its `update-refs` as well
+  (`--update-refs`; a branch whose `update-ref` step has already run is
+  still judged, which can block a commit that could no longer move it). A
+  commit made by hand at a stop of a rebase of `main`, or of one listing
+  `main`, still blocks a code path; `git rebase --continue` runs no
+  hook, so a change it carries on is not judged. With no rebase directory a
+  detached HEAD stays unknown (#449); a `head-name` or `update-refs` that
+  cannot be read, or names no valid branch, leaves the branch unknown with a
+  reason saying which. Eleven rows in `adapters/commit-hook-cases.json`,
+  each against a real rebase stop (merge and apply backends,
+  `--update-refs`).
 - **The branch guard works as a git commit hook**
   ([#464](https://github.com/slopstopper/plumb-line/issues/464)). Git gives
   a hook neither the `{filePath}` stdin nor `PLUMBLINE_BRANCH`, so since
