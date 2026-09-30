@@ -513,6 +513,38 @@ def test_audit_check_10_a_citation_does_not_make_an_alongside_unit_test_the_requ
     assert "a citation or a name alone" in _audit_check_10().lower()
 
 
+# --- v0.12.0 dogfood: the mid-task rows keep what the principles require ---------
+# The dogfood audit of the v0.12.0 diff found the method skill's mid-task rows
+# dropping "versioned" from a prior and the opt-in from a fallback, adopt's
+# "lightest tracking" unqualified for a stand-in that reaches an output, and
+# the "yes, and" intro softer than the principles' one-line test.
+
+def _mid_task_row(label):
+    text = SKILLS["plumb-line-method"]
+    return next(ln for ln in text.splitlines() if ln.startswith(f"| A **{label}**")).lower()
+
+
+def test_method_hardcoded_row_asks_for_a_versioned_prior():
+    assert "named, versioned config value" in _mid_task_row("hardcoded")
+
+
+def test_method_fallback_row_keeps_the_stand_in_out_of_outputs_unless_opted_in():
+    row = _mid_task_row("fallback")
+    assert "unless" in row and "opts in" in row, row
+
+
+def test_method_mid_task_states_the_concern_first_as_the_one_line_test_asks():
+    text = " ".join(SKILLS["plumb-line-method"].split()).lower()
+    assert "stop and document the concern before implementing" in text
+    principles = " ".join(_read(_ROOT, "reference", "portable-principles.md").split()).lower()
+    assert "stop and document the concern before implementing" in principles
+
+
+def test_adopt_lightest_tracking_is_qualified_for_outputs():
+    text = " ".join(SKILLS["plumb-line-adopt"].split()).lower()
+    assert "the lightest tracking that fits is enough while the stand-in stays out of" in text
+
+
 # --- #581: the message is the text the checker passed --------------------------
 # Two 2026-09-30 eval reports printed a clean stamp over a message the checker
 # fails: both open with a prose summary above the header, and one's body also

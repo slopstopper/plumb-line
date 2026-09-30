@@ -158,17 +158,18 @@ red, is your call."
 
 Tests are one moment. The one-line test in the principles names the rest:
 an edit that would make the system look more certain than it is, blur a
-layer boundary, hardcode a prior, or hide approximate data. Each has a real
-need behind it, and a quick way to meet that need honestly. Answer with
-"yes, and": meet the need, and keep what is uncertain, stand-in or
-unfinished visible. The only no is presenting it as real, measured or done.
+layer boundary, hardcode a prior, or hide approximate data. The one-line
+test says to stop and document the concern before implementing: say it in a
+line first. Each has a real need behind it, and a quick way to meet that need
+honestly, so then answer with "yes, and": meet the need, and keep what is
+uncertain, stand-in or unfinished visible. The only no is presenting it as real, measured or done.
 As with tests, this is not a block on coding: an ordinary change with a
 known cause, or a decision behind it, needs nothing from this section.
 
 | The edit asked for | Yes, and | The only no |
 | --- | --- | --- |
-| A **fallback** value passed off as real when the source fails | Fill the gap visibly: "unavailable", or the stand-in labelled as a fallback (P4 — Quarantined fakery) | The stand-in shown as the real value |
-| A **hardcoded** threshold or constant that "looked about right" | Use it, as a named config value noting where it came from (eyeballed, not measured), so it can be tuned (P5 — Injectable priors) | The guess buried in logic as if measured |
+| A **fallback** value passed off as real when the source fails | Fill the gap visibly: "unavailable", or the stand-in labelled as a fallback, kept out of exported or aggregated outputs unless the caller opts in; a builder asking for the stand-in there is that opt-in (P4 — Quarantined fakery) | The stand-in shown as the real value |
+| A **hardcoded** threshold or constant that "looked about right" | Use it, as a named, versioned config value noting where it came from (eyeballed, not measured), so it can be tuned (P5 — Injectable priors) | The guess buried in logic as if measured |
 | Calling a stub **production-ready**, done or live | State what it is: `mock` (stubbed, returns success without doing the work), and when the real one is due if known (P6 — Maturity vocabulary) | "Done" for a stub |
 | **Fixture**, sample or **generated** data in a real output, "so it looks complete" | Keep it out of the real store; show it as a separate, labelled sample layer, or in a demo environment (P1 — Source-truth layer; P4 — Quarantined fakery) | Stand-in data counted or shown as real |
 | Dropping a confidence or **provenance** field to slim a payload | Slim the response for a client that does not decide on the value; keep the field where it is stored, and for any client that acts on it (P3 — Confidence + provenance) | Deleting the record of how sure a value is |
