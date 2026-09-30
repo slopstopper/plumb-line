@@ -608,8 +608,9 @@ An implementation **conforms to envelope schema version 2** if, for every case i
   when none are expected), and
 - each `validate` case's issue list contains the expected substrings (or is empty
   when none are expected), and
-- each `construct` case either builds an envelope with the expected fields or
-  is refused with an error containing the expected substring (§2), and
+- each `construct` case either builds an envelope with the expected fields,
+  and none of the declared `absent` fields, or is refused with an error
+  containing the expected substring (§2), and
 - each `guard` case passes (returning the value it was given), is refused with
   reasons containing the expected substrings and none of the `expectAbsent`
   ones, or raises a programmer error containing the expected substring (§5c).

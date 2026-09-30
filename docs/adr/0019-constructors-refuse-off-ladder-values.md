@@ -145,3 +145,17 @@ recommendation's reasons:
 
   Recorded here rather than by editing the Decision, because this record is
   append-only.
+
+- **2026-09-30 (#566).** *Scheduled into v0.12.0 by the owner; the rule is an
+  implementation choice.* A `derive` override of `null` (Python `None`) on
+  an optional key (`confidenceScore` / `confidence_score`, `basis`,
+  `adapter`) is no override, in both languages, as `undefined` is in JS
+  (#533): the combination law's value stands. Before, it dropped the
+  combined score. A `null` `source` or `confidence` override is still
+  refused (#443): there `null` is a value, off the ladder. The constructors
+  now agree on a `null` `basis` or `adapter`, which is no field; JS stored
+  it as `null` and Python left it out. Pinned by `construct` rows, which
+  gain an `absent` list, and by twin unit tests of `derive`.
+
+  Recorded here rather than by editing the Decision, because this record is
+  append-only.

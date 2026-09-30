@@ -19,7 +19,7 @@ const KNOWN_FIELDS = {
   combine: new Set(["name", "inputs", "expect", "absent", "expectLineageIds", "expectLineage"]),
   audit: new Set(["name", "meta", "expectContains"]),
   validate: new Set(["name", "meta", "expectContains"]),
-  construct: new Set(["name", "input", "expect", "expectError"]),
+  construct: new Set(["name", "input", "expect", "expectError", "absent"]),
   guard: new Set(["name", "meta", "options", "expectPass", "expectRefused", "expectAbsent", "expectError"]),
 };
 
@@ -88,6 +88,11 @@ function runConstruct(impl, c) {
   for (const [k, v] of Object.entries(c.expect)) {
     if (!isDeepStrictEqual(out[k], v))
       return `expected ${k}=${JSON.stringify(v)}, got ${JSON.stringify(out[k])}`;
+  }
+  // A field that must not be written at all: JSON cannot say `undefined`,
+  // and `null` is a value (#566).
+  for (const k of c.absent || []) {
+    if (k in out) return `expected ${k} to be absent`;
   }
   return null;
 }

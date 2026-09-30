@@ -505,7 +505,9 @@
     {"name": "a non-boolean derivedFromMock is refused at construction ([]), as an off-ladder rung is (ADR-0019; #555)", "input": {"source": "real", "derivedFromMock": []}, "expectError": "derivedFromMock must be a boolean"},
     {"name": "a null derivedFromMock counts as absent, so a mock leaf defaults to tainted, in both languages (§3; #525 review)", "input": {"source": "mock", "derivedFromMock": null}, "expect": {"source": "mock", "derivedFromMock": true}},
     {"name": "a derivedFromMock of \"false\" is refused at construction, even on a mock leaf, not read as clean or as mock (#555)", "input": {"source": "mock", "derivedFromMock": "false"}, "expectError": "derivedFromMock must be a boolean"},
-    {"name": "a derivedFromMock of 0 on a real leaf is refused at construction (#555)", "input": {"source": "real", "derivedFromMock": 0}, "expectError": "derivedFromMock must be a boolean"}
+    {"name": "a derivedFromMock of 0 on a real leaf is refused at construction (#555)", "input": {"source": "real", "derivedFromMock": 0}, "expectError": "derivedFromMock must be a boolean"},
+    {"name": "a null basis or adapter is no field, as None is in Python (#566)", "input": {"source": "real", "basis": null, "adapter": null}, "expect": {"source": "real"}, "absent": ["basis", "adapter"]},
+    {"name": "a null confidenceScore is no field (#566)", "input": {"source": "real", "confidence": "high", "confidenceScore": null}, "expect": {"source": "real", "confidence": "high"}, "absent": ["confidenceScore"]}
   ],
   "guard": [
     {

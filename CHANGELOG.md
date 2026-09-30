@@ -443,6 +443,19 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **A `null` optional override on `derive` is no override, and a `null`
+  `basis` or `adapter` is no field, in both languages**
+  ([#566](https://github.com/slopstopper/plumb-line/issues/566); `docs/api.md`,
+  ADR-0019 amendment). `derive(xs, f, confidence_score=None)`, or
+  `{ confidenceScore: null }` in JS, dropped the combined score, so an unset
+  option passed through lost what the law computed: the hazard #533 fixed
+  for JS `undefined`. `null`/`None` is now no override for
+  `confidenceScore` / `confidence_score`, `basis` and `adapter`. A `null`
+  `source` or `confidence` is still refused (#443). JS `makeMeta` stored a
+  `null` `basis` or `adapter` as `null` where Python left it out, a parity
+  difference on a value JSON can hold; both now leave it out. The case
+  table's `construct` rows gain an `absent` list, so a field that must not
+  be written can be pinned.
 - **JS keeps a lineage step's inherited law fields, so a combine cannot
   clear its taint**
   ([#548](https://github.com/slopstopper/plumb-line/issues/548); SPEC §3;

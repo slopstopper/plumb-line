@@ -1,5 +1,7 @@
 import os
 import sys
+
+import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import provenance as p
 import marked as m
@@ -85,6 +87,28 @@ def test_mark_refuses_a_missing_source():
         m.mark(1)
     with pytest.raises(ValueError, match=r"^source is required"):
         m.mark(1, confidence='high')
+
+
+@pytest.mark.parametrize('key', ['confidence_score', 'basis', 'adapter'])
+def test_a_none_override_on_derive_is_no_override(key):
+    """#566: None is no override for the optional keys, as null is in the JS
+    twin (primitives/js/marked.test.mjs): the combined score stands."""
+    a = m.mark(1, source='real', confidence='high', confidence_score=0.9)
+    b = m.mark(2, source='fallback', confidence='medium', confidence_score=0.6)
+    plain = m.derive([a, b], lambda x, y: x + y)
+    out = m.derive([a, b], lambda x, y: x + y, **{key: None})
+    assert out == plain
+    assert list(out['meta']) == list(plain['meta'])
+    assert out['meta']['confidence_score'] == 0.6
+
+
+@pytest.mark.parametrize('key', ['source', 'confidence'])
+def test_a_none_source_or_confidence_override_is_still_refused(key):
+    """#443: None is a value there, off the ladder; #566 changes only the
+    optional keys."""
+    a = m.mark(1, source='real', confidence='high')
+    with pytest.raises(ValueError, match=f'^{key} must be one of'):
+        m.derive([a], lambda x: x, **{key: None})
 
 
 def test_a_derive_override_is_refused_the_same_way():

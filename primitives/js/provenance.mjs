@@ -197,8 +197,10 @@ export function makeMeta({
   // Computed-only resolution beyond the derivedFromMock boolean; passed through
   // here so chained derives carry it, but never settable as a derive override.
   if (STATUS.includes(weakestSource)) meta.weakestSource = weakestSource;
-  if (basis !== undefined) meta.basis = basis;
-  if (adapter !== undefined) meta.adapter = adapter;
+  // A null basis or adapter is no field, as None is in the Python twin
+  // (#566): stored as null, the two languages wrote different envelopes.
+  if (basis !== undefined && basis !== null) meta.basis = basis;
+  if (adapter !== undefined && adapter !== null) meta.adapter = adapter;
   return Object.freeze(meta);
 }
 

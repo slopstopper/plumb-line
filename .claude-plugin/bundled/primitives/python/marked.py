@@ -17,6 +17,8 @@ except ImportError:  # flat / copy-paste usage (modules on sys.path)
 # weakest_source always come from the computed combine_provenance result;
 # derived_from_mock taint cannot be cleared through an override.
 _OVERRIDE_KEYS = {'source', 'confidence', 'confidence_score', 'basis', 'adapter'}
+# The override keys with no required value, for which None means unset (#566).
+_OPTIONAL_OVERRIDE_KEYS = {'confidence_score', 'basis', 'adapter'}
 
 def mark(value, **meta_input):
     """Wrap a value with provenance metadata.
@@ -97,6 +99,11 @@ def derive(inputs, fn, **meta_override):
     overridden.pop('provenance_version', None)
     for key in _OVERRIDE_KEYS:
         if key in meta_override:
+            # None is no override for the optional keys (#566), as null is in
+            # the JS twin: it dropped the combined score. A None source or
+            # confidence is still passed on, so make_meta refuses it (#443).
+            if meta_override[key] is None and key in _OPTIONAL_OVERRIDE_KEYS:
+                continue
             overridden[key] = meta_override[key]
     # A malformed taint override is passed to make_meta as it is, so make_meta
     # refuses it with its own message and quoting (#555): read as taint it was

@@ -85,7 +85,7 @@ The combination law is applied automatically:
 |---|---|---|
 | `inputs` | marked[] | Marked values from `mark` or `derive` |
 | `fn` | function | Pure function applied to the unwrapped input values |
-| `metaOverride` | object | Optional: override `source`, `confidence`, `confidenceScore`/`confidence_score`, `basis`, or `adapter`. `derivedFromMock`/`derived_from_mock` cannot be cleared. In JS a key whose value is `undefined` is no override. |
+| `metaOverride` | object | Optional: override `source`, `confidence`, `confidenceScore`/`confidence_score`, `basis`, or `adapter`. `derivedFromMock`/`derived_from_mock` cannot be cleared. In JS a key whose value is `undefined` is no override; `null`/`None` is no override for `confidenceScore`/`confidence_score`, `basis` and `adapter`, in both languages. |
 
 **Returns** a marked value with `source: "derived"`.
 
@@ -317,7 +317,13 @@ is not a leaf: its `source` comes from the combination law. In JS an
 override whose value is `undefined` counts as no override, for every key
 (since v0.12.0, #533; before, it reset `confidence` to `"none"` and dropped
 `confidenceScore`), so `derive(xs, f, { confidence: opts.confidence })`
-keeps the combined rung when the option is unset. Envelopes you are
+keeps the combined rung when the option is unset. `null` (Python `None`) is
+no override too for the optional keys, `confidenceScore` /
+`confidence_score`, `basis` and `adapter`, in both languages (since v0.12.0,
+#566; before, it dropped the combined score). A `null` `source` or
+`confidence` is still refused (#443). A `null` `basis` or `adapter` given to
+the constructor is no field in both languages; JS used to store it as
+`null`. Envelopes you are
 *handed*, such as parsed JSON, are not refused: `combineProvenance` and the
 audit still tolerate unknown values in them (SPEC §2).
 

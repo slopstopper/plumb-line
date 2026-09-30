@@ -159,6 +159,10 @@ def test_bundle_construct_cases():
             for k, v in c['expect'].items():
                 sk = _KEY.get(k, k)
                 assert out.get(sk) == v, f"{c['name']}: {sk} == {out.get(sk)!r}, expected {v!r}"
+            # A field that must not be written at all (#566).
+            for k in c.get('absent', []):
+                sk = _KEY.get(k, k)
+                assert sk not in out, f"{c['name']}: {sk} should be absent"
 
 
 _GUARD_OPTION = {'noMock': 'no_mock', 'minConfidence': 'min_confidence', 'minSource': 'min_source'}
@@ -217,7 +221,7 @@ _KNOWN_FIELDS = {
     'combine': {'name', 'inputs', 'expect', 'absent', 'expectLineageIds', 'expectLineage'},
     'audit': {'name', 'meta', 'expectContains'},
     'validate': {'name', 'meta', 'expectContains'},
-    'construct': {'name', 'input', 'expect', 'expectError'},
+    'construct': {'name', 'input', 'expect', 'expectError', 'absent'},
     'guard': {'name', 'meta', 'options', 'expectPass', 'expectRefused', 'expectAbsent', 'expectError'},
 }
 
