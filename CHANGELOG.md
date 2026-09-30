@@ -423,6 +423,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **The fit map labels an error-path default `fallback`, not `mock`**
+  ([#557](https://github.com/slopstopper/plumb-line/issues/557);
+  `reference/fit-map.md` Profile 1). The snippet marked the text returned on
+  an error path as `mock`, apparently because `noMock` was the only way to
+  keep it out of an output. ADR-0012 §2 and Profile 5 mark a declared
+  substitute `fallback`. The snippet now does, and refuses it at the output
+  with the guard's source floor (`minSource: "semiReal"`). A new paragraph
+  says when `mock` is still right: a value that stands in for real data and
+  could be taken as it. The snippet tests pin the exact refusal, with no
+  `mock:` reason, and the real path passing through. The "Worried about
+  using it wrong?" section also said JS `derive` fed `undefined` into the
+  function for an unmarked input; since #550 both languages raise the same
+  `TypeError`. The `plumb-line-adopt` primer now explains `guard`, which the
+  snippet calls.
 - **`derive` refuses an input that is not a marked value, in both
   languages (breaking for callers who passed one)**
   ([#550](https://github.com/slopstopper/plumb-line/issues/550); SPEC §2).

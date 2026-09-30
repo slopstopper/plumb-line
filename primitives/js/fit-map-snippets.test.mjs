@@ -17,7 +17,7 @@ import { describe, it, expect, afterAll } from "vitest";
 import { readFileSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
-import { metaOf } from "plumb-line-provenance";
+import { metaOf, ProvenanceRefused } from "plumb-line-provenance";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const FIT_MAP = join(here, "..", "..", "reference", "fit-map.md");
@@ -51,13 +51,20 @@ const SNIPPETS = {
       const FALLBACK_TEXT = "canned";
       const template = { format: (r) => \`[\${r}]\` };
     `,
-    exports: "export const __ns = { rendered };",
-    // Fallback path: taint carried, as the snippet's comment claims.
-    check: (ns) => expect(metaOf(ns.rendered).derivedFromMock).toBe(true),
+    exports: "export const __ns = { rendered, page };",
+    // Fallback path (#557): the substitute is labelled "fallback", not mock,
+    // and the snippet's source floor refuses it at the output. The one exact
+    // reason proves both: guard's default noMock would add a "mock:" reason
+    // if the substitute were tainted.
+    refuses: ["source: fallback is below the required semiReal"],
     // Real path exercised separately below, so a defect in the branch the
     // parametrized run skips cannot hide behind lazy evaluation (the
-    // pre-#261 defect class).
-    checkReal: (ns) => expect(metaOf(ns.rendered).derivedFromMock).toBe(false),
+    // pre-#261 defect class): the floor passes the real reply through.
+    checkReal: (ns) => {
+      expect(ns.page).toBe(ns.rendered);
+      expect(metaOf(ns.page).weakestSource).toBe("real");
+      expect(metaOf(ns.page).derivedFromMock).toBe(false);
+    },
   },
   taggedFetch: {
     // Offline: the snippet awaits taggedFetch(url) at module top level, so
@@ -119,6 +126,17 @@ describe("fit-map js snippets", () => {
     it(`snippet [${marker}] executes and behaves as its prose claims`, async () => {
       const block = JS_BLOCKS.find((b) => b.includes(marker));
       expect(block, `marker ${marker} matches no snippet`).toBeDefined();
+      if (spec.refuses) {
+        // A snippet whose prose says the output point refuses the value: the
+        // module must throw ProvenanceRefused with exactly these reasons.
+        const err = await runSnippet(block, spec.prelude(false), spec.exports).then(
+          () => undefined,
+          (e) => e,
+        );
+        expect(err).toBeInstanceOf(ProvenanceRefused);
+        expect(err.reasons).toEqual(spec.refuses);
+        return;
+      }
       const ns = await runSnippet(block, spec.prelude(false), spec.exports);
       spec.check(ns);
     });

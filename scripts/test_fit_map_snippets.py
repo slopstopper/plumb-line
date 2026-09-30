@@ -92,12 +92,9 @@ class _Template:
 # marker (unique structural substring of the snippet) -> (free names,
 # postcondition). The postcondition receives the snippet's namespace after
 # exec and asserts the behavior the surrounding prose claims.
-def _check_profile1(ns):
-    # Prelude runs the snippet on the fallback path (ok=False): taint must be
-    # carried, as the snippet's comment claims. The real branch is exercised
-    # separately in test_profile1_real_branch.
-    from plumb_line_provenance import meta_of
-    assert meta_of(ns['rendered'])['derived_from_mock'] is True
+# Profile 1 is not run through PRELUDES: on the fallback path the snippet's
+# source floor refuses the value at the output, so exec raises (#557).
+# test_profile1_fallback_refused and test_profile1_real_branch run each branch.
 
 
 def _check_profile2(ns):
@@ -131,7 +128,6 @@ def _profile1_names(ok):
 
 
 PRELUDES = {
-    'FALLBACK_TEXT': (lambda: _profile1_names(ok=False), _check_profile1),
     'basis="agent run': (
         lambda: (lambda m: {'agent_row': {'a': 1},
                             'verified': m.mark({'b': 2}, source='real',
@@ -176,7 +172,7 @@ def test_extraction_found_the_snippets():
     # verified everything. Every prelude marker must match exactly one block.
     assert len(BLOCKS) >= len(PRELUDES), (
         f'only {len(BLOCKS)} python blocks extracted from {_FIT_MAP}')
-    for marker in PRELUDES:
+    for marker in [*PRELUDES, 'FALLBACK_TEXT']:
         hits = [b for b in BLOCKS if marker in b]
         assert len(hits) == 1, (
             f'marker {marker!r} matched {len(hits)} snippets — fit-map and '
@@ -187,7 +183,8 @@ def test_every_python_block_has_a_prelude():
     # A new snippet added to the fit-map without a prelude here would
     # otherwise run in no test at all.
     for block in BLOCKS:
-        assert any(marker in block for marker in PRELUDES), (
+        assert any(marker in block
+                   for marker in [*PRELUDES, 'FALLBACK_TEXT']), (
             'fit-map python snippet has no matching prelude — add one:\n'
             + block)
 
@@ -215,16 +212,36 @@ def test_profile5_leaves_no_temp_dir():
     assert not os.path.exists(ns['dir']), f'leaked {ns["dir"]}'
 
 
-def test_profile1_real_branch():
-    # The snippet is a conditional expression; the parametrized run takes the
-    # fallback path only. Execute the same block with ok=True so a defect in
-    # the real branch (the pre-#261 class: a wrong kwarg) cannot hide behind
-    # lazy evaluation.
-    from plumb_line_provenance import meta_of
+def _profile1_block():
     block = next((b for b in BLOCKS if 'FALLBACK_TEXT' in b), None)
     assert block is not None, 'profile 1 snippet not found'
-    ns = _run_snippet(block, _profile1_names(ok=True), 'fit-map.md[real]')
-    assert meta_of(ns['rendered'])['derived_from_mock'] is False
+    return block
+
+
+def test_profile1_fallback_refused():
+    # The error path (#557): the substitute is labelled "fallback", not mock,
+    # and the snippet's source floor refuses it at the output. The one exact
+    # reason proves both: guard's default no_mock would add a "mock:" reason
+    # if the substitute were tainted.
+    from plumb_line_provenance import ProvenanceRefused
+    with pytest.raises(ProvenanceRefused) as exc:
+        _run_snippet(_profile1_block(), _profile1_names(ok=False),
+                     'fit-map.md[fallback]')
+    assert exc.value.reasons == [
+        'source: fallback is below the required semiReal']
+
+
+def test_profile1_real_branch():
+    # The snippet is a conditional expression; the fallback test takes the
+    # error path only. Execute the same block with ok=True so a defect in
+    # the real branch (the pre-#261 class: a wrong kwarg) cannot hide behind
+    # lazy evaluation: the floor passes the real reply through.
+    from plumb_line_provenance import meta_of
+    ns = _run_snippet(_profile1_block(), _profile1_names(ok=True),
+                      'fit-map.md[real]')
+    assert ns['page'] is ns['rendered']
+    assert meta_of(ns['page'])['weakest_source'] == 'real'
+    assert meta_of(ns['page'])['derived_from_mock'] is False
 
 
 def test_harness_catches_a_broken_snippet():

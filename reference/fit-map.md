@@ -57,10 +57,10 @@ wrong."* The mechanics bound that risk tightly:
   inputs, runs **your** function on them, and attaches combined metadata
   to the result. A wrong `source` or `confidence` label misdescribes your
   data; it cannot change it.
-- A forgotten `mark` does not silently corrupt anything: in Python,
-  passing a bare value where a marked one is expected raises `TypeError`
-  immediately; in JS it feeds `undefined` into your function — visible in
-  the first test run, not weeks later.
+- A forgotten `mark` does not silently corrupt anything: passing a bare
+  value to `derive` raises a `TypeError` in both languages (`derive: input
+  0 is not a marked value (mark it first)`) — visible in the first test
+  run, not weeks later.
 - Consistency is checkable, not assumed: `audit_meta` / `auditMeta`
   returns `[]` for a well-formed envelope and names the defect otherwise,
   and `plumb-line-bootstrap`'s scaffold step ends with a test asserting
@@ -95,28 +95,43 @@ canned value lands in front of a user — or in a stored report — labelled
 as the real thing.
 
 **Smallest useful integration.** Mark the two branches where they diverge;
-derive everything downstream.
+derive everything downstream; set a source floor where the output must not
+show the substitute.
 
 ```js
-import { mark, derive, metaOf } from "plumb-line-provenance";
+import { mark, derive, guard } from "plumb-line-provenance";
 
 const reply = ok
   ? mark(completion, { source: "real", confidence: "high" })
-  : mark(FALLBACK_TEXT, { source: "mock", confidence: "low" });
+  : mark(FALLBACK_TEXT, { source: "fallback", confidence: "low" });
 
 const rendered = derive([reply], (r) => template.format(r));
-// metaOf(rendered).derivedFromMock — true on the fallback path, and no
-// API exists to clear it.
+// On the error path metaOf(rendered).weakestSource is "fallback", and no
+// API exists to raise it. The output point refuses it:
+const page = guard(rendered, { minSource: "semiReal" });
+// ProvenanceRefused on the fallback path:
+//   "source: fallback is below the required semiReal"
 ```
 
 ```python
-from plumb_line_provenance import mark, derive, meta_of
+from plumb_line_provenance import mark, derive, guard
 
 reply = (mark(completion, source="real", confidence="high") if ok
-         else mark(FALLBACK_TEXT, source="mock", confidence="low"))
+         else mark(FALLBACK_TEXT, source="fallback", confidence="low"))
 rendered = derive([reply], lambda r: template.format(r))
-# meta_of(rendered)["derived_from_mock"] is True on the fallback path.
+page = guard(rendered, min_source="semiReal")
+# ProvenanceRefused on the fallback path:
+#   "source: fallback is below the required semiReal"
 ```
+
+**Fallback or mock.** A default substituted on an error path is
+`fallback`: the code declares it as a substitute (ADR-0012 §2), and
+Profile 5 marks it the same way. `mock` is for a value that stands in for
+real data and could be taken as it — a `USE_MOCK_LLM` stub whose canned
+completions read as real answers, or the fixture rows of Profile 3. Mock
+taint is carried whatever the floor, and the guard refuses it by default
+(`noMock`); the source floor is off by default, so an output that must not
+show a fallback sets it.
 
 **What the audit catches afterwards.** A fallback branch that hand-builds
 a `real` source; a render path that drops the envelope before the output
