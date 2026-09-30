@@ -10,6 +10,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import provenance as p
+import marked as m
 from audit import audit_meta, validate_envelope
 from guard import guard, ProvenanceRefused
 
@@ -127,13 +128,68 @@ def test_validate_cases():
                 assert any(needle in i for i in issues), f"{c['name']}: '{needle}' not in {issues}"
 
 
+def _shape_problem(kind, c):
+    """A construct or derive row's shape, as the JS twin's shapeProblem: one
+    expectation, and `absent` a list of names beside `expect` only."""
+    if ('expect' in c) == ('expectError' in c):
+        return f"a {kind} case needs exactly one of expect or expectError"
+    if 'absent' in c and not (isinstance(c['absent'], list) and all(isinstance(k, str) for k in c['absent'])):
+        return 'absent must be a list of field names'
+    if 'absent' in c and 'expect' not in c:
+        return 'absent applies only to an expect case'
+    if kind == 'derive':
+        if not isinstance(c.get('inputs'), list):
+            return 'a derive case needs a list of inputs'
+        if 'override' in c and not isinstance(c['override'], dict):
+            return "a derive case's override must be an object"
+    return None
+
+
+def _envelope_problems(name, out, c):
+    for k, v in c['expect'].items():
+        sk = _KEY.get(k, k)
+        assert out.get(sk) == v, f"{name}: {sk} == {out.get(sk)!r}, expected {v!r}"
+    # A field that must not be written at all (#566).
+    for k in c.get('absent', []):
+        sk = _KEY.get(k, k)
+        assert sk not in out, f"{name}: {sk} should be absent"
+
+
+_BAD_ROWS = [
+    ('construct', {'input': {}, 'expect': {}, 'absent': 'basis'}, 'absent must be a list of field names'),
+    ('construct', {'input': {}, 'expect': {}, 'absent': {'basis': 1}}, 'absent must be a list of field names'),
+    ('construct', {'input': {}, 'expect': {}, 'absent': ['basis', None]}, 'absent must be a list of field names'),
+    ('construct', {'input': {}, 'expectError': 'x', 'absent': ['source']}, 'absent applies only to an expect case'),
+    ('construct', {'input': {}}, 'a construct case needs exactly one of expect or expectError'),
+    ('construct', {'input': {}, 'expect': {}, 'expectError': 'x'},
+     'a construct case needs exactly one of expect or expectError'),
+    ('derive', {'inputs': {}, 'expect': {}}, 'a derive case needs a list of inputs'),
+    ('derive', {'inputs': [], 'override': None, 'expect': {}}, "a derive case's override must be an object"),
+    ('derive', {'inputs': [], 'expect': {}, 'absent': 'basis'}, 'absent must be a list of field names'),
+    ('construct', {'input': {}, 'expect': {}, 'absent': ['toString']}, None),
+]
+
+
+def test_the_row_shape_checks_refuse_what_the_js_runner_refuses():
+    # #566 review: the same bad rows, the same messages, as the JS runner's
+    # meta-tests in primitives/js/conformance-runner.test.mjs.
+    for kind, row, expected in _BAD_ROWS:
+        assert _shape_problem(kind, row) == expected, (kind, row)
+
+
+def test_absent_fails_a_field_that_is_written():
+    import pytest
+    with pytest.raises(AssertionError, match='basis should be absent'):
+        _envelope_problems('x', {'basis': 'b'}, {'expect': {}, 'absent': ['basis']})
+
+
 def test_construct_cases():
     # What make_meta accepts and refuses (#443). A refusal raises; the case
     # pins a substring of the message, whose prefix both languages word identically.
     # JS twin: runConstruct in primitives/conformance/run-cases.mjs.
     for c in CASES['construct']:
-        assert ('expect' in c) != ('expectError' in c), \
-            f"{c['name']}: a construct case needs exactly one of expect or expectError"
+        problem = _shape_problem('construct', c)
+        assert problem is None, f"{c['name']}: {problem}"
         kwargs = _to_snake(c['input'])
         if 'expectError' in c:
             try:
@@ -144,9 +200,29 @@ def test_construct_cases():
                 raise AssertionError(f"{c['name']}: expected an error containing {c['expectError']!r}")
         else:
             out = p.make_meta(**kwargs)
-            for k, v in c['expect'].items():
-                sk = _KEY.get(k, k)
-                assert out.get(sk) == v, f"{c['name']}: {sk} == {out.get(sk)!r}, expected {v!r}"
+            _envelope_problems(c['name'], out, c)
+
+
+def test_derive_cases():
+    # What derive writes for an override (#566): each input is marked with its
+    # `inputs` fields, then derive runs a constant function with `override`.
+    # JS twin: runDerive in primitives/conformance/run-cases.mjs.
+    for c in CASES['derive']:
+        problem = _shape_problem('derive', c)
+        assert problem is None, f"{c['name']}: {problem}"
+        p.reset_step_counter()
+        items = [m.mark(i, **_to_snake(fields)) for i, fields in enumerate(c['inputs'])]
+        kwargs = _to_snake(c.get('override', {}))
+        if 'expectError' in c:
+            try:
+                m.derive(items, lambda *_: 0, **kwargs)
+            except ValueError as e:
+                assert c['expectError'] in str(e), f"{c['name']}: error {str(e)!r}"
+            else:
+                raise AssertionError(f"{c['name']}: expected an error containing {c['expectError']!r}")
+        else:
+            out = m.derive(items, lambda *_: 0, **kwargs)
+            _envelope_problems(c['name'], out['meta'], c)
 
 
 _GUARD_OPTION = {'noMock': 'no_mock', 'minConfidence': 'min_confidence', 'minSource': 'min_source'}
@@ -206,7 +282,8 @@ _KNOWN_FIELDS = {
     'combine': {'name', 'inputs', 'expect', 'absent', 'expectLineageIds', 'expectLineage'},
     'audit': {'name', 'meta', 'expectContains'},
     'validate': {'name', 'meta', 'expectContains'},
-    'construct': {'name', 'input', 'expect', 'expectError'},
+    'construct': {'name', 'input', 'expect', 'expectError', 'absent'},
+    'derive': {'name', 'inputs', 'override', 'expect', 'expectError', 'absent'},
     'guard': {'name', 'meta', 'options', 'expectPass', 'expectRefused', 'expectAbsent', 'expectError'},
 }
 
