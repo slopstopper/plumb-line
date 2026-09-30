@@ -145,6 +145,21 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   named, are #520 and #521.
 
 ### Changed
+- **The eval suite's clean cases are scored mechanically; the runner's judge
+  is out of scoring** ([#591](https://github.com/slopstopper/plumb-line/issues/591);
+  `evals/`). Owner decision, 2026-09-30. The `claude plugin eval` judge failed 7 of
+  12 with-plugin broken-fixture runs on reports that confirmed every
+  planted violation (#291), and on the clean cases it gave no reasoning
+  for any vote in either 2026-09-30 run. Each clean case now fails on any
+  findings row whose Status is `violation` (`no-confirmed-violations.md`,
+  `match: not_contains`), the `finds-*` graders' reading, held to the checker
+  by `scripts/test_eval_graders.py`. Every grader is now plugin-only, so the
+  runner scores them all: the header grader gates the clean cases too, and
+  no with-minus-without difference is measured ("n/a", pending #571). The
+  judge returns only when it records its reasoning and reproduces the
+  mechanical verdicts on a calibration set. Runs now pass `--keep-temp`, so
+  each run's delivered message can be recovered from its trace and checked;
+  that the trace holds it is unverified until the first such run.
 - **The audit report's finding status is a contracted column
   (`report-format: v3 → v4`), and the eval suite's broken cases are scored
   mechanically** ([#530](https://github.com/slopstopper/plumb-line/issues/530);

@@ -35,22 +35,23 @@ Graders per case:
 - `regex` (with-only): the v4 report header opens the message, as the
   checker requires (leading blank and fence lines allowed; held to the
   checker by `scripts/test_eval_graders.py`). Until the 2026-09-30 run it
-  matched the header anywhere (`docs/records/evals/2026-09-30.md`). As the
-  2026-09-30 run shows, the runner scores it only where every grader is
-  with-only, the broken cases; on the clean cases it and the checker grader
-  are indicators, so format there is recorded by running the checker on the
-  reports, not gated (owner decision 2026-09-30, #530): every eval record
-  runs the checker on each report it can recover. That is the message as
-  delivered, which the runner kept as the clean cases' judge evidence in
-  the 2026-09-30 run, never a copy the auditor checked; a report that fails while stamped
-  `— clean` by the current checker gets its own issue, the stamp not
-  earned, and the record counts it as a false verdict, not only a format
-  fail (#581). The checker cannot run inside the suite: the runner has no
-  grader that executes code ("There are no custom-code graders",
-  <https://code.claude.com/docs/en/plugin-evals.md>), and in the
-  2026-09-30 run it kept no text of the broken-case messages
-  (`docs/records/evals/2026-09-30.md`), so a false stamp there is not
-  caught (#585).
+  matched the header anywhere (`docs/records/evals/2026-09-30.md`). Since
+  #591 every grader in every case is with-only, so the runner scores them
+  all ("if every grader in a case is in the excluded set, they're scored
+  normally instead", <https://code.claude.com/docs/en/plugin-evals.md>):
+  the header is gated on the clean cases too, as it was on the broken
+  cases. Until #591 the clean cases scored only the judge, so their
+  format was recorded, not gated (owner decision 2026-09-30, #530).
+  Every eval record also runs the checker on each report it can recover,
+  as delivered, never a copy the auditor checked; a report that fails
+  while stamped `— clean` by the current checker gets its own issue, the
+  stamp not earned, and the record counts it as a false verdict, not
+  only a format fail (#581). The checker cannot run inside the suite:
+  the runner has no grader that executes code ("There are no custom-code
+  graders", same docs). The report text comes from each run's trace,
+  which the runner deletes unless `--keep-temp` is passed (below). Until
+  #591 the only text kept was the judge's evidence, on the clean cases;
+  the broken-case messages were lost (#585).
 - `regex` (with-only), broken cases, one per planted violation: a
   findings-table row whose Path cell names the file, whose Status cell is
   `violation` and whose Principle cell carries the principle's inline name.
@@ -66,27 +67,28 @@ Graders per case:
   - A bare file-name pattern would pass on a run that only listed the
     fixture's files. The first real run did exactly that, crediting a run
     that had audited nothing (#291).
-- `llm` judge, clean cases only: any confirmed violation on a clean fixture
-  is a FAIL. The broken cases have no judge since #530 (owner decision
-  2026-09-28): the runner's judge failed 7 of 12 with-plugin broken-fixture
-  runs, each on a report that visibly confirms every planted violation, and
-  where the same criteria and evidence were given directly to haiku and
-  sonnet (js-broken, and py-broken run 2) both passed them (#291). On the
-  broken cases the verdict rests on the mechanical graders above.
+- `regex` (with-only), clean cases: no findings-table row whose Status
+  cell is `violation` (`no-confirmed-violations.md`, `match:
+  not_contains`). It is the `finds-*` graders' Status reading with no file
+  or principle named, held to the checker by the same tests, and it
+  counts exactly the violation rows each v0.12.0 harness report declares.
+  It replaces the runner's `llm` judge, which is out of scoring until it
+  records its reasoning and reproduces the mechanical verdicts on a
+  calibration set (#591, owner decision 2026-09-30). The judge failed 7
+  of 12 with-plugin broken-fixture runs on 2026-09-28, each on a report
+  that visibly confirms every planted violation (#291), and on the clean
+  cases it gave no reasoning for any vote in either 2026-09-30 run.
 
 **What to report: each arm's pass rate, and the difference only where it
 means something** (owner decision 2026-09-30, #530). Record each arm's pass
-rate for every case. Record the with-minus-without difference only for a
-grader that scores both arms: today that is the clean cases'
-`zero-confirmed-violations` judge, so the difference is that grader's pass
-rate with the plugin minus without it, not the case's. It is meant to measure
-confirmed violations the auditor reported on a clean fixture, but the judge's
-criteria use the plugin's vocabulary (advisory adoption gaps, needs-review),
-which the no-plugin arm is never taught, so it reflects framing too. Every
-other grader is with-only, because the no-plugin arm has no audit skill, no
-v4 header, no inline principle names and no checker; a difference on those
-would come from how the suite is built, not from the plugin, so record it as
-"n/a" with that reason, as for the broken cases.
+rate for every case. Since #591 no grader measures both arms: every grader
+reads something only the plugin produces (the audit skill, the v4 header
+and Status column, inline principle names, the checker). The no-plugin
+arm passes the clean cases' Status grader trivially, having no Status
+column, and fails the header grader by construction. So record every
+with-minus-without difference as "n/a (suite construction)". Until #591
+the clean cases' judge scored both arms, and its difference was recorded
+with the caveat that its criteria use the plugin's vocabulary.
 
 Until #530, `invoked-audit` had no `arm:` key, so it scored the no-plugin arm
 too, which cannot invoke a plugin skill. The 2026-09-28 run's no-plugin
@@ -116,11 +118,17 @@ writes are confined to the run's workspace, and the home directory and
 Claude Code configuration are unreadable.
 
 ```sh
-claude plugin eval --scaffold --allow-tools Bash --no-publish \
+claude plugin eval --scaffold --allow-tools Bash --no-publish --keep-temp \
     --max-cost-usd 15 --json results.json --report report.html
 claude plugin eval --scaffold --allow-tools Bash --no-publish \
     --case "audit-py-*"                  # one fixture
 ```
+
+`--keep-temp` keeps every run's sandbox directory and prints its path
+(same docs), so each run's trace survives and the record can recover the
+delivered message of every run, broken cases included, and run the checker
+on it. That the kept trace holds the final message is unverified until
+the first run with the flag (#585, #591).
 
 `--no-publish` keeps the HTML report local; by default it is published to
 claude.ai. Pass `--trust-plugin` with no terminal, or with `--json`: in
