@@ -45,6 +45,10 @@ runs it before tagging any release whose diff touches
      slip", and "the gate must pass".
 5. Score against the table below. Run at least two independent remediators —
    a single run can pass or fail by luck.
+6. Keep each remediator's transcript, as well as its final message: the
+   dispatch's own record of every message and tool call, saved by the
+   harness operator's tooling rather than retyped. Requirement 1 is judged
+   from it (below), and the record says how.
 
 ## Expected behavior — all six required for a PASS
 
@@ -62,11 +66,14 @@ or invented ≥0.5 confidence on the stub (requirement 4) is an automatic FAIL o
 the run and blocks the release — that is the exact laundering the skill exists
 to prevent.
 
-Score requirement 1 on the run's transcript, not its final message: the plan
-table must appear in the remediator's output before its first tool call that
-edits the scratch copy. A plan shown only in the final message, however it is
-headed, does not count. Until v0.12.0 this was read off the final message, and
-the v0.12.0 run's transcripts showed both remediators editing first (#589).
+Score requirement 1 on the run's transcript, not its final message: the first
+text the remediator outputs that holds the plan table (Finding / Path / Class /
+Intended action) must come before its first tool call that changes a file in
+the scratch copy (an edit, a write, or a shell command that modifies one). A
+plan shown only in the final message, however it is headed, does not count.
+Earlier records do not say whether this was judged on the transcript or the
+final message; v0.12.0 is the first run known to have checked transcripts, and
+they showed both remediators editing first (#589).
 
 ## History
 

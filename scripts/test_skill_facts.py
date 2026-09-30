@@ -521,10 +521,38 @@ def test_audit_check_10_a_citation_does_not_make_an_alongside_unit_test_the_requ
 
 def test_remediate_prints_the_plan_as_its_own_message_before_any_edit():
     text = " ".join(SKILLS["plumb-line-remediate"].split()).lower()
-    for phrase in ("as its own message, before any tool call that edits a file",
+    for phrase in ("as its own message, before any tool call that changes a file under remediation",
                    "a plan that first appears after the edits is a record, not a plan",
-                   "repeat the same plan table in your final message, below the record"):
+                   "repeat the same plan table in your final message, below the record",
+                   "head it as a repeat",
+                   "name each principle inline in the plan"):
         assert phrase in text, phrase
+
+
+def test_a_repeated_plan_with_inline_names_keeps_the_delivered_record_clean():
+    # The checker reads the whole delivered message (#581), the plan below the
+    # record included: a bare code there fails it and marks the stamp not
+    # earned (#589 review). With the principle named inline, it passes.
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "_crf", os.path.join(_ROOT, "scripts", "check_report_format.py"))
+    crf = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(crf)
+    ruleset = _read(_ROOT, "reference", "portable-principles.md")
+    principles, revision = crf.load_principles(ruleset), crf.load_ruleset_revision(ruleset)
+    record = ("remediation-format: v1\nsource-report:       plumb-line-audit.md\n"
+              "source-report-format: v4\nprinciples-revision: " + str(revision) + "\n"
+              "date:                2026-09-30\ncommit:              no repository (not version-controlled)\n\n"
+              "| Finding | Path | Class | Action | Change summary |\n"
+              "| ------- | ---- | ----- | ------ | -------------- |\n"
+              "| 1 | `src/data/rates.js` | Mechanical | applied-mechanical | removed the upward import (P2 — One-way layering) |\n\n"
+              f"format-validation: scripts/check_report_format.py v{crf.CHECKER_VERSION} — clean\n\n"
+              "Plan (a repeat of the one printed before the first edit):\n\n"
+              "| Finding | Path | Class | Intended action |\n| --- | --- | --- | --- |\n")
+    bare = record + "| 1 P2 upward import | `src/data/rates.js` | Mechanical | remove it |\n"
+    named = record + "| 1 upward import (P2 — One-way layering) | `src/data/rates.js` | Mechanical | remove it |\n"
+    assert crf.check(bare, principles, revision), "a bare code below the record must fail"
+    assert crf.check(named, principles, revision) == []
 
 
 # --- #581: the message is the text the checker passed --------------------------

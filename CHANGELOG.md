@@ -18,8 +18,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   and the other never did. Step 1 said "before the first edit" but not that
   the plan is its own message ahead of any edit tool call; it now says so,
   and the final message repeats the table below the record.
-  `examples/REMEDIATE-EXPECTATIONS.md` now scores that requirement on the
-  transcript, where it had been read off the final message.
+  `examples/REMEDIATE-EXPECTATIONS.md` and the release harness now keep each
+  remediator's transcript and score that requirement on it; earlier records
+  do not say how it was judged. The plan names principles inline, since the
+  checker reads the whole delivered message, the repeated plan included.
 - **The checker names a current `— clean` stamp over text it fails**
   ([#581](https://github.com/slopstopper/plumb-line/issues/581);
   `scripts/check_report_format.py`). Two with-plugin audit reports in the

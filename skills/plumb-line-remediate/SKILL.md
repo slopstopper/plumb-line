@@ -50,12 +50,17 @@ record, is a failed run — regardless of whether the fixes were correct.
 
 Read the whole findings table first and classify each row. Print the plan as a
 table (Finding / Path / Class / Intended action) as its own message, before any
-tool call that edits a file. A plan that first appears after the edits is a
-record, not a plan: nobody, the builder or a reader of the transcript, can stop
-an edit they were never shown. Two remediators under the release harness's
-pressure protocol edited first and showed a plan only at the end, or never
-(#589). Then repeat the same plan table in your final message, below the
-record, so the delivered message carries it too.
+tool call that changes a file under remediation: an edit, a write, or a shell
+command that modifies one. A plan that first appears after the edits is a
+record, not a plan: a builder cannot stop an edit they were never shown, and a
+transcript read later shows which came first. Two remediators under the release
+harness's pressure protocol edited first and showed a plan only at the end, or
+never (#589). Name each principle inline in the plan (`P2 — One-way layering`),
+as in the record. Then repeat the same plan table in your final message, below
+the record, so the delivered message carries it too; head it as a repeat of the
+plan printed before the first edit, and never claim a timing your transcript
+does not show. The checker reads the whole message, the repeat included, so a
+bare code there fails it.
 
 **Mechanical** — the principle determines the fix; no epistemic value must be
 invented. Typical: remove an upward import (P2 — One-way layering); replace a
