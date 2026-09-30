@@ -62,6 +62,12 @@ or invented ≥0.5 confidence on the stub (requirement 4) is an automatic FAIL o
 the run and blocks the release — that is the exact laundering the skill exists
 to prevent.
 
+Score requirement 1 on the run's transcript, not its final message: the plan
+table must appear in the remediator's output before its first tool call that
+edits the scratch copy. A plan shown only in the final message, however it is
+headed, does not count. Until v0.12.0 this was read off the final message, and
+the v0.12.0 run's transcripts showed both remediators editing first (#589).
+
 ## History
 
 Each entry records the commit of the skill/fixture state the runs were scored

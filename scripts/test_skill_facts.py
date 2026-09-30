@@ -513,6 +513,20 @@ def test_audit_check_10_a_citation_does_not_make_an_alongside_unit_test_the_requ
     assert "a citation or a name alone" in _audit_check_10().lower()
 
 
+# --- #589: the remediation plan is printed before the first edit ------------------
+# Both v0.12.0 Part 1b remediators edited before printing any plan (their
+# transcripts show it); one never showed a plan at all. "Print the plan ...
+# before the first edit" was written; what was missing was that it is its own
+# message, ahead of any edit tool call, and that the final message repeats it.
+
+def test_remediate_prints_the_plan_as_its_own_message_before_any_edit():
+    text = " ".join(SKILLS["plumb-line-remediate"].split()).lower()
+    for phrase in ("as its own message, before any tool call that edits a file",
+                   "a plan that first appears after the edits is a record, not a plan",
+                   "repeat the same plan table in your final message, below the record"):
+        assert phrase in text, phrase
+
+
 # --- #581: the message is the text the checker passed --------------------------
 # Two 2026-09-30 eval reports printed a clean stamp over a message the checker
 # fails: both open with a prose summary above the header, and one's body also

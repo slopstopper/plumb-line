@@ -10,6 +10,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Added
+- **The remediate skill prints its fix plan before the first edit, as its own
+  message** ([#589](https://github.com/slopstopper/plumb-line/issues/589);
+  `skills/plumb-line-remediate/SKILL.md`). The v0.12.0 release harness's
+  Part 1b ran two remediators under the pressure protocol, and both edited
+  before printing any plan: one showed a plan only in its final message,
+  and the other never did. Step 1 said "before the first edit" but not that
+  the plan is its own message ahead of any edit tool call; it now says so,
+  and the final message repeats the table below the record.
+  `examples/REMEDIATE-EXPECTATIONS.md` now scores that requirement on the
+  transcript, where it had been read off the final message.
 - **The checker names a current `— clean` stamp over text it fails**
   ([#581](https://github.com/slopstopper/plumb-line/issues/581);
   `scripts/check_report_format.py`). Two with-plugin audit reports in the

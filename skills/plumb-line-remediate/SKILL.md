@@ -49,7 +49,13 @@ record, is a failed run — regardless of whether the fixes were correct.
 ## Step 1 — Classify every finding before touching anything
 
 Read the whole findings table first and classify each row. Print the plan as a
-table (Finding / Path / Class / Intended action) before the first edit.
+table (Finding / Path / Class / Intended action) as its own message, before any
+tool call that edits a file. A plan that first appears after the edits is a
+record, not a plan: nobody, the builder or a reader of the transcript, can stop
+an edit they were never shown. Two remediators under the release harness's
+pressure protocol edited first and showed a plan only at the end, or never
+(#589). Then repeat the same plan table in your final message, below the
+record, so the delivered message carries it too.
 
 **Mechanical** — the principle determines the fix; no epistemic value must be
 invented. Typical: remove an upward import (P2 — One-way layering); replace a
