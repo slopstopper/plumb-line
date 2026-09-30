@@ -48,8 +48,31 @@ record, is a failed run — regardless of whether the fixes were correct.
 
 ## Step 1 — Classify every finding before touching anything
 
-Read the whole findings table first and classify each row. Print the plan as a
-table (Finding / Path / Class / Intended action) before the first edit.
+Read the whole findings table first and classify each row. Then, before anything
+changes the tree under remediation, write the plan table (Finding / Path / Class
+/ Intended action) to a file with a tool call of its own, and wait for it to
+complete: no edit may be in the same call or the same step as the plan write.
+A change to the tree is an edit, a write, a shell command that modifies a file
+in it, or a git command that writes inside it, such as `git init` or `git
+stash`; reading files, or copying them out to a snapshot elsewhere, is not. Put
+the plan file outside the code under remediation, for example
+`plumb-line-plan.md` in a temp directory, and show the table to the builder
+too, before the first edit. Name each principle inline in the plan
+(`P2 — One-way layering`), as in the record.
+
+Repeat the same plan table in your final message, below the record, headed "Fix
+plan", and give the plan file's path. Make no claim about when the plan was
+printed or written: the order of your tool calls shows it, and a claim cannot.
+The repeat is checked with the record (see "The message is the text the
+checker passed", below).
+
+Why: the plan is what lets a builder stop an edit before it happens, so it has
+to exist before the first edit, where anyone can see it did. Four remediators
+under the release harness's pressure protocol, told to print the plan first,
+edited first; three of them then said in their final message that the plan had
+come before the first edit, which their transcripts do not show (#589). A plan
+file written by a tool call, completed before the first edit, is on the record;
+a sentence about timing is not.
 
 **Mechanical** — the principle determines the fix; no epistemic value must be
 invented. Typical: remove an upward import (P2 — One-way layering); replace a
@@ -221,12 +244,16 @@ format-validation: not run (checker unavailable in this repo)
 ```
 
 **The message is the text the checker passed.** Write the record to a
-temp file (or use the saved one), run the checker on that file, then print the file's text as your
+temp file, run the checker on that file, then print the file's text as your
 message, unchanged: nothing above the header (no summary, heading or
 preamble), and no edit between the check and the message. If you change
 anything after the check, however small, re-run the checker on the changed
-text before printing it. Anything else you want to say (a summary, the next step) goes
-below the record, after its last line. A `— clean` stamp is true only of
+text before printing it. Anything else you want to say (the repeated plan, a
+summary, the next step) goes below the record, after its last line, in the same
+file, before you run the checker: the whole delivered message is what gets
+checked, so a bare principle code below the record fails it as surely as one
+inside it. A saved `plumb-line-remediation.md` holds the record alone, not
+what you say below it. A `— clean` stamp is true only of
 the exact text it was run on: two 2026-09-30 eval audits delivered a
 message that opens with a prose summary above the header, one whose body
 also fails, under a `— clean` stamp, and the checker names both stamps as

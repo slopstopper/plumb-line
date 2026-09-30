@@ -10,6 +10,24 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Added
+- **The remediate skill writes its fix plan to a file before the first edit**
+  ([#589](https://github.com/slopstopper/plumb-line/issues/589);
+  `skills/plumb-line-remediate/SKILL.md`). The v0.12.0 release harness's
+  Part 1b ran two remediators under the pressure protocol, and both edited
+  before printing any plan. The skill was changed to say the plan is printed
+  as its own message before any edit tool call (#592), and two fresh
+  remediators edited first again, then each said in its final message that
+  the plan "was printed before the first edit", which their transcripts do
+  not show (the first run's second remediator had claimed the same). So the
+  plan is now an action: a tool call of its own writes the plan table to a
+  file outside the code under remediation, and completes, before anything
+  changes the tree under remediation (git writes inside it included), and
+  the final message repeats the table,
+  gives the file's path, and makes no claim about timing. The plan names
+  principles inline, since the checker reads the whole delivered message.
+  `examples/REMEDIATE-EXPECTATIONS.md` and the release harness keep each
+  remediator's transcript and score the requirement on it: the plan-file
+  write before the first edit. Earlier records do not say how it was judged.
 - **The checker names a current `— clean` stamp over text it fails**
   ([#581](https://github.com/slopstopper/plumb-line/issues/581);
   `scripts/check_report_format.py`). Two with-plugin audit reports in the
