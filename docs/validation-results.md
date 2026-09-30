@@ -61,8 +61,9 @@ and earlier ones not at all.
 
 ## Eval suite runs
 
-Newest first. No run is green yet; the first green run is planned (#530).
+Newest first. Whether a run counts as green is recorded with it (#530).
 
 | Run | Date | Result |
 | --- | --- | --- |
+| [2026-09-30 — first run after #530: findings clean in every plugin run, two format failures the suite did not catch](records/evals/2026-09-30.md) | 2026-09-30 | With the plugin 3/3 on all four cases, and every planted violation confirmed. Without it: broken cases 0/3 (n/a, structural), js-clean 0/3, py-clean 2/3. Format checked afterwards: 4 of 6 recoverable reports conform; 2 open with prose above the header. |
 | [2026-09-28 — first real run: drift pass, probes and full pass](records/evals/2026-09-28.md) | 2026-09-28 | Not a green run: it found and fixed drift, and the runner's LLM judge failed reports that confirm every planted violation (#291, #530). On every deterministic grader the plugin arm was clean and the no-plugin arm failed every case. |

@@ -148,3 +148,44 @@ def test_javascript_reads_each_grader_as_python_does(path):
         assert _js_matches(p, text) == _matches(p, text), status
     shifted = "text\n| x " + _row(p, "violation") + "\nmore\n"
     assert _js_matches(p, shifted) == _matches(p, shifted)
+
+
+# --- format-header: the header opens the message (2026-09-30 run) ----------
+
+HEADERS = sorted(glob.glob(os.path.join(_ROOT, "evals", "*", "graders", "format-header.md")))
+_REPORT_V4 = _REPORT.replace("STATUS", "violation")
+HEADER_OK = [_REPORT_V4, "\n\n" + _REPORT_V4, "```\n" + _REPORT_V4, "```text\n" + _REPORT_V4]
+HEADER_NOT_OK = ["The audit found no confirmed violations.\n\n" + _REPORT_V4,
+                 "# Plumb-line audit\n\n" + _REPORT_V4,
+                 _REPORT_V4.replace("report-format: v4", "report-format: v3")]
+
+
+def _search(pattern, text):
+    return re.search(pattern, text) is not None  # no multiline flag, as in the grader
+
+
+def test_four_header_graders_found():
+    assert len(HEADERS) == 4, HEADERS
+
+
+@pytest.mark.parametrize("path", HEADERS, ids=lambda p: p.split(os.sep)[-3])
+def test_the_header_grader_agrees_with_the_checker_on_where_the_header_is(path):
+    p = _pattern(path)
+    for text in HEADER_OK:
+        assert crf.check(text, PRINCIPLES) == [], text[:40]
+        assert _search(p, text), text[:40]
+    for text in HEADER_NOT_OK[:2]:
+        assert any("unrecognised report contract" in i for i in crf.check(text, PRINCIPLES))
+        assert not _search(p, text), text[:40]
+    assert not _search(p, HEADER_NOT_OK[2])
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not on PATH: the JavaScript half is not checked")
+@pytest.mark.parametrize("path", HEADERS, ids=lambda p: p.split(os.sep)[-3])
+def test_javascript_reads_the_header_grader_as_python_does(path):
+    p = _pattern(path)
+    for text in HEADER_OK + HEADER_NOT_OK:
+        out = subprocess.run(
+            ["node", "-e", "const [p,t]=process.argv.slice(1);process.stdout.write(String(new RegExp(p).test(t)))",
+             p, text], capture_output=True, text=True).stdout
+        assert (out == "true") == _search(p, text), text[:40]

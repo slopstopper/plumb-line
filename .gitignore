@@ -34,3 +34,6 @@ docs/superpowers/
 
 # fit-map JS snippet guard scratch modules (#265)
 .fitmap-snippets-tmp-*/
+
+# claude plugin eval writes its raw results here; runs are recorded in docs/records/evals/
+evals/results/

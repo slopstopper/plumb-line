@@ -32,8 +32,11 @@ Graders per case:
   it succeeded, because `tool_used` matches a call's input, never its outcome.
   The pattern needs the interpreter, so a heredoc whose report text names the
   checker does not count.
-- `regex` (with-only): the v4 report header. A format FAIL is scored
-  independently of the findings, per the harness.
+- `regex` (with-only): the v4 report header opens the message, as the
+  checker requires (leading blank lines or a code fence allowed). A format
+  FAIL is scored independently of the findings, per the harness. Until the
+  2026-09-30 run it matched the header anywhere
+  (`docs/records/evals/2026-09-30.md`).
 - `regex` (with-only), broken cases, one per planted violation: a
   findings-table row whose Path cell names the file, whose Status cell is
   `violation` and whose Principle cell carries the principle's inline name.

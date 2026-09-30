@@ -502,6 +502,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **The eval suite's header grader requires the header to open the
+  report** ([#530](https://github.com/slopstopper/plumb-line/issues/530);
+  `evals/*/graders/format-header.md`). It matched `report-format: v4`
+  anywhere in the message, so in the 2026-09-30 run it passed two js-clean
+  reports that open with a prose summary above the header, which the audit
+  skill forbids and `check_report_format.py` fails. It now requires the
+  header first, allowing what the checker allows (leading blank lines, a
+  leading code fence); `scripts/test_eval_graders.py` holds grader and
+  checker to the same verdict, in Python and JS. The run is recorded in
+  `docs/records/evals/2026-09-30.md`: with the plugin every case passed
+  3/3 and every planted violation was confirmed; 4 of the 6 reports that
+  could be checked afterwards conform to the format.
 - **A `null` optional override on `derive` is no override, and a `null`
   `basis` or `adapter` is no field, in both languages**
   ([#566](https://github.com/slopstopper/plumb-line/issues/566); `docs/api.md`,
