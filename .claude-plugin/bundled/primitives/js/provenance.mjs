@@ -52,6 +52,34 @@ function quote(value) {
   }
 }
 
+// The step fields the law, the audit and the guard read.
+const STEP_FIELDS = ["of", "source", "confidence", "derivedFromMock", "confidenceScore", "id"];
+
+/** A frozen plain copy of an object lineage step, with the fields the step
+ * inherits through its prototype (#548): a copy of own fields only lost an
+ * inherited taint flag, so one combine cleared it. The chain is walked from
+ * the step up to, not including, Object.prototype, which is no step's own: a
+ * polluted global baked into a frozen copy would outlive the pollution. At
+ * each level the enumerable fields are copied, and a step field the law reads
+ * even when it is not enumerable; a nearer field shadows a farther one.
+ * Fields are defined, not assigned, so a "__proto__" key is copied as a
+ * field, never as the copy's prototype. Python has no prototype chain: a
+ * Mapping step is copied by its items. */
+function copyStep(s) {
+  const copy = { ...s };
+  const seen = new Set();
+  for (let o = s; o !== null && o !== Object.prototype; o = Object.getPrototypeOf(o)) {
+    for (const k of Reflect.ownKeys(o)) {
+      if (seen.has(k)) continue;
+      seen.add(k);
+      if (Object.hasOwn(copy, k)) continue;
+      if (Object.getOwnPropertyDescriptor(o, k).enumerable || STEP_FIELDS.includes(k))
+        Object.defineProperty(copy, k, { value: s[k], enumerable: true, writable: true, configurable: true });
+    }
+  }
+  return Object.freeze(copy);
+}
+
 /**
  * Constructs a frozen provenance metadata envelope.
  * @param {object} opts
@@ -113,7 +141,7 @@ export function makeMeta({
       // became {"0": ..., "1": ...}, a history rewritten in the copy.
       (Array.isArray(lineage) ? lineage : []).map((s) =>
         Array.isArray(s) ? Object.freeze([...s])
-          : s && typeof s === "object" ? Object.freeze({ ...s }) : s,
+          : s && typeof s === "object" ? copyStep(s) : s,
       ),
     ),
   };

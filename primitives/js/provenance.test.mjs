@@ -7,6 +7,8 @@ import {
   PROVENANCE_VERSION,
   stepId,
 } from "./provenance.mjs";
+import { auditMeta } from "./audit.mjs";
+import { guard, ProvenanceRefused } from "./guard.mjs";
 
 test("PROVENANCE_VERSION is 2", () => {
   expect(PROVENANCE_VERSION).toBe(2);
@@ -365,5 +367,90 @@ describe("combineProvenance reads source and confidence as it reads taint (#525 
       expect(step).toHaveProperty("source", null);
       expect(step).toHaveProperty("confidence", null);
     }
+  });
+});
+
+// #548: a prior step's fields are copied as the law reads them, through the
+// prototype. A copy of own fields only let a step's inherited taint be
+// cleared by one combine. JSON cannot build such a step, so no case row.
+describe("makeMeta copies a lineage step's inherited fields (#548)", () => {
+  const INHERITED_TAINT = () =>
+    Object.assign(Object.create({ derivedFromMock: true }), {
+      of: "input", source: "real", confidence: "high", id: "sha256:000000000001",
+    });
+  // The envelope's own flag is false, so the tainted step is a finding.
+  const envelopeWith = (step) => ({
+    provenanceVersion: PROVENANCE_VERSION, source: "derived", confidence: "high",
+    derivedFromMock: false, weakestSource: "real", lineage: [step],
+  });
+
+  it("inherited taint survives combineProvenance, the audit flags it and the guard refuses", () => {
+    const out = combineProvenance(envelopeWith(INHERITED_TAINT()));
+    expect(out.lineage[0].derivedFromMock).toBe(true);
+    expect(auditMeta(out)).toContain(
+      "taint dropped: lineage contains a tainted step but derivedFromMock is false",
+    );
+    const value = { value: 1, ...out };
+    expect(() => guard(value)).toThrow(ProvenanceRefused);
+  });
+
+  it("an inherited source survives the copy", () => {
+    const step = Object.assign(Object.create({ source: "mock" }), {
+      of: "input", confidence: "high", derivedFromMock: false, id: "sha256:000000000002",
+    });
+    const meta = makeMeta({ source: "derived", confidence: "high", lineage: [step] });
+    expect(meta.lineage[0].source).toBe("mock");
+  });
+
+  it("the copy is a plain frozen object, and an own field wins over an inherited one", () => {
+    const step = Object.assign(Object.create({ derivedFromMock: true, source: "mock" }), {
+      of: "input", source: "real", confidence: "high", derivedFromMock: false,
+    });
+    const copy = makeMeta({ source: "derived", lineage: [step] }).lineage[0];
+    expect(Object.getPrototypeOf(copy)).toBe(Object.prototype);
+    expect(Object.isFrozen(copy)).toBe(true);
+    expect(copy.source).toBe("real");
+    expect(copy.derivedFromMock).toBe(false);
+  });
+
+  it("a law field that is not enumerable is kept too", () => {
+    const step = Object.defineProperty(
+      { of: "input", source: "real", confidence: "high" },
+      "derivedFromMock", { value: true, enumerable: false },
+    );
+    const copy = makeMeta({ source: "derived", lineage: [step] }).lineage[0];
+    expect(copy.derivedFromMock).toBe(true);
+    expect(Object.keys(copy)).toContain("derivedFromMock");
+  });
+
+  it("a polluted Object.prototype is not copied into a step (it is no step's own)", () => {
+    // Baked into a frozen copy, a polluted source would outlive the pollution
+    // and survive JSON, where a step with no source is refused.
+    try {
+      Object.prototype.source = "real";
+      const copy = makeMeta({ source: "derived", lineage: [{ of: "input", confidence: "high" }] }).lineage[0];
+      expect(Object.hasOwn(copy, "source")).toBe(false);
+    } finally {
+      delete Object.prototype.source;
+    }
+  });
+
+  it("an own field that is not enumerable still shadows an inherited one", () => {
+    const step = Object.defineProperty(
+      Object.assign(Object.create({ note: "inherited" }), { of: "input", source: "real" }),
+      "note", { value: "own", enumerable: false },
+    );
+    const copy = makeMeta({ source: "derived", lineage: [step] }).lineage[0];
+    expect(Object.hasOwn(copy, "note")).toBe(false);
+  });
+
+  it("an inherited __proto__ key is copied as a field, never as the copy's prototype", () => {
+    // JSON.parse makes "__proto__" an own key; as a prototype, it is inherited.
+    const proto = JSON.parse('{"__proto__": {"derivedFromMock": true}}');
+    const step = Object.assign(Object.create(proto), { of: "input", source: "real" });
+    const copy = makeMeta({ source: "derived", lineage: [step] }).lineage[0];
+    expect(Object.getPrototypeOf(copy)).toBe(Object.prototype);
+    expect(Object.hasOwn(copy, "__proto__")).toBe(true);
+    expect(copy.derivedFromMock).toBeUndefined();
   });
 });

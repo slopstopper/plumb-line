@@ -179,8 +179,9 @@ taint, its confidence reads as `none`, and it contributes no prior steps. A
 `lineage` that is not an array contributes no prior steps. Prior steps are
 kept whatever they are: an array step as an array, a value that is not an
 object as itself, and an object step as a copy of its fields. In JavaScript
-that copy has the step's own fields only, so a field it inherits through its
-prototype is lost, taint included (#548).
+that copy includes the fields the step inherits through its prototype, so an
+inherited taint flag is kept (#548). It stops short of `Object.prototype`,
+which is no step's own, so a polluted global is not copied into the step.
 
 ### Combining zero inputs
 
