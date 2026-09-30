@@ -24,7 +24,7 @@ _HOOK = os.path.join(_HERE, 'branch_guard_commit.py')
 # Every field, case kind and table version this runner interprets (#441). JS
 # twin: MODEL in adapters/js/hooks/__tests__/commit-hook-cases.test.mjs.
 _ROW = ['name', 'repo', 'committed', 'committedText', 'fakeGit', 'side', 'branch', 'tags', 'headRef', 'config', 'merge',
-        'remove', 'move', 'stage', 'stageHex', 'gitlink', 'stageCount', 'modify', 'env', 'commit',
+        'rebaseStop', 'rebaseHeadName', 'rebaseHeadNameDir', 'remove', 'move', 'stage', 'stageHex', 'gitlink', 'stageCount', 'modify', 'env', 'commit',
         'expectExit', 'expectStderr']
 _MODEL = {'versions': [1], 'meta': ['_doc', 'version'], 'fields': {'commitHook': _ROW}}
 
@@ -97,6 +97,16 @@ def _type_problems(c):
         problems.append('branch null, tags, headRef, side and gitlink need committed')
     if 'merge' in c and 'side' not in c:
         problems.append('merge needs side')
+    if 'rebaseStop' in c and not isinstance(c['rebaseStop'], str):
+        problems.append('rebaseStop must be a string')
+    if 'rebaseHeadName' in c and c['rebaseHeadName'] is not None and not isinstance(c['rebaseHeadName'], str):
+        problems.append('rebaseHeadName must be a string or null')
+    if 'rebaseHeadNameDir' in c and c['rebaseHeadNameDir'] is not True:
+        problems.append('rebaseHeadNameDir must be true when present')
+    if 'rebaseStop' in c and 'committed' not in c:
+        problems.append('rebaseStop needs committed')
+    if ('rebaseHeadName' in c or 'rebaseHeadNameDir' in c) and 'rebaseStop' not in c:
+        problems.append('rebaseHeadName and rebaseHeadNameDir need rebaseStop')
     return problems
 
 
@@ -155,6 +165,26 @@ def _build(c, repo):
         _git(repo, 'config', k, v)
     if c.get('merge'):
         _git(repo, 'merge', '-q', *c['merge'])
+    if 'rebaseStop' in c:
+        _write(repo, c['rebaseStop'], 'rebased\n')
+        _git(repo, 'add', '--', c['rebaseStop'])
+        _git(repo, 'commit', '-q', '--no-verify', '-m', 'rebased')
+        # --exec false stops the rebase after the commit is replayed, with
+        # HEAD detached and rebase-merge/head-name written, as an `edit` stop is.
+        r = subprocess.run(['git', 'rebase', '-q', '--exec', 'false', 'HEAD~1'], cwd=repo, env=_BASE_ENV,
+                           capture_output=True)
+        if r.returncode == 0:
+            raise RuntimeError('git rebase --exec false did not stop')
+        rebase_dir = _git(repo, 'rev-parse', '--git-path', 'rebase-merge').decode().strip()
+        head_name = os.path.join(repo, rebase_dir, 'head-name')
+        if c.get('rebaseHeadNameDir'):
+            os.remove(head_name)
+            os.mkdir(head_name)
+        elif 'rebaseHeadName' in c and c['rebaseHeadName'] is None:
+            os.remove(head_name)
+        elif 'rebaseHeadName' in c:
+            with open(head_name, 'w', encoding='utf-8') as f:
+                f.write(c['rebaseHeadName'])
     for p in c.get('remove', []):
         _git(repo, 'rm', '-q', '--', p)
     for src, dst in c.get('move', []):

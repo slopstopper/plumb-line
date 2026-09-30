@@ -10,6 +10,19 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Added
+- **The branch guard's commit hook knows the branch during a rebase**
+  ([#547](https://github.com/slopstopper/plumb-line/issues/547);
+  `adapters/adapter-contract.md`, `plumb-line-bootstrap`). HEAD is detached
+  during a rebase, so a commit made by hand at a rebase stop, such as `git
+  commit --amend` at an `edit`, was judged with the branch unknown and
+  blocked a staged code path even on a feature branch. Both twins
+  (`branch-guard-commit.mjs`, `branch_guard_commit.py`) now take the branch
+  from the `head-name` git records for the rebase (`rebase-merge` or
+  `rebase-apply`), the branch its commits will land on. Rebasing `main`
+  still blocks a code path; a HEAD detached for any other reason stays
+  unknown (#449); and a `head-name` that cannot be read, or names no valid
+  branch, leaves the branch unknown with a reason saying which. Seven rows in
+  `adapters/commit-hook-cases.json`, each against a real rebase stop.
 - **The branch guard works as a git commit hook**
   ([#464](https://github.com/slopstopper/plumb-line/issues/464)). Git gives
   a hook neither the `{filePath}` stdin nor `PLUMBLINE_BRANCH`, so since

@@ -9,6 +9,7 @@
 // adapters/commit-hook-cases.json.
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { configFromEnv, decide, isBranchName } from "./branch-guard.mjs";
 
@@ -42,6 +43,29 @@ export function stagedPaths(output) {
 }
 
 /**
+ * The branch a rebase in progress will land on (#547), from the head-name
+ * file git records in its rebase-merge or rebase-apply directory, given the
+ * file's bytes (null when it cannot be read) and the read error's code.
+ * Returns { branch } for a branch; for anything else, the branch as far as it
+ * is known and `why`, the reason it cannot be used. Python twin:
+ * rebase_branch.
+ */
+export function rebaseBranch(dir, bytes, code) {
+  if (bytes === null) {
+    return { branch: null, why: `HEAD is detached by a rebase whose ${dir}/head-name cannot be read: ${code}` };
+  }
+  const ref = new TextDecoder().decode(bytes).replace(/\n$/, "");
+  const branch = branchFromRef(ref);
+  if (branch === null) {
+    return { branch: null, why: `HEAD is detached by a rebase of ${JSON.stringify(ref)}, which is not a branch` };
+  }
+  if (!isBranchName(branch)) {
+    return { branch, why: `HEAD is detached by a rebase of ${JSON.stringify(branch)}, which is not a branch name` };
+  }
+  return { branch };
+}
+
+/**
  * Judge a commit: every staged path through decide(), stopping at the first
  * block. The branch is unknown when HEAD is on no branch (`branch` null) or on
  * one git would not accept as a branch name, such as `-x`, which
@@ -49,9 +73,10 @@ export function stagedPaths(output) {
  * every branch passes (#449). With the config already checked and a non-empty
  * path, decide()'s only block on an unknown branch is the code edit, so that
  * reason is replaced with one naming HEAD rather than PLUMBLINE_BRANCH, which
- * this hook never reads.
+ * this hook never reads; `why`, when given, says why the branch is unknown
+ * (a rebase in progress, #547).
  */
-export function judgeCommit({ branch, paths, config }) {
+export function judgeCommit({ branch, paths, config, why: given }) {
   const known = branch !== null && isBranchName(branch);
   for (const filePath of paths) {
     const r = decide({
@@ -62,9 +87,9 @@ export function judgeCommit({ branch, paths, config }) {
     });
     if (r.allow) continue;
     if (known) return r;
-    const why = branch === null
+    const why = given ?? (branch === null
       ? "HEAD is not on a branch"
-      : `HEAD is on ${JSON.stringify(branch)}, which is not a branch name`;
+      : `HEAD is on ${JSON.stringify(branch)}, which is not a branch name`);
     return {
       allow: false,
       reason: `blocked: code edit to ${filePath} with the branch unknown (${why}). Switch to a branch first.`,
@@ -105,9 +130,29 @@ function main() {
   if (reason) return { allow: false, reason };
   // --quiet: exit 1, silently, when HEAD is detached.
   const head = git(["symbolic-ref", "--quiet", "HEAD"], "read the branch", [0, 1]);
-  const branch = head.status === 0
+  let branch = head.status === 0
     ? branchFromRef(new TextDecoder().decode(head.stdout).replace(/\n$/, ""))
     : null;
+  let why;
+  // HEAD is detached during a rebase (#547): the branch is the one git
+  // records for the rebase, the branch its commits will land on. A HEAD
+  // detached for any other reason stays unknown (#449).
+  if (head.status !== 0) {
+    for (const dir of ["rebase-merge", "rebase-apply"]) {
+      const where = new TextDecoder().decode(git(["rev-parse", "--git-path", dir], "find the rebase state").stdout)
+        .replace(/\n$/, "");
+      if (!fs.existsSync(where)) continue;
+      let bytes = null;
+      let code;
+      try {
+        bytes = fs.readFileSync(path.join(where, "head-name"));
+      } catch (e) {
+        code = e.code ?? e.message;
+      }
+      ({ branch = null, why } = rebaseBranch(dir, bytes, code));
+      break;
+    }
+  }
   // --cached against HEAD (or the empty tree on an unborn branch), in the
   // index git is committing: during `git commit -a` or `git commit <path>`
   // that is the temporary index GIT_INDEX_FILE names. --no-renames: a rename
@@ -117,7 +162,7 @@ function main() {
   // `ignore` setting would otherwise hide a staged submodule bump.
   const diff = git(["diff", "--cached", "--name-only", "-z", "--no-renames", "--ignore-submodules=none"],
     "list the staged files");
-  return judgeCommit({ branch, paths: stagedPaths(diff.stdout), config });
+  return judgeCommit({ branch, paths: stagedPaths(diff.stdout), config, why });
 }
 
 if (isMainModule()) {
