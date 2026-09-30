@@ -14,13 +14,14 @@ const CASES_PATH = fileURLToPath(new URL("../conformance/cases.json", import.met
 const REPORT = fileURLToPath(new URL("../conformance/report.mjs", import.meta.url));
 const cases = JSON.parse(readFileSync(CASES_PATH, "utf8"));
 const lineageCase = cases.combine.find((c) => c.expectLineageIds);
-const only = (combine) => ({ version: cases.version, combine, audit: [], validate: [], construct: [], guard: [] });
+const only = (combine) => ({ version: cases.version, combine, audit: [], validate: [], construct: [], derive: [], guard: [] });
 
 describe("conformance runner (shared by report.mjs and the bundle check)", () => {
   it("passes every case in cases.json against the reference implementation", () => {
     const results = runCases(impl, cases);
     expect(results.length).toBe(
       cases.combine.length + cases.audit.length + cases.validate.length + cases.construct.length +
+      cases.derive.length +
       cases.guard.length);
     expect(results.filter((r) => r.error)).toEqual([]);
   });
@@ -61,7 +62,38 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
 
   // #443: the construct kind fails when makeMeta accepts what the case says it
   // must refuse, refuses with other words, or refuses what it must accept.
-  const construct = (c) => ({ version: cases.version, combine: [], audit: [], validate: [], construct: [c], guard: [] });
+  const construct = (c) => ({ version: cases.version, combine: [], audit: [], validate: [], construct: [c], derive: [], guard: [] });
+  const derive = (c) => ({ version: cases.version, combine: [], audit: [], validate: [], construct: [], derive: [c], guard: [] });
+  it("fails a construct case when a key listed in absent is present (#566 review)", () => {
+    const [r] = runCases(impl, construct({ name: "x", input: { source: "real", basis: "b" }, expect: {}, absent: ["basis"] }));
+    expect(r.error).toBe("expected basis to be absent");
+  });
+  it("refuses an absent that is not a list of names, or beside expectError (#566 review)", () => {
+    expect(runCases(impl, construct({ name: "x", input: { source: "real", basis: "b" }, expect: {}, absent: "basis" }))[0].error)
+      .toBe("absent must be a list of field names");
+    expect(runCases(impl, construct({ name: "x", input: { source: "real" }, expect: {}, absent: { basis: 1 } }))[0].error)
+      .toBe("absent must be a list of field names");
+    expect(runCases(impl, construct({ name: "x", input: { source: "bogus" }, expectError: "must be one of", absent: ["source"] }))[0].error)
+      .toBe("absent applies only to an expect case");
+  });
+  it("reads absent as the envelope's own fields, not its prototype's", () => {
+    expect(runCases(impl, construct({ name: "x", input: { source: "real" }, expect: {}, absent: ["toString"] }))[0].error).toBe(null);
+  });
+  it("refuses a derive case whose inputs are not a list or whose override is not an object", () => {
+    expect(runCases(impl, derive({ name: "x", inputs: {}, expect: {} }))[0].error)
+      .toBe("a derive case needs a list of inputs");
+    expect(runCases(impl, derive({ name: "x", inputs: [], override: null, expect: {} }))[0].error)
+      .toBe("a derive case's override must be an object");
+  });
+  it("fails a derive case whose envelope differs, or whose refusal does not happen (#566)", () => {
+    const inputs = [{ source: "real", confidence: "high", confidenceScore: 0.9 }];
+    expect(runCases(impl, derive({ name: "x", inputs, override: {}, expect: { confidenceScore: 0.1 } }))[0].error)
+      .toBe("expected confidenceScore=0.1, got 0.9");
+    expect(runCases(impl, derive({ name: "x", inputs, override: {}, expectError: "must be one of" }))[0].error)
+      .toBe('expected an error containing "must be one of", got an envelope');
+    expect(runCases(impl, derive({ name: "x", inputs, override: { basis: "b" }, expect: {}, absent: ["basis"] }))[0].error)
+      .toBe("expected basis to be absent");
+  });
   it("fails a construct case whose refusal does not happen", () => {
     const [r] = runCases(impl, construct({ name: "x", input: { source: "real", confidence: "high" }, expectError: "must be one of" }));
     expect(r.error).toMatch(/got an envelope/);
@@ -90,7 +122,7 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
   // does not happen as the row says.
   const clean = { provenanceVersion: 2, source: "real", confidence: "high", derivedFromMock: false, lineage: [] };
   const mockLeaf = { ...clean, source: "mock", confidence: "low", derivedFromMock: true };
-  const guardRow = (c) => ({ version: cases.version, combine: [], audit: [], validate: [], construct: [], guard: [c] });
+  const guardRow = (c) => ({ version: cases.version, combine: [], audit: [], validate: [], construct: [], derive: [], guard: [c] });
   it("fails a guard case whose refusal does not happen", () => {
     const [r] = runCases(impl, guardRow({ name: "x", meta: clean, expectRefused: ["mock:"] }));
     expect(r.error).toMatch(/expected a refusal, got a pass/);
@@ -202,16 +234,16 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
   });
 
   it("fails an audit case whose needle no issue contains", () => {
-    const [r] = runCases(impl, { version: cases.version, combine: [], validate: [], construct: [], guard: [],
+    const [r] = runCases(impl, { version: cases.version, combine: [], validate: [], construct: [], derive: [], guard: [],
       audit: [{ ...auditIssue, expectContains: ["no-such-issue-text"] }] });
     expect(r.error).toMatch(/expected an issue containing "no-such-issue-text"/);
   });
 
   it("fails an audit case expecting no issues when there are some", () => {
-    const [r] = runCases(impl, { version: cases.version, combine: [], validate: [], construct: [], guard: [],
+    const [r] = runCases(impl, { version: cases.version, combine: [], validate: [], construct: [], derive: [], guard: [],
       audit: [{ ...auditIssue, expectContains: [] }] });
     expect(r.error).toMatch(/expected no issues/);
-    const [ok] = runCases(impl, { version: cases.version, combine: [], validate: [], construct: [], guard: [],
+    const [ok] = runCases(impl, { version: cases.version, combine: [], validate: [], construct: [], derive: [], guard: [],
       audit: [auditClean] });
     expect(ok.error).toBeNull();
   });
@@ -246,7 +278,7 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
     expect(table.version).toBe(cases.version);
     expect(table.counts).toEqual({
       combine: cases.combine.length, audit: cases.audit.length, validate: cases.validate.length,
-      construct: cases.construct.length, guard: cases.guard.length,
+      construct: cases.construct.length, derive: cases.derive.length, guard: cases.guard.length,
     });
     expect(table.sha256).toMatch(/^[0-9a-f]{64}$/);
   });
@@ -265,9 +297,9 @@ describe("conformance runner (shared by report.mjs and the bundle check)", () =>
   it("fails a case kind the runner does not interpret", () => {
     // Same drift class one level up: a new top-level kind in cases.json was
     // skipped by every runner, and the gate still said CONFORMANT.
-    const results = runCases(impl, { ...only([]), derive: [{ name: "x" }] });
+    const results = runCases(impl, { ...only([]), clone: [{ name: "x" }] });
     expect(results.filter((r) => r.error).map((r) => r.error)).toEqual([
-      expect.stringMatching(/unknown case kind.*derive/),
+      expect.stringMatching(/unknown case kind.*clone/),
     ]);
   });
 });

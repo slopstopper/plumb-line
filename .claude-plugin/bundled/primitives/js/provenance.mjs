@@ -135,8 +135,9 @@ function copyStep(s) {
  * @param {boolean} [opts.derivedFromMock] - Defaults to `source === "mock"`
  * @param {object[]} [opts.lineage=[]] - Prior lineage steps; each step is frozen
  * @param {string} [opts.weakestSource] - Lowest-ranked source in ancestry; one of {@link STATUS}
- * @param {*} [opts.basis] - Arbitrary domain metadata (passed through unchanged)
- * @param {*} [opts.adapter] - Adapter identifier (passed through unchanged)
+ * @param {*} [opts.basis] - Arbitrary domain metadata (passed through unchanged;
+ *   null, like undefined, writes no field: SPEC §1, #566)
+ * @param {*} [opts.adapter] - Adapter identifier (passed through unchanged; null writes no field)
  * @returns {Readonly<object>} Frozen envelope
  * @throws {Error} When `source` is missing ("source is required", #177), or
  *   `source` is not in {@link STATUS} or `confidence` is not in
@@ -197,8 +198,10 @@ export function makeMeta({
   // Computed-only resolution beyond the derivedFromMock boolean; passed through
   // here so chained derives carry it, but never settable as a derive override.
   if (STATUS.includes(weakestSource)) meta.weakestSource = weakestSource;
-  if (basis !== undefined) meta.basis = basis;
-  if (adapter !== undefined) meta.adapter = adapter;
+  // A null basis or adapter is no field, as None is in the Python twin
+  // (#566): stored as null, the two languages wrote different envelopes.
+  if (basis !== undefined && basis !== null) meta.basis = basis;
+  if (adapter !== undefined && adapter !== null) meta.adapter = adapter;
   return Object.freeze(meta);
 }
 

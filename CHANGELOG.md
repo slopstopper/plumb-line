@@ -443,6 +443,21 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **A `null` optional override on `derive` is no override, and a `null`
+  `basis` or `adapter` is no field, in both languages**
+  ([#566](https://github.com/slopstopper/plumb-line/issues/566); `docs/api.md`,
+  ADR-0019 amendment). `derive(xs, f, confidence_score=None)`, or
+  `{ confidenceScore: null }` in JS, dropped the combined score, so an unset
+  option passed through lost what the law computed: the hazard #533 fixed
+  for JS `undefined`. `null`/`None` is now no override for
+  `confidenceScore` / `confidence_score`, `basis` and `adapter`. A `null`
+  `source` or `confidence` is still refused (#443). SPEC §2 now says so.
+  JS `makeMeta` stored a `null` `basis` or `adapter` as `null`, against SPEC
+  §1 (an optional field with no value MUST be absent), where Python left it
+  out; both now leave it out. The case table gains a `derive` kind, so the
+  override rule is pinned in both languages and for any port, and its
+  `construct` and `derive` rows an `absent` list, so a field that must not be
+  written can be pinned. A port certified before this must re-run.
 - **JS keeps a lineage step's inherited law fields, so a combine cannot
   clear its taint**
   ([#548](https://github.com/slopstopper/plumb-line/issues/548); SPEC §3;
@@ -474,9 +489,8 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   opts.confidence })` with the option unset silently lost what the law
   computed. Each result was weaker, never an over-claim, but the rule
   differed by key. Python cannot express `undefined`, so it is unchanged. A
-  `null`/`None` override is a separate case: it still drops the combined
-  `confidenceScore` in both languages, and `basis`/`adapter` null differ
-  between them ([#566](https://github.com/slopstopper/plumb-line/issues/566)).
+  `null`/`None` override is a separate case, fixed by
+  [#566](https://github.com/slopstopper/plumb-line/issues/566) (above).
 - **The SARIF log names and describes PB1–PB4 as the lints and SPEC §6
   do** ([#552](https://github.com/slopstopper/plumb-line/issues/552);
   `adapters/sarif/assemble.py`, since #118). The catalogue published PB2 as

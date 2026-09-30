@@ -17,6 +17,8 @@ const META_KEYS = [
 // weakestSource always come from the computed combineProvenance result;
 // derivedFromMock taint cannot be cleared through an override.
 const OVERRIDE_KEYS = ["source", "confidence", "confidenceScore", "basis", "adapter"];
+// The override keys with no required value, for which null means unset (#566).
+const OPTIONAL_OVERRIDE_KEYS = ["confidenceScore", "basis", "adapter"];
 
 /**
  * Wraps a value with provenance metadata, producing a marked value object.
@@ -69,6 +71,9 @@ function isMarkedValue(x) {
  * @param {Function} fn - Pure function applied to the unwrapped input values
  * @param {object} [metaOverride={}] - Optional overrides for `source`, `confidence`,
  *   `confidenceScore`, `basis`, or `adapter`; `derivedFromMock` cannot be cleared.
+ *   A key whose value is undefined, or null for `confidenceScore`, `basis` or
+ *   `adapter`, is no override (#533, #566; SPEC §2); a null `source` or
+ *   `confidence` is refused.
  *   By convention `basis` is an operation label naming the transform `fn`
  *   (e.g. `"pricing.applyFx@v3"`) — lineage records input states, not `fn`. See SPEC §4.
  * @returns {Readonly<{value: *, source: string, confidence: string, derivedFromMock: boolean, lineage: object[]}>}
@@ -99,11 +104,15 @@ export function derive(inputs, fn, metaOverride = {}) {
   // "none", and for confidenceScore it dropped the combined score, so a
   // caller passing an unset option silently lost what the law computed.
   // Each value is read once, so a getter cannot pass the check with one
-  // value and be copied with another (#533 review).
+  // value and be copied with another (#533 review). A null is no override
+  // too, for the optional keys (#566): it is JSON's "unset" and Python's
+  // None, and it dropped the combined score. A null source or confidence is
+  // still passed on, so makeMeta refuses it (#443).
   for (const key of OVERRIDE_KEYS) {
     if (!(key in metaOverride)) continue;
     const v = metaOverride[key];
-    if (v !== undefined) safeOverride[key] = v;
+    if (v === undefined || (v === null && OPTIONAL_OVERRIDE_KEYS.includes(key))) continue;
+    safeOverride[key] = v;
   }
   // Route the override through makeMeta so derive is never weaker than the
   // constructor: an out-of-range confidenceScore (or unrankable weakestSource)

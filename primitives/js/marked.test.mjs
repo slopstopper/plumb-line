@@ -122,7 +122,7 @@ describe("mark / derive refuse an off-ladder confidence or source (#443)", () =>
   });
 });
 
-describe("derive: an undefined override is no override (#533)", () => {
+describe("derive: an unset override is no override (#533 undefined, #566 null)", () => {
   it.each(["source", "confidence", "confidenceScore", "basis", "adapter"])(
     "an undefined %s override on derive is no override (#533)",
     (key) => {
@@ -141,6 +141,17 @@ describe("derive: an undefined override is no override (#533)", () => {
     let reads = 0;
     const override = { get confidence() { return reads++ === 0 ? "low" : undefined; } };
     expect(derive([a], (x) => x, override).confidence).toBe("low");
+  });
+  it.each(["confidenceScore", "basis", "adapter"])("a null %s override on derive is no override (#566)", (key) => {
+    // null is JSON's "unset", and Python's None: the law's result stands, the
+    // same in both languages (primitives/python/tests/test_marked.py).
+    const a = mark(1, { source: "real", confidence: "high", confidenceScore: 0.9 });
+    const b = mark(2, { source: "fallback", confidence: "medium", confidenceScore: 0.6 });
+    const plain = derive([a, b], (x, y) => x + y);
+    const out = derive([a, b], (x, y) => x + y, { [key]: null });
+    expect(out).toEqual(plain);
+    expect(Object.keys(out)).toEqual(Object.keys(plain));
+    expect(out.confidenceScore).toBe(0.6);
   });
   it.each(["source", "confidence"])("a null %s override is still refused (#443, not #533)", (key) => {
     // undefined is no override; null is a value, and off the ladder.
