@@ -49,7 +49,20 @@ record, is a failed run — regardless of whether the fixes were correct.
 ## Step 1 — Classify every finding before touching anything
 
 Read the whole findings table first and classify each row. Print the plan as a
-table (Finding / Path / Class / Intended action) before the first edit.
+table (Finding / Path / Class / Intended action) as its own message, before any
+tool call that changes a file under remediation: an edit, a write, or a shell
+command that modifies one. Name each principle inline in the plan
+(`P2 — One-way layering`), as in the record.
+
+Repeat the same plan table in your final message, below the record, so the
+delivered message carries it too. Head it as a repeat; say it was printed before
+the first edit only if it was. It is checked with the record (see "The message
+is the text the checker passed", below).
+
+Why: a plan that first appears after the edits is a record, not a plan. A
+builder cannot stop an edit they were never shown, and a transcript read later
+shows which came first. Two remediators under the release harness's pressure
+protocol edited first and showed a plan only at the end, or never (#589).
 
 **Mechanical** — the principle determines the fix; no epistemic value must be
 invented. Typical: remove an upward import (P2 — One-way layering); replace a
@@ -221,12 +234,16 @@ format-validation: not run (checker unavailable in this repo)
 ```
 
 **The message is the text the checker passed.** Write the record to a
-temp file (or use the saved one), run the checker on that file, then print the file's text as your
+temp file, run the checker on that file, then print the file's text as your
 message, unchanged: nothing above the header (no summary, heading or
 preamble), and no edit between the check and the message. If you change
 anything after the check, however small, re-run the checker on the changed
-text before printing it. Anything else you want to say (a summary, the next step) goes
-below the record, after its last line. A `— clean` stamp is true only of
+text before printing it. Anything else you want to say (the repeated plan, a
+summary, the next step) goes below the record, after its last line, in the same
+file, before you run the checker: the whole delivered message is what gets
+checked, so a bare principle code below the record fails it as surely as one
+inside it. A saved `plumb-line-remediation.md` holds the record alone, not
+what you say below it. A `— clean` stamp is true only of
 the exact text it was run on: two 2026-09-30 eval audits delivered a
 message that opens with a prose summary above the header, one whose body
 also fails, under a `— clean` stamp, and the checker names both stamps as
