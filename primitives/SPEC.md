@@ -179,17 +179,17 @@ taint, its confidence reads as `none`, and it contributes no prior steps. A
 `lineage` that is not an array contributes no prior steps. Prior steps are
 kept whatever they are: an array step as an array, a value that is not an
 object as itself, and an object step as a copy of its fields. In JavaScript
-that copy has the step's own enumerable fields, and each step field the law
-reads (`of`, `source`, `confidence`, `derivedFromMock`, `confidenceScore`,
-`id`) that the step defines on its prototype chain, so an inherited taint
-flag is kept (#548). The chain is read short of this realm's
-`Object.prototype`, which is no step's own, so a polluted global is not
-copied into the step; the walk is bounded, and a chain it cannot read shows
-nothing. A step field that reads `undefined` is left out, as JSON leaves it
-out. Taint the audit reads on the step is kept even when a `Proxy` hides
-where it comes from. One exception to totality, in both languages: a field
-whose read throws (a getter, a `Proxy` trap, a `Mapping` whose lookup
-raises) propagates the error, for an input and for a step's law field.
+that copy has the step's own enumerable fields and, for each step field the
+law reads (`of`, `source`, `confidence`, `derivedFromMock`, `confidenceScore`,
+`id`) that is not among them, the value the law and the audit read on the
+step, through its prototype, a getter or a `Proxy`, so an inherited taint
+flag is kept (#548). Such a field is left out when it reads `undefined`, or
+when its value comes from an `Object.prototype`, of this realm or another
+(a polluted global is no step's own). Nothing else is taken from the
+prototype. One exception to totality, in both languages: a field whose read
+throws (a getter, a `Proxy` trap, a `Mapping` whose lookup raises)
+propagates the error, for an input, for any step field the copy takes, and
+in JavaScript for a step that throws on a law field it lacks.
 
 ### Combining zero inputs
 

@@ -430,17 +430,18 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   own fields only. A step that inherited `derivedFromMock: true` through its
   prototype lost it in the copy. So an envelope the audit flagged as "taint
   dropped" came out of `combineProvenance` clean, and the guard passed it.
-  The copy now also takes each step field the law reads (`of`, `source`,
-  `confidence`, `derivedFromMock`, `confidenceScore`, `id`) that the step
-  defines on its prototype chain, short of `Object.prototype`, and that is
-  not `undefined`. Nothing else is taken from the prototype, so an inherited
-  method such as `toJSON` cannot change what the stored step says. The walk
-  is bounded and cannot hang or throw on an exotic `Proxy`. Taint the audit
-  reads on the step is kept even when a `Proxy` hides where it comes from.
-  SPEC §3 now names the one exception to the law's totality, in both
-  languages: a field whose read throws propagates the error. JSON cannot
-  build such a step, so envelopes handed over as JSON, and Python, are
-  unchanged.
+  The copy now also takes, for each step field the law reads (`of`,
+  `source`, `confidence`, `derivedFromMock`, `confidenceScore`, `id`) that
+  is not among the step's own enumerable fields, the value the law and the
+  audit read on the step: through its prototype, a getter or a `Proxy`. It
+  is left out when it reads `undefined`, or when it comes from an
+  `Object.prototype` of any realm, so a polluted global is not copied.
+  Nothing else is taken from the prototype, so an inherited method such as
+  `toJSON` cannot change what the stored step says. SPEC §3 now names the
+  one exception to the law's totality, in both languages: a field whose read
+  throws propagates the error. In JS that now includes a step that throws on
+  a law field it lacks, which main never read. JSON cannot build such a
+  step, so envelopes handed over as JSON, and Python, are unchanged.
 - **`derive` refuses an input that is not a marked value, in both
   languages (breaking for callers who passed one)**
   ([#550](https://github.com/slopstopper/plumb-line/issues/550); SPEC §2).

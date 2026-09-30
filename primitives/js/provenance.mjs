@@ -55,48 +55,57 @@ function quote(value) {
 // The step fields the law, the audit and the guard read.
 const STEP_FIELDS = ["of", "source", "confidence", "derivedFromMock", "confidenceScore", "id"];
 
-// How far up a step's prototype chain copyStep looks for a law field.
+// How many objects fromObjectPrototype examines, the step included.
 const MAX_CHAIN = 64;
 
-/** Whether the step itself defines field `k`: on it or on its prototype
- * chain, short of Object.prototype, which is no step's own (a polluted global
- * baked into a frozen copy would outlive the pollution). The walk is bounded
- * and stops at a cycle, and a chain that cannot be read shows nothing, so an
- * exotic step cannot hang or crash the law. */
-function stepDefines(s, k) {
+/** Whether `o` is an Object.prototype, this realm's or another's (a `vm`
+ * context, an iframe): the end of an ordinary prototype chain, and no step's
+ * own. Another realm's is recognised by shape, as instanceof cannot. */
+function isObjectPrototype(o) {
+  return o === Object.prototype || (Object.getPrototypeOf(o) === null
+    && Object.hasOwn(o, "hasOwnProperty") && Object.hasOwn(o, "isPrototypeOf")
+    && Object.hasOwn(o, "propertyIsEnumerable"));
+}
+
+/** Whether `value`, read from step `s` as `s[k]`, comes from an
+ * Object.prototype (a polluted global) rather than from the step: the chain
+ * reaches an Object.prototype holding it before any object that defines `k`.
+ * Baked into a frozen copy, a polluted value would outlive the pollution, and
+ * a polluted source would pass for a known one. The walk examines at most
+ * MAX_CHAIN objects and stops at a cycle; if it cannot decide (the bound, a
+ * cycle, a throwing Proxy trap), the value counts as the step's, as the law
+ * reads it. */
+function fromObjectPrototype(s, k, value) {
   const seen = new Set();
   try {
-    for (let o = s; o !== null && o !== Object.prototype && !seen.has(o) && seen.size < MAX_CHAIN;
-      o = Object.getPrototypeOf(o)) {
-      if (Object.hasOwn(o, k)) return true;
+    for (let o = s; o !== null && !seen.has(o) && seen.size < MAX_CHAIN; o = Object.getPrototypeOf(o)) {
+      if (isObjectPrototype(o)) return Object.hasOwn(o, k) && o[k] === value;
+      if (Object.hasOwn(o, k)) return false;
       seen.add(o);
     }
   } catch {
-    // A Proxy trap that throws: the field is not shown.
+    // A Proxy trap that throws: undecided.
   }
   return false;
 }
 
 /** A frozen plain copy of an object lineage step (#548). Its own enumerable
  * fields are copied, as before; a copy of those only lost a law field the
- * step inherits, taint included, so one combine cleared it. So each law
- * field the copy lacks is read from the step, as the law reads it, when the
- * step defines it (stepDefines) and it is not undefined. Only law fields come
- * from the prototype: an inherited method such as toJSON would change what
- * the stored step says. Last, taint the audit reads on the step is kept even
- * when a Proxy hides where it comes from. A law field whose getter throws
- * throws here, as it does when the law reads an input. Python has no
- * prototype chain: a Mapping step is copied by its items. */
+ * step inherits, taint included, so one combine cleared it. So each law field
+ * the copy lacks is read from the step as the law and the audit read it,
+ * `s[k]`, whatever holds it (a prototype, a Proxy, a getter), and kept unless
+ * it is undefined or comes from an Object.prototype. Only law fields are
+ * read: an inherited method such as toJSON would change what the stored step
+ * says. A read that throws propagates (SPEC §3). Python has no prototype
+ * chain: a Mapping step is copied by its items. */
 function copyStep(s) {
   const copy = { ...s };
-  const define = (k, value) =>
-    Object.defineProperty(copy, k, { value, enumerable: true, writable: true, configurable: true });
   for (const k of STEP_FIELDS) {
-    if (Object.hasOwn(copy, k) || !stepDefines(s, k)) continue;
+    if (Object.hasOwn(copy, k)) continue;
     const value = s[k];
-    if (value !== undefined) define(k, value);
+    if (value === undefined || fromObjectPrototype(s, k, value)) continue;
+    Object.defineProperty(copy, k, { value, enumerable: true, writable: true, configurable: true });
   }
-  if (taints(s) && !taints(copy)) define("derivedFromMock", true);
   return Object.freeze(copy);
 }
 
@@ -116,7 +125,8 @@ function copyStep(s) {
  * @throws {Error} When `source` is missing ("source is required", #177), or
  *   `source` is not in {@link STATUS} or `confidence` is not in
  *   {@link CONFIDENCE} (#443; the message starts "source must be one of" /
- *   "confidence must be one of").
+ *   "confidence must be one of"). An error thrown while a lineage step's
+ *   fields are read (a getter, a Proxy trap) propagates (SPEC §3).
  */
 export function makeMeta({
   source,

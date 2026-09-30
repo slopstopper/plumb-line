@@ -7,6 +7,7 @@ import {
   PROVENANCE_VERSION,
   stepId,
 } from "./provenance.mjs";
+import vm from "node:vm";
 import { auditMeta } from "./audit.mjs";
 import { guard, ProvenanceRefused } from "./guard.mjs";
 
@@ -520,6 +521,45 @@ describe("copying an unusual lineage step (#548 review)", () => {
     const out = combined(make());
     expect(out.lineage[0].derivedFromMock).toBe(true);
     refused(out);
+  });
+
+  it("another realm's polluted Object.prototype is not copied into a step", () => {
+    // Copied, a polluted source would let a step with no source of its own
+    // pass the guard, where it is refused as unknown.
+    const ctx = vm.createContext({});
+    vm.runInContext("Object.prototype.source = 'real'", ctx);
+    const step = vm.runInContext("({ of: 'input', confidence: 'high' })", ctx);
+    const out = combined(step);
+    expect(Object.hasOwn(out.lineage[0], "source")).toBe(false);
+    expect(() => guard({ value: 1, ...out })).toThrow(ProvenanceRefused);
+  });
+
+  it("a law field far up a deep prototype chain is kept", () => {
+    // confidence "low" 70 levels up: dropped, the output's high confidence
+    // would no longer be an over-claim.
+    let proto = { confidence: "low" };
+    for (let i = 0; i < 70; i++) proto = Object.create(proto);
+    const step = Object.assign(Object.create(proto), { of: "input", source: "real", id: base.id });
+    expect(combined(step).lineage[0].confidence).toBe("low");
+  });
+
+  it("a law field a Proxy reads is kept, as the audit reads it", () => {
+    const step = new Proxy({ of: "input", source: "real", id: base.id }, {
+      get: (t, k) => (k === "confidence" ? "low" : Reflect.get(t, k)),
+    });
+    const out = combined(step);
+    expect(out.lineage[0].confidence).toBe("low");
+    expect(auditMeta(out).some((issue) => issue.startsWith("over-claiming:"))).toBe(true);
+  });
+
+  it("a Proxy step that throws on a field it lacks propagates the error (SPEC §3)", () => {
+    const step = new Proxy({ ...base }, {
+      get(t, k) {
+        if (!(k in t)) throw new Error(`no field ${String(k)}`);
+        return t[k];
+      },
+    });
+    expect(() => combined(step)).toThrow(/no field/);
   });
 
   it("a law field whose getter throws propagates the error, as for an input (SPEC §3)", () => {
