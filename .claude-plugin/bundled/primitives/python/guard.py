@@ -33,7 +33,7 @@ class ProvenanceRefused(ValueError):
 
     ``reasons`` lists every reason, each prefixed with its class (``not a
     marked value``, ``invalid envelope:``, ``audit:``, ``mock:``,
-    ``confidence:``); the message joins them after ``provenance refused: ``,
+    ``confidence:``, ``source:``); the message joins them after ``provenance refused: ``,
     the same in both languages.
     """
 
@@ -86,7 +86,7 @@ def _unreadable(meta):
     return issues
 
 
-def guard(x, *, no_mock=True, min_confidence='none', **unknown):
+def guard(x, *, no_mock=True, min_confidence='none', min_source='unavailable', **unknown):
     """Let a marked value through an output point only if its envelope backs it.
 
     Returns the value it was given, unchanged, so an output point writes
@@ -100,6 +100,11 @@ def guard(x, *, no_mock=True, min_confidence='none', **unknown):
             unless explicitly opted in).
         min_confidence: Refuse when the weakest confidence in the envelope or
             its lineage is below this level.
+        min_source: Refuse when the weakest source the ancestry shows (the
+            headline, weakest_source and every lineage step, skipping the
+            law's own label 'derived') is below this rung. Off by default,
+            by the owner's decision (#541): refuses fallback and inferred
+            data without a mock label; assumes a complete lineage.
 
     Returns:
         ``x``.
@@ -121,6 +126,10 @@ def guard(x, *, no_mock=True, min_confidence='none', **unknown):
         raise TypeError(
             f"guard: the minimum confidence must be one of {', '.join(CONFIDENCE)}; "
             f'got {_json(min_confidence)}')
+    if not _on(STATUS, min_source):
+        raise TypeError(
+            f"guard: the minimum source must be one of {', '.join(STATUS)}; "
+            f'got {_json(min_source)}')
     # A marked value as mark() and derive() build it: {'value': ..., 'meta': {...}}.
     if not isinstance(x, dict) or 'value' not in x or 'meta' not in x:
         raise ProvenanceRefused(['not a marked value: it carries no provenance envelope'])
@@ -150,6 +159,21 @@ def guard(x, *, no_mock=True, min_confidence='none', **unknown):
         weakest = weakest_confidence(meta['confidence'], *(step.get('confidence') for step in steps))
         if CONFIDENCE.index(weakest) < CONFIDENCE.index(min_confidence):
             reasons.append(f'confidence: {weakest} is below the required {min_confidence}')
+    if min_source != STATUS[0]:
+        # The rest of Principle 4 beside its mock clause (#541): the weakest
+        # source the ancestry shows, from the headline, weakest_source and
+        # every step. 'derived' is the law's own label for a computed value,
+        # not a source of data, so it is skipped. Every step here has a source
+        # on the ladder (a step without one was refused above as invalid).
+        sources = [src for src in (meta.get('source'), meta.get('weakest_source'),
+                                   *(step.get('source') for step in steps))
+                   if _on(STATUS, src) and src != 'derived']
+        if not sources:
+            reasons.append(f'source: no source in the ancestry shows it meets the required {min_source}')
+        else:
+            weakest_src = min(sources, key=STATUS.index)
+            if STATUS.index(weakest_src) < STATUS.index(min_source):
+                reasons.append(f'source: {weakest_src} is below the required {min_source}')
     if reasons:
         raise ProvenanceRefused(reasons)
     return x

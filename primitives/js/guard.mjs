@@ -10,7 +10,7 @@ import { auditMeta, validateEnvelope } from "./audit.mjs";
 /**
  * Thrown by {@link guard} when a value may not leave through an output point.
  * `reasons` lists every reason, each prefixed with its class (`not a marked
- * value`, `invalid envelope:`, `audit:`, `mock:`, `confidence:`); the message
+ * value`, `invalid envelope:`, `audit:`, `mock:`, `confidence:`, `source:`); the message
  * joins them after `provenance refused: `, the same in both languages.
  */
 export class ProvenanceRefused extends Error {
@@ -21,7 +21,7 @@ export class ProvenanceRefused extends Error {
   }
 }
 
-const OPTIONS = ["noMock", "minConfidence"];
+const OPTIONS = ["noMock", "minConfidence", "minSource"];
 // The audit's advisories about the version field that do not stop a value:
 // an envelope older or newer than this library is judged on what it carries
 // (SPEC §5b: a version exists to make drift legible, not to gate). A
@@ -64,7 +64,7 @@ function isPlain(x) {
 // before the value is looked at, so it is never mistaken for a refusal. Only
 // an own value is read, so an inherited one cannot turn a check off.
 function readOptions(options) {
-  if (options === undefined) return { noMock: true, minConfidence: "none" };
+  if (options === undefined) return { noMock: true, minConfidence: "none", minSource: STATUS[0] };
   if (!isPlain(options)) throw new TypeError(`guard: options must be a plain object; got ${quote(options)}`);
   const unknown = Object.keys(options).filter((key) => !OPTIONS.includes(key));
   // A misspelt option would otherwise leave its check at the default.
@@ -78,7 +78,10 @@ function readOptions(options) {
   if (!CONFIDENCE.includes(minConfidence))
     throw new TypeError(
       `guard: the minimum confidence must be one of ${CONFIDENCE.join(", ")}; got ${quote(minConfidence)}`);
-  return { noMock, minConfidence };
+  const minSource = own("minSource", STATUS[0]);
+  if (!STATUS.includes(minSource))
+    throw new TypeError(`guard: the minimum source must be one of ${STATUS.join(", ")}; got ${quote(minSource)}`);
+  return { noMock, minConfidence, minSource };
 }
 
 // What the guard cannot read on the ladders is malformed (SPEC §5c). The
@@ -132,13 +135,18 @@ function unreadable(meta) {
  *   excluded from outputs unless explicitly opted in).
  * @param {string} [options.minConfidence="none"] - Refuse when the weakest
  *   confidence in the envelope or its lineage is below this level.
+ * @param {string} [options.minSource="unavailable"] - Refuse when the weakest
+ *   source the ancestry shows (the headline, weakestSource and every lineage
+ *   step, skipping the law's own label "derived") is below this rung. Off by
+ *   default, by the owner's decision (#541): refuses fallback and
+ *   inferred data without a mock label; assumes a complete lineage.
  * @returns {object} `x`
  * @throws {ProvenanceRefused} when the value may not leave
  * @throws {TypeError} when the options are not a plain object, or one is
  *   unknown or has a bad value
  */
 export function guard(x, options) {
-  const { noMock, minConfidence } = readOptions(options);
+  const { noMock, minConfidence, minSource } = readOptions(options);
   // A marked value as mark() and derive() build it: a plain object holding
   // `value` beside the envelope fields.
   if (!isPlain(x) || !Object.hasOwn(x, "value"))
@@ -166,6 +174,21 @@ export function guard(x, options) {
     const weakest = weakestConfidence(meta.confidence, ...steps.map((step) => step.confidence));
     if (CONFIDENCE.indexOf(weakest) < CONFIDENCE.indexOf(minConfidence))
       reasons.push(`confidence: ${weakest} is below the required ${minConfidence}`);
+  }
+  if (minSource !== STATUS[0]) {
+    // The rest of Principle 4 beside its mock clause (#541): the weakest
+    // source the ancestry shows, from the headline, weakestSource and every
+    // step. "derived" is the law's own label for a computed value, not a
+    // source of data, so it is skipped: a derived value is judged by what it
+    // was computed from. Every step here has a source on the ladder (a step
+    // without one was refused above as invalid).
+    const sources = [meta.source, meta.weakestSource, ...steps.map((step) => step.source)]
+      .filter((source) => STATUS.includes(source) && source !== "derived");
+    const weakest = sources.length ? sources.reduce((a, b) => (STATUS.indexOf(b) < STATUS.indexOf(a) ? b : a)) : undefined;
+    if (weakest === undefined)
+      reasons.push(`source: no source in the ancestry shows it meets the required ${minSource}`);
+    else if (STATUS.indexOf(weakest) < STATUS.indexOf(minSource))
+      reasons.push(`source: ${weakest} is below the required ${minSource}`);
   }
   if (reasons.length) throw new ProvenanceRefused(reasons);
   return x;

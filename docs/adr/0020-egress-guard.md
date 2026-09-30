@@ -45,7 +45,7 @@ normative in SPEC §5c and were refined over four independent reviews:
 - **The guard covers Principle 4's mock clause only.** The rest of P4 is not
   refused: fallback data, cached data (which the HTTP adapter marks `real`)
   and approximate data (no rung of its own); nor are `inferred`, `semiReal`
-  or `unavailable` sources. A source floor is #541.
+  or `unavailable` sources. A source floor is #541. *(Superseded in part by the 2026-09-29 amendment, #541.)*
 - **A bad option is raised before the value is examined**, so a bad call
   fails the same way whatever it is given.
 - **"Malformed"** covers every `validateEnvelope` issue, and also values the
@@ -81,7 +81,7 @@ The behaviour is pinned for both languages by the `guard` kind in
   languages, with identical refusals. The rest of Principle 4 is **not**
   refused: fallback, cached and approximate data, nor `inferred`, `semiReal`
   or `unavailable` sources. A source floor is a separate, planned option
-  (#541).
+  (#541). *(Superseded in part by the 2026-09-29 amendment, #541.)*
 - Unmarked values are refused. A codebase that guards an output must mark
   what flows into it first. That is the adoption cost, and it is the point:
   an unmarked value has no provenance to vouch for.
@@ -101,3 +101,25 @@ The behaviour is pinned for both languages by the `guard` kind in
   always writes a `source` on the steps it mints, `null` when its input had
   none. For one commit on #525's branch it left the field off, and the guard
   passed such a step. The independent review caught this before it merged.
+- **2026-09-29 (#541).** *Scheduled into v0.12.0 by the owner, recorded on the
+  issue*, because `mock` was being overfitted: the guard could exclude only by
+  `noMock` or a confidence floor, so exclusion pressure turned into `mock`
+  labels. The guard gains a source floor, `minSource` / `min_source`, which
+  lets an output point refuse fallback and inferred data. Approximate and
+  cached data still have no rung (#562).
+  - **Off by default**, like `minConfidence`. The default is recorded as
+    Claude's choice, confirmed by the owner on 2026-09-30 (#541), with
+    skipping `"derived"` rather than reading `weakestSource` literally.
+  - **What it reads:** it refuses when the weakest source the ancestry shows
+    (the headline, `weakestSource` and every lineage step) is below the
+    floor, with the reason `source: <rung> is below the required <floor>`.
+  - **`"derived"` is skipped**, since it is the law's own label for a
+    computed value rather than a source of data. A derived value is judged
+    by what it was computed from.
+  - **It relies on a complete lineage**, as the law builds it. A `derived` step
+    whose own inputs were dropped is skipped, not refused; a fabricated
+    envelope is outside the threat model (N3).
+
+  The Decision's "the rest of P4 is not refused" and the Consequences'
+  "planned option" are superseded by this amendment, and kept above as the
+  record.

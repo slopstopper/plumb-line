@@ -35,14 +35,26 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 - **The egress guard, `guard`, stops a tainted value at an output point**
   ([#120](https://github.com/slopstopper/plumb-line/issues/120); ADR-0020;
   SPEC §5c). `auditMeta` reports after the fact. `guard(x, { noMock,
-  minConfidence })` / `guard(x, no_mock=, min_confidence=)` returns the
+  minConfidence, minSource })` / `guard(x, no_mock=, min_confidence=,
+  min_source=)` returns the
   marked value unchanged, so an output point writes `unwrap(guard(x))`, or
   throws `ProvenanceRefused` (a `ValueError` in Python) listing every reason.
   - **Mock is refused unless turned off** (`noMock: false`), as Principle 4's
-    mock clause says. The rest of Principle 4 is not refused: fallback data,
-    cached data (which the HTTP adapter marks `real`), and approximate data,
-    which has no rung of its own; nor are `inferred`, `semiReal` or
-    `unavailable` sources. A source floor is #541.
+    mock clause says.
+  - **A source floor lets an output point refuse fallback or inferred data**
+    (`minSource` / `min_source`,
+    [#541](https://github.com/slopstopper/plumb-line/issues/541)). It is off
+    by default, by the owner's decision on #541. So unlike the mock
+    clause, the caller opts in to refusing, where Principle 4 asks for
+    exclusion unless opted out. An output point that should refuse `fallback` or
+    `inferred` data passes a floor, for example `minSource: "semiReal"`, and
+    gets a reason `source: fallback is below the required semiReal`. It does
+    not need to label that data `mock` to exclude it. The floor reads the
+    weakest source the ancestry shows (the headline, `weakestSource` and
+    every lineage step) and skips `"derived"`, the law's own label, so a
+    derived value is judged by what it was computed from, given a complete
+    lineage as the law builds it. Approximate and cached data have no rung,
+    so neither can be refused specifically (#562).
   - **It fails closed.** A value with no envelope is refused, and so is a
     malformed envelope: any structural issue, a value off its ladder, a
     lineage step that is not a plain object, a non-boolean taint flag on a

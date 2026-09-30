@@ -41,12 +41,13 @@ unwrap(guard(price, { minConfidence: "medium" }));   // refused below medium
 
 A refusal throws `ProvenanceRefused`, whose `reasons` list every reason; a
 display that should show "unavailable" instead catches it. Mock is refused
-unless `noMock: false` is passed (Principle 4's mock clause; fallback,
-cached and approximate data are not refused, nor are inferred, semiReal or
-unavailable sources; #541). It fails closed: a value with no envelope, a
-malformed one, or one the audit flags is refused, and taint and confidence
-are judged from the whole lineage. A bad option is a `TypeError`, never a
-refusal.
+unless `noMock: false` is passed (Principle 4's mock clause). A source floor
+the caller sets, e.g. `minSource: "semiReal"` refuses fallback and inferred
+data without labelling it mock (off by default, by the owner's decision on
+#541); approximate and cached data have no rung (#562). It fails closed: a
+value with no envelope, a malformed one, or one the audit flags is refused,
+and taint and confidence are judged from the whole lineage. A bad option is
+a `TypeError`, never a refusal.
 
 ## Test fixtures (`plumb-line-provenance/vitest`)
 

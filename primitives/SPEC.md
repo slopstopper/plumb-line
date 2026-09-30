@@ -461,15 +461,31 @@ The audit reports; the **egress guard** refuses. `guard` takes a marked value
 and options and either returns that value unchanged or refuses it with a list
 of reasons, at the point where a value leaves the system (an export, a
 display, a publish). It enforces Principle 4's mock clause, "excluded from
-outputs unless explicitly opted in", at run time. It does not refuse the
-rest of what Principle 4 names: fallback data (source `fallback`) and cached
-data (which the HTTP adapter marks `real`) pass, and approximate data has no
-rung of its own. Nor are `inferred`, `semiReal` or `unavailable` sources
-refused. A source floor is #541.
+outputs unless explicitly opted in", at run time. A source floor the caller
+sets (`minSource`, #541) lets an output point refuse more of what Principle 4
+names, fallback data (source `fallback`) and inferred data (`inferred`), by
+opting in, where Principle 4 asks for exclusion unless opted out. The floor
+is off by default, by the owner's decision on #541. Approximate and
+cached data have no rung (the HTTP adapter marks a cache hit `real` with
+lower confidence), so neither can be refused specifically (#562).
 
-**Options.** `noMock` (a boolean, default **true**) and `minConfidence` (a
-level on the confidence ladder, default `none`). A default of true for
-`noMock` is normative: mock is excluded unless the caller opts in.
+**Options.** `noMock` (a boolean, default **true**), `minConfidence` (a
+level on the confidence ladder, default `none`) and `minSource` (a rung on
+the source ladder, default `unavailable`, which is no floor, by the owner's
+decision on #541). A default of
+true for `noMock` is normative: mock is excluded unless the caller opts in.
+With `minSource` above `unavailable`, the guard refuses, with a reason
+prefixed `source:` (`source: fallback is below the required semiReal`), when
+the weakest source the ancestry shows is below it. The ancestry is the
+headline `source`, `weakestSource` and every lineage step's `source`,
+skipping `"derived"`, the law's own label for a computed value, so a derived
+value is judged by what it was computed from. That relies on a complete
+lineage, as the law builds it (§3 rule 5): a `derived` step whose own inputs
+were dropped is skipped, not refused, and a fabricated envelope is outside
+the threat model (N3). A floor of `"derived"` therefore behaves as `"real"`.
+When nothing but `"derived"` remains, the reason is `source: no source in the
+ancestry shows it meets the required <floor>`. An unknown `minSource` is a `TypeError` whose message
+starts `guard: the minimum source must be one of`.
 
 **Refusals.** A conforming guard refuses, whatever the options:
 
@@ -505,13 +521,14 @@ counts as `none` here (the audit skips it; the guard vouches only for what the
 lineage states). Taint and confidence are judged from the lineage as well as
 the headline fields, so a headline the lineage contradicts cannot pass.
 
-Reasons from (3), `mock:` and `confidence:` accumulate; (1) and (2) are
+Reasons from (3), `mock:`, `confidence:` and `source:` accumulate; (1) and (2) are
 returned alone, since a missing or malformed envelope cannot be judged
 further. The refusal's message is `provenance refused: ` followed by the
 reasons joined with `; `.
 
-**Programmer errors.** An unknown option, a non-boolean `noMock`, or a
-`minConfidence` off the ladder MUST raise an error, before the value is
+**Programmer errors.** An unknown option, a non-boolean `noMock`, a
+`minConfidence` off the confidence ladder, or a `minSource` off the source
+ladder MUST raise an error, before the value is
 examined, with a message starting `guard: ` (an unknown option's naming it:
 `guard: unknown option <name>`). Its type MUST NOT be the refusal's type, or a
 supertype or subtype of it, so a caller catching one can never catch the
