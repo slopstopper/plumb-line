@@ -104,7 +104,7 @@ real hook payload or config nests near even the lowest of these.
 | `real + mock` (combine)                                | true            | low        | derived      | ✓    | ✓      |
 | `real + semiReal` (combine)                            | false           | medium     | derived      | ✓    | ✓      |
 | `derive` with source override `real` over a mock input | true            | —          | real (label) | ✓    | ✓      |
-| `auditMeta` / `audit_meta` on `derive` output, no `source` override | — | —      | —            | `[]` | `[]`   |
+| `auditMeta` / `audit_meta` on `derive` output, no override | —   | —          | —            | `[]` | `[]`   |
 | `derive` with source override `real` over a `fallback` input | —     | —          | real (label) | source over-claim | source over-claim |
 | numeric `confidenceScore` floors to weakest input      | —               | (0.2)      | derived      | ✓    | ✓      |
 | `confidenceScore` omitted on partial coverage          | —               | (omitted)  | derived      | ✓    | ✓      |
@@ -115,15 +115,20 @@ Notes:
 - The source-override case proves the escape hatch cannot clear the taint: the
   label becomes `real` but `derivedFromMock` stays `true`, and the checker flags
   that combination as laundering.
-- `derive` output with no `source` override is consistent (the checker returns
-  no issues), because `derive` delegates to the single law implementation
-  rather than re-deriving it. A `source` override is a label the law did not
-  compute, and the checker judges it: over a mock input it is laundering (the
-  case above), and cleaner than any ancestor's source it is a source over-claim
-  (#556), in both languages. `derive([fallback, real], f, {source: "real"})`
-  audits as `source over-claim: source 'real' is cleaner than its ancestry's
-  weakest source 'fallback'`. This note said "always consistent" until the
-  v0.12.0 dogfood audit found it false.
+- `derive` output with no `source`, `confidence` or `confidenceScore` override
+  is consistent (the checker returns no issues), because `derive` delegates to
+  the single law implementation rather than re-deriving it. An override of any
+  of those three is a claim the law did not compute, and the checker judges it,
+  in both languages. A `source` override over a mock input is laundering (the
+  case above), and one cleaner than any ancestor's source is a source
+  over-claim (#556): `derive([fallback, real], f, {source: "real"})` audits as
+  `source over-claim: source 'real' is cleaner than its ancestry's weakest
+  source 'fallback'`. A `confidence` or `confidenceScore` override above the
+  weakest input's is an over-claim (`over-claiming: confidence 'high' exceeds
+  weakest lineage confidence 'low'`); one at or below it, and a `basis` or
+  `adapter` override, pass. This note said "always consistent" until the
+  v0.12.0 dogfood audit found it false, and its first fix named only `source`
+  (the fix's review).
 
 ## Previously-divergent cases — now resolved
 

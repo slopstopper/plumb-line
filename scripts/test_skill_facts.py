@@ -529,12 +529,18 @@ def test_method_hardcoded_row_asks_for_a_versioned_prior():
 
 
 def test_method_fallback_row_keeps_the_stand_in_out_of_outputs_unless_opted_in():
+    # P4: excluded from outputs (exports, aggregates, a displayed result)
+    # unless explicitly opted in, and marked there when it is.
     row = _mid_task_row("fallback")
-    assert "unless" in row and "opts in" in row, row
+    assert "kept out of outputs (exported, aggregated or displayed as a result) unless explicitly opted in" in row, row
+    assert "marked there when it is" in row, row
 
 
 def test_method_mid_task_states_the_concern_first_as_the_one_line_test_asks():
-    text = " ".join(SKILLS["plumb-line-method"].split()).lower()
+    method = SKILLS["plumb-line-method"]
+    section = method[method.index("## Mid-task: other moments"):]
+    section = section[:section.index("\n## ", 3)] if "\n## " in section[3:] else section
+    text = " ".join(section.split()).lower()
     assert "stop and document the concern before implementing" in text
     principles = " ".join(_read(_ROOT, "reference", "portable-principles.md").split()).lower()
     assert "stop and document the concern before implementing" in principles
@@ -542,7 +548,8 @@ def test_method_mid_task_states_the_concern_first_as_the_one_line_test_asks():
 
 def test_adopt_lightest_tracking_is_qualified_for_outputs():
     text = " ".join(SKILLS["plumb-line-adopt"].split()).lower()
-    assert "the lightest tracking that fits is enough while the stand-in stays out of" in text
+    assert "the lightest tracking that fits is enough while the stand-in stays out of outputs" in text
+    assert "kept out unless the builder opts in, and marked there when they do" in text
 
 
 # --- #581: the message is the text the checker passed --------------------------

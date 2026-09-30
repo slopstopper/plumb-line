@@ -168,7 +168,7 @@ known cause, or a decision behind it, needs nothing from this section.
 
 | The edit asked for | Yes, and | The only no |
 | --- | --- | --- |
-| A **fallback** value passed off as real when the source fails | Fill the gap visibly: "unavailable", or the stand-in labelled as a fallback, kept out of exported or aggregated outputs unless the caller opts in; a builder asking for the stand-in there is that opt-in (P4 — Quarantined fakery) | The stand-in shown as the real value |
+| A **fallback** value passed off as real when the source fails | Fill the gap visibly: "unavailable", or the stand-in labelled as a fallback, kept out of outputs (exported, aggregated or displayed as a result) unless explicitly opted in, and marked there when it is; a builder asking for the stand-in there is that opt-in (P4 — Quarantined fakery) | The stand-in shown as the real value |
 | A **hardcoded** threshold or constant that "looked about right" | Use it, as a named, versioned config value noting where it came from (eyeballed, not measured), so it can be tuned (P5 — Injectable priors) | The guess buried in logic as if measured |
 | Calling a stub **production-ready**, done or live | State what it is: `mock` (stubbed, returns success without doing the work), and when the real one is due if known (P6 — Maturity vocabulary) | "Done" for a stub |
 | **Fixture**, sample or **generated** data in a real output, "so it looks complete" | Keep it out of the real store; show it as a separate, labelled sample layer, or in a demo environment (P1 — Source-truth layer; P4 — Quarantined fakery) | Stand-in data counted or shown as real |

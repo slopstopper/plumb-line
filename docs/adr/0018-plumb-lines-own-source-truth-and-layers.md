@@ -212,7 +212,7 @@ found one runtime use the first draft missed, now listed).
   Recorded here rather than by editing §1, §2 or the lists, because this
   record is append-only.
 - **2026-09-30 (v0.12.0 dogfood findings; owner decision).** One addition
-  to source truth, one more recorded use, and one ruling.
+  to source truth, two rulings, and the recorded uses they bring.
   - **`adapters/commit-hook-cases.json` is source truth** for the branch
     guard's git commit hook (#464, #547): the wrapper that reads the branch
     from git, including during a rebase, and judges each staged path with the
@@ -223,7 +223,9 @@ found one runtime use the first draft missed, now listed).
     reference, and a row records only what both twins produce; where a row
     encodes git's own behaviour, git is the reference, and both runners
     build each row's repository with real git (the contract records the
-    behaviour as checked with git 2.39). Both runners fail on a case field,
+    behaviour as checked with git 2.39), except the one row that builds no
+    repository (`repo: false`) and the two that run the wrapper against a
+    fake git (`fakeGit`). Both runners fail on a case field,
     case kind or table version they do not interpret, each proven by a
     planted test (#441's pattern).
   - **The sixth recorded test use of a consumer, the second from the
@@ -246,7 +248,10 @@ found one runtime use the first draft missed, now listed).
     ("Cannot route") if it cannot be read. That is not a link a reader may
     follow: an agent running the skill loads the file at run time. It is a
     consumer-to-consumer use, stated here beside the others §2 lists: the
-    adopt skill reads `reference/fit-map.md`.
+    adopt skill reads `reference/fit-map.md`. So is the bootstrap skill's
+    Step 3, which loads `reference/ruleset-template.md` at run time and fills
+    its placeholders: the bootstrap skill reads
+    `reference/ruleset-template.md`.
 
   Recorded here rather than by editing §1, §2 or the lists, because this
   record is append-only.

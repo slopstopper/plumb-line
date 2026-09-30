@@ -200,10 +200,11 @@ The answer to building with a stand-in is yes, and: a stub for a service
 that is not built yet, a fallback to cached or last-known values, generated
 or sample data filling a field. Add it, and here is how to keep track of it.
 The lightest tracking that fits is enough while the stand-in stays out of
-exported or aggregated outputs: a label on the value or the screen
-("sample", "generated", a "last updated" marker on stale data), a flag on
-the row, the stub named as a stub. Where it reaches such an output, it is
-marked there too, or kept out unless the builder opts in. Offer the provenance primitive
+outputs: a label on the value or the screen ("sample", "generated", a "last
+updated" marker on stale data), a flag on the row, the stub named as a stub.
+Where it would reach an output (exported, aggregated or displayed as a
+result), it is kept out unless the builder opts in, and marked there when
+they do. Offer the provenance primitive
 where the stand-in flows into other values, so its `mock` or `fallback`
 source stays marked in everything derived from it. If the aim is to make
 the stand-in pass as real, that is `plumb-line-method`'s moment, not this
