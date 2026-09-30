@@ -12,6 +12,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from audit import audit_meta
 from guard import guard, ProvenanceRefused
+from marked import derive
 from provenance import combine_confidence_score, combine_provenance, make_meta
 
 N = 200_000
@@ -74,6 +75,23 @@ def test_a_none_step_is_refused_by_the_guard_with_or_without_a_confidence_floor(
         guarded = {'value': 1, 'meta': HOLED}
         try:
             guard(guarded, **options)
+        except ProvenanceRefused as e:
+            assert e.reasons == ['invalid envelope: lineage step 0 is not a plain object']
+        else:
+            raise AssertionError(f'passed with {options}')
+
+
+def test_combine_keeps_a_none_step():
+    c = combine_provenance(HOLED)
+    assert [len(c['lineage']), c['lineage'][0], 'weakest_source' in c] == [3, None, False]
+    assert audit_meta(c) == ["unknown source: lineage step 0 is not an object"]
+
+
+def test_a_none_step_is_refused_by_the_guard_after_a_derive():
+    derived = derive([{'value': 1, 'meta': HOLED}], lambda v: v)
+    for options in ({'min_confidence': 'high'}, {}):
+        try:
+            guard(derived, **options)
         except ProvenanceRefused as e:
             assert e.reasons == ['invalid envelope: lineage step 0 is not a plain object']
         else:

@@ -97,9 +97,7 @@ function unreadable(meta) {
     issues.push(`weakestSource ${quote(meta.weakestSource)} is not on the source ladder`);
   if ("confidenceScore" in meta && !isScore(meta.confidenceScore))
     issues.push(`confidenceScore ${quote(meta.confidenceScore)} is not a number in [0, 1]`);
-  // Array.from, so a hole in a sparse array is checked as the undefined it
-  // reads as, like Python's None step (#560 review): forEach skips holes.
-  Array.from(meta.lineage).forEach((step, i) => {
+  meta.lineage.forEach((step, i) => {
     // A plain object, as derive() builds it: a Map or class instance could
     // carry taint the field reads below would not see.
     if (!isPlain(step)) {
@@ -124,6 +122,11 @@ function unreadable(meta) {
   });
   return issues;
 }
+
+// An array copied by index, so a hole is the undefined it reads as, as Python's
+// None step is (#560 review): every, some, forEach, reduce and flatMap skip
+// holes, and Array.from reads through an iterator the array may override.
+const byIndex = (a) => Array.from({ length: a.length }, (_, i) => a[i]);
 
 /**
  * Lets a marked value through an output point only if its envelope backs it.
@@ -159,6 +162,10 @@ export function guard(x, options) {
   // The audit wants a plain object, and reads a polluted prototype as any
   // plain-object reader does (the threat model's in-process attacker).
   const own = Object.fromEntries(Object.entries(metaOf(x)).filter(([key]) => Object.hasOwn(x, key)));
+  // The lineage is copied once, by index, and that copy is what is both
+  // validated and judged, as Python rebuilds meta['lineage'] once (#560
+  // review): a hole is refused as a step that is not a plain object.
+  if (Array.isArray(own.lineage)) own.lineage = byIndex(own.lineage);
   const meta = { ...own };
   const bare = Object.assign(Object.create(null), own);
   const invalid = validateEnvelope(bare);

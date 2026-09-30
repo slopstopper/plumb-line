@@ -285,6 +285,11 @@ export function combineConfidenceScore(scores) {
 // state to reset between runs. Safe to delete from call sites.
 export function __resetStepCounter() {}
 
+// An array copied by index, so a hole is the undefined it reads as, as Python's
+// None step is (#560 review): every, some, forEach, reduce and flatMap skip
+// holes, and Array.from reads through an iterator the array may override.
+const byIndex = (a) => Array.from({ length: a.length }, (_, i) => a[i]);
+
 /**
  * Applies the taint-propagation combination law to one or more metadata envelopes
  * and returns a new derived envelope. This is the core invariant: mock taint
@@ -316,8 +321,10 @@ export function combineProvenance(...metas) {
   );
   // Prior steps keep their content-addressed ids verbatim — a subtree's id must
   // not change because it was recombined (#52). Only new input steps are minted.
+  // Copied by index (byIndex): flatMap drops a hole, and Python keeps its
+  // None step (#560 review).
   const priorLineage = metas.flatMap((m) =>
-    Array.isArray(m?.lineage) ? m.lineage : [],
+    Array.isArray(m?.lineage) ? byIndex(m.lineage) : [],
   );
   const inputSteps = metas.map((m) => {
     // The input's source and confidence, read as taint is read (through the

@@ -6,7 +6,7 @@
 // total, and the two languages must agree. The same lineage and the same
 // expected results are in the Python twin, tests/test_long_lineage.py.
 import { describe, it, expect } from "vitest";
-import { makeMeta, combineProvenance, combineConfidenceScore, auditMeta, guard, ProvenanceRefused, mark } from "./index.mjs";
+import { makeMeta, combineProvenance, combineConfidenceScore, auditMeta, guard, ProvenanceRefused, mark, derive } from "./index.mjs";
 
 const N = 200_000;
 const WEAK_AT = 150_000;
@@ -88,5 +88,35 @@ describe("a lineage with a hole (#560 review)", () => {
     // eslint-disable-next-line no-sparse-arrays
     expect(combineConfidenceScore([0.5, , 0.3])).toBeUndefined();
     expect(combineConfidenceScore(new Array(2))).toBeUndefined();
+  });
+
+  it("keeps the hole through combine, as Python keeps a None step", () => {
+    const c = combineProvenance(holed);
+    expect([c.lineage.length, 0 in c.lineage, c.lineage[0], "weakestSource" in c]).toEqual([3, true, undefined, false]);
+    expect(auditMeta(c)).toEqual(["unknown source: lineage step 0 is not an object"]);
+  });
+
+  it("is refused by the guard after a derive, with or without a confidence floor", () => {
+    const d = derive([mark(1, holed)], (v) => v);
+    for (const options of [{ minConfidence: "high" }, {}]) {
+      expect(reasons(() => guard(d, options))).toEqual([
+        "invalid envelope: lineage step 0 is not a plain object",
+      ]);
+    }
+  });
+});
+
+// A lineage whose own iterator yields other steps than its indices hold (#560
+// review, JS only: a Python list has no such split). The guard and the audit
+// read the lineage by index, once, so what is validated is what is judged.
+describe("a lineage whose iterator disagrees with its indices (#560 review)", () => {
+  const bad = { ...strong, derivedFromMock: "yes" };
+  const lineage = [bad];
+  Object.defineProperty(lineage, Symbol.iterator, { value: function* () { yield strong; } });
+  const value = { ...mark(1, makeMeta({ source: "derived", confidence: "high", derivedFromMock: false, weakestSource: "real", lineage: [strong] })), lineage };
+
+  it("is judged by what its indices hold", () => {
+    expect(auditMeta(value)).toContain("malformed taint flag: lineage step 0 derivedFromMock is not a boolean");
+    expect(reasons(() => guard(value, {}))).toContain("invalid envelope: lineage step 0 derivedFromMock must be a boolean");
   });
 });

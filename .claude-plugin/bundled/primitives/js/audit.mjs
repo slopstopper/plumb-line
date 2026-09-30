@@ -27,6 +27,11 @@ function ancestryFloor(stated, lineage) {
   return floor === -1 ? undefined : STATUS[floor];
 }
 
+// An array copied by index, so a hole is the undefined it reads as, as Python's
+// None step is (#560 review): every, some, forEach, reduce and flatMap skip
+// holes, and Array.from reads through an iterator the array may override.
+const byIndex = (a) => Array.from({ length: a.length }, (_, i) => a[i]);
+
 /**
  * Checks a provenance metadata envelope for internal consistency.
  * Returns an empty array when the envelope is consistent; otherwise returns
@@ -97,10 +102,8 @@ export function auditMeta(meta) {
     issues.push(`version-future: envelope version ${v} is newer than supported ${PROVENANCE_VERSION}`);
   }
 
-  // Read once with Array.from, so a hole in a sparse array is the undefined
-  // it reads as, as Python's None step is (#560 review): every, some,
-  // forEach and reduce skip holes, and a hole went unnamed.
-  const lineage = Array.isArray(meta.lineage) ? Array.from(meta.lineage) : [];
+  // Read once, by index (byIndex), so a hole is named as Python names None.
+  const lineage = Array.isArray(meta.lineage) ? byIndex(meta.lineage) : [];
 
   if (CLEAN_SOURCES.includes(meta.source) && meta.derivedFromMock === true) {
     issues.push(
