@@ -151,6 +151,18 @@ case, reason stated in the line. The key is `format-validation:`, never a
 second `routing-format:` line — a duplicate header key makes the report
 ambiguous and the checker rejects it.
 
+**The message is the text the checker passed.** Write the report to a
+temp file, run the checker on that file, then print the file's text as your
+message, unchanged: nothing above the header (no summary, heading or
+preamble), and no edit between the check and the message. If you change
+anything after the check, however small, re-run the checker on the changed
+text before printing it. Anything else you want to say (a summary, step 4's offer) goes
+below the report, after its last line. A `— clean` stamp is true only of
+the exact text it was run on: two 2026-09-30 eval audits delivered a
+message that opens with a prose summary above the header, one whose body
+also fails, under a `— clean` stamp, and the checker names both stamps as
+not earned (#581).
+
 ## 4. Hand off — invoke on yes, never apply
 
 End with ONE short offer naming the next step. When the builder accepts,
