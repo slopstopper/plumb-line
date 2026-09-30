@@ -150,10 +150,12 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `evals/`). Owner decision, 2026-09-30. The `claude plugin eval` judge failed 7 of
   12 with-plugin broken-fixture runs on reports that confirmed every
   planted violation (#291), and on the clean cases it gave no reasoning
-  for any vote in either 2026-09-30 run. Each clean case now fails on any
+  for any vote (the 2026-09-30 runs, #591). Each clean case now fails on any
   findings row whose Status is not `needs-review` or `advisory`
   (`no-confirmed-violations.md`, `match: not_contains`). Inverted, a row it
-  missed would pass, so it fails closed, reading rows as the checker does;
+  missed would pass, so it fails closed, reading rows as the checker does
+  (two documented residuals: a Principle cell with no code is not seen,
+  and an omission row opening its last cell with a code fails the case);
   `scripts/test_eval_graders.py` holds it to the checker and flips every
   row of the committed reports to `violation`. Every grader is now
   plugin-only, so the runner scores them all: the header grader gates the

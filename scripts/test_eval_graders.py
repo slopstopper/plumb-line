@@ -242,7 +242,7 @@ _DELIVERED = sorted(glob.glob(os.path.join(_ROOT, "docs", "records", "evals", "2
 _OK = ["needs-review", "advisory", "Needs-Review", "ADVISORY", "**needs-review**", "`advisory`",
        "*needs-review*", "**`advisory`**", " advisory ", "needs-review\u00a0"]
 _NOT_OK = CONFIRMED + ["confirmed", "violation (P3)", "violation:", "violation ✓", "", "needs review",
-                       "advisory.", "tbd", "\u2003violation", "violation\u00a0"]
+                       "advisory.", "tbd", "\u2003violation", "violation\u00a0", "\ufeffadvisory"]
 
 
 def _front(path):
@@ -299,6 +299,38 @@ def test_any_other_status_fails_the_case(status):
 ])
 def test_the_review_probes_are_caught(row):
     assert _matches(_pattern(CLEAN[0]), "text\n" + row + "\nmore\n"), row
+
+
+@pytest.mark.parametrize("row", [
+    _clean_row("violation", principle="`P3` — Confidence + provenance"),     # code in backticks
+    _clean_row("violation", principle="(P3 — Confidence + provenance)"),
+    _clean_row("violation", principle="Spine — null-result expressibility"),
+    _clean_row("violation", principle="spine – null-result expressibility"),  # en dash
+    _clean_row("violation", principle="P3 - Confidence + provenance"),       # hyphen
+    "|" + _clean_row("violation"),                                          # doubled leading pipe
+    _clean_row("violation") + "|",                                          # doubled trailing pipe
+    _clean_row("violation")[:-1] + "\\|",                                 # escaped final pipe
+])
+def test_the_round_two_probes_are_caught(row):
+    assert _matches(_pattern(CLEAN[0]), "text\n" + row + "\nmore\n"), row
+
+
+@pytest.mark.parametrize("row", [
+    _clean_row("violation", principle=""),
+    _clean_row("violation", principle="n/a"),
+    _clean_row("violation", principle="Confidence + provenance"),
+])
+def test_known_residual_a_principle_cell_without_a_code_is_not_seen(row):
+    # Documented in the grader and the README: a findings row is known by its
+    # Principle cell opening with a code. If this starts failing, the
+    # residual is gone: update the docs.
+    assert not _matches(_pattern(CLEAN[0]), "text\n" + row + "\nmore\n"), row
+
+
+def test_known_residual_an_omission_row_opening_its_last_cell_with_a_code_fails_the_case():
+    # The safe-side residual: a false FAIL, never a false PASS. Documented.
+    row = "| `f` | yes | yes | no | no | yes | P9 — Golden baseline + explain-the-drift: none |"
+    assert _matches(_pattern(CLEAN[0]), "text\n" + row + "\nmore\n")
 
 
 @pytest.mark.parametrize("line", [

@@ -44,17 +44,17 @@ Graders per case:
   clean cases scored only the judge, so their format was recorded, not
   gated (#530). Clean-case pass rates from before and after #591 do not
   compare: two of the 2026-09-30 run's js-clean reports open with prose,
-  so the same reports would score 1/3 under the header grader.
+  so the same reports would score at most 1/3 under the header grader.
   Every eval record also runs the checker on each report it can recover,
   as delivered, never a copy the auditor checked; a report that fails
   while stamped `— clean` by the current checker gets its own issue, the
   stamp not earned, and the record counts it as a false verdict, not
   only a format fail (#581). The checker cannot run inside the suite:
   the runner has no grader that executes code ("There are no custom-code
-  graders", same docs). In the 2026-09-30 runs the only report text the
-  runner kept was the judge's evidence, on the clean cases; each run's
-  `tracePath` was gone afterwards, and the broken-case messages were lost
-  (#585). `--keep-temp` may keep them (below).
+  graders", same docs). In the 2026-09-30 run the only report text the
+  runner kept was the judge's evidence, on the clean cases, and the
+  broken-case messages were lost (`docs/records/evals/2026-09-30.md`,
+  #585). `--keep-temp` may keep them (below).
 - `regex` (with-only), broken cases, one per planted violation: a
   findings-table row whose Path cell names the file, whose Status cell is
   `violation` and whose Principle cell carries the principle's inline name.
@@ -79,13 +79,15 @@ Graders per case:
   `scripts/test_eval_graders.py`, which also flips every row of the
   committed 2026-09-30 reports to `violation` to show each is caught. It
   knows a findings row by its Principle cell opening with a principle
-  code; a row that does not is not seen (none in the committed reports).
+  code; a row whose Principle cell is empty or has no code is not seen
+  (none in the committed reports), and an omission-pass row whose last
+  cell opens with a code fails the case, on the safe side.
   It replaces the runner's `llm` judge, which is out of scoring until it
   records its reasoning and reproduces the mechanical verdicts on a
   calibration set (#591, owner decision 2026-09-30). The judge failed 7
   of 12 with-plugin broken-fixture runs on 2026-09-28, each on a report
   that visibly confirms every planted violation (#291), and on the clean
-  cases it gave no reasoning for any vote in either 2026-09-30 run.
+  cases it gave no reasoning for any vote (the 2026-09-30 runs, #591).
 
 **What to report: each arm's pass rate, and the difference only where it
 means something** (owner decision 2026-09-30, #530). Record each arm's pass
