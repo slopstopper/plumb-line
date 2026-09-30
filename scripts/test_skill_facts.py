@@ -524,9 +524,12 @@ def test_remediate_prints_the_plan_as_its_own_message_before_any_edit():
     for phrase in ("as its own message, before any tool call that changes a file under remediation",
                    "a plan that first appears after the edits is a record, not a plan",
                    "repeat the same plan table in your final message, below the record",
-                   "head it as a repeat",
-                   "name each principle inline in the plan"):
+                   "head it as a repeat; say it was printed before the first edit only if it was",
+                   "name each principle inline in the plan",
+                   "in the same file, before you run the checker"):
         assert phrase in text, phrase
+    # The heading must not be required to claim a timing (#589 review round 2).
+    assert "head it as a repeat of the plan printed before the first edit" not in text
 
 
 def test_a_repeated_plan_with_inline_names_keeps_the_delivered_record_clean():
@@ -551,7 +554,8 @@ def test_a_repeated_plan_with_inline_names_keeps_the_delivered_record_clean():
               "| Finding | Path | Class | Intended action |\n| --- | --- | --- | --- |\n")
     bare = record + "| 1 P2 upward import | `src/data/rates.js` | Mechanical | remove it |\n"
     named = record + "| 1 upward import (P2 — One-way layering) | `src/data/rates.js` | Mechanical | remove it |\n"
-    assert crf.check(bare, principles, revision), "a bare code below the record must fail"
+    issues = crf.check(bare, principles, revision)
+    assert any("not earned" in i for i in issues), issues
     assert crf.check(named, principles, revision) == []
 
 
