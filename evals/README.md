@@ -72,7 +72,8 @@ Graders per case:
     that had audited nothing (#291).
 - `regex` (with-only), clean cases: no findings row whose Status is
   anything but `needs-review` or `advisory` (`no-confirmed-violations.md`,
-  `match: not_contains`). Inverted, a row the pattern missed would pass the
+  `match: not_contains`; built from commented parts by
+  `scripts/eval_clean_grader.py`). Inverted, a row the pattern missed would pass the
   case, so it fails closed: a `violation`, or any status the checker would
   refuse, fails. It reads rows as the checker does (indented rows, escaped
   pipes, decorated statuses) and is held to it by

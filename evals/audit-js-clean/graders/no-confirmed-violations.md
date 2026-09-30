@@ -7,7 +7,9 @@ flags: m
 arm: with-only
 ---
 
-A clean fixture reaches zero confirmed violations. The grader is inverted
+The pattern is built by `scripts/eval_clean_grader.py`, which spells out
+each part with a comment: edit it there and run it with `--write`, never
+here. A clean fixture reaches zero confirmed violations. The grader is inverted
 (`match: not_contains`), so a row it failed to see would pass the case: it
 fails closed. It matches any findings row whose Status is anything but
 `needs-review` or `advisory`, so a `violation`, and any status the checker

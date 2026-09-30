@@ -396,3 +396,15 @@ def test_javascript_reads_the_clean_grader_as_python_does():
                          capture_output=True, text=True, check=True).stdout
     for text, js in zip(texts, json.loads(out)):
         assert js == _matches(p, text), text[:80]
+
+
+def test_the_clean_graders_are_the_builders_pattern():
+    # The one-line pattern is built from commented parts in
+    # scripts/eval_clean_grader.py; a hand edit to a grader file, or a change
+    # to the builder not written out (`--write`), fails here.
+    spec = importlib.util.spec_from_file_location("ecg", os.path.join(_ROOT, "scripts", "eval_clean_grader.py"))
+    ecg = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ecg)
+    assert sorted(ecg.GRADERS) == CLEAN
+    for path in CLEAN:
+        assert _pattern(path) == ecg.pattern(), path
