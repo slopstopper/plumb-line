@@ -32,8 +32,15 @@ Graders per case:
   it succeeded, because `tool_used` matches a call's input, never its outcome.
   The pattern needs the interpreter, so a heredoc whose report text names the
   checker does not count.
-- `regex` (with-only): the v4 report header. A format FAIL is scored
-  independently of the findings, per the harness.
+- `regex` (with-only): the v4 report header opens the message, as the
+  checker requires (leading blank and fence lines allowed; held to the
+  checker by `scripts/test_eval_graders.py`). Until the 2026-09-30 run it
+  matched the header anywhere (`docs/records/evals/2026-09-30.md`). As the
+  2026-09-30 run shows, the runner scores it only where every grader is
+  with-only, the broken cases; on the clean cases it and the checker grader
+  are indicators, so format there is recorded by running the checker on the
+  reports, not gated (owner decision 2026-09-30, #530): every eval record
+  runs the checker on each report it can recover.
 - `regex` (with-only), broken cases, one per planted violation: a
   findings-table row whose Path cell names the file, whose Status cell is
   `violation` and whose Principle cell carries the principle's inline name.
