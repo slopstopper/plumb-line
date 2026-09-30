@@ -113,3 +113,44 @@ def test_derive_override_refuses_a_derived_from_mock_that_is_not_a_boolean():
     assert m.derive([clean], lambda v: v, derived_from_mock=True)['meta']['derived_from_mock'] is True
     for flag in (False, None):
         assert m.derive([clean], lambda v: v, derived_from_mock=flag)['meta']['derived_from_mock'] is False
+
+
+
+class _Box:
+    value = 1
+
+
+def test_derive_refuses_an_input_that_is_not_a_marked_value_before_calling_fn():
+    """#550: a marked value as the guard reads one, a dict holding 'value'
+    and 'meta'. Python used to raise an unrelated KeyError or TypeError; JS
+    combined an unmarked object or null as an unknown input."""
+    import pytest
+    clean = m.mark(1, source='real', confidence='high')
+    for bad in ({'a': 1}, None, 3, [1], _Box(), {'value': 1}):
+        called = []
+        with pytest.raises(TypeError, match=r'^derive: input 1 is not a marked value \(mark it first\)$'):
+            m.derive([clean, bad], lambda *a: called.append(1))
+        assert called == [], bad
+
+
+def test_derive_still_accepts_a_handed_marked_value_with_an_empty_envelope():
+    assert m.derive([m.mark(1, source='real', confidence='high')], lambda v: v + 1)['value'] == 2
+    assert m.derive([{'value': 2, 'meta': {}}], lambda v: v)['meta']['lineage'][0]['source'] is None
+
+
+def test_derive_reads_a_generator_once_and_keeps_its_taint():
+    """#550 review: the check used the generator up, and it was combined as
+    zero inputs, dropping its taint (the guard then let a mock value out)."""
+    mock = m.mark(41, source='mock', confidence='low')
+    out = m.derive((x for x in [mock]), lambda v: v + 1)
+    assert out['value'] == 42
+    assert out['meta']['derived_from_mock'] is True
+    assert out['meta']['source'] == 'derived'
+
+
+def test_derive_refuses_inputs_that_are_not_a_list():
+    import pytest
+    clean = m.mark(1, source='real', confidence='high')
+    for inputs in (3, None, 'ab', {'a': clean}):
+        with pytest.raises(TypeError, match=r'^derive: inputs must be a list of marked values$'):
+            m.derive(inputs, lambda *a: 0)

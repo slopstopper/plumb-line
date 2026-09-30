@@ -145,3 +145,49 @@ describe("derive refuses a derivedFromMock override that is not a boolean (#555,
     }
   });
 });
+
+
+describe("derive refuses an input that is not a marked value (#550)", () => {
+  // A marked value as the guard reads one: a plain object holding `value`.
+  // JS used to combine an unmarked object or null as an unknown input and
+  // throw an unrelated TypeError on a number; Python raised on all three.
+  const clean = mark(1, { source: "real", confidence: "high" });
+  class Box { constructor() { this.value = 1; } }
+  for (const [label, input] of [["an object", { a: 1 }], ["null", null], ["a number", 3],
+    ["an array", [1]], ["a class instance", new Box()], ["undefined", undefined]]) {
+    it(`refuses ${label}, naming its position, before calling fn`, () => {
+      let called = false;
+      expect(() => derive([clean, input], () => { called = true; }))
+        .toThrow(new TypeError("derive: input 1 is not a marked value (mark it first)"));
+      expect(called).toBe(false);
+    });
+  }
+  it("still accepts marked values, including a handed one with an empty envelope", () => {
+    expect(derive([clean], (v) => v + 1).value).toBe(2);
+    expect(derive([{ value: 2 }], (v) => v).lineage[0].source).toBe(null);
+  });
+});
+
+describe("derive reads its inputs once, as a list (#550 review)", () => {
+  const mock = mark(41, { source: "mock", confidence: "low" });
+  const clean = mark(1, { source: "real", confidence: "high" });
+  it("a generator of marked values keeps their taint (it was combined as zero inputs)", () => {
+    function* gen() { yield mock; }
+    const out = derive(gen(), (v) => v + 1);
+    expect(out.value).toBe(42);
+    expect(out.derivedFromMock).toBe(true);
+    expect(out.source).toBe("derived");
+  });
+  it("a hole in a sparse array is refused like undefined", () => {
+    // eslint-disable-next-line no-sparse-arrays
+    expect(() => derive([, clean], () => 0)).toThrow("derive: input 0 is not a marked value (mark it first)");
+  });
+  it("a Set is read in order, naming the real position", () => {
+    expect(() => derive(new Set([clean, 3]), () => 0)).toThrow("derive: input 1 is not a marked value (mark it first)");
+  });
+  for (const [label, inputs] of [["a number", 3], ["null", null], ["a string", "ab"], ["a plain object", { a: clean }]]) {
+    it(`refuses ${label} as the inputs`, () => {
+      expect(() => derive(inputs, () => 0)).toThrow(new TypeError("derive: inputs must be a list of marked values"));
+    });
+  }
+});
