@@ -423,6 +423,19 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **JS `derive`: an override whose value is `undefined` is no override, for
+  every key** ([#533](https://github.com/slopstopper/plumb-line/issues/533);
+  `docs/api.md`; ADR-0019 amendment). Since #177 it held for `source`, and
+  `basis` and `adapter` behaved the same, the law never setting them; not
+  for `confidence` or `confidenceScore`. `{ confidence:
+  undefined }` reset the combined rung to `"none"`, and `{ confidenceScore:
+  undefined }` dropped the combined score, so `derive(xs, f, { confidence:
+  opts.confidence })` with the option unset silently lost what the law
+  computed. Each result was weaker, never an over-claim, but the rule
+  differed by key. Python cannot express `undefined`, so it is unchanged. A
+  `null`/`None` override is a separate case: it still drops the combined
+  `confidenceScore` in both languages, and `basis`/`adapter` null differ
+  between them ([#566](https://github.com/slopstopper/plumb-line/issues/566)).
 - **The SARIF log names and describes PB1–PB4 as the lints and SPEC §6
   do** ([#552](https://github.com/slopstopper/plumb-line/issues/552);
   `adapters/sarif/assemble.py`, since #118). The catalogue published PB2 as
