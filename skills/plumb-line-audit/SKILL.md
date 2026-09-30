@@ -279,16 +279,16 @@ in the audit's own report, and it happened live — one auditor, barred from
 writing a temp file, printed `— clean` over a report the checker fails (#293).
 
 **The message is the text the checker passed.** Write the report to a
-file, run the checker on that file, then print the file's text as your
+temp file (or use the saved one), run the checker on that file, then print the file's text as your
 message, unchanged: nothing above the header (no summary, heading or
 preamble), and no edit between the check and the message. If you change
 anything after the check, however small, re-run the checker on the changed
 text before printing it. Anything else you want to say (a summary, the save question, the handoff offer) goes
-below the report, after its last line. Checking a copy and then printing
-something else is how a `— clean` stamp comes to sit over text the checker
-fails: two 2026-09-30 eval audits checked a saved report, then delivered a
-prose summary above the header or an edited body, and the checker names
-both stamps as not earned (#581).
+below the report, after its last line. A `— clean` stamp is true only of
+the exact text it was run on: two 2026-09-30 eval audits delivered a
+message that opens with a prose summary above the header, one whose body
+also fails, under a `— clean` stamp, and the checker names both stamps as
+not earned (#581).
 
 Never suppress a finding to make the report validate — the contract describes the
 report's *shape*, and a shape violation is fixed by fixing the shape.

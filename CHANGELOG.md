@@ -10,24 +10,27 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 ## [Unreleased]
 
 ### Added
-- **The checker names a `— clean` stamp over text it fails**
+- **The checker names a current `— clean` stamp over text it fails**
   ([#581](https://github.com/slopstopper/plumb-line/issues/581);
   `scripts/check_report_format.py`). Two with-plugin audit reports in the
   2026-09-30 eval run printed `format-validation: … v6 — clean` over a
-  message the checker fails: the auditor checked a saved copy, then
-  returned a prose summary above the header, or an edited body. Run on
-  the delivered message, the checker already failed them, as an ordinary
-  format failure. It now adds one more issue to any failing text that
-  carries a clean stamp: the stamp was not earned on the text being
-  returned. It never changes pass or fail, so the checker version stays
-  6. The audit, adopt and remediate skills now say how the stamp stays
+  message checker v6 fails: both open with a prose summary above the
+  header, and one's body also fails. The transcripts were not kept, so
+  how the stamps got there is not known. Run on the delivered message,
+  the checker already failed them, as an ordinary format failure. It now
+  adds one more issue to failing text stamped clean by this checker's
+  version: the stamp was not earned on the text being returned. An older
+  or unversioned stamp, or a report scored under an earlier ruleset, is
+  noted as before, not accused. It never changes pass or fail, so the
+  checker version stays 6. The audit, adopt and remediate skills now say how the stamp stays
   true: print the checked file as the message, unchanged, with nothing
   above the header; re-run the checker after any edit; put anything else
   after the report. The release harness, `AUDIT-EXPECTATIONS.md` and
   `evals/README.md` check each report as delivered, and record a false
   stamp as a false verdict. `claude plugin eval` has no grader that runs
   code, so the check runs on the messages a record keeps, not inside the
-  suite.
+  suite; the runner kept no broken-case message text in the 2026-09-30
+  run, so a false stamp there is not caught yet (#585).
 - **The branch guard's commit hook knows the branch during a rebase**
   ([#547](https://github.com/slopstopper/plumb-line/issues/547);
   `adapters/adapter-contract.md`, `plumb-line-bootstrap`). HEAD is detached

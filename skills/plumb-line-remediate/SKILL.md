@@ -221,16 +221,16 @@ format-validation: not run (checker unavailable in this repo)
 ```
 
 **The message is the text the checker passed.** Write the record to a
-file, run the checker on that file, then print the file's text as your
+temp file (or use the saved one), run the checker on that file, then print the file's text as your
 message, unchanged: nothing above the header (no summary, heading or
 preamble), and no edit between the check and the message. If you change
 anything after the check, however small, re-run the checker on the changed
 text before printing it. Anything else you want to say (a summary, the next step) goes
-below the record, after its last line. Checking a copy and then printing
-something else is how a `— clean` stamp comes to sit over text the checker
-fails: two 2026-09-30 eval audits checked a saved report, then delivered a
-prose summary above the header or an edited body, and the checker names
-both stamps as not earned (#581).
+below the record, after its last line. A `— clean` stamp is true only of
+the exact text it was run on: two 2026-09-30 eval audits delivered a
+message that opens with a prose summary above the header, one whose body
+also fails, under a `— clean` stamp, and the checker names both stamps as
+not earned (#581).
 
 Never drop or soften a row to make the record validate — the contract describes
 the record's *shape*, and a shape violation is fixed by fixing the shape.
@@ -246,4 +246,4 @@ the record's *shape*, and a shape violation is fixed by fixing the shape.
 | Noticed an improvement no finding asked for | Record under Proposed (not applied) |
 | Your edit made a nearby comment/doc false | Correct it within the finding's diff; note in record |
 | Two findings' fixes conflict | Stop; surface the conflict |
-| All fixes applied | Run project enforcement, show output, offer re-audit |
+| All fixes applied | Run project enforcement, show output below the record, offer re-audit |

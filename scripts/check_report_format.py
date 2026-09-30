@@ -246,6 +246,12 @@ def load_ruleset_revision(text):
     return int(m.group(1)) if m else None
 
 
+# How the issue for a report scored under an earlier ruleset begins its reason.
+# `_unearned_stamp` reads it: a stamp earned before the ruleset moved on was
+# honest when it was printed.
+_REVISION_BEHIND = "is older than the ruleset's revision"
+
+
 def _header_lines(text):
     """The header's `key: value` lines.
 
@@ -339,8 +345,8 @@ def _check_header(pairs, required, version_key, known_versions, issues,
                     f"{ruleset_revision} and has never been higher")
             else:
                 issues.append(
-                    f"principles-revision {stated} is older than the ruleset's "
-                    f"revision {ruleset_revision}: this report was scored under "
+                    f"principles-revision {stated} {_REVISION_BEHIND} "
+                    f"{ruleset_revision}: this report was scored under "
                     f"an earlier ruleset, and is validated against the current one")
 
     commit = values.get("commit")
@@ -753,17 +759,27 @@ def _check_validation_stamps(text):
 
 
 def _unearned_stamp(text, issues):
-    """A `— clean` stamp over text this checker fails: the verdict was earned,
-    if at all, on some other text (#581). Added only when `issues` is already
-    non-empty, so it never changes pass or fail and is not a rule change
-    (CHECKER_VERSION is unchanged); it names the failure a record must not
-    file as an ordinary format fail, a verdict asserted rather than earned
-    (#293). Seen live: the auditor checked a saved copy, then returned a prose
-    summary above the header, or an edited body."""
-    if issues and _VALIDATION_CLEAN.search(text):
-        return ["format-validation claims clean, but this text fails the checker "
-                "(above): the stamp was not earned on the text being returned — "
-                "a stamp is only true of the exact text it was run on (#581)"]
+    """A stamp claiming this checker's version, over text this checker fails
+    (#581): the stamp was not earned on this text, since this checker, on the
+    same ruleset, would not have printed it. Added only when `issues` is
+    already non-empty, so it never changes pass or fail and is not a rule
+    change (CHECKER_VERSION is unchanged). It names the failure a record must
+    not file as an ordinary format fail, a verdict asserted rather than
+    earned (#293).
+
+    Only a current stamp is accused. A stamp from an older checker, or none
+    recorded, may have been earned under rules that have since tightened
+    (validation_notes says which), and a report scored under an earlier
+    ruleset fails here for that alone: neither is evidence of a false claim.
+    Seen live (#581): two 2026-09-30 eval reports carried a v6 stamp over a
+    message that opens with prose above the header. The transcripts were not
+    kept, so how each stamp came to be there is not known."""
+    current = any(ver == CHECKER_VERSION for ver in _validation_stamps(text))
+    if issues and current and not any(_REVISION_BEHIND in i for i in issues):
+        return [f"format-validation claims clean under checker v{CHECKER_VERSION}, "
+                "but this text fails it (above): the stamp was not earned on the "
+                "text being returned; a stamp is only true of the exact text it "
+                "was run on (#581)"]
     return []
 
 

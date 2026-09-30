@@ -515,9 +515,10 @@ def test_audit_check_10_a_citation_does_not_make_an_alongside_unit_test_the_requ
 
 # --- #581: the message is the text the checker passed --------------------------
 # Two 2026-09-30 eval reports printed a clean stamp over a message the checker
-# fails: the auditor checked a saved copy, then returned a prose summary above
-# the header, or an edited body. "On the exact text being returned" was already
-# written; what was missing was how: print the checked file, unchanged.
+# fails: both open with a prose summary above the header, and one's body also
+# fails (how the stamps got there was not recorded). "On the exact text being
+# returned" was already written; what was missing was how: print the checked
+# file, unchanged.
 
 @pytest.mark.parametrize("skill", ["plumb-line-audit", "plumb-line-adopt", "plumb-line-remediate"])
 def test_the_validating_skills_print_the_checked_text_unchanged(skill):
