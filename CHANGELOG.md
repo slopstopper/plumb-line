@@ -511,7 +511,13 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   argument per step. SPEC §5 requires the checker to be total. Each now
   folds the lineage pairwise with the same function, so results are
   unchanged; the public signatures are too. A 200,000-step test in each
-  language holds both to the same results.
+  language holds both to the same results. A lineage with a hole (a sparse
+  JS array) is now read as Python reads a `None` step: the audit names it
+  as a step that is not an object, and the guard refuses it as an invalid
+  envelope, where both skipped it before. `combineConfidenceScore` reads a
+  hole as a gap and returns `undefined`, where it returned `NaN`. Many
+  *inputs* (100,000 or more to `derive` or `combineProvenance`) still
+  overflow in JS: [#586](https://github.com/slopstopper/plumb-line/issues/586).
 - **The eval suite audits the committed fixtures, and its header grader
   requires the header to open the report**
   ([#530](https://github.com/slopstopper/plumb-line/issues/530);

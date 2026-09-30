@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from audit import audit_meta
 from guard import guard, ProvenanceRefused
-from provenance import combine_provenance, make_meta
+from provenance import combine_confidence_score, combine_provenance, make_meta
 
 N = 200_000
 WEAK_AT = 150_000
@@ -53,3 +53,33 @@ def test_guards_on_the_weakest_step():
     assert _reasons(min_confidence='low') == 'passed'
     assert _reasons(min_confidence='medium') == ['confidence: low is below the required medium']
     assert _reasons(min_source='real') == ['source: fallback is below the required real']
+
+
+# A lineage with a hole (#560 review): JS arrays can have holes, which reduce,
+# every, some and forEach skip. Python has none; its twin is a None step, and
+# both give the same results (primitives/js/long-lineage.test.mjs).
+HOLED = make_meta(source='derived', confidence='high', derived_from_mock=False, weakest_source='real',
+                  lineage=[None, STRONG])
+
+
+def test_a_none_step_is_audited_as_a_step_that_is_not_an_object():
+    assert audit_meta(HOLED) == [
+        "source over-claim: weakestSource 'real' cannot be shown: a lineage step's source is unknown",
+        "unknown source: lineage step 0 is not an object",
+    ]
+
+
+def test_a_none_step_is_refused_by_the_guard_with_or_without_a_confidence_floor():
+    for options in ({'min_confidence': 'high'}, {}):
+        guarded = {'value': 1, 'meta': HOLED}
+        try:
+            guard(guarded, **options)
+        except ProvenanceRefused as e:
+            assert e.reasons == ['invalid envelope: lineage step 0 is not a plain object']
+        else:
+            raise AssertionError(f'passed with {options}')
+
+
+def test_no_combined_score_over_a_gap():
+    assert combine_confidence_score([0.5, None, 0.3]) is None
+    assert combine_confidence_score([None, None]) is None

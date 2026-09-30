@@ -97,7 +97,10 @@ export function auditMeta(meta) {
     issues.push(`version-future: envelope version ${v} is newer than supported ${PROVENANCE_VERSION}`);
   }
 
-  const lineage = Array.isArray(meta.lineage) ? meta.lineage : [];
+  // Read once with Array.from, so a hole in a sparse array is the undefined
+  // it reads as, as Python's None step is (#560 review): every, some,
+  // forEach and reduce skip holes, and a hole went unnamed.
+  const lineage = Array.isArray(meta.lineage) ? Array.from(meta.lineage) : [];
 
   if (CLEAN_SOURCES.includes(meta.source) && meta.derivedFromMock === true) {
     issues.push(

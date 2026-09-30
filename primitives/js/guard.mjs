@@ -97,7 +97,9 @@ function unreadable(meta) {
     issues.push(`weakestSource ${quote(meta.weakestSource)} is not on the source ladder`);
   if ("confidenceScore" in meta && !isScore(meta.confidenceScore))
     issues.push(`confidenceScore ${quote(meta.confidenceScore)} is not a number in [0, 1]`);
-  meta.lineage.forEach((step, i) => {
+  // Array.from, so a hole in a sparse array is checked as the undefined it
+  // reads as, like Python's None step (#560 review): forEach skips holes.
+  Array.from(meta.lineage).forEach((step, i) => {
     // A plain object, as derive() builds it: a Map or class instance could
     // carry taint the field reads below would not see.
     if (!isPlain(step)) {

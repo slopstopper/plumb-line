@@ -268,6 +268,9 @@ export function weakestSource(...sources) {
  * @returns {number|undefined}
  */
 export function combineConfidenceScore(scores) {
+  // Array.from, so a hole in a sparse array is a gap, as undefined is: every
+  // and reduce skip holes (#560 review).
+  scores = Array.from(scores);
   if (scores.length === 0 || !scores.every(isScore)) return undefined;
   // -0 is returned as 0: Python's min() over 0.0 and -0.0 depends on argument
   // order, so the result would too (#525 review).
