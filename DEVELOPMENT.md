@@ -20,7 +20,7 @@ When an audit (self-audit, dogfood, or code review) defers a finding — anythin
 **Why:** A markdown table of deferred findings is silently dropped. The tracker makes the deferral visible and prevents it from falling through the cracks.
 
 **Process:**
-1. When a finding is deferred, file an issue: `gh issue create --label audit-deferral --title "..."` with a reference to where it was tabled (e.g., `docs/dogfood.md` section header or audit run date)
+1. When a finding is deferred, file an issue: `gh issue create --label audit-deferral --title "..."` with a reference to where it was tabled (e.g., the dogfood record in `docs/records/dogfood/`, or the audit run date)
 2. Link the issue from the deferral's source (the findings table or the CHANGELOG entry)
 3. That issue is now part of the project's accountability
 

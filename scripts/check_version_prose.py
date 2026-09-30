@@ -34,6 +34,8 @@ EXEMPT_PREFIXES = (
     "docs/adr/",
     "docs/dogfood.md",
     "docs/validation-results.md",
+    # One file per run since #570; the two above are their index pages.
+    "docs/records/",
 )
 
 # Every digit class is [0-9], never \d: Python's \d matches any Unicode decimal

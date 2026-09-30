@@ -8,8 +8,9 @@ file is the per-draft checklist.
 ## Source material
 
 Draft from artifacts, not memory: the CHANGELOG section for the release, the
-release-harness record in `docs/validation-results.md`, the dogfood section
-in `docs/dogfood.md`, and the closed milestone's issues. Every claim in the
+release-harness record in `docs/records/validation/`, the dogfood record in
+`docs/records/dogfood/` (both indexed from `docs/validation-results.md` and
+`docs/dogfood.md`), and the closed milestone's issues. Every claim in the
 draft must trace to one of these or to a recorded number.
 
 ## Length follows the release

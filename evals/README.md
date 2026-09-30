@@ -208,7 +208,8 @@ model sampling, so a re-run is not guaranteed to reproduce the same rates.
 
   `context.add_dirs` cannot reach outside the case directory, so it cannot be
   used to expose the plugin's own files. Read access alone was enough.
-- Until a green run is recorded in `docs/validation-results.md`, this suite
+- Until a green run is recorded in `docs/records/evals/` (listed in
+  `docs/validation-results.md`), this suite
   supplements the manual protocol in `examples/AUDIT-EXPECTATIONS.md` and does
   not replace it. The manual protocol remains the release gate.
 - The auditor's grants are read-only tools plus sandboxed Bash for the
