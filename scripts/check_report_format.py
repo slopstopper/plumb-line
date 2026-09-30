@@ -9,7 +9,7 @@ runs. This makes it mechanical.
 
 Validates any of the contracts, auto-detected from the first key line:
 
-    report-format: v3        the plumb-line-audit report
+    report-format: v4        the plumb-line-audit report
     remediation-format: v1   the plumb-line-remediate record
     routing-format: v1       the plumb-line-adopt routing report (#269)
 
@@ -44,7 +44,7 @@ _PRINCIPLES_DOC = os.path.join(_ROOT, "reference", "portable-principles.md")
 
 # Known-good contract versions. An unknown version is a FAIL, not a shrug: a
 # report claiming v9 was produced by something this checker does not model.
-KNOWN_REPORT_VERSIONS = {"v1", "v2", "v3"}
+KNOWN_REPORT_VERSIONS = {"v1", "v2", "v3", "v4"}
 KNOWN_REMEDIATION_VERSIONS = {"v1"}
 KNOWN_ROUTING_VERSIONS = {"v1"}
 
@@ -64,7 +64,15 @@ _ROUTING_FIT = re.compile(
     re.M | re.I)
 _ROUTING_FIT_LINE = re.compile(r"^fit:", re.M | re.I)
 
-FINDINGS_COLUMNS = ["Path", "Line", "Function", "Issue", "Suggested Fix", "Principle"]
+# The findings table of the current contract (v4, #530): the finding's status
+# is its own column, not a word the Issue cell opens with. A report is judged
+# by the contract it declares, so a v2 or v3 report keeps its six columns.
+FINDINGS_COLUMNS = ["Path", "Line", "Function", "Status", "Issue", "Suggested Fix", "Principle"]
+FINDINGS_COLUMNS_V3 = ["Path", "Line", "Function", "Issue", "Suggested Fix", "Principle"]
+# A v4 finding's status: confirmed, unsure, or reported but not counted as a
+# violation (skills/plumb-line-audit/SKILL.md, "Status"). Read case-insensitively,
+# bold allowed, as agents render it; any other word is refused.
+STATUSES = ("violation", "needs-review", "advisory")
 RECORD_COLUMNS = ["Finding", "Path", "Class", "Action", "Change summary"]
 
 ACTIONS = {"applied-mechanical", "applied-judgment", "applied-conservative",
@@ -91,7 +99,9 @@ CLASSES = {"Mechanical", "Judgment"}
 #       newer than this checker is rejected, an older or missing one is noted
 #   v5  #527 — slash-joined codes (P1/P2) and a code with a hyphenated word
 #       (P6-adjacent) are bare citations; they passed before. Stricter
-CHECKER_VERSION = "5"
+#   v6  #530 — report-format v4: the findings table has a Status column, and
+#       each row's status is one of violation, needs-review, advisory
+CHECKER_VERSION = "6"
 
 # `format-validation: scripts/check_report_format.py [vN] — clean`. The stamp
 # says which rule set a stored "clean" was earned under (#432).
@@ -563,12 +573,13 @@ def check_report(text, principles, ruleset_revision=None):
     # v2, the coverage map in v3 (docs/validation-results.md). Applying v3 rules
     # to a stored v1 report would fail it for lacking parts its own contract
     # never had — the checker must model the version it is reading.
-    version = values.get("report-format", "v3")
-    level = int(version[1:]) if re.match(r"^v[0-9]+$", version) else 3
+    version = values.get("report-format", "v4")
+    level = int(version[1:]) if re.match(r"^v[0-9]+$", version) else 4
 
     if level >= 2:
-        cols, rows = _table_columns(text, FINDINGS_COLUMNS)
-        if cols != FINDINGS_COLUMNS:
+        expected = FINDINGS_COLUMNS if level >= 4 else FINDINGS_COLUMNS_V3
+        cols, rows = _table_columns(text, expected)
+        if cols != expected:
             # 'No findings.' stands IN PLACE OF the table. Accepting the phrase
             # anywhere in the document meant a prose sentence containing it
             # excused a genuinely malformed table, so require that no candidate
@@ -576,17 +587,23 @@ def check_report(text, principles, ruleset_revision=None):
             clean_run = re.search(r"^No findings\.\s*$", text, re.M) and cols is None
             if not clean_run:
                 issues.append(
-                    f"findings table columns must be exactly {FINDINGS_COLUMNS}; "
+                    f"findings table columns must be exactly {expected}; "
                     f"found {cols} (a clean run instead states 'No findings.' "
                     f"on its own line, with no findings table)")
         else:
             # Same reasoning as the record table: a shifted row moves the
             # Principle cell, and the Principle is the whole point of the row.
             for n, row in enumerate(rows, start=1):
-                if len(row) != len(FINDINGS_COLUMNS):
+                if len(row) != len(expected):
                     issues.append(
                         f"findings row {n} has {len(row)} cells, expected "
-                        f"{len(FINDINGS_COLUMNS)} — a shifted row loses its Principle")
+                        f"{len(expected)} — a shifted row loses its Principle")
+                elif level >= 4:
+                    status = row[expected.index("Status")].strip().strip("*").strip().lower()
+                    if status not in STATUSES:
+                        issues.append(
+                            f"findings row {n} Status {row[expected.index('Status')]!r} is not one "
+                            f"of {', '.join(STATUSES)}")
 
     _check_principles(text, principles, glossary_required=level >= 2, issues=issues)
 

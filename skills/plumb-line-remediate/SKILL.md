@@ -12,10 +12,10 @@ memory — the principles file is the source of truth for what a fix must honor.
 
 The audit finds; this skill fixes. The two never blur: remediation runs only on
 an explicit invitation, consumes a report the audit produced (any
-`report-format: v1`+; v3 is current), and applies nothing the builder has not
+`report-format: v1`+; v4 is current), and applies nothing the builder has not
 seen. If there is no report, offer to run `plumb-line-audit` first, or accept
-findings pasted in the findings-table shape (Path / Line / Function / Issue /
-Suggested Fix / Principle).
+findings pasted in the findings-table shape (Path / Line / Function / Status /
+Issue / Suggested Fix / Principle; a v3 or earlier table has no Status).
 
 **Validate the report before consuming it.** This skill acts on a contracted
 input, so check the contract. The checker ships inside this plugin

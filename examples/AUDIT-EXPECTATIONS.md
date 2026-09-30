@@ -48,7 +48,7 @@ planted violation blocks the release.
    the auditor that requirement is out of scope.)
 4. Use an identical, plain prompt for every variant — do not coach the auditor
    toward the expected findings. The skill must perform on a plain invocation.
-5. The report MUST open with the `report-format: v3` header block (scope,
+5. The report MUST open with the `report-format: v4` header block (scope,
    `principles-revision`, date, commit) and MUST include the omission-pass table
    (one row per output-producing unit, one column per question; #411) and the
    coverage map — every in-scope file marked `read` / `partial` / `not-read`,

@@ -32,28 +32,39 @@ Graders per case:
   it succeeded, because `tool_used` matches a call's input, never its outcome.
   The pattern needs the interpreter, so a heredoc whose report text names the
   checker does not count.
-- `regex` (with-only): the v3 report header. A format FAIL is scored
+- `regex` (with-only): the v4 report header. A format FAIL is scored
   independently of the findings, per the harness.
-- `regex` (with-only), one per planted violation: a findings-table row whose
-  Path cell names the file, whose Issue cell opens with a `violation` status
-  and whose Principle cell carries the principle's inline name.
+- `regex` (with-only), broken cases, one per planted violation: a
+  findings-table row whose Path cell names the file, whose Status cell is
+  `violation` and whose Principle cell carries the principle's inline name.
   - A needs-review or advisory row does not match, and neither does an
     omission-pass cell or a coverage line.
-  - The status word is the skill's reporting convention, not a contracted
-    field, so a report that words its status differently would be missed.
+  - The Status column is contracted by report-format v4 and checked by the
+    format checker (#530), so the grader reads a field, not a wording habit.
+  - Together these hold the harness's scoring rule for a broken fixture:
+    every planted violation confirmed, none downgraded; extra findings are
+    acceptable.
   - A bare file-name pattern would pass on a run that only listed the
     fixture's files. The first real run did exactly that, crediting a run
     that had audited nothing (#291).
-- `llm` judge, holding the harness's scoring rule: a planted violation
-  downgraded to advisory is a FAIL, and on clean fixtures any confirmed
-  violation is a FAIL.
+- `llm` judge, clean cases only: any confirmed violation on a clean fixture
+  is a FAIL. The broken cases have no judge since #530 (owner decision
+  2026-09-28): the runner's judge failed 7 of 12 with-plugin broken-fixture
+  reports that visibly confirm every planted violation, and passed them when
+  given the same criteria directly (#291). On the broken cases the verdict
+  rests on the mechanical graders above.
 
-**What the with/without delta measures.** Every grader except the `llm` judge
-is with-only, because the no-plugin arm cannot pass it: it has no v3 header,
-no inline principle names and no checker. So the delta comes from the judge
-alone. On 2026-09-28 the runner's judge failed broken-fixture reports that it
-passes when asked directly (#291). Until that is resolved, the delta is not
-evidence of finding accuracy.
+**What to report: each arm's pass rate, and the difference only where it
+means something** (owner decision 2026-09-30, #530). Record each arm's pass
+rate for every case. Record the with-minus-without difference only where the
+same graders score both arms: today that is the clean cases, whose judge runs
+in both, so the difference there measures false confirmed violations with and
+without the plugin. On the broken cases every grader is with-only, because
+the no-plugin arm has no v4 header, no inline principle names and no checker;
+a difference there would come from how the suite is built, not from the
+plugin, so record it as "n/a" with that reason. Graders that run in both arms
+without depending on the report format would give the broken cases a real
+difference (#571); so would a runner judge that can be trusted again.
 
 Each case lists the tools the auditor may use in `prompt.md`
 (`allowed_tools`). The sandbox grants none by default. Without `Read`, the

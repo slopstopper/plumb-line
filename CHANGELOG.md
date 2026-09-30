@@ -124,6 +124,35 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   named, are #520 and #521.
 
 ### Changed
+- **Stricter: the audit report's finding status is a contracted column
+  (`report-format: v3 → v4`), and the eval suite's broken cases are scored
+  mechanically** ([#530](https://github.com/slopstopper/plumb-line/issues/530);
+  `skills/plumb-line-audit`, `scripts/check_report_format.py`, `evals/`).
+  Owner decisions 2026-09-28 and 2026-09-30.
+  - The findings table gains a **Status** column between Function and
+    Issue, holding exactly one of `violation`, `needs-review` or `advisory`.
+    The status used to be a word the Issue cell opened with, the skill's
+    reporting habit rather than a contract, so the eval graders that read it
+    missed a report that worded it otherwise. The skill defines the three
+    words; an adoption gap is `advisory` (the skill had called the spine's
+    adoption gap "a `needs-review` advisory adoption gap").
+  - `check_report_format.py` v6 knows `report-format: v4` and refuses a v4
+    row whose Status is any other word (case and bold are ignored). A report
+    that passed before can now fail. A report is judged by the contract it
+    declares, so a stored v3 report keeps its six columns and still
+    conforms. `plumb-line-bootstrap` moves to v4 in lockstep (it shares only
+    the header); `principles-revision` stays 1. `plumb-line-remediate`
+    accepts a pasted table with or without Status.
+  - The eval suite's broken cases drop the runner's LLM judge
+    (`planted-set-confirmed`): it failed 7 of 12 with-plugin reports that
+    confirm every planted violation, and passed them when given the same
+    criteria directly (#291). Their verdict rests on the `finds-*` graders,
+    which now read the Status column, with the header and checker graders.
+    The clean cases keep their judge.
+  - What a run reports: each arm's pass rate for every case, and the
+    with-minus-without difference only where the same graders score both
+    arms (the clean cases); elsewhere "n/a" with the reason (#571 tracks
+    graders that would make the broken cases' difference real).
 - **The validation and dogfood records are one file per run, with index
   pages** ([#570](https://github.com/slopstopper/plumb-line/issues/570)).
   `docs/validation-results.md` (1,968 lines) and `docs/dogfood.md` (848)
