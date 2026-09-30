@@ -433,8 +433,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   message titles: `LaunderedMeta`, `ManualTaintClear`,
   `CleanSourceOverride`, and `RemarkOfAnUnwrappedValue` (PB4 was
   `RemarkDropsLineage`). All four SARIF descriptions are SPEC §6's patterns
-  as plain text, and PB1's now says its clean sources are the default ones,
-  which both lints let a project change. A test holds the SARIF catalogue
+  as plain text, and PB1's now says its clean sources are the default ones:
+  a project can change them through the JS rule's `sources` option or the
+  Python `check(clean_sources=…)` API (the Python CLI, which the Action
+  runs, has no flag for it). A test holds the SARIF catalogue
   and both lints' message titles to the table. Rule ids are unchanged, so
   existing code-scanning alerts keep matching; only the displayed name and
   description change.

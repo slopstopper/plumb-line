@@ -182,15 +182,21 @@ _ROOT = os.path.join(os.path.dirname(_FX), "..", "..")
 def _spec_pb_table():
     """SPEC §6's PB rows as {id: (name, pattern)}, the pattern as plain text:
     the one table the SARIF catalogue and both lints are checked against
-    (#552). The rows must follow the table's own header and separator, so a
-    table GitHub would not render (fenced, or a broken separator) fails."""
+    (#552). The rows must follow the table's own header and separator, and
+    no fence, comment or <pre> may be left open above the header, so a table
+    GitHub would not render as one fails."""
     with open(os.path.join(_ROOT, "primitives", "SPEC.md"), encoding="utf-8") as fh:
         text = fh.read()
     section = text[text.index("## 6. Static enforcement"):text.index("## 7. Conformance")]
     lines = section.splitlines()
     head = next(i for i, line in enumerate(lines) if line.startswith("| ID ") and "| Name " in line)
-    assert re.fullmatch(r"\|(\s*-{3,}\s*\|){4}", lines[head + 1].strip()), lines[head + 1]
-    assert "```" not in "\n".join(lines[:head]) and "<!--" not in "\n".join(lines[:head])
+    # A GFM delimiter cell: hyphens, with an optional colon at either end.
+    assert re.fullmatch(r"\|(\s*:?-+:?\s*\|){4}", lines[head + 1].strip()), lines[head + 1]
+    above = "\n".join(lines[:head])
+    fences = [line for line in lines[:head] if re.match(r"\s*(```|~~~)", line)]
+    assert len(fences) % 2 == 0, "an unclosed code fence above the PB table"
+    assert above.count("<!--") == above.count("-->"), "an unclosed comment above the PB table"
+    assert above.count("<pre") == above.count("</pre>"), "an unclosed <pre> above the PB table"
     ids, rows = [], {}
     for line in lines[head + 2:]:
         if not line.startswith("|"):
@@ -213,7 +219,13 @@ def _lint_titles():
     py = {pb: re.match(rf"{pb} ([^:]+):", msg).group(1) for pb, msg in lint.MESSAGES.items()}
     with open(os.path.join(_ROOT, "adapters", "js", "provenance-lint", "no-provenance-bypass.cjs"),
               encoding="utf-8") as fh:
-        js = {f"PB{n}": title for n, title in re.findall(r'\bpb(\d+): "PB\1 ([^:]+):', fh.read())}
+        cjs = fh.read()
+    # Only the rule's messages block, and each id once: a stale "pbN:" string
+    # elsewhere in the file (a comment, a legacy table) must not stand in.
+    block = re.search(r"\n\s*messages: \{\n(.*?)\n\s*\},", cjs, re.S).group(1)
+    found = re.findall(r'\bpb(\d+): "PB\1 ([^:]+):', block)
+    assert len(found) == len({n for n, _ in found}), f"a PB message defined twice: {found}"
+    js = {f"PB{n}": title for n, title in found}
     return {"python": py, "js": js}
 
 

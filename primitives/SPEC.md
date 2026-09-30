@@ -566,7 +566,8 @@ which a code-scanning viewer shows beside a finding, and both reference lints
 begin each message with the ID and the name in words (`PB2 manual taint
 clear: …`). A test holds the SARIF catalogue's names and descriptions and both
 lints' message titles to this table (#552). Another lint SHOULD use the same
-names, so a finding reads the same whichever lint reported it.
+names, in its SARIF log and, in words, in its message titles, so a finding
+reads the same whichever lint reported it.
 
 Reference implementations: `adapters/js/provenance-lint/` (an ESLint rule,
 `no-provenance-bypass`) and `adapters/python/provenance_lint.py` (a stdlib-`ast`
