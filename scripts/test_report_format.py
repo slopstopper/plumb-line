@@ -301,7 +301,7 @@ def test_record_row_with_wrong_cell_count_is_flagged():
 
 
 def test_bootstrap_report_is_header_only_by_design():
-    """Bootstrap shares the v3 header block and nothing else — glossary,
+    """Bootstrap shares the audit header block and nothing else — glossary,
     findings table and coverage map are audit-specific. Without this the
     checker failed a conformant bootstrap report three times over, and the
     harness runs it on every report."""
@@ -1095,5 +1095,21 @@ def test_a_v4_status_may_be_bold_or_capitalised(status):
 
 
 def test_checker_version_moved_for_the_status_rule():
-    assert int(crf.CHECKER_VERSION) >= 6
+    assert crf.CHECKER_VERSION == "6"
     assert "v4" in crf.KNOWN_REPORT_VERSIONS and "v3" in crf.KNOWN_REPORT_VERSIONS
+
+
+def test_bootstrap_and_remediate_move_with_the_audit_contract():
+    # The lockstep the CHANGELOG claims (#530 review): bootstrap shares the
+    # audit header, and remediate names the current audit contract.
+    current = max(crf.KNOWN_REPORT_VERSIONS)
+    boot = _skill("plumb-line-bootstrap")
+    assert re.search(r"`report-format:\s*%s`" % current, boot), "bootstrap header is not " + current
+    assert "shares only the %s **header block**" % current in boot
+    assert "%s is current" % current in _skill("plumb-line-remediate")
+
+
+@pytest.mark.parametrize("status", ["`violation`", "**`advisory`**", "*needs-review*"])
+def test_a_v4_status_may_sit_in_a_code_span_or_italics(status):
+    text = VALID_REPORT.replace("| `load_scores` | violation |", f"| `load_scores` | {status} |")
+    assert crf.check_report(text, PRINCIPLES) == []

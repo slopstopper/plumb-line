@@ -26,7 +26,7 @@ survive the strip.
 
 Graders per case:
 - `tool_used` (with-only): the audit skill was invoked. This shows whether the
-  plugin fired; it is not part of the score.
+  plugin fired; the no-plugin arm has no plugin skill to invoke.
 - `tool_used` (with-only): a Python interpreter **invoked** the report-format
   checker, as the audit skill instructs. It proves the call was made, not that
   it succeeded, because `tool_used` matches a call's input, never its outcome.
@@ -41,6 +41,8 @@ Graders per case:
     omission-pass cell or a coverage line.
   - The Status column is contracted by report-format v4 and checked by the
     format checker (#530), so the grader reads a field, not a wording habit.
+    Grader and checker accept the same spellings: the word in any case, with
+    bold, italics or a code span around it (`scripts/test_eval_graders.py`).
   - Together these hold the harness's scoring rule for a broken fixture:
     every planted violation confirmed, none downgraded; extra findings are
     acceptable.
@@ -50,19 +52,24 @@ Graders per case:
 - `llm` judge, clean cases only: any confirmed violation on a clean fixture
   is a FAIL. The broken cases have no judge since #530 (owner decision
   2026-09-28): the runner's judge failed 7 of 12 with-plugin broken-fixture
-  reports that visibly confirm every planted violation, and passed them when
-  given the same criteria directly (#291). On the broken cases the verdict
-  rests on the mechanical graders above.
+  runs, each on a report that visibly confirms every planted violation, and
+  where the same criteria and evidence were given directly to haiku and
+  sonnet (js-broken, and py-broken run 2) both passed them (#291). On the
+  broken cases the verdict rests on the mechanical graders above.
 
 **What to report: each arm's pass rate, and the difference only where it
 means something** (owner decision 2026-09-30, #530). Record each arm's pass
-rate for every case. Record the with-minus-without difference only where the
-same graders score both arms: today that is the clean cases, whose judge runs
-in both, so the difference there measures false confirmed violations with and
-without the plugin. On the broken cases every grader is with-only, because
-the no-plugin arm has no v4 header, no inline principle names and no checker;
-a difference there would come from how the suite is built, not from the
-plugin, so record it as "n/a" with that reason. Graders that run in both arms
+rate for every case. Record the with-minus-without difference only for a
+grader that scores both arms: today that is the clean cases'
+`zero-confirmed-violations` judge, so the difference is that grader's pass
+rate with the plugin minus without it, not the case's. It mostly measures
+confirmed violations the auditor reported on a clean fixture, but the judge's
+criteria use the plugin's vocabulary (advisory adoption gaps, needs-review),
+which the no-plugin arm is never taught, so it reflects framing too. Every
+other grader is with-only, because the no-plugin arm has no audit skill, no
+v4 header, no inline principle names and no checker; a difference on those
+would come from how the suite is built, not from the plugin, so record it as
+"n/a" with that reason, as for the broken cases. Graders that run in both arms
 without depending on the report format would give the broken cases a real
 difference (#571); so would a runner judge that can be trusted again.
 

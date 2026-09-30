@@ -2,7 +2,7 @@
 type: regex
 match: contains
 target: last_message
-pattern: '^\|(?:[^|\n\\]|\\.)*source\.py(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|\s*(?:\*\*)?\s*[Vv]iolation\s*(?:\*\*)?\s*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*P8 — State-first lineage(?:[^|\n\\]|\\.)*\|'
+pattern: '^\|(?:[^|\n\\]|\\.)*source\.py(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|\s*[*`]*\s*[Vv][Ii][Oo][Ll][Aa][Tt][Ii][Oo][Nn]\s*[*`]*\s*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*P8 — State-first lineage(?:[^|\n\\]|\\.)*\|'
 flags: m
 arm: with-only
 ---

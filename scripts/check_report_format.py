@@ -446,7 +446,7 @@ def _check_omission_table(text, issues):
     if cols is None:
         if not re.search(r"^%s\s*$" % re.escape(NO_OUTPUT_UNITS), text, re.M):
             issues.append(
-                f"missing the omission-pass table — REQUIRED on a v3 audit report: a "
+                f"missing the omission-pass table — REQUIRED on a v3 or later audit report: a "
                 f"table headed '| {OMISSION_FIRST_COLUMN} | ...' with one row per "
                 f"output-producing unit (or '{NO_OUTPUT_UNITS}' on its own line)")
         return
@@ -558,7 +558,7 @@ def check_report(text, principles, ruleset_revision=None):
     values = _check_header(_header_lines(text), REPORT_HEADER_KEYS, "report-format",
                            KNOWN_REPORT_VERSIONS, issues, ruleset_revision)
 
-    # A BOOTSTRAP report shares the v3 header block and nothing else — the
+    # A BOOTSTRAP report shares the audit header block and nothing else — the
     # glossary, findings table and coverage map are audit-specific
     # (skills/plumb-line-bootstrap/SKILL.md, "Step 5 — Report"). It is
     # identified by the `adapter:` key the bootstrap header adds. Without this
@@ -599,7 +599,9 @@ def check_report(text, principles, ruleset_revision=None):
                         f"findings row {n} has {len(row)} cells, expected "
                         f"{len(expected)} — a shifted row loses its Principle")
                 elif level >= 4:
-                    status = row[expected.index("Status")].strip().strip("*").strip().lower()
+                    # Bold, italics or a code span around the word, as the
+                    # skill itself writes it; the eval graders read the same.
+                    status = row[expected.index("Status")].strip().strip("*`").strip().lower()
                     if status not in STATUSES:
                         issues.append(
                             f"findings row {n} Status {row[expected.index('Status')]!r} is not one "

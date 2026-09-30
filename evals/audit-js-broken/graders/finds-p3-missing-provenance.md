@@ -2,7 +2,7 @@
 type: regex
 match: contains
 target: last_message
-pattern: '^\|(?:[^|\n\\]|\\.)*gateway\.js(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|\s*(?:\*\*)?\s*[Vv]iolation\s*(?:\*\*)?\s*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*P3 — Confidence \+ provenance(?:[^|\n\\]|\\.)*\|'
+pattern: '^\|(?:[^|\n\\]|\\.)*gateway\.js(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|\s*[*`]*\s*[Vv][Ii][Oo][Ll][Aa][Tt][Ii][Oo][Nn]\s*[*`]*\s*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*P3 — Confidence \+ provenance(?:[^|\n\\]|\\.)*\|'
 flags: m
 arm: with-only
 ---

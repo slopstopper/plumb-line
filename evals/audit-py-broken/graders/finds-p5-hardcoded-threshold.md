@@ -2,7 +2,7 @@
 type: regex
 match: contains
 target: last_message
-pattern: '^\|(?:[^|\n\\]|\\.)*aggregate\.py(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|\s*(?:\*\*)?\s*[Vv]iolation\s*(?:\*\*)?\s*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*P5 — Injectable priors(?:[^|\n\\]|\\.)*\|'
+pattern: '^\|(?:[^|\n\\]|\\.)*aggregate\.py(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|\s*[*`]*\s*[Vv][Ii][Oo][Ll][Aa][Tt][Ii][Oo][Nn]\s*[*`]*\s*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*\|(?:[^|\n\\]|\\.)*P5 — Injectable priors(?:[^|\n\\]|\\.)*\|'
 flags: m
 arm: with-only
 ---

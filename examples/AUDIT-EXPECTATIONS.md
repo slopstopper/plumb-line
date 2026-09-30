@@ -105,7 +105,7 @@ it is unmet.
 
 | Fixture              | Expected               | Allowed (advisory only)                                                                    |
 | -------------------- | ---------------------- | ------------------------------------------------------------------------------------------ |
-| js-payments-service  | 0 confirmed violations | P7 (no contracts), P9 (no baseline) as adoption gaps; spine stub-rejection as needs-review |
+| js-payments-service  | 0 confirmed violations | P7 (no contracts), P9 (no baseline) as adoption gaps; spine stub-rejection as an advisory adoption gap or needs-review |
 | python-data-pipeline | 0 confirmed violations | P7, P9 as adoption gaps; binary engine confidence as needs-review                          |
 | test-honesty         | 0 confirmed violations; no check-10 finding on these six items: the two unit tests' mocks, the LOY-15 fix, the strict REQ-7 and REQ-8 deferrals, and `tests/test_rates.py` (REQ-10's mocked-only tests) | the REQ-7 and REQ-8 deferrals named as open requirements (advisory, not as check-10 findings); REQ-10 having no test against the real rates service, as advisory; the sandbox endpoint's values labelled `partner` as needs-review; P7, P8, P9 as adoption gaps |
 
@@ -116,7 +116,8 @@ each fixture's README "Scope" section). A confirmed violation on `clean/` is a
 FAIL — either the skill over-claimed or the fixture regressed. `test-honesty`
 adds one condition: a check-10 finding, violation or needs-review, on any
 of the six items its row names is also a FAIL (naming a deferral as an open
-requirement, outside check 10, is allowed; a label that mixes advisory and
+requirement, outside check 10, is allowed; in a report-format v4 report the
+Status cell decides, and in an earlier one a label that mixes advisory and
 needs-review, such as "advisory (needs-review)", counts as needs-review),
 since that
 fixture's `clean/` exists to show the check does not reach ordinary test

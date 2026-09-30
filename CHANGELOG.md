@@ -124,7 +124,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   named, are #520 and #521.
 
 ### Changed
-- **Stricter: the audit report's finding status is a contracted column
+- **The audit report's finding status is a contracted column
   (`report-format: v3 → v4`), and the eval suite's broken cases are scored
   mechanically** ([#530](https://github.com/slopstopper/plumb-line/issues/530);
   `skills/plumb-line-audit`, `scripts/check_report_format.py`, `evals/`).
@@ -135,18 +135,24 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     reporting habit rather than a contract, so the eval graders that read it
     missed a report that worded it otherwise. The skill defines the three
     words; an adoption gap is `advisory` (the skill had called the spine's
-    adoption gap "a `needs-review` advisory adoption gap").
+    adoption gap "a `needs-review` advisory adoption gap"), and the js-clean
+    judge and answer key accept it as advisory or needs-review.
+    `invoked-audit` is marked with-only, as the suite's README described it.
+    The README's showcase stays the committed v3 report, noted as such; a v4
+    run replaces it at the release harness.
   - `check_report_format.py` v6 knows `report-format: v4` and refuses a v4
-    row whose Status is any other word (case and bold are ignored). A report
-    that passed before can now fail. A report is judged by the contract it
-    declares, so a stored v3 report keeps its six columns and still
-    conforms. `plumb-line-bootstrap` moves to v4 in lockstep (it shares only
+    row whose Status is any other word (case, bold, italics and a code span
+    around the word are ignored, as in the eval graders). A report is judged
+    by the contract it declares, so a stored v1 to v3 report gets the same
+    verdict as before; what is new is that the skill emits v4, and a v4 row
+    without a valid Status fails. `plumb-line-bootstrap` moves to v4 in lockstep (it shares only
     the header); `principles-revision` stays 1. `plumb-line-remediate`
     accepts a pasted table with or without Status.
   - The eval suite's broken cases drop the runner's LLM judge
-    (`planted-set-confirmed`): it failed 7 of 12 with-plugin reports that
-    confirm every planted violation, and passed them when given the same
-    criteria directly (#291). Their verdict rests on the `finds-*` graders,
+    (`planted-set-confirmed`): it failed 7 of 12 with-plugin runs, each on a
+    report that confirms every planted violation, and where the same criteria
+    were given directly (js-broken, and py-broken run 2) it passed them
+    (#291). Their verdict rests on the `finds-*` graders,
     which now read the Status column, with the header and checker graders.
     The clean cases keep their judge.
   - What a run reports: each arm's pass rate for every case, and the
