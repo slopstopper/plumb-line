@@ -82,8 +82,8 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   moving a code file into `docs/` is judged by the code path it removes, and
   it lists submodule bumps even where `diff.ignoreSubmodules` or a
   submodule's `ignore` setting would hide them. A detached HEAD is an unknown branch: a code commit there
-  blocks, and docs pass. That includes a commit made by hand at a rebase
-  stop, even on a feature branch. A merge, cherry-pick or revert that stops
+  blocks, and docs pass. A commit made by hand at a rebase stop is judged
+  by the branch being rebased instead (#547, above). A merge, cherry-pick or revert that stops
   and is finished with `git commit` or `--continue` is judged; one that
   completes on its own runs no pre-commit hook. `adapters/commit-hook-cases.json` holds its cases, which both
   languages run against a real temporary repository. Bootstrap's Step 4
@@ -155,8 +155,9 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   - the check takes **a marked value only**, as `guard` does; walking a
     structure of marked values is to be assessed in #544.
 
-  The check is `guard` with its defaults, so its refusals are the 40 `guard`
-  rows; both languages fail with the same message. Only the pytest plugin
+  The check is `guard` with its defaults, so its refusals are the `guard`
+  rows (52 at this release; 40 when ADR-0021 was written); both languages
+  fail with the same message. Only the pytest plugin
   imports pytest and the vitest subpath never imports vitest, so the core
   stays dependency-free. Neither is in the plugin's bundled copy. Stubbed
   globals, local fake servers and CI provenance, which #123's body also
