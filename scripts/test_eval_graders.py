@@ -222,3 +222,189 @@ def test_javascript_reads_the_header_grader_as_python_does():
                          capture_output=True, text=True, check=True).stdout
     for name, js in zip(names, json.loads(out)):
         assert js == _search(p, OPENINGS[name]), name
+
+
+# --- no-confirmed-violations: the clean cases' mechanical grader (#591) ------
+#
+# The runner's llm judge is out of scoring until it records its reasoning and
+# passes a calibration set (#591, owner decision 2026-09-30). The clean cases'
+# grader is inverted (`match: not_contains`), so a row it fails to see would
+# PASS the case: it must fail closed (#591 review). It matches any findings
+# row, read as the checker reads one (a line that starts and ends with `|`
+# after whitespace, split on unescaped pipes into seven cells, its Principle
+# cell opening with a code), whose Status is anything but `needs-review` or
+# `advisory` in a spelling the checker accepts. Known residual: a findings row
+# whose Principle cell does not open with a code is not seen; every findings
+# row in the committed reports opens with one (pinned below).
+
+CLEAN = sorted(glob.glob(os.path.join(_ROOT, "evals", "*-clean", "graders", "no-confirmed-violations.md")))
+_DELIVERED = sorted(glob.glob(os.path.join(_ROOT, "docs", "records", "evals", "2026-09-30", "*-with-*.md")))
+_OK = ["needs-review", "advisory", "Needs-Review", "ADVISORY", "**needs-review**", "`advisory`",
+       "*needs-review*", "**`advisory`**", " advisory ", "needs-review\u00a0"]
+_NOT_OK = CONFIRMED + ["confirmed", "violation (P3)", "violation:", "violation ✓", "", "needs review",
+                       "advisory.", "tbd", "\u2003violation", "violation\u00a0", "\ufeffadvisory"]
+
+
+def _front(path):
+    text = open(path, encoding="utf-8").read()
+    return dict(re.findall(r"^(\w+): (.*)$", text.split("---")[1], re.M))
+
+
+def _clean_row(status, principle="P3 — Confidence + provenance", indent="", issue="an issue"):
+    return f"{indent}| `src/foo.py` | 42 | `f` | {status} | {issue} | a fix | {principle} |"
+
+
+def _statuses_the_checker_accepts(status):
+    issues = crf.check_report(_REPORT.replace("STATUS", status), PRINCIPLES)
+    return not [i for i in issues if "Status" in i]
+
+
+def test_two_clean_graders_share_one_pattern_and_invert_it():
+    assert len(CLEAN) == 2, CLEAN
+    assert len({_pattern(p) for p in CLEAN}) == 1
+    for p in CLEAN:
+        front = _front(p)
+        assert (front["type"], front["match"], front["flags"], front["arm"], front["target"]) == \
+            ("regex", "not_contains", "m", "with-only", "last_message"), front
+
+
+def test_no_llm_judge_grader_is_scored():
+    judged = [p for p in glob.glob(os.path.join(_ROOT, "evals", "*", "graders", "*.md"))
+              if _front(p).get("type") == "llm"]
+    assert judged == []
+
+
+@pytest.mark.parametrize("status", _OK)
+def test_a_needs_review_or_advisory_row_passes(status):
+    assert _statuses_the_checker_accepts(status), status
+    assert not _matches(_pattern(CLEAN[0]), "text\n" + _clean_row(status) + "\nmore\n"), status
+
+
+@pytest.mark.parametrize("status", _NOT_OK)
+def test_any_other_status_fails_the_case(status):
+    # Fail closed: a violation, and any status the checker would refuse, both
+    # fail. The checker does not run inside the suite, so a status it would
+    # reject must not pass here either.
+    assert _matches(_pattern(CLEAN[0]), "text\n" + _clean_row(status) + "\nmore\n"), status
+
+
+@pytest.mark.parametrize("row", [
+    _clean_row("violation", indent="  "),                    # indented, as the checker strips
+    _clean_row("violation", indent="\t"),
+    _clean_row("violation", issue="C:\\\\|x"),               # `\\|` inside a cell: not a split
+    _clean_row("violation", issue="a \\| b"),                # an escaped pipe: not a split
+    _clean_row("violation", principle="`P3 — Confidence + provenance`"),
+    _clean_row("violation", principle="spine — null-result expressibility"),
+    _clean_row("violation") + "\r",                          # CRLF
+])
+def test_the_review_probes_are_caught(row):
+    assert _matches(_pattern(CLEAN[0]), "text\n" + row + "\nmore\n"), row
+
+
+@pytest.mark.parametrize("row", [
+    _clean_row("violation", principle="`P3` — Confidence + provenance"),     # code in backticks
+    _clean_row("violation", principle="(P3 — Confidence + provenance)"),
+    _clean_row("violation", principle="Spine — null-result expressibility"),
+    _clean_row("violation", principle="spine – null-result expressibility"),  # en dash
+    _clean_row("violation", principle="P3 - Confidence + provenance"),       # hyphen
+    "|" + _clean_row("violation"),                                          # doubled leading pipe
+    _clean_row("violation") + "|",                                          # doubled trailing pipe
+    _clean_row("violation")[:-1] + "\\|",                                 # escaped final pipe
+])
+def test_the_round_two_probes_are_caught(row):
+    assert _matches(_pattern(CLEAN[0]), "text\n" + row + "\nmore\n"), row
+
+
+@pytest.mark.parametrize("row", [
+    _clean_row("violation", principle=""),
+    _clean_row("violation", principle="n/a"),
+    _clean_row("violation", principle="Confidence + provenance"),
+    _clean_row("violation", principle="_P3 — Confidence + provenance_"),
+    _clean_row("violation", principle="[P3 — Confidence + provenance](x.md)"),
+    _clean_row("violation", principle="“P3 — Confidence + provenance”"),
+    _clean_row("violation", principle="see P3 — Confidence + provenance"),
+])
+def test_known_residual_a_principle_cell_without_a_code_is_not_seen(row):
+    # Documented in the grader and the README: a findings row is known by its
+    # Principle cell opening with a code. If this starts failing, the
+    # residual is gone: update the docs.
+    assert not _matches(_pattern(CLEAN[0]), "text\n" + row + "\nmore\n"), row
+
+
+def test_known_residual_an_omission_row_opening_its_last_cell_with_a_code_fails_the_case():
+    # The safe-side residual: a false FAIL, never a false PASS. Documented.
+    row = "| `f` | yes | yes | no | no | yes | P9 — Golden baseline + explain-the-drift: none |"
+    assert _matches(_pattern(CLEAN[0]), "text\n" + row + "\nmore\n")
+
+
+@pytest.mark.parametrize("line", [
+    "| Path | Line | Function | Status | Issue | Suggested Fix | Principle |",
+    "| ---- | ---- | -------- | ------ | ----- | ------------- | --------- |",
+    "| `f` | yes | NO — violation (P3 — Confidence + provenance) | no | no | yes | no |",
+    "| Output | Provenance | Confidence | Lineage | Contract | Null-expressible | Baseline |",
+    "| `src/foo.py` | 42 | `f` | violation: an issue | a fix | P3 — Confidence + provenance |",   # v3, six cells
+    "coverage: 1/1 files read | violation | x",
+])
+def test_no_non_findings_line_fails_the_case(line):
+    assert not _matches(_pattern(CLEAN[0]), "text\n" + line + "\nmore\n"), line
+
+
+def test_the_delivered_clean_reports_pass_it():
+    # The with-plugin clean reports the 2026-09-30 run delivered: 0 violations
+    # each, by their own summary line.
+    assert len(_DELIVERED) == 6, _DELIVERED
+    for path in _DELIVERED:
+        text = open(path, encoding="utf-8").read()
+        assert re.search(r"\b0 violations\b", text), path
+        assert not _matches(_pattern(CLEAN[0]), text), path
+
+
+def test_every_committed_findings_row_opens_its_principle_with_a_code():
+    # The known residual (a row whose Principle cell does not open with a code
+    # is not seen) does not occur in the reports this suite is held to.
+    for path in _DELIVERED:
+        cols, rows = crf._table_columns(open(path, encoding="utf-8").read(), crf.FINDINGS_COLUMNS)
+        assert cols == crf.FINDINGS_COLUMNS, path
+        for row in rows:
+            assert re.match(r"^[*`]*\s*(P[1-9]|spine)\s*—", row[6].strip()), (path, row[6])
+
+
+def test_flipping_any_row_of_a_delivered_report_to_violation_fails_it():
+    # The positive direction on real reports: every findings row, flipped from
+    # its needs-review or advisory status to violation, is caught.
+    flips = 0
+    for path in _DELIVERED:
+        text = open(path, encoding="utf-8").read()
+        lines = text.split("\n")
+        for i, line in enumerate(lines):
+            cells = line.split("|")
+            if len(cells) == 9 and cells[4].strip().strip("*`").strip().lower() in ("needs-review", "advisory"):
+                flipped = lines[:i] + ["|".join(cells[:4] + [" violation "] + cells[5:])] + lines[i + 1:]
+                assert _matches(_pattern(CLEAN[0]), "\n".join(flipped)), (path, line)
+                flips += 1
+    assert flips >= 20, flips
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not on PATH: the JavaScript half is not checked")
+def test_javascript_reads_the_clean_grader_as_python_does():
+    p = _pattern(CLEAN[0])
+    texts = ["text\n" + _clean_row(s) + "\nmore\n" for s in _OK + _NOT_OK]
+    texts += [open(path, encoding="utf-8").read() for path in _DELIVERED]
+    src = ("let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const a=JSON.parse(d);"
+           "process.stdout.write(JSON.stringify(a.t.map(t=>new RegExp(a.p,'m').test(t))))})")
+    out = subprocess.run(["node", "-e", src], input=json.dumps({"p": p, "t": texts}),
+                         capture_output=True, text=True, check=True).stdout
+    for text, js in zip(texts, json.loads(out)):
+        assert js == _matches(p, text), text[:80]
+
+
+def test_the_clean_graders_are_the_builders_pattern():
+    # The one-line pattern is built from commented parts in
+    # scripts/eval_clean_grader.py; a hand edit to a grader file, or a change
+    # to the builder not written out (`--write`), fails here.
+    spec = importlib.util.spec_from_file_location("ecg", os.path.join(_ROOT, "scripts", "eval_clean_grader.py"))
+    ecg = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ecg)
+    assert sorted(ecg.GRADERS) == CLEAN
+    for path in CLEAN:
+        assert _pattern(path) == ecg.pattern(), path
