@@ -17,7 +17,8 @@ One case per fixture variant, mirroring the blind protocol:
 | `audit-py-clean` | `examples/python-data-pipeline/clean` | zero confirmed violations; P7/P9 advisory only |
 
 Each case: `runs: 3`, set in its `prompt.md` front matter (the harness requires
->=2 independent auditors per broken fixture), an identical plain prompt carrying
+>=2 independent auditors per broken fixture), an identical prompt (it names
+the plumb-line audit skill; #571 plans one that names no skill) carrying
 the declared architecture from protocol step 3, and a `scaffold.sh` that stages
 the fixture per protocol step 2 (answer keys deleted, every line naming a violation stripped
 case-insensitively, strip verified before dispatch). The scaffold scripts are
@@ -35,11 +36,12 @@ Graders per case:
 - `regex` (with-only): the v4 report header opens the message, as the
   checker requires (leading blank and fence lines allowed; held to the
   checker by `scripts/test_eval_graders.py`). Until the 2026-09-30 run it
-  matched the header anywhere (`docs/records/evals/2026-09-30.md`). Since
-  #591 every grader in every case is with-only, so the runner scores them
-  all ("if every grader in a case is in the excluded set, they're scored
-  normally instead", <https://code.claude.com/docs/en/plugin-evals.md>):
-  the header is gated on the clean cases too, as it was on the broken
+  matched the header anywhere (`docs/records/evals/2026-09-30.md`). Every
+  grader is scored: with `--ablation none` (below) one arm runs and
+  nothing is excluded, and in a two-arm run, since #591 made every grader
+  with-only, "if every grader in a case is in the excluded set, they're
+  scored normally instead" (<https://code.claude.com/docs/en/plugin-evals.md>).
+  So the header is gated on the clean cases too, as it was on the broken
   cases (owner decision 2026-09-30, recorded on #591). Until #591 the
   clean cases scored only the judge, so their format was recorded, not
   gated (#530). Clean-case pass rates from before and after #591 do not
@@ -92,15 +94,18 @@ Graders per case:
   cases it gave no reasoning for any vote (the 2026-09-30 runs, #591).
 
 **Only the plugin arm runs, for now** (owner decision 2026-10-01, #571).
-The runner adds a no-plugin arm by default, as a baseline. As this suite
+For this suite the runner adds a no-plugin arm by default, as a baseline.
+As this suite
 is built, that baseline cannot pass:
 - the prompt tells it to use the plumb-line audit skill, which it does
   not have;
-- every grader reads something only the plugin produces: the v4 header,
-  the Status column, inline principle names, the checker, the Skill call;
+- every grader but one reads something only the plugin produces (the v4
+  header, the Status column, inline principle names, the checker, the
+  Skill call); the clean cases' Status grader can pass without a Status
+  column, but the others in the same case cannot;
 - with every grader plugin-only, the runner scores them all in both arms.
 
-So the no-plugin arm's result was fixed before it started, and the
+So the no-plugin arm could not pass a case, whatever its audit was like, and the
 with-minus-without difference measured how the suite is built, not the
 plugin. The runner's "Plugin effect" headline came from the same
 construction. Runs therefore pass `--ablation none`, and report the
@@ -111,7 +116,7 @@ produce) is #571, for v0.13.0.
 Earlier runs ran both arms:
 - **2026-09-28.** Its no-plugin figures were set partly by `invoked-audit`,
   which then had no `arm:` key and scored the no-plugin arm too.
-- **The 2026-09-30 runs.** Their records give each arm's pass rate, and
+- **The 2026-09-30 run and its re-run.** Their records give each arm's pass rate, and
   record the differences as n/a (suite construction), or as the judge's
   verdict, not relied on (#530, #591).
 
@@ -136,7 +141,8 @@ Claude Code configuration are unreadable.
 
 ```sh
 claude plugin eval --scaffold --allow-tools Bash --no-publish --keep-temp \
-    --ablation none --max-cost-usd 15 --json results.json --report report.html
+    --ablation none --trust-plugin --max-cost-usd 15 --json results.json \
+    --report report.html
 claude plugin eval --scaffold --allow-tools Bash --no-publish --keep-temp \
     --ablation none --case "audit-py-*"   # one fixture
 ```
