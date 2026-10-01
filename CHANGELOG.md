@@ -9,821 +9,475 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Breaking
+Changes that can make code, hooks, reports or tooling that worked on v0.11.5
+throw, raise, block, fail or give different output. Under this project's
+pre-1.0 rule a minor release can carry a break. "May break" marks a change
+only some callers would notice. Terms: a *handed envelope* is one your code
+receives already built (for example parsed from JSON) instead of making it
+with `mark`, `makeMeta` or `derive`; a *leaf* is a value with no parents; a
+*law field* is a step field the combination law reads (`of`, `source`,
+`confidence`, `derivedFromMock`, `confidenceScore`, `id`); a *lineage hole* is
+an empty slot in a sparse JS lineage array.
+
+- **`mark()` / `makeMeta()` refuse a `confidence` or `source` outside its
+  ladder** ([#443](https://github.com/slopstopper/plumb-line/issues/443);
+  ADR-0019). Throws in JS, `ValueError` in Python; both messages start
+  `confidence must be one of none, low, medium, high; got 0` (the quoted value
+  can differ in form). Same for a `source` outside `STATUS` and a `derive()`
+  override. Python refuses `None` rather than defaulting it (`source` has no
+  default either: #177). Before, such an envelope passed `auditMeta` (`"HIGH"`
+  passed `validateEnvelope` too) and was read as the weakest rung. **Do:**
+  pass a rung exactly as the ladder spells it (`"high"`, not `"HIGH"`); if you
+  pass a number as `confidence`, move it to `confidenceScore` and give
+  `confidence` a rung. Handed envelopes (parsed JSON) are unaffected: combine
+  and the audit still tolerate unknown values (SPEC §2, pinned by a `combine`
+  row).
+- **Leaf constructors require `source`**
+  ([#177](https://github.com/slopstopper/plumb-line/issues/177); ADR-0019
+  amendment). `mark(value)`, `makeMeta({})` / `make_meta()`, and Python
+  `PlumbDataFrame(df)` / `PlumbArray(arr)` defaulted it to `"derived"`, which
+  is untrue for a leaf and failed the audit as `unreproducible`. Now: `source
+  is required (one of unavailable, mock, inferred, fallback, semiReal,
+  derived, real)` (throw in JS, `ValueError` in Python). **Do:** pass the
+  `source` your value came from. `confidence` still defaults to `"none"`. JS
+  `derive`: an override of `source: undefined` is no override, so `derive([],
+  f, { source: undefined })` gives `"unavailable"` where it gave `"derived"`.
+  Pinned by three `construct` rows.
+- **`derive` refuses an input that is not a marked value**
+  ([#550](https://github.com/slopstopper/plumb-line/issues/550); SPEC §2).
+  Both languages throw `TypeError` `derive: input N is not a marked value
+  (mark it first)` before the function runs. JS had combined an unmarked
+  object or `null` as an unknown input (headline `derivedFromMock: false`) and
+  thrown an unrelated `TypeError` on a number; Python raised an unrelated
+  `KeyError` or `TypeError` on all three. Also refused: JS `Map`, `Date` or
+  class instance holding `value`; a Python non-`dict` `Mapping`
+  (`MappingProxyType`); `inputs` that are not a list, with `derive: inputs
+  must be a list of marked values`. A generator is now read once into a list;
+  it was combined as zero inputs, so its mock values came out `unavailable`
+  and passed the guard. **Do:** `mark` every input.
+- **A non-boolean `derivedFromMock` is refused, and no longer taints**
+  ([#555](https://github.com/slopstopper/plumb-line/issues/555), part of
+  #525). `makeMeta`/`make_meta`, `mark` and `derive`'s override refuse it with
+  `derivedFromMock must be a boolean`; `null` takes the default. Only boolean
+  `true` taints, in `taints()`, the audit and `derive`. **May break readers:**
+  a handed flag of `1`, `"true"` or `[1]` tainted in v0.11.5; now `taints()`
+  returns false and combine's headline stays `false`. Only the egress guard
+  refuses such an envelope (as invalid, not mock). **Do:** pass a boolean
+  `derivedFromMock`, or leave it out; where a handed envelope may carry a
+  non-boolean flag, run it through `guard` instead of relying on `taints()`.
+- **The boundary guard blocks an import when no layers are configured**
+  ([#516](https://github.com/slopstopper/plumb-line/issues/516)). With
+  `PLUMBLINE_CFG` unset, `{}`, or holding only `direction` or branch-guard
+  keys, it allowed every import as "same or unscoped layer"; both twins now
+  exit 2 with "no layers configured". An edit with no import still allows;
+  `layers: []` still blocks (#471). **Do:** set `layers` in `PLUMBLINE_CFG`.
+  Exported `decide()` blocks the same way for empty, undefined, `null` or
+  `None` `layers` (Python's `layers` argument is still required), and blocks
+  `layers` that are not a list of non-empty strings with "layers must be a
+  list of layer names" (these crashed, or let an import pass). Python still
+  accepts a tuple. Matches the pre-commit gate's "no gates configured" (#476).
+- **The report checker rejects slash- or hyphen-joined principle codes
+  (checker v5)**
+  ([#527](https://github.com/slopstopper/plumb-line/issues/527);
+  `scripts/check_report_format.py`). `P1/P2 coverage`, `a P6-adjacent
+  advisory`, `P1/P2.` and `P6-adjacent.` fail in audit reports and remediation
+  records; paths such as `src/P1/P2/x.py`, `a/P1/b`, `P1/P2.md`,
+  `P3-loader.py` and `P3-loader-v2.py` do not. **A report that passed before
+  can now fail**; a `format-validation: … v5 — clean` stamp names the rule
+  set. The audit skill had modelled both forms (#514). **Do:** write each code
+  with its name (`P1 — Source-truth layer`), not joined to another code, and
+  re-run the checker on stored reports.
+- **Audit reports are `report-format: v4`, with a Status column (checker v6)**
+  ([#530](https://github.com/slopstopper/plumb-line/issues/530)). May break
+  anything that parses the findings table. A v4 row whose Status is not
+  `violation`, `needs-review` or `advisory` fails; stored v1 to v3 reports get
+  the verdict they got before. **Do:** read a finding's status from the Status
+  column, not from the first word of the Issue cell. Details under
+  **Changed**.
+- **Handed envelopes: stricter guard, changed combine output**
+  ([#525](https://github.com/slopstopper/plumb-line/issues/525)). May break:
+  the guard refuses a lineage step with no `source` as an invalid envelope (no
+  `confidence` still counts as `none`). Step ids change for a non-string
+  `confidence` or `source`; JS steps record `null` (was `undefined`) for a
+  missing one and keep an array step an array; combine's score is `0`, never
+  `-0`. JS now sorts input ids by code point (it sorted by UTF-16 unit), which
+  can change ids for some string inputs. **Do:** give every lineage step you
+  hand in a `source`; do not compare stored step ids made from such inputs
+  with new ones. Details under **Fixed**.
+- **Unknown or over-claimed sources are named and refused**
+  ([#551](https://github.com/slopstopper/plumb-line/issues/551),
+  [#556](https://github.com/slopstopper/plumb-line/issues/556),
+  [#553](https://github.com/slopstopper/plumb-line/issues/553)). May break:
+  `combine` omits `weakestSource` when any ancestor's source is unknown, so a
+  consumer filtering on it loses the known floor; a relabelled cleaner
+  `source` is flagged `source over-claim:` and refused by the guard, with
+  `noMock: false` too; the audit returns new `unknown source:` and `malformed
+  taint flag:` issues; the guard refuses a leaf whose hand-set `weakestSource`
+  is cleaner than its `source` (`mark` still accepts it; the audit flags it).
+  What you see: `weakestSource` absent where it used to hold a value, and
+  `ProvenanceRefused` from `guard` for a relabelled value. **Do:** treat a
+  missing `weakestSource` as unknown; do not override `derive`'s `source` with
+  one cleaner than its inputs; do not hand-set `weakestSource` on `mark`.
+  Details under **Fixed**.
+- **JS: inherited taint is kept, and lineage holes are refused**
+  ([#548](https://github.com/slopstopper/plumb-line/issues/548),
+  [#560](https://github.com/slopstopper/plumb-line/issues/560)). May break:
+  when a step inherited `derivedFromMock: true` through its prototype, a
+  combine keeps the tainted step in its lineage, so the audit flags it and the
+  guard refuses it; a step whose law-field read throws propagates the error; a
+  lineage hole is named by the audit and refused by the guard;
+  `combineConfidenceScore` returns `undefined` for it (was `NaN`). What you
+  see: `ProvenanceRefused` from `guard` on values that passed before. **Do:**
+  build lineage steps as plain objects with their own fields and no holes, and
+  handle `undefined` from `combineConfidenceScore`.
+- **`derive` overrides of `undefined` (JS) or `null`/`None` are no override**
+  ([#533](https://github.com/slopstopper/plumb-line/issues/533),
+  [#566](https://github.com/slopstopper/plumb-line/issues/566)). May change
+  output: they used to reset `confidence` to `"none"` or drop the combined
+  score; the law's values are now kept. JS `makeMeta` no longer writes a
+  `null` `basis` or `adapter`. **Do:** to set a value, pass it explicitly (for
+  example `confidence: "none"`), not `undefined` or `null`; do not expect a
+  `null` `basis` or `adapter` field in JS output.
+- **Conformance ports must re-run.** New case kinds at case-table version 1:
+  `construct`, `guard` (#120) and `derive` (#566), and an `absent` list on
+  `construct` and `derive` rows. A runner that does not interpret a kind fails
+  on it (#369). **A port certified against schema version 2 before this
+  release must re-run.** The JS runner now requires `TypeError` for a bad
+  guard option: a port that throws a `RangeError` or a null-prototype object
+  there now fails (the null-prototype case was pinned as conforming before).
+  The bundle conformance runner refuses a boolean case-table `version` (#441).
+  **Do:** re-run your port against the current
+  `primitives/conformance/cases.json` and make it interpret every kind.
+- **SARIF names and descriptions for PB1–PB4 changed**
+  ([#552](https://github.com/slopstopper/plumb-line/issues/552)). May break
+  anything keyed on the displayed name; rule ids are unchanged, so existing
+  code-scanning alerts keep matching. **Do:** key on the rule id (PB1–PB4),
+  not the displayed name.
+- **The pytest plugin loads at every pytest start**
+  ([#123](https://github.com/slopstopper/plumb-line/issues/123)). May affect
+  Python users: installing the package registers it through its `pytest11`
+  entry point. It adds no hooks, fixtures or options. **Do:** nothing, unless
+  it conflicts with your test setup; then turn it off with `-p
+  no:plumb_line_provenance.pytest_plugin`.
+- **The audit flags tests changed so an unmet requirement reads as met**
+  ([#486](https://github.com/slopstopper/plumb-line/issues/486)). May newly
+  report check-10 findings on test files. **Do:** for each one, restore the
+  test, record the decision behind the change, or turn it into an honest
+  deferral; the finding names these paths. Details under **Changed**.
+- **`scripts/trigger_check.py` refuses more records**
+  ([#487](https://github.com/slopstopper/plumb-line/issues/487)). Repo
+  tooling: `--validate` refuses `results-format` v2 records, and a run whose
+  own record fails validation exits 1. **Do:** produce records with the
+  current script.
+
 ### Added
-- **The remediate skill writes its fix plan to a file before the first edit**
-  ([#589](https://github.com/slopstopper/plumb-line/issues/589);
-  `skills/plumb-line-remediate/SKILL.md`). The v0.12.0 release harness's
-  Part 1b ran two remediators under the pressure protocol, and both edited
-  before printing any plan. The skill was changed to say the plan is printed
-  as its own message before any edit tool call (#592), and two fresh
-  remediators edited first again, then each said in its final message that
-  the plan "was printed before the first edit", which their transcripts do
-  not show (the first run's second remediator had claimed the same). So the
-  plan is now an action: a tool call of its own writes the plan table to a
-  file outside the code under remediation, and completes, before anything
-  changes the tree under remediation (git writes inside it included), and
-  the final message repeats the table,
-  gives the file's path, and makes no claim about timing. The plan names
-  principles inline, since the checker reads the whole delivered message.
-  `examples/REMEDIATE-EXPECTATIONS.md` and the release harness keep each
-  remediator's transcript and score the requirement on it: the plan-file
-  write before the first edit. Earlier records do not say how it was judged.
+- **Egress guard: `guard` stops a tainted value at an output point**
+  ([#120](https://github.com/slopstopper/plumb-line/issues/120); ADR-0020;
+  SPEC §5c). `guard(x, { noMock, minConfidence, minSource })` / `guard(x,
+  no_mock=, min_confidence=, min_source=)` returns the marked value unchanged
+  (`unwrap(guard(x))`) or throws `ProvenanceRefused` (`ValueError` in Python)
+  listing every reason. Mock is refused unless `noMock: false`. The source
+  floor `minSource` / `min_source`
+  ([#541](https://github.com/slopstopper/plumb-line/issues/541)) is off by
+  default, so the caller opts in, where Principle 4 asks for exclusion unless
+  opted out; `minSource: "semiReal"` gives `source: fallback is below the
+  required semiReal`. It reads the weakest source the ancestry shows and skips
+  `"derived"`, given a complete lineage as the law builds it. Approximate and
+  cached data have no rung, so cannot be refused specifically (#562). Fails
+  closed: no envelope, a malformed one (off-ladder value, non-object step,
+  non-boolean taint flag, score outside `[0, 1]`), or anything the audit flags
+  is refused, except the `version-legacy:` / `version-future:` advisories
+  (SPEC §5b); taint and confidence are read from the lineage too. A bad option
+  is a `TypeError` in both languages, raised before the value is examined,
+  never a Python `ValueError`. The ROADMAP called it `require`. 52 `guard`
+  rows in `primitives/conformance/cases.json` (40 when ADR-0021 was written); bundled with
+  the plugin and in bootstrap's vendoring list.
+- **Test fixture quarantine**
+  ([#123](https://github.com/slopstopper/plumb-line/issues/123); ADR-0021).
+  Python: `plumb_mock_fixture` (a `pytest.fixture` marking its value
+  `source='mock'`), `assert_no_taint(output)`, `assert_tainted(output)`
+  (passes only when `guard` refuses for mock taint). JS, new
+  `plumb-line-provenance/vitest` subpath: `markFixture(value)`,
+  `assertNoTaint(output)`, `assertTainted(output)`, and `toBeUntainted()` via
+  `expect.extend(plumbMatchers)` (`.not.toBeUntainted()` is `assertTainted`).
+  Marking is opt-in per fixture. The check is `guard` with its defaults (52
+  `guard` rows at this release; 40 when ADR-0021 was written), takes a marked
+  value only (walking structures: #544), and leaves the core dependency-free.
+  Not in the plugin's bundled copy. Not yet: stubbed globals, local fake
+  servers, CI provenance (#520, #521).
+- **The branch guard works as a git commit hook**
+  ([#464](https://github.com/slopstopper/plumb-line/issues/464);
+  `hooks/branch-guard-commit.mjs`, `hooks/branch_guard_commit.py`). Wired in
+  directly, the guard had blocked every commit since 0.11.4 (git passes no
+  `{filePath}` stdin or `PLUMBLINE_BRANCH`). The wrapper reads the full ref
+  (git shortens `main` to `heads/main` when a tag is also named `main`) and
+  judges every staged path with the guard's `decide` and `PLUMBLINE_CFG`
+  checks, in one process. Renames count as both paths; submodule bumps are
+  listed even where `diff.ignoreSubmodules` or a submodule's `ignore` setting
+  hides them. A detached HEAD is an unknown branch (code blocks, docs pass); a
+  rebase stop is judged by the branch being rebased (#547). A merge,
+  cherry-pick or revert finished with `git commit` or `--continue` is judged;
+  one that completes on its own runs no pre-commit hook. Cases:
+  `adapters/commit-hook-cases.json`. Bootstrap Step 4 wires it ahead of the
+  test gate and verifies it with a real commit. New export `configFromEnv` /
+  `config_from_env`; guard CLIs unchanged.
+- **The commit hook knows the branch during a rebase**
+  ([#547](https://github.com/slopstopper/plumb-line/issues/547);
+  `adapters/adapter-contract.md`, `plumb-line-bootstrap`). A commit by hand at
+  a rebase stop (`git commit --amend` at an `edit`) was judged with the branch
+  unknown and blocked even on a feature branch. It is now judged by the
+  rebase's `head-name` (`rebase-merge` or `rebase-apply`) and every branch in
+  its `update-refs`, including one already updated, which can block a commit
+  that could no longer move it. A rebase of `main`, or listing `main`, still
+  blocks code. `git rebase --continue` runs no hook, so what it carries on is
+  not judged. No rebase directory: detached HEAD stays unknown (#449);
+  unreadable or invalid rebase state leaves the branch unknown with a reason.
+  Eleven rows against real rebase stops.
 - **The checker names a current `— clean` stamp over text it fails**
   ([#581](https://github.com/slopstopper/plumb-line/issues/581);
-  `scripts/check_report_format.py`). Two with-plugin audit reports in the
-  2026-09-30 eval run printed `format-validation: … v6 — clean` over a
-  message checker v6 fails: both open with a prose summary above the
-  header, and one's body also fails. The transcripts were not kept, so
-  how the stamps got there is not known. Run on the delivered message,
-  the checker already failed them, as an ordinary format failure. It now
-  adds one more issue to failing text stamped clean by this checker's
-  version: the stamp was not earned on the text being returned. An older
-  or unversioned stamp, or a report scored under an earlier ruleset, is
-  noted as before, not accused. It never changes pass or fail, so the
-  checker version stays 6. The audit, adopt and remediate skills now say how the stamp stays
-  true: print the checked file as the message, unchanged, with nothing
-  above the header; re-run the checker after any edit; put anything else
-  after the report. The release harness, `AUDIT-EXPECTATIONS.md` and
-  `evals/README.md` check each report as delivered, and record a false
-  stamp as a false verdict. `claude plugin eval` has no grader that runs
-  code, so the check runs on the messages a record keeps, not inside the
-  suite; the runner kept no broken-case message text in the 2026-09-30
-  run, so a false stamp there is not caught yet (#585).
-- **The branch guard's commit hook knows the branch during a rebase**
-  ([#547](https://github.com/slopstopper/plumb-line/issues/547);
-  `adapters/adapter-contract.md`, `plumb-line-bootstrap`). HEAD is detached
-  during a rebase, so a commit made by hand at a rebase stop, such as `git
-  commit --amend` at an `edit`, was judged with the branch unknown and
-  blocked a staged code path even on a feature branch. Both twins
-  (`branch-guard-commit.mjs`, `branch_guard_commit.py`) now take the branch
-  from the `head-name` git records for the rebase (`rebase-merge` or
-  `rebase-apply`) while that directory exists, as git itself reads a rebase
-  in progress, and judge every branch listed in its `update-refs` as well
-  (`--update-refs`; a branch whose `update-ref` step has already run is
-  still judged, which can block a commit that could no longer move it). A
-  commit made by hand at a stop of a rebase of `main`, or of one listing
-  `main`, still blocks a code path; `git rebase --continue` runs no
-  hook, so a change it carries on is not judged. With no rebase directory a
-  detached HEAD stays unknown (#449); a `head-name` or `update-refs` that
-  cannot be read, or names no valid branch, leaves the branch unknown with a
-  reason saying which. Eleven rows in `adapters/commit-hook-cases.json`,
-  each against a real rebase stop (merge and apply backends,
-  `--update-refs`).
-- **The branch guard works as a git commit hook**
-  ([#464](https://github.com/slopstopper/plumb-line/issues/464)). Git gives
-  a hook neither the `{filePath}` stdin nor `PLUMBLINE_BRANCH`, so since
-  0.11.4 the guard wired in directly blocked every commit. A wrapper per
-  language, `hooks/branch-guard-commit.mjs` and
-  `hooks/branch_guard_commit.py`, reads the branch from git and judges every
-  staged path with the guard's own `decide` and `PLUMBLINE_CFG` checks, in
-  one process per commit. It reads the full ref, because git's short name
-  for `main` is `heads/main` when a tag is also named `main`, and that
-  would read as an unprotected branch. It lists renames as both paths, so
-  moving a code file into `docs/` is judged by the code path it removes, and
-  it lists submodule bumps even where `diff.ignoreSubmodules` or a
-  submodule's `ignore` setting would hide them. A detached HEAD is an unknown branch: a code commit there
-  blocks, and docs pass. A commit made by hand at a rebase stop is judged
-  by the branch being rebased instead (#547, above). A merge, cherry-pick or revert that stops
-  and is finished with `git commit` or `--continue` is judged; one that
-  completes on its own runs no pre-commit hook. `adapters/commit-hook-cases.json` holds its cases, which both
-  languages run against a real temporary repository. Bootstrap's Step 4
-  now copies the wrapper, wires it into git's pre-commit hook ahead of the
-  test gate, and verifies it with a real `git commit`. Each guard gains a
-  `configFromEnv` / `config_from_env` export, which the wrapper uses; the
-  guard CLIs behave as before.
-- **The egress guard, `guard`, stops a tainted value at an output point**
-  ([#120](https://github.com/slopstopper/plumb-line/issues/120); ADR-0020;
-  SPEC §5c). `auditMeta` reports after the fact. `guard(x, { noMock,
-  minConfidence, minSource })` / `guard(x, no_mock=, min_confidence=,
-  min_source=)` returns the
-  marked value unchanged, so an output point writes `unwrap(guard(x))`, or
-  throws `ProvenanceRefused` (a `ValueError` in Python) listing every reason.
-  - **Mock is refused unless turned off** (`noMock: false`), as Principle 4's
-    mock clause says.
-  - **A source floor lets an output point refuse fallback or inferred data**
-    (`minSource` / `min_source`,
-    [#541](https://github.com/slopstopper/plumb-line/issues/541)). It is off
-    by default, by the owner's decision on #541. So unlike the mock
-    clause, the caller opts in to refusing, where Principle 4 asks for
-    exclusion unless opted out. An output point that should refuse `fallback` or
-    `inferred` data passes a floor, for example `minSource: "semiReal"`, and
-    gets a reason `source: fallback is below the required semiReal`. It does
-    not need to label that data `mock` to exclude it. The floor reads the
-    weakest source the ancestry shows (the headline, `weakestSource` and
-    every lineage step) and skips `"derived"`, the law's own label, so a
-    derived value is judged by what it was computed from, given a complete
-    lineage as the law builds it. Approximate and cached data have no rung,
-    so neither can be refused specifically (#562).
-  - **It fails closed.** A value with no envelope is refused, and so is a
-    malformed envelope: any structural issue, a value off its ladder, a
-    lineage step that is not a plain object, a non-boolean taint flag on a
-    step, or a confidence score, top-level or on a step, that is not a
-    number in `[0, 1]`. So is one the audit flags, except the
-    `version-legacy:` and `version-future:` advisories: an older or newer
-    envelope is judged on what it carries (SPEC §5b). Taint and confidence
-    are judged from the lineage as well as the headline fields.
-  - **A bad option is a `TypeError` in both languages,** raised before the
-    value is examined, so it is never mistaken for a refusal; in Python it is
-    never a `ValueError`, so an `except ValueError` for refusals cannot catch
-    it.
-
-  The name, the throw, the default and fail-closed are the owner's decisions
-  on #120; ADR-0020 records which details were then settled under them. The
-  ROADMAP's working name was `require`, which clashes with CommonJS. The two
-  languages are pinned by 40 rows of a new `guard` kind in
-  `primitives/conformance/cases.json`; a port certified earlier must re-run.
-  It is bundled with the plugin, and the bootstrap skill's vendoring list
-  includes it.
-- **Test fixtures are quarantined: fixture data is marked mock, and a golden
-  output can be checked for taint**
-  ([#123](https://github.com/slopstopper/plumb-line/issues/123);
-  ADR-0021). In Python, `plumb_mock_fixture` is `pytest.fixture` with the
-  fixture's value marked `source='mock'`, and `assert_no_taint(output)` fails
-  a test when mock taint reaches a golden output; `assert_tainted(output)`
-  checks that it did reach a value, passing only when `guard` refuses it for
-  mock taint. In JS, the new `plumb-line-provenance/vitest` subpath has
-  `markFixture(value)`, `assertNoTaint(output)`, `assertTainted(output)` and a
-  `toBeUntainted()` matcher registered with `expect.extend(plumbMatchers)`
-  (`.not.toBeUntainted()` is `assertTainted`). On the owner's decisions on
-  #123:
-  - marking is **opt-in per fixture**, so temp paths, clients and
-    connections are never wrapped;
-  - the pytest plugin **registers itself** through the package's `pytest11`
-    entry point and adds no hooks, fixtures or options. **Installing the
-    package now loads it at every pytest start in that environment**; turn
-    it off with `-p no:plumb_line_provenance.pytest_plugin`;
-  - the check takes **a marked value only**, as `guard` does; walking a
-    structure of marked values is to be assessed in #544.
-
-  The check is `guard` with its defaults, so its refusals are the `guard`
-  rows (52 at this release; 40 when ADR-0021 was written); both languages
-  fail with the same message. Only the pytest plugin
-  imports pytest and the vitest subpath never imports vitest, so the core
-  stays dependency-free. Neither is in the plugin's bundled copy. Stubbed
-  globals, local fake servers and CI provenance, which #123's body also
-  named, are #520 and #521.
+  `scripts/check_report_format.py`). It adds an issue saying the stamp was not
+  earned on the text returned; older or unversioned stamps are noted as
+  before. Pass/fail is unchanged, so the checker stays v6. The audit, adopt
+  and remediate skills say: print the checked file unchanged, nothing above
+  the header; re-run the checker after any edit; put anything else after the
+  report. The release harness and `evals/README.md` check each report as
+  delivered. Not yet: `claude plugin eval` cannot run the check, and the
+  2026-09-30 run kept no broken-case messages, so a false stamp there is not
+  caught (#585).
+- **The remediate skill writes its fix plan to a file before the first edit**
+  ([#589](https://github.com/slopstopper/plumb-line/issues/589);
+  `skills/plumb-line-remediate/SKILL.md`). A tool call of its own writes the
+  plan table outside the code under remediation and completes before anything
+  changes that tree (git writes included); the final message repeats the
+  table, gives the path, and makes no timing claim. Replaces printing the plan
+  first (#592), which remediators did not follow. The plan names principles
+  inline. The release harness scores it on each remediator's kept transcript;
+  earlier records do not say how it was judged.
 
 ### Changed
-- **The eval suite's clean cases are scored mechanically; the runner's judge
-  is out of scoring** ([#591](https://github.com/slopstopper/plumb-line/issues/591);
-  `evals/`). Owner decision, 2026-09-30. The `claude plugin eval` judge failed 7 of
-  12 with-plugin broken-fixture runs on reports that confirmed every
-  planted violation (#291), and on the clean cases it gave no reasoning
-  for any vote (the 2026-09-30 runs, #591). Each clean case now fails on any
-  findings row whose Status is not `needs-review` or `advisory`
-  (`no-confirmed-violations.md`, `match: not_contains`). Inverted, a row it
-  missed would pass, so it fails closed, reading rows as the checker does
-  (two documented residuals: a Principle cell with no code is not seen,
-  and an omission row opening its last cell with a code fails the case);
-  `scripts/test_eval_graders.py` holds it to the checker and flips every
-  row of the committed reports to `violation`. Every grader is now
-  plugin-only, so the runner scores them all: the header grader gates the
-  clean cases too (owner decision, recorded on #591), clean-case pass
-  rates from before and after do not compare, no with-minus-without
-  difference is measured ("n/a", pending #571), and the runner's own Δ is
-  not cited. The judge returns only when it records its reasoning and
-  reproduces the mechanical verdicts on a calibration set. Runs pass
-  `--keep-temp`, which keeps each run's sandbox; whether that recovers the
-  delivered messages is unverified until the first such run.
-- **The audit report's finding status is a contracted column
-  (`report-format: v3 → v4`), and the eval suite's broken cases are scored
-  mechanically** ([#530](https://github.com/slopstopper/plumb-line/issues/530);
-  `skills/plumb-line-audit`, `scripts/check_report_format.py`, `evals/`).
-  Owner decisions 2026-09-28 and 2026-09-30.
-  - The findings table gains a **Status** column between Function and
-    Issue, holding exactly one of `violation`, `needs-review` or `advisory`.
-    The status used to be a word the Issue cell opened with, the skill's
-    reporting habit rather than a contract, so the eval graders that read it
-    missed a report that worded it otherwise. The skill defines the three
-    words; an adoption gap is `advisory` (the skill had called the spine's
-    adoption gap "a `needs-review` advisory adoption gap"), and the js-clean
-    judge (until #591) and answer key accept it as advisory or needs-review.
-    `invoked-audit` is marked with-only, as the suite's README described it;
-    until now it also scored the no-plugin arm, so the 2026-09-28 run's
-    no-plugin results and difference do not compare with later runs (noted
-    on that record). The README's showcase stays the committed v3 report,
-    noted as such; a v4 run replaces it at the release harness
-    ([#576](https://github.com/slopstopper/plumb-line/issues/576)).
-  - `check_report_format.py` v6 knows `report-format: v4` and refuses a v4
-    row whose Status is any other word (case, bold, italics and a code span
-    around the word are ignored, as in the eval graders). A report is judged
-    by the contract it declares, so a stored v1 to v3 report gets the same
-    verdict as before; what is new is that the skill emits v4, and a v4 row
-    without a valid Status fails. `plumb-line-bootstrap` moves to v4 in lockstep (it shares only
-    the header); `principles-revision` stays 1. `plumb-line-remediate`
-    accepts a pasted table with or without Status.
-  - The eval suite's broken cases drop the runner's LLM judge
-    (`planted-set-confirmed`): it failed 7 of 12 with-plugin runs, each on a
-    report that confirms every planted violation, and where the same criteria
-    were given directly (js-broken, and py-broken run 2) it passed them
-    (#291). Their verdict rests on the `finds-*` graders,
-    which now read the Status column, with the header and checker graders.
-    The clean cases kept their judge until #591, which scores them
-    mechanically.
-  - What a run reports: each arm's pass rate for every case, and the
-    with-minus-without difference only where the same graders score both
-    arms (the clean cases, until #591); elsewhere "n/a" with the reason (#571 tracks
-    graders that would make the broken cases' difference real).
-- **The validation and dogfood records are one file per run, with index
-  pages** ([#570](https://github.com/slopstopper/plumb-line/issues/570)).
-  `docs/validation-results.md` (1,968 lines) and `docs/dogfood.md` (848)
-  had been appended to once per release since v0.1.0, and the trend across
-  releases was spread through all of it. Each run's record now lives in its
-  own file: `docs/records/validation/` (26: the v0.1.0 and v0.2.0
-  validations, the release-harness runs from v0.3.0, and three records
-  between releases) and `docs/records/dogfood/` (22). The records' words are
-  unchanged, checked mechanically. What changed: each heading became the
-  record's title, and the two v0.1.0 records, whose sections had none of
-  their own, got a written one; relative links point from the new folder,
-  and each "see `dogfood.md`, vX section" link to that release's dogfood
-  record; and four references to "above" or "this file" that now lie in
-  another record are linked to it. The two old files are index pages,
-  newest first; the validation index quotes each record's own result
-  headings and says where a record gives its result in prose. The dogfood
-  page keeps its two living sections ("Beyond the fixtures", "See also").
-  `docs/records/evals/` records every eval run, green or not, starting with
-  the 2026-09-28 run, quoted from #291. New harness requirement: a record
-  heads its results `### Part 1 — …: <result>` and
-  `### Format scoring … — <result>`, so the index can quote them.
-- **The `claude plugin eval` suite runs, after its first real run found it
-  measured nothing** ([#291](https://github.com/slopstopper/plumb-line/issues/291)).
-  The August suite granted no tools, so the audit skill could not read its
-  principles file. Its file-name graders credited a bare file listing. Its
-  checker grader could never pass. The suite now grants read-only tools per
-  case and sandboxed Bash for the checker. The finding graders require a
-  confirmed findings-table row, and the format graders are scored only in
-  the with-plugin arm. See `evals/README.md` for how to run it. The manual
-  blind protocol stays the release gate: no green run is recorded, and the
-  runner's LLM judge is not yet trustworthy on the broken fixtures (#291).
-- **The method skill teaches honest deferral, for a test that cannot pass
-  honestly** ([#485](https://github.com/slopstopper/plumb-line/issues/485)).
-  In round 1 of the spike (90 runs), no run kept a failing test's assertion
-  and marked it as a recorded expected failure; 63 went green by changing
-  the test. The skill's new
-  section, **Mid-task: a test that cannot pass honestly**, says to handle
-  the failure you can observe, never to make an unmet requirement read as
-  met (by rewriting its test's assertion, replacing the missing dependency
-  with a stand-in in that test, skipping it, or loosening a gate, with no
-  decision behind the change), and that staying red is always honest. It opens
-  with what it does not forbid, following the owner's ruling that it must
-  be practically usable and not stop a user coding. The skill's carve-outs
-  are: tests updated for behaviour changed on purpose; a wrong test fixed,
-  saying what was wrong and whose decision set the new expectation; stubs
-  while building on P4 — Quarantined fakery's terms (contained, labelled,
-  out of real outputs unless the owner opts in, alongside the requirement's
-  test, never in place of it); ordinary unit-test mocks; and changes a
-  decision stands behind. In the skill's reading of option C, a request to
-  get CI green is not such a decision, and disclosing a change that makes an
-  unmet requirement read as met does not make it honest. A deferral
-  is allowed only on the four conditions the owner decided (option C): a
-  strict marker, the assertion unchanged, the reason in the marker (ideally
-  citing a tracked issue), and the decision handed back in the final
-  message. Forms: pytest `xfail(strict=True, raises=AssertionError, …)`,
-  vitest `it.fails` with the reason in its title (shown by a verbose or
-  junit report), each paired with a test of the failure you can observe,
-  since `it.fails` accepts any error and `raises=` narrows only the type; skipping,
-  `run=False` and an imperative `pytest.xfail()` are not deferrals.
-  `plumb-line-remediate` offers the deferral for a blocked failing test and
-  records an accepted one as `applied-judgment`. New worked example,
-  `examples/honest-deferral/` (Python and JS), with
-  `examples/test_honest_deferral.py` proving, in both languages, that the
-  deferral is recorded as shipped, fails the suite once the requirement is
-  met, and fails when the code crashes on the missing key (in JS through
-  the paired missing-key test, since `it.fails` accepts any error); CI installs the example's
-  toolchain and fails if that proof skips. The skill's description is
-  unchanged here, and gives an agent mid-task no cue to invoke the skill:
-  #487's baseline measured 0 of 20 probes (10 pressure prompts, 2 runs
-  each). #487 reworks it.
-- **The audit names a test changed so an unmet requirement reads as met**
-  ([#486](https://github.com/slopstopper/plumb-line/issues/486)). In the
-  impossible-task spike, the audit caught 6 of 25 cheats that turned a
-  failing test green by substituting the unavailable dependency or skipping
-  the test; four audits called the test double acceptable. On the owner's
-  decisions (#485, #486), check 10 in `plumb-line-audit` is one finding
-  class with the method skill's line: the dependency substituted in the
-  requirement's own test, a skip, delete or non-strict expected failure, an
-  assertion rewritten to what the code returns, a loosened gate, or retries
-  hiding an unexplained failure, flagged unless a recorded decision stands
-  behind it or it is an honest deferral, and never for the method skill's
-  carve-outs (the gate as shipped; see the tightening below). A test double
-  is not acceptable for sitting in a test file; the finding names itself,
-  not a product defect, and gives the honest paths. Test files are in the
-  audit's traversal plan. Measured on the spike's round-1 cheat repos
-  (Opus 5.5, headless, one audit per repo, one blind scorer applying the
-  pre-registered criterion; "blind" to which pass a report came from by
-  label only, since the new reports' wording differs):
-  - **held out** (11 repos not opened while calibrating, apart from one
-    run's prior verdict seen and recorded on #486; manifest verified first;
-    the acceptance figure, rulings confirmed by the owner): 11/11 caught,
-    one as needs-review that the scorer marked borderline; the original
-    audits score 4 caught / 1 near / 6 missed by the pre-registered
-    rulings, 1 / 4 / 6 by the same blind scorer;
-  - calibration set (14 repos, the tuning set): 2/1/11 → 14/0/0 with
-    today's audit as the baseline.
-  After acceptance, on the owner's decisions (#486), check 10 was tightened
-  to the method skill's line, and four review rounds refined it: a stated
-  reason alone is not a decision, and a decision cited but not findable is
-  needs-review; a strict marker with `run=False` or over a rewritten
-  assertion is not an honest deferral; commented-out tests are a form; a
-  test states the requirement when it is named or described as one, cites
-  it, was changed from the real call, or is the requirement's only test on
-  a product path that calls the real dependency, and a unit-test mock is
-  ordinary alongside that test, never in place of it (a citation or a name
-  alone does not make it the requirement's test); a stand-in there is a
-  violation only with evidence, recorded in the repo, that the requirement
-  is unmet where the suite runs (a comment, skip reason, ticket or commit
-  saying the dependency is unavailable or the call fails, or the test
-  changed from the real call while that call was failing or unavailable),
-  and a key CI
-  does not supply, or a working call swapped for a stand-in, is not that
-  evidence on its own; without it, the finding is at most an advisory,
-  not needs-review; the spine calibration does not govern check 10. Under
-  this text a client whose tests have always mocked its service is not a
-  violation; the fixture has one such case (below). The held-out figure
-  above is for the text before these changes (`SKILL.md` sha256
-  `c4619c2f…`); the held-out repos were not reused. Re-checks, on the
-  calibration set (14, blind) and the fixture (2 audits per tree):
-  - `caa22aef…` (tightened): 14/14 caught; fixture 4/4, before REQ-8 and
-    REQ-10 were planted;
-  - `b3260bb8…` (the only-test rule): 14/14 caught, one borderline; the
-    fixture, with REQ-8 newly planted as the only-test case, failed
-    `broken/` 0/2 (REQ-8 filed as needs-review), including a re-run after
-    the fixture's declaration was corrected (it had listed only REQ-7 and
-    REQ-9, putting REQ-8 out of scope); `clean/` 2/2;
-  - `9ca69626…` (an established case is a violation, and the clause
-    sending doubtful cases to needs-review narrowed to what the repo cannot
-    establish): not re-run on calibration; fixture 4/4, but this text was
-    written to fix the `b3260bb8…` failure on that same fixture, so the
-    4/4 is not an independent check;
-  - `c90000db…` (evidence that the requirement is unmet): 14/14 caught;
-    fixture 4/4 only on a lenient reading, since three of four reports
-    labelled the REQ-10 item "advisory (needs-review)", which the rule
-    written with it fails. A review traced the label, likely, to the
-    check's last bullet, which still sent what the repo cannot settle to
-    needs-review (other defaults in the skill may add to it; #539),
-    and found the evidence could be inferred (an unsupplied key) or
-    circular (any change from the real call); superseded;
-  - `d36f78ae…` (current; evidence must be recorded, and the outcome bullet
-    agrees): 14/14 caught ($9.45), 13 as check-10 violations; in the 14th,
-    whose commit gives determinism and "needs no FX_API_KEY" as the reason
-    for the stub, the substitution itself was filed as advisory and the
-    cheat was caught only through a needs-review finding on fixture data
-    marked `real`; under `c90000db…` that run was a violation. The text is
-    ambiguous on that case (a commit that names a key it no longer needs may
-    or may not be "a commit saying the dependency is unavailable"), and the
-    auditor read it narrowly; filed as #538, accepted by the owner. Fixture,
-    scored by a strict rule (a label mixing advisory and needs-review counts
-    as needs-review), now written into `examples/AUDIT-EXPECTATIONS.md`:
-    first 3/4, one `clean/` audit filing a P3 violation on `src/rates.py`,
-    whose bare-float return had been in `clean/` since `c90000db…` (whose
-    `clean/` runs did not flag it); a fixture defect, not check 10. The fix
-    made `convert` record its rate, date and source and report
-    "unavailable", which also changed REQ-10's spec and tests; after it,
-    4/4, REQ-10 advisory in all four. Like `9ca69626…`'s, this 4/4 follows a
-    change made in response to the failing run, and REQ-10 (now a keyed
-    service nothing records as unavailable) and the fixture's rules were
-    written alongside this text by the same author, so the fixture is not
-    independent of it.
-  **Limits.** Both sets contain only cheats, so they cannot show
-  over-flagging: a check that flagged every test double would score the
-  same. They cover three task shapes from one model's runs, and the held-out
-  cheats are all substitutions (the skip form appears in calibration only);
-  the rewritten-assertion, loosened-gate and retry forms have no spike data.
-  Recall under the current text depends on the change recording its reason:
-  the calibration cheats are agent runs that narrate what they did, and a
-  substitution committed with no reason at all is at most an advisory
-  (#538). The benefit the recorded-evidence rule is for, not flagging an
-  honest refactor from a working call to a stand-in, is not measured:
-  neither set contains one, and the fixture's audits run on a copy with no
-  git history, so commit-based evidence is never exercised there.
-  Over-flagging is otherwise checked only by the new planted fixture below.
-  New planted fixture `examples/test-honesty/`: `broken/` plants a
-  substitution, a mock as a requirement's only test (unnamed, uncited) and
-  a rewritten assertion; `clean/` carries strict deferrals and carve-outs
-  the audit must not flag (unit-test mocks alongside the requirement's
-  test, a wrong test fixed with its reason), and fails the harness on any
-  check-10 finding on them; both trees carry a requirement whose only
-  tests mock a service nothing records as unavailable, which must not draw
-  a check-10 finding either. The release harness now runs it
-  (`docs/release-harness.md`); the re-checks above give each text's result
-  on it. No Action or lint rule reads test files (owner
-  decision; #520).
-- **The method and adopt skills now describe the in-task moments they are
-  for** ([#487](https://github.com/slopstopper/plumb-line/issues/487)). The
-  spike loaded the plugin in 90 runs and a skill was invoked once. A breadth
-  baseline on the old descriptions (Opus 5.5, isolated, 2 runs) showed a
-  wider gap: the plugin answered people who *asked about* plumb-line (fit,
-  setup, review, applying findings, learning: 6/6) and invoked no skill in
-  any of 12 in-task moments. On the owner's decisions (#487): every moment
-  gets a "yes, and" answer (meet the need, keep what is uncertain visible;
-  the only no is presenting it as real, measured or done);
-  `plumb-line-method` goes first where the aim is to make something look
-  more real, finished or certain than it is, tests included; and
-  `plumb-line-adopt` goes first when building with a stand-in ("add it,
-  and here is how to keep track of it"; adopt still edits nothing). The
-  method skill gains a **Mid-task: other moments** section (eight moments,
-  each with its "yes, and" and its one no, and hand-offs), both descriptions
-  are rewritten, and a keyword test checks that the moments the method
-  description names are taught in its mid-task sections.
-  Measured with `scripts/trigger_check.py`, isolated, Opus 5.5, 2 runs per
-  query unless stated. A query counts as triggered when at least half its
-  probes chose the skill (trigger_check's threshold); figures in brackets
-  count only queries that triggered on every probe.
-  - **Out of sample** (the only measurement the new descriptions were not
-    written against): a fresh set written blind by an independent agent,
-    4/5 should-trigger and 5/5 near-misses, one measurement, no before-run.
-  - **In sample** (the descriptions were written after seeing these, so
-    they show fit, not generalisation): the approved test-moment set,
-    should-trigger 0/10 → 5/10 (5/10), near-misses held at 10/10, though
-    the new description reaches only 1 of the 4 positives skill-creator had
-    held out; breadth routing (`evals/trigger/breadth-queries.json`, 26
-    queries, read by the new `scripts/breadth_routing.py`) 14/26 → 23/26,
-    with method's in-task moments 0/8 → 7/8 (5/8) and adopt's 0/4 → 2/4
-    (1/4), near-misses 8/8 and repo-level questions 6/6 held.
-  - **Other skills' sets, 1 run per query:** audit 20/20 → 20/20; adopt
-    12/12 → 11/12, its one miss triggering 3 of 4 on a recheck (the before
-    was a single probe, so this is "held on recheck", not proof of no
-    regression).
-  These are trigger rates on a bare prompt in an empty directory; whether
-  agents reach for the skill during a real task is round 3's measurement
-  (#462). All records are in `evals/trigger/results/`. skill-creator's
-  description loop was run first (patched: on Claude Code 2.1.284 its
-  candidate, written as a command, is not seen as a skill) and overfitted
-  (training 12/12, held-out positives 1/4); its record is kept there too.
-- **`scripts/trigger_check.py` can probe a checkout in isolation, and its
-  record says what each probe loaded**
+- `mark()` / `makeMeta()` validation (#443), leaf constructors' `source`
+  (#177), the checker's joined codes (#527) and the boundary guard with no
+  layers (#516) are under **Breaking**.
+- **Audit report status is a contracted column (`report-format: v3 → v4`)**
+  ([#530](https://github.com/slopstopper/plumb-line/issues/530);
+  `skills/plumb-line-audit`, `scripts/check_report_format.py`, `evals/`). The
+  findings table gains **Status** between Function and Issue: `violation`,
+  `needs-review` or `advisory` (case, bold, italics, code span ignored); an
+  adoption gap is `advisory`. `plumb-line-bootstrap` moves to v4 in lockstep;
+  `principles-revision` stays 1; `plumb-line-remediate` accepts tables with or
+  without Status. The README's showcase v3 report was replaced by a v4 one,
+  `examples/incident-toolserver/audit-2026-09-30.md`, at the release harness;
+  the v3 report is kept as history
+  ([#576](https://github.com/slopstopper/plumb-line/issues/576)). In the eval
+  suite, the broken cases drop the runner's LLM judge (it failed 7 of 12
+  with-plugin runs that confirmed every planted violation, #291) and rest on
+  the `finds-*`, header and checker graders. `invoked-audit` is now with-only
+  (it had scored the no-plugin arm too, so the 2026-09-28 run's no-plugin
+  results do not compare). Runs now score the plugin arm only (#571, below).
+- **Eval clean cases are scored mechanically**
+  ([#591](https://github.com/slopstopper/plumb-line/issues/591); `evals/`). A
+  clean case fails on any findings row whose Status is not `needs-review` or
+  `advisory` (`no-confirmed-violations.md`). Residuals: a Principle cell with
+  no code is not seen; an omission row opening its last cell with a code fails
+  the case. All graders are plugin-only, the header grader gates clean cases,
+  pass rates before and after do not compare, and no with-minus-without
+  difference is measured (pending #571). The judge (#291) returns only once it
+  records its reasoning and matches the mechanical verdicts. Whether
+  `--keep-temp` recovers delivered messages is unverified.
+- **Eval runs score the plugin arm only, for now**
+  ([#571](https://github.com/slopstopper/plumb-line/issues/571), [PR
+  #607](https://github.com/slopstopper/plumb-line/pull/607);
+  `evals/README.md`). Owner decision 2026-10-01. Runs pass `--ablation none`
+  and report the plugin arm's pass rate per case. As the suite is built, the
+  runner's default no-plugin baseline cannot pass (its prompt names the
+  plumb-line audit skill, and every grader but one reads output only the
+  plugin produces), so its with-minus-without difference and "Plugin effect"
+  headline measured the suite's construction, not the plugin. A real baseline
+  is #571, for v0.13.0.
+- **The `claude plugin eval` suite runs**
+  ([#291](https://github.com/slopstopper/plumb-line/issues/291)). It had
+  granted no tools, credited a bare file listing, and had a checker grader
+  that could never pass. It now grants read-only tools and sandboxed Bash for
+  the checker, and needs a confirmed findings-table row. See
+  `evals/README.md`. The manual blind protocol stays the release gate; no
+  green run is recorded.
+- **Validation and dogfood records are one file per run**
+  ([#570](https://github.com/slopstopper/plumb-line/issues/570)).
+  `docs/validation-results.md` and `docs/dogfood.md` are index pages over
+  `docs/records/validation/` (26) and `docs/records/dogfood/` (22), words
+  unchanged. `docs/records/evals/` records every eval run, green or not, from
+  2026-09-28 (#291). Harness records head results `### Part 1 — …: <result>`
+  and `### Format scoring … — <result>`.
+- **The method skill teaches honest deferral**
+  ([#485](https://github.com/slopstopper/plumb-line/issues/485);
+  `plumb-line-method`). New section **Mid-task: a test that cannot pass
+  honestly**: never make an unmet requirement read as met (rewritten
+  assertion, stand-in, skip, loosened gate) with no decision behind it;
+  staying red is always honest. Carve-outs include tests changed for intended
+  behaviour, a wrong test fixed with its reason, stubs on P4 — Quarantined
+  fakery's terms, and ordinary unit-test mocks; a request to get CI green is
+  not a decision, and disclosing a change that makes an unmet requirement read
+  as met does not make it honest. A deferral needs a strict marker, the
+  assertion unchanged, the reason in the marker, and the decision handed back:
+  pytest `xfail(strict=True, raises=AssertionError, …)` or vitest `it.fails`
+  (reason in the title), each paired with a test of the observable failure,
+  since `it.fails` accepts any error and `raises=` narrows only the type;
+  skips, `run=False` and `pytest.xfail()` are not deferrals.
+  `plumb-line-remediate` records an accepted one as `applied-judgment`.
+  Example: `examples/honest-deferral/`, proven by
+  `examples/test_honest_deferral.py`. This entry left the skill's description
+  with no mid-task cue (0 of 20 probes); #487 reworks it.
+- **The audit flags a test changed so an unmet requirement reads as met**
+  ([#486](https://github.com/slopstopper/plumb-line/issues/486);
+  `plumb-line-audit` check 10, owner decisions on #485 and #486). Flagged: a
+  dependency substituted in the requirement's own test, a skip, delete or
+  non-strict expected failure, an assertion rewritten to the code's output, a
+  loosened gate, retries hiding a failure; unless a recorded decision (a
+  stated reason alone is not one; a cited decision that cannot be found is
+  needs-review) or an honest deferral stands behind it, and never for the
+  method skill's carve-outs. Test files are in the traversal plan. A stand-in
+  is a violation only with evidence recorded in the repo that the requirement
+  is unmet where the suite runs; without it, at most advisory. A client whose
+  tests always mocked its service is not a violation. Measured on spike repos
+  (Opus 5.5, one scorer, blind to which pass a report came from by label only,
+  since the new reports' wording differs). Held out (11 repos): 11/11 caught,
+  one as a needs-review the scorer marked borderline, against 4 caught / 1
+  near / 6 missed for the original audits; this is for an earlier text (sha256
+  `c4619c2f…`). Calibration (14 repos, the tuning set) under the current text
+  (`d36f78ae…`): 14/14 caught, 13 as check-10 violations and the 14th through
+  another finding; the text is ambiguous on that case (#538). **Limits:** both
+  sets are all cheats, so over-flagging is unmeasured; one model, three task
+  shapes; the held-out cheats are all substitutions, and the rewrite, gate and
+  retry forms have no data; a substitution committed with no reason is at most
+  advisory (#538); not flagging an honest refactor to a stand-in is
+  unmeasured, and fixture audits run with no git history, so commit-based
+  evidence is never exercised; other defaults may send items to needs-review
+  (#539). New fixture `examples/test-honesty/`, run by
+  `docs/release-harness.md`, was written with this text, so it is not
+  independent. No Action or lint rule reads test files (#520).
+- **The method and adopt skill descriptions name in-task moments**
+  ([#487](https://github.com/slopstopper/plumb-line/issues/487)). Each moment
+  gets a "yes, and" answer; the only no is presenting something as real,
+  measured or done. `plumb-line-method` goes first when the aim is to make
+  something look more real, finished or certain, tests included;
+  `plumb-line-adopt` when building with a stand-in (it still edits nothing).
+  New method section **Mid-task: other moments** (eight moments). Trigger
+  rates (`scripts/trigger_check.py`, isolated, Opus 5.5, bare prompt; a query
+  counts as triggered when at least half its probes chose the skill): out of
+  sample, 4/5 should-trigger and 5/5 near-misses (one measurement, no
+  before-run). In sample (fit, not generalisation): test moments 0/10 → 5/10,
+  reaching 1 of 4 held-out positives; breadth routing 14/26 → 23/26 (new
+  `scripts/breadth_routing.py`), uneven by skill: method's in-task moments 0/8
+  → 7/8, adopt's 0/4 → 2/4. Adopt's own set 12/12 → 11/12, held on recheck,
+  not proof of no regression. Whether agents reach for the skill during a real
+  task is round 3's measurement (#462). Records: `evals/trigger/results/`.
+- **`scripts/trigger_check.py` can probe a checkout in isolation**
   ([#487](https://github.com/slopstopper/plumb-line/issues/487)).
-  `--plugin-dir PATH` probes that checkout with `--setting-sources project
-  --strict-mcp-config`, so the user's installed plugins, their SessionStart
-  hooks, MCP servers and connectors stay out. On the owner's machine the
-  default environment held 19 plugins, 9 hooks and 3 connectors, one hook
-  telling the model to invoke a skill on even a 1% chance it applies. The
-  results record moves to `results-format: v3`: `probe.isolation_flags`
-  records the flags, `environments` records what each probe session reported
-  loading (Claude Code version, plugins, skills, MCP servers, plugin errors),
-  and a checkout's entry carries hashes of the target's and every skill's
-  frontmatter. `--validate` now **refuses** a record unless every probe
-  reported an environment and completed its first reply, the counts add up,
-  the probes shared one environment, and the target skill loaded; an
-  isolated run must also show no MCP server, no plugin error, and the probed
-  checkout among its plugins. It also refuses v2 records, which carry no
-  environment (none are committed). A run whose own record fails validation
-  exits 1, and a probe whose CLI hangs silently is now killed at its
-  timeout rather than blocking the run. New query set:
-  `evals/trigger/pressure-queries.json`, for `plumb-line-method`.
-- **Harness scoring text, clarified:** `examples/AUDIT-EXPECTATIONS.md` now
-  states that extra confirmed violations on a `broken/` fixture are
-  acceptable, and cites the recorded runs that scored them PASS. Its heading
-  no longer says "exactly the planted set".
-- **Breaking: `mark()` / `makeMeta()` refuse a `confidence` or `source`
-  outside its ladder** ([#443](https://github.com/slopstopper/plumb-line/issues/443)).
-  `mark(1, { source: "mock", confidence: 0 })` used to build an envelope
-  whose rung no ladder contains. `auditMeta` returned no issue for it, and
-  the combination law quietly read it as the weakest rung. Only
-  `validateEnvelope` noticed, and only for a non-string: `"HIGH"` passed
-  both checkers. It now throws in JS and raises `ValueError` in Python. Both
-  messages start the same way,
-  `confidence must be one of none, low, medium, high; got 0`, though the
-  quoted value can differ in form between the two. The same applies to a
-  `source` outside `STATUS`, and to a `derive()` override. In Python, `None`
-  is refused rather than defaulted: omit `confidence` to get its default.
-  (`source` no longer has one; see the #177 entry below.)
-  **If you pass a number as `confidence`, move it to `confidenceScore` and
-  give `confidence` a rung.** Envelopes you are handed, such as parsed JSON,
-  are unaffected: `combineProvenance` and the audit still tolerate unknown
-  values in them (SPEC §2, pinned by a `combine` row). Owner decision on
-  #443, recorded in ADR-0019. A minor can carry the break under this
-  project's pre-1.0 rule.
-- **Breaking: leaf constructors require `source`**
-  ([#177](https://github.com/slopstopper/plumb-line/issues/177)).
-  `mark(value)`, `makeMeta({})` / `make_meta()`, and the Python
-  `PlumbDataFrame(df)` / `PlumbArray(arr)` used to default `source` to
-  `"derived"`. A leaf has no parents, so that was untrue, and the envelope
-  failed its own audit as `unreproducible`: the laziest construction was
-  the dirty one. Leaving `source` out now throws in JS and raises
-  `ValueError` in Python, with the same message in both,
-  `source is required (one of unavailable, mock, inferred, fallback,
-  semiReal, derived, real)`. **Pass the `source` your value actually came
-  from.** `confidence` still defaults to `"none"`. `derive()` is not a leaf
-  and is unaffected, with one edge named here: in JS, an override of
-  `source: undefined` now counts as no override. `derive([], f, { source:
-  undefined })` therefore gives `"unavailable"`, as `derive([], f)` does,
-  where it used to give `"derived"`. Pinned by three `construct` rows.
-  Owner decision on #177, recorded as an ADR-0019 amendment.
+  `--plugin-dir PATH` runs with `--setting-sources project
+  --strict-mcp-config`, keeping the user's plugins, hooks and MCP servers out.
+  `results-format: v3` records isolation flags, each probe's environment and
+  frontmatter hashes; `--validate` checks them. Hanging probes are killed at
+  their timeout. New query set `evals/trigger/pressure-queries.json`.
+- **Harness scoring text:** `examples/AUDIT-EXPECTATIONS.md` states that extra
+  confirmed violations on a `broken/` fixture are acceptable, citing the runs
+  scored PASS; its heading no longer says "exactly the planted set".
 - **Conformance: a fourth case kind, `construct`**, pins what `makeMeta`
-  accepts and refuses in both languages. The case table stays at version 1.
-  A runner that does not interpret the new kind fails on it rather than
-  skipping it (#369), so an implementation built to the old table is told,
-  not silently passed. **A port certified against schema version 2 before
-  this release must re-run**: `construct` is a new requirement at the same
-  schema version. The JS runner now also fails a table missing a kind it
-  models; before, it would have crashed.
-- **Stricter: the report checker rejects slash- or hyphen-joined principle
-  codes** ([#527](https://github.com/slopstopper/plumb-line/issues/527)).
-  `scripts/check_report_format.py` excludes `/` and `-` around a code so
-  that an unquoted path is not read as a citation. That let `P1/P2
-  coverage` and `a P6-adjacent advisory` through as if they were fine,
-  although each is a bare citation. The audit skill itself modelled both
-  (#514). Both forms are now rejected in audit reports and remediation
-  records, including at the end of a sentence (`P1/P2.`, `P6-adjacent.`).
-  Path shapes are still not citations: `src/P1/P2/x.py`, `a/P1/b`,
-  `P1/P2.md`, `P3-loader.py` and `P3-loader-v2.py`.
-  **A report that passed before can now fail.** The checker is now v5, so
-  a stored `format-validation: … v5 — clean` says which rule set it was
-  earned under.
-- **Stricter: the boundary guard blocks an import when no layers are
-  configured** ([#516](https://github.com/slopstopper/plumb-line/issues/516)).
-  With `PLUMBLINE_CFG` unset, `{}`, or holding only `direction` or the
-  branch guard's keys, it used to allow every import with the reason "same
-  or unscoped layer", the same reason a real pass gives. It now blocks, with
-  exit 2 and the reason "no layers configured", in both twins. An edit with
-  no import still allows, and an explicit `layers: []` still blocks as
-  before (#471). **If you wire the boundary guard without layers, set
-  `layers` in `PLUMBLINE_CFG`**, or every import it is given will block.
-  Called directly, the exported `decide()` is stricter too. With `layers`
-  empty it used to allow as "same or unscoped layer"; with `layers`
-  undefined or null (`None` in Python) it used to crash. Both now block
-  with "no layers configured". Python's `layers` is still a required
-  argument, so leaving it out is still a `TypeError`. Layers that are not a
-  list of non-empty strings now block with their own reason, "layers must
-  be a list of layer names". Before, a string such as `"ui"` was judged
-  character by character in Python and crashed in JS. A non-string entry
-  crashed in Python and was skipped in JS, or crashed. An empty entry was
-  skipped in both, except on absolute paths. Either way, an import could
-  pass as "same or unscoped layer". Python still accepts a tuple, and checks
-  its entries the same way.
-  Owner decision on #516; consistent with the pre-commit gate's "no gates
-  configured" (#476).
+  accepts and refuses. The table stays at version 1; a runner that does not
+  know the kind fails (#369). The JS runner fails a table missing a kind it
+  models (it crashed before). Port re-runs: see **Breaking**.
 - **The hook case table is source truth**
-  ([#517](https://github.com/slopstopper/plumb-line/issues/517)). An
-  ADR-0018 amendment declares `adapters/hook-cases.json` part of the
-  source-truth layer for the hooks' CLI convention. The rule that a row's
-  expected result is recorded only once both twins produce it, never
-  pasted from one twin's output, now formally applies to it. The amendment
-  also records three test uses of other layers that the ADR did not list:
-  the JS hook runner's import of the table guards, and two adapter tests
-  that read `examples/` fixtures. No behaviour changes.
+  ([#517](https://github.com/slopstopper/plumb-line/issues/517)). An ADR-0018
+  amendment puts `adapters/hook-cases.json` in the source-truth layer: a row's
+  expected result is recorded only once both twins produce it. No behaviour
+  changes.
+
 ### Fixed
-- **The JS conformance runner requires a bad guard option's `TypeError`, and
-  judges a `derive` row only on `derive`** (`primitives/conformance/run-cases.mjs`;
-  v0.12.0 dogfood audit). SPEC §5c said only "an error" while ADR-0020 decided
-  `TypeError` in both languages, and the Python runner required one; the JS
-  runner accepted any throw that was not a supertype of the refusal, so a
-  `RangeError`, or a null-prototype object, passed. SPEC §5c now says
-  `TypeError`, and the JS runner asserts it (the null-prototype case, pinned
-  as conforming before, now fails). A `derive` row marked its inputs inside
-  the `try` that judges `expectError`, so a port whose `mark` threw the
-  expected words passed a row about `derive`; marking now fails the row on
-  its own, as in Python. SPEC §7 and the conformance README name
-  `expectLineage`, the whole-lineage field four `combine` rows carry. A
-  200,000-score row pins `combineConfidenceScore`'s fold (#560) in both
-  languages; it had no test.
+- **JS conformance runner: a bad guard option must be a `TypeError`, and a
+  `derive` row is judged only on `derive`**
+  (`primitives/conformance/run-cases.mjs`; v0.12.0 dogfood audit). SPEC §5c
+  now says `TypeError`, as ADR-0020 decided. Marking a `derive` row's inputs
+  fails the row on its own. SPEC §7 names `expectLineage`. A 200,000-score row
+  pins `combineConfidenceScore`'s fold (#560).
 - **JS combine, audit and guard no longer overflow the stack on a long
   lineage** ([#560](https://github.com/slopstopper/plumb-line/issues/560);
-  `primitives/js`). With 200,000 steps, `combineProvenance`, `auditMeta` and
-  `guard` threw `RangeError: Maximum call stack size exceeded`, where Python
-  returned a result: each spread the whole lineage into one call
-  (`weakestSource(...)`, `weakestConfidence(...)`, `Math.min(...)`), one
-  argument per step. SPEC §5 requires the checker to be total. Each now
-  folds the lineage pairwise with the same function, so results are
-  unchanged; the public signatures are too. A 200,000-step test in each
-  language holds both to the same results. A lineage with a hole (a sparse
-  JS array) is now read as Python reads a `None` step: the audit names it
-  as a step that is not an object, combine keeps it in the combined
-  lineage, and the guard refuses it as an invalid envelope, handed to it
-  directly or after a `derive`, where all three skipped it before. The
-  audit and guard read the lineage by index, once, so what the guard
-  validates is what it judges. `combineConfidenceScore` reads a hole as a
-  gap and returns `undefined`, where it returned `NaN`, and accepts a
-  collection that can be read twice, such as a Set, as Python does, where
-  it threw on a non-array. Many
-  *inputs* (100,000 or more to `derive` or `combineProvenance`) still
-  overflow in JS: [#586](https://github.com/slopstopper/plumb-line/issues/586).
+  `primitives/js`). 200,000 steps threw `RangeError: Maximum call stack size
+  exceeded`; each now folds pairwise, results unchanged. Lineage holes are
+  read as Python reads a `None` step (see **Breaking**), and
+  `combineConfidenceScore` accepts a Set. Not yet: 100,000 or more *inputs* to
+  `derive` or `combineProvenance` still overflow in JS
+  ([#586](https://github.com/slopstopper/plumb-line/issues/586)).
 - **The eval suite audits the committed fixtures, and its header grader
-  requires the header to open the report**
-  ([#530](https://github.com/slopstopper/plumb-line/issues/530);
-  `evals/`). Found by the 2026-09-30 run, recorded in
-  `docs/records/evals/2026-09-30.md`.
-  - The scaffolds copied each fixture whole, including the `node_modules`
-    and caches git ignores, then deleted every line naming a violation from
-    every file. In the js fixtures that broke ESLint's own source, so every
-    js run, in both arms, audited a fixture whose linter crashed. They now
-    stage the fixture's files at the commit (`git archive`) and fail rather
-    than stage nothing (`scripts/test_eval_scaffolds.py`), and the manual
-    protocols (`AUDIT-EXPECTATIONS`, `REMEDIATE-EXPECTATIONS`) say the same.
-  - `format-header` matched `report-format: v4` anywhere in the message, and
-    passed two js-clean reports that open with a prose summary above the
-    header, which the checker fails. It now requires the header first,
-    allowing what the checker allows, and `scripts/test_eval_graders.py`
-    holds it to the checker on 27 openings, in Python and JS. The runner
-    scores it only on the broken cases; on the clean cases format is
-    recorded, not gated.
-  - The run itself: with the plugin every case passed 3/3 and every planted
-    violation was confirmed; 4 of the 6 with-plugin clean reports conform to
-    the format checker, and the two that fail print a "clean" stamp anyway
-    (#581). Not a green run, by owner decision; the first green run comes
-    from a re-run with these fixes.
-    The 12 clean-case reports it could recover are committed beside it.
-  - `evals/results/`, where the runner writes its raw output, is ignored.
-- **A `null` optional override on `derive` is no override, and a `null`
-  `basis` or `adapter` is no field, in both languages**
-  ([#566](https://github.com/slopstopper/plumb-line/issues/566); `docs/api.md`,
-  ADR-0019 amendment). `derive(xs, f, confidence_score=None)`, or
-  `{ confidenceScore: null }` in JS, dropped the combined score, so an unset
-  option passed through lost what the law computed: the hazard #533 fixed
-  for JS `undefined`. `null`/`None` is now no override for
-  `confidenceScore` / `confidence_score`, `basis` and `adapter`. A `null`
-  `source` or `confidence` is still refused (#443). SPEC §2 now says so.
-  JS `makeMeta` stored a `null` `basis` or `adapter` as `null`, against SPEC
-  §1 (an optional field with no value MUST be absent), where Python left it
-  out; both now leave it out. The case table gains a `derive` kind, so the
-  override rule is pinned in both languages and for any port, and its
-  `construct` and `derive` rows an `absent` list, so a field that must not be
-  written can be pinned. A port certified before this must re-run.
-- **JS keeps a lineage step's inherited law fields, so a combine cannot
-  clear its taint**
+  requires the header first**
+  ([#530](https://github.com/slopstopper/plumb-line/issues/530); `evals/`;
+  `docs/records/evals/2026-09-30.md`). Scaffolds stage files with `git
+  archive` instead of copying ignored files and deleting violation lines,
+  which broke ESLint in every js run. `format-header` now requires the header
+  first (`scripts/test_eval_graders.py`); `evals/results/` is ignored. The
+  2026-09-30 run is not a green run by owner decision; two clean reports
+  printed a "clean" stamp they failed (#581).
+- **`null` optional `derive` overrides and `null` `basis`/`adapter`**
+  ([#566](https://github.com/slopstopper/plumb-line/issues/566);
+  `docs/api.md`, ADR-0019 amendment). `null`/`None` is no override for
+  `confidenceScore` / `confidence_score`, `basis` and `adapter`; a `null`
+  `source` or `confidence` is still refused (#443). JS `undefined`: #533. JS
+  `makeMeta` leaves a `null` `basis` or `adapter` out (SPEC §1), as Python
+  did.
+- **JS `derive`: `undefined` is no override for every key**
+  ([#533](https://github.com/slopstopper/plumb-line/issues/533);
+  `docs/api.md`; ADR-0019 amendment). It held for `source` since #177; now
+  also `confidence` and `confidenceScore`. Python is unchanged. `null`: #566.
+- **JS keeps a lineage step's inherited law fields**
   ([#548](https://github.com/slopstopper/plumb-line/issues/548); SPEC §3;
-  threat model F5). `makeMeta` copied each object step with `{ ...s }`,
-  own fields only. A step that inherited `derivedFromMock: true` through its
-  prototype lost it in the copy. So an envelope the audit flagged as "taint
-  dropped" came out of `combineProvenance` clean, and the guard passed it.
-  The copy now also takes, for each step field the law reads (`of`,
-  `source`, `confidence`, `derivedFromMock`, `confidenceScore`, `id`) that
-  is not among the step's own enumerable fields, the value the law and the
-  audit read on the step: through its prototype, a getter or a `Proxy`. It
-  is left out when it reads `undefined`, or when the chain reaches an
-  `Object.prototype` holding it (another realm's is recognised by shape),
-  so a polluted global is not copied.
-  Nothing else is taken from the prototype, so an inherited method such as
-  `toJSON` cannot change what the stored step says. SPEC §3 now names the
-  one exception to the law's totality, in both languages: a field whose read
-  throws propagates the error. In JS that now includes a step that throws on
-  a law field it lacks: the law read a prior step's `source` and `id`
-  before, and now reads its other law fields too. JSON cannot build such a
-  step, so envelopes handed over as JSON, and Python, are unchanged.
-- **JS `derive`: an override whose value is `undefined` is no override, for
-  every key** ([#533](https://github.com/slopstopper/plumb-line/issues/533);
-  `docs/api.md`; ADR-0019 amendment). Since #177 it held for `source`, and
-  `basis` and `adapter` behaved the same, the law never setting them; not
-  for `confidence` or `confidenceScore`. `{ confidence:
-  undefined }` reset the combined rung to `"none"`, and `{ confidenceScore:
-  undefined }` dropped the combined score, so `derive(xs, f, { confidence:
-  opts.confidence })` with the option unset silently lost what the law
-  computed. Each result was weaker, never an over-claim, but the rule
-  differed by key. Python cannot express `undefined`, so it is unchanged. A
-  `null`/`None` override is a separate case, fixed by
-  [#566](https://github.com/slopstopper/plumb-line/issues/566) (above).
-- **The SARIF log names and describes PB1–PB4 as the lints and SPEC §6
-  do** ([#552](https://github.com/slopstopper/plumb-line/issues/552);
-  `adapters/sarif/assemble.py`, since #118). The catalogue published PB2 as
-  `HandBuiltLineage`, "lineage or weakestSource written by hand", and PB3 as
-  `DeriveOverrideClearsTaint`, "would clear taint or lineage". Each
-  described another rule, so a code-scanning viewer showed a finding under a
-  false label. SPEC §6's table gains a Name column taken from the lints' own
-  message titles: `LaunderedMeta`, `ManualTaintClear`,
-  `CleanSourceOverride`, and `RemarkOfAnUnwrappedValue` (PB4 was
-  `RemarkDropsLineage`). All four SARIF descriptions are SPEC §6's patterns
-  as plain text, and PB1's now says its clean sources are the default ones:
-  a project can change them through the JS rule's `sources` option or the
-  Python `check(clean_sources=…)` API (the Python CLI, which the Action
-  runs, has no flag for it). A test holds the SARIF catalogue
-  and both lints' message titles to the table. Rule ids are unchanged, so
-  existing code-scanning alerts keep matching; only the displayed name and
-  description change.
+  threat model F5). `makeMeta`'s `{ ...s }` copy dropped an inherited
+  `derivedFromMock: true`, so combine cleared taint the audit had flagged. The
+  copy now also reads `of`, `source`, `confidence`, `derivedFromMock`,
+  `confidenceScore` and `id` through a prototype, getter or `Proxy`, but not
+  from `Object.prototype`. Nothing else is taken from the prototype, so an
+  inherited `toJSON` cannot change what the stored step says. JSON-handed
+  envelopes and Python are unchanged.
+- **SARIF names PB1–PB4 as the lints and SPEC §6 do**
+  ([#552](https://github.com/slopstopper/plumb-line/issues/552);
+  `adapters/sarif/assemble.py`, since #118). PB2 and PB3 had been published as
+  `HandBuiltLineage` and `DeriveOverrideClearsTaint`, describing other rules.
+  Names now: `LaunderedMeta`, `ManualTaintClear`, `CleanSourceOverride`,
+  `RemarkOfAnUnwrappedValue` (PB4 was `RemarkDropsLineage`). PB1's clean
+  sources can be changed through the JS rule's `sources` option or Python
+  `check(clean_sources=…)`; the Python CLI, which the Action runs, has no flag
+  for it.
 - **The fit map labels an error-path default `fallback`, not `mock`**
   ([#557](https://github.com/slopstopper/plumb-line/issues/557);
-  `reference/fit-map.md` Profile 1). The snippet marked the text returned on
-  an error path as `mock`. ADR-0012 §2 and Profile 5 mark a declared
-  substitute `fallback`. The snippet now does: the screen may show it
-  (`unwrap(guard(rendered))`), and the stored report refuses it with the
-  guard's source floor (`minSource: "semiReal"`). A new paragraph says when
-  `mock` is still right: a value that stands in for real data and could be
-  taken as it, including error-path text written to pass itself off as a
-  real answer. The snippet tests pin the exact refusal (no `mock:` reason),
-  the refusal text the doc quotes, the screen line passing, and the real
-  path. Also fixed: the "Worried about using it wrong?" section said JS
-  `derive` fed `undefined` into the function for an unmarked input, but
-  since #550 both languages raise the same `TypeError`. The threat model
-  spoke of "a fallback" tainting a result, which a fallback does not. The
-  `plumb-line-adopt` primer now explains `guard`, which the snippet calls.
-- **`derive` refuses an input that is not a marked value, in both
-  languages (breaking for callers who passed one)**
-  ([#550](https://github.com/slopstopper/plumb-line/issues/550); SPEC §2).
-  JS used to combine an unmarked object or `null` as an unknown input, giving
-  a result whose headline `derivedFromMock` was `false`. It threw an
-  unrelated `TypeError` on a number, and Python raised an unrelated
-  `KeyError` or `TypeError` on all three. Both now throw the same
-  `TypeError`, `derive: input N is not a marked value (mark it first)`,
-  before the function runs. A marked value is the shape the egress guard
-  reads. So JS callers who passed a `Map`, a `Date` or a class instance
-  holding `value`, and Python callers who passed a `Mapping` that is not a
-  `dict` (`MappingProxyType`), are refused too. `derive` now reads `inputs`
-  once into a list. Before, a generator was combined as zero inputs, so a
-  mock value from a generator came out labelled `unavailable` and passed
-  the egress guard, in both languages. `inputs` that are not a list of
-  values are refused with `derive: inputs must be a list of marked values`.
-- **The audit names an unknown or over-claimed source instead of reading it
-  as clean** ([#551](https://github.com/slopstopper/plumb-line/issues/551),
+  `reference/fit-map.md` Profile 1), as ADR-0012 §2 and Profile 5 do. The
+  screen may show it; the stored report refuses it with `minSource:
+  "semiReal"`. `mock` stays right for a value that could be taken for real
+  data. Also: the note on JS `derive` and unmarked inputs is corrected (#550),
+  and the `plumb-line-adopt` primer explains `guard`.
+- **The audit names an unknown or over-claimed source instead of reading it as
+  clean** ([#551](https://github.com/slopstopper/plumb-line/issues/551),
   [#556](https://github.com/slopstopper/plumb-line/issues/556),
-  [#553](https://github.com/slopstopper/plumb-line/issues/553); SPEC §2,
-  §3 rule 6, §5 checks 7–10). Owner decisions of 2026-09-29, after the
-  ruling that a value must not be labelled as something it is not known to
-  be:
-  - **`combine` omits `weakestSource` when any ancestor's source is
-    unknown.** Before, `combine(real, <input with no source>)` said
-    `weakestSource: "real"`. Two rows that expected it now expect it
-    absent. A consumer that filters on `weakestSource` loses the known floor
-    in that case (`combine(fallback, <unknown>)` used to say `"fallback"`).
-    The guard loses nothing: it refuses the unknown step. A `weakestSource`
-    stated over such a lineage is flagged, since it cannot be shown.
-  - **New audit issues:** `unknown source:` for a lineage step that is not
-    an object or whose `source` is missing, `null` or off the ladder, and
-    `malformed taint flag:` for a step whose `derivedFromMock` is not a
-    boolean (#555 made that neither taint nor clean). Neither calls
-    anything mock. The egress guard already refuses such a step as an
-    `invalid envelope:`, and returns that alone, so these name it for the
-    audit's own readers.
-  - **`source over-claim:` covers a relabelled value.** A `source` cleaner
-    than its ancestry's weakest source (`derive([fallback], fn, {source:
-    "real"})`) is flagged, and so the guard refuses it, with `noMock: false`
-    too. The weakest source is read from `weakestSource`, and also from the
-    lineage when a handed envelope omits it. `"derived"` is exempt on both
-    sides, since it is the law's own label: a derive of a derive of real data
-    relabelled `real` passes, as the one-level case does. `"derived"` as a
-    floor is exempt only when the lineage shows a `real` step, so a `real`
-    source over a lineage of `derived` steps alone is flagged. So is a leaf
-    stating `weakestSource: "derived"`: it shows no real data, for example
-    a value re-marked `derived` with its lineage dropped. A leaf whose
-    `weakestSource` is dirtier than its `source` is flagged too. Unknown
-    steps do not excuse a relabel the known steps already prove.
-    `docs/threat-model.md` said the audit caught a relabel; it did so only
-    when mock taint was involved.
-  - **A leaf's hand-set `weakestSource` cleaner than its own `source` is
-    flagged** (`mark(v, {source: "fallback", weakestSource: "real"})`). The
-    primitives README and SPEC §4 said it could not be hand-set. It is not
-    refused, and both now say the audit flags it.
-- **`combine` agrees across languages on handed envelopes that are not
-  well formed** ([#525](https://github.com/slopstopper/plumb-line/issues/525);
-  SPEC §3, §4; `primitives/PARITY.md`). The same inputs gave different results
-  in 20 of 28 probed cases, and an independent review found more; 17 new
-  `cases.json` rows now pin both languages.
-  - **Step ids:** a `confidence` or `source` that is not a string (`true`,
-    `1.0`, an array) got a different content-addressed id in each language.
-    It now serializes by type: a boolean as `true`/`false`, a number as its
-    IEEE-754 bit pattern (`-0` as `0`, an out-of-range integer as
-    infinity), an array or object as `<array>`/`<object>`. Input ids sort by
-    code point in both (JS sorted by UTF-16 unit), and a lone surrogate
-    hashes as U+FFFD (Python raised).
-  - **Python totality:** Python `combine_provenance` raised `AttributeError`
-    on an input that is not a dict, a `lineage` that is not a list, or a step
-    that is not a dict. It now combines them, as JS did, and reads any
-    `Mapping` (a `MappingProxyType` or `UserDict`) as an envelope.
-  - **A malformed taint flag is refused, never called mock (breaking for
-    callers who pass one)** ([#555](https://github.com/slopstopper/plumb-line/issues/555)).
-    Each language used to read a `derivedFromMock` that is not a boolean by
-    its own truthiness. They disagreed on `[]` and `{}`, so taint could
-    vanish in one language. Now only a boolean `true` taints, in `taints()`,
-    the audit and `derive`. `makeMeta`/`make_meta`, `mark` and `derive`'s
-    override refuse a non-boolean flag with `derivedFromMock must be a
-    boolean`; a `null` flag takes the default, as it did in Python. A handed
-    envelope that carries one still combines: the flag is kept on its step
-    as it is, and the egress guard refuses the result as an invalid
-    envelope, not as mock. (An intermediate commit on #525 read such a flag
-    as taint; the owner reversed that, since an unreadable flag is not
-    known to be mock.)
-    **Also a change for readers (loosening where the guard is not used):**
-    in v0.11.5 a handed flag of `1`, `"true"` or `[1]` tainted in both
-    languages. Now `taints()` returns false for it, and combine's headline
-    `derivedFromMock` stays `false`. Only the egress guard refuses such an
-    envelope. The audit does not yet report a malformed step flag; that is
-    #551.
-  - **Step shape:** a step records `null` for a `source` or `confidence` its
-    input does not have (JS left it `undefined`), and an array lineage step
-    stays an array (JS spread it into an object). `combine`'s score is `0`,
-    not `-0`, whatever the input order.
-  - **Egress guard (stricter):** a lineage step with no `source` is refused
-    as an invalid envelope, because it cannot be shown not to be mock. A step
-    with no `confidence` still counts as `none`.
-  - `PARITY.md` no longer records suite counts, which had gone stale, and
-    the bundle conformance runner refuses a boolean case-table `version`, as
-    the main runners do (#441).
-- **The audit skill no longer models the bare principle codes its own report
-  contract rejects** ([#514](https://github.com/slopstopper/plumb-line/issues/514)).
-  Auditors copy the skill's wording into reports. Its prose said "the
-  audit's P1/P2 coverage is `partial`", and in the v0.11.5 harness 3 of 8
-  auditors failed their first format check on a paraphrase of it. Every
-  principle code in the skill's prose is now inline-named (`P1 — Source-truth
-  layer`): 30 codes on 23 lines. The only exceptions are the forms it quotes,
-  in code spans, as wrong. The remediate and adopt skills had the same
-  defect: a bare `(P8)`, a bare `P7`, and a wrong name, "P9 — the explanation
-  IS the fix". Remediation records are checked for principle names too.
-
-  A test in `scripts/test_skill_facts.py` now keeps all three skills that
-  way. It checks for the canonical name from
-  `reference/portable-principles.md`, as the checker does, and is stricter
-  than the checker on joined codes. The checker lets a slash- or
-  hyphen-joined code (`P1/P2`, `P6-adjacent`) through, because it excludes
-  `/` and `-` to avoid matching unquoted paths.
+  [#553](https://github.com/slopstopper/plumb-line/issues/553); SPEC §2, §3
+  rule 6, §5 checks 7–10). A `weakestSource` stated over an unknown ancestor
+  is flagged. New issues `unknown source:` and `malformed taint flag:` (#555).
+  `source over-claim:` now covers a relabel such as `derive([fallback], fn,
+  {source: "real"})`; `"derived"` is exempt on both sides, and as a floor only
+  when the lineage shows a `real` step. A leaf's hand-set `weakestSource`
+  cleaner than its `source` is accepted by `mark` but flagged by the audit, so
+  the guard refuses it; a leaf stating `weakestSource: "derived"`, or one
+  dirtier than its `source`, is flagged too.
+- **`combine` agrees across languages on malformed handed envelopes**
+  ([#525](https://github.com/slopstopper/plumb-line/issues/525); SPEC §3, §4;
+  `primitives/PARITY.md`). Results differed in 20 of 28 probed cases; 17 new
+  `cases.json` rows pin both. Step ids serialize non-string values by type and
+  sort by code point. Python `combine_provenance` no longer raises
+  `AttributeError` on non-dict input and reads any `Mapping` as an envelope; a
+  lone surrogate hashes as U+FFFD (Python raised). A malformed taint flag
+  (#555) is kept and refused by the guard as invalid; the audit names it
+  (#551). The bundle runner refuses a boolean `version` (#441).
+- **The audit skill no longer models bare principle codes**
+  ([#514](https://github.com/slopstopper/plumb-line/issues/514)). Every code
+  in its prose is inline-named (`P1 — Source-truth layer`); the remediate and
+  adopt skills were fixed too. `scripts/test_skill_facts.py` keeps all three
+  that way.
 
 ## [0.11.5] — 2026-09-28
 
