@@ -17,7 +17,8 @@ One case per fixture variant, mirroring the blind protocol:
 | `audit-py-clean` | `examples/python-data-pipeline/clean` | zero confirmed violations; P7/P9 advisory only |
 
 Each case: `runs: 3`, set in its `prompt.md` front matter (the harness requires
->=2 independent auditors per broken fixture), an identical plain prompt carrying
+>=2 independent auditors per broken fixture), an identical prompt (it names
+the plumb-line audit skill; #571 plans one that names no skill) carrying
 the declared architecture from protocol step 3, and a `scaffold.sh` that stages
 the fixture per protocol step 2 (answer keys deleted, every line naming a violation stripped
 case-insensitively, strip verified before dispatch). The scaffold scripts are
@@ -35,11 +36,12 @@ Graders per case:
 - `regex` (with-only): the v4 report header opens the message, as the
   checker requires (leading blank and fence lines allowed; held to the
   checker by `scripts/test_eval_graders.py`). Until the 2026-09-30 run it
-  matched the header anywhere (`docs/records/evals/2026-09-30.md`). Since
-  #591 every grader in every case is with-only, so the runner scores them
-  all ("if every grader in a case is in the excluded set, they're scored
-  normally instead", <https://code.claude.com/docs/en/plugin-evals.md>):
-  the header is gated on the clean cases too, as it was on the broken
+  matched the header anywhere (`docs/records/evals/2026-09-30.md`). Every
+  grader is scored: with `--ablation none` (below) one arm runs and
+  nothing is excluded, and in a two-arm run, since #591 made every grader
+  with-only, "if every grader in a case is in the excluded set, they're
+  scored normally instead" (<https://code.claude.com/docs/en/plugin-evals.md>).
+  So the header is gated on the clean cases too, as it was on the broken
   cases (owner decision 2026-09-30, recorded on #591). Until #591 the
   clean cases scored only the judge, so their format was recorded, not
   gated (#530). Clean-case pass rates from before and after #591 do not
@@ -91,28 +93,32 @@ Graders per case:
   that visibly confirms every planted violation (#291), and on the clean
   cases it gave no reasoning for any vote (the 2026-09-30 runs, #591).
 
-**What to report: each arm's pass rate, and the difference only where it
-means something** (owner decision 2026-09-30, #530). Record each arm's pass
-rate for every case. Since #591 no grader measures both arms: every grader
-reads something only the plugin produces (the audit skill, the v4 header
-and Status column, inline principle names, the checker). The no-plugin
-arm can pass the clean cases' Status grader without a Status column (none
-of its 2026-09-30 reports wrote one), and fails the header grader by
-construction. So record every with-minus-without difference as "n/a
-(suite construction)". The runner's own difference (`aggregates.meanDelta`,
-each case's `delta`, and the report's "Plugin effect" headline) is then
-an artefact of that construction, as its docs warn for graders counted in
-both arms: never cite it. Until #591
-the clean cases' judge scored both arms, and its difference was recorded
-with the caveat that its criteria use the plugin's vocabulary.
+**Only the plugin arm runs, for now** (owner decision 2026-10-01, #571).
+For this suite the runner adds a no-plugin arm by default, as a baseline.
+As this suite
+is built, that baseline cannot pass:
+- the prompt tells it to use the plumb-line audit skill, which it does
+  not have;
+- every grader but one reads something only the plugin produces (the v4
+  header, the Status column, inline principle names, the checker, the
+  Skill call); the clean cases' Status grader can pass without a Status
+  column, but the others in the same case cannot;
+- with every grader plugin-only, the runner scores them all in both arms.
 
-Until #530, `invoked-audit` had no `arm:` key, so it scored the no-plugin arm
-too, which cannot invoke a plugin skill. The 2026-09-28 run's no-plugin
-results (every case 0/3) and its with-minus-without figures were therefore
-set partly by that grader; later runs, where it scores the plugin arm only,
-do not compare with them. Graders that run in both arms
-without depending on the report format would give the broken cases a real
-difference (#571); so would a runner judge that can be trusted again.
+So the no-plugin arm could not pass a case, whatever its audit was like, and the
+with-minus-without difference measured how the suite is built, not the
+plugin. The runner's "Plugin effect" headline came from the same
+construction. Runs therefore pass `--ablation none`, and report the
+plugin arm's pass rate per case. A real baseline (the same plain prompt
+in both arms, naming no skill, graded on outcomes either arm can
+produce) is #571, for v0.13.0.
+
+Earlier runs ran both arms:
+- **2026-09-28.** Its no-plugin figures were set partly by `invoked-audit`,
+  which then had no `arm:` key and scored the no-plugin arm too.
+- **The 2026-09-30 run and its re-run.** Their records give each arm's pass rate, and
+  record the differences as n/a (suite construction), or as the judge's
+  verdict, not relied on (#530, #591).
 
 Each case lists the tools the auditor may use in `prompt.md`
 (`allowed_tools`). The sandbox grants none by default. Without `Read`, the
@@ -135,9 +141,10 @@ Claude Code configuration are unreadable.
 
 ```sh
 claude plugin eval --scaffold --allow-tools Bash --no-publish --keep-temp \
-    --max-cost-usd 15 --json results.json --report report.html
+    --ablation none --trust-plugin --max-cost-usd 15 --json results.json \
+    --report report.html
 claude plugin eval --scaffold --allow-tools Bash --no-publish --keep-temp \
-    --case "audit-py-*"                  # one fixture
+    --ablation none --case "audit-py-*"   # one fixture
 ```
 
 `--keep-temp` "Keep[s] every run's sandbox directory and print[s] its
