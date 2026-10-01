@@ -82,8 +82,8 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   moving a code file into `docs/` is judged by the code path it removes, and
   it lists submodule bumps even where `diff.ignoreSubmodules` or a
   submodule's `ignore` setting would hide them. A detached HEAD is an unknown branch: a code commit there
-  blocks, and docs pass. That includes a commit made by hand at a rebase
-  stop, even on a feature branch. A merge, cherry-pick or revert that stops
+  blocks, and docs pass. A commit made by hand at a rebase stop is judged
+  by the branch being rebased instead (#547, above). A merge, cherry-pick or revert that stops
   and is finished with `git commit` or `--continue` is judged; one that
   completes on its own runs no pre-commit hook. `adapters/commit-hook-cases.json` holds its cases, which both
   languages run against a real temporary repository. Bootstrap's Step 4
@@ -155,14 +155,36 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   - the check takes **a marked value only**, as `guard` does; walking a
     structure of marked values is to be assessed in #544.
 
-  The check is `guard` with its defaults, so its refusals are the 40 `guard`
-  rows; both languages fail with the same message. Only the pytest plugin
+  The check is `guard` with its defaults, so its refusals are the `guard`
+  rows (52 at this release; 40 when ADR-0021 was written); both languages
+  fail with the same message. Only the pytest plugin
   imports pytest and the vitest subpath never imports vitest, so the core
   stays dependency-free. Neither is in the plugin's bundled copy. Stubbed
   globals, local fake servers and CI provenance, which #123's body also
   named, are #520 and #521.
 
 ### Changed
+- **The eval suite's clean cases are scored mechanically; the runner's judge
+  is out of scoring** ([#591](https://github.com/slopstopper/plumb-line/issues/591);
+  `evals/`). Owner decision, 2026-09-30. The `claude plugin eval` judge failed 7 of
+  12 with-plugin broken-fixture runs on reports that confirmed every
+  planted violation (#291), and on the clean cases it gave no reasoning
+  for any vote (the 2026-09-30 runs, #591). Each clean case now fails on any
+  findings row whose Status is not `needs-review` or `advisory`
+  (`no-confirmed-violations.md`, `match: not_contains`). Inverted, a row it
+  missed would pass, so it fails closed, reading rows as the checker does
+  (two documented residuals: a Principle cell with no code is not seen,
+  and an omission row opening its last cell with a code fails the case);
+  `scripts/test_eval_graders.py` holds it to the checker and flips every
+  row of the committed reports to `violation`. Every grader is now
+  plugin-only, so the runner scores them all: the header grader gates the
+  clean cases too (owner decision, recorded on #591), clean-case pass
+  rates from before and after do not compare, no with-minus-without
+  difference is measured ("n/a", pending #571), and the runner's own Δ is
+  not cited. The judge returns only when it records its reasoning and
+  reproduces the mechanical verdicts on a calibration set. Runs pass
+  `--keep-temp`, which keeps each run's sandbox; whether that recovers the
+  delivered messages is unverified until the first such run.
 - **The audit report's finding status is a contracted column
   (`report-format: v3 → v4`), and the eval suite's broken cases are scored
   mechanically** ([#530](https://github.com/slopstopper/plumb-line/issues/530);
@@ -175,7 +197,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     missed a report that worded it otherwise. The skill defines the three
     words; an adoption gap is `advisory` (the skill had called the spine's
     adoption gap "a `needs-review` advisory adoption gap"), and the js-clean
-    judge and answer key accept it as advisory or needs-review.
+    judge (until #591) and answer key accept it as advisory or needs-review.
     `invoked-audit` is marked with-only, as the suite's README described it;
     until now it also scored the no-plugin arm, so the 2026-09-28 run's
     no-plugin results and difference do not compare with later runs (noted
@@ -196,10 +218,11 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
     were given directly (js-broken, and py-broken run 2) it passed them
     (#291). Their verdict rests on the `finds-*` graders,
     which now read the Status column, with the header and checker graders.
-    The clean cases keep their judge.
+    The clean cases kept their judge until #591, which scores them
+    mechanically.
   - What a run reports: each arm's pass rate for every case, and the
     with-minus-without difference only where the same graders score both
-    arms (the clean cases); elsewhere "n/a" with the reason (#571 tracks
+    arms (the clean cases, until #591); elsewhere "n/a" with the reason (#571 tracks
     graders that would make the broken cases' difference real).
 - **The validation and dogfood records are one file per run, with index
   pages** ([#570](https://github.com/slopstopper/plumb-line/issues/570)).
@@ -541,6 +564,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **The JS conformance runner requires a bad guard option's `TypeError`, and
+  judges a `derive` row only on `derive`** (`primitives/conformance/run-cases.mjs`;
+  v0.12.0 dogfood audit). SPEC §5c said only "an error" while ADR-0020 decided
+  `TypeError` in both languages, and the Python runner required one; the JS
+  runner accepted any throw that was not a supertype of the refusal, so a
+  `RangeError`, or a null-prototype object, passed. SPEC §5c now says
+  `TypeError`, and the JS runner asserts it (the null-prototype case, pinned
+  as conforming before, now fails). A `derive` row marked its inputs inside
+  the `try` that judges `expectError`, so a port whose `mark` threw the
+  expected words passed a row about `derive`; marking now fails the row on
+  its own, as in Python. SPEC §7 and the conformance README name
+  `expectLineage`, the whole-lineage field four `combine` rows carry. A
+  200,000-score row pins `combineConfidenceScore`'s fold (#560) in both
+  languages; it had no test.
 - **JS combine, audit and guard no longer overflow the stack on a long
   lineage** ([#560](https://github.com/slopstopper/plumb-line/issues/560);
   `primitives/js`). With 200,000 steps, `combineProvenance`, `auditMeta` and
