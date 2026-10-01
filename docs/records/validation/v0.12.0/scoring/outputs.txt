@@ -1,0 +1,130 @@
+# Printed output of the scoring scripts, run 2026-09-30 over each remediator's transcript.
+# Local paths are redacted to <harness>/<tasks>. The transcripts are not committed.
+
+## rem-1
+### plan_first2.py (requirement 1 as first scored: outputs before the first fixture edit)
+  13 text 62
+  14 Read /worktrees/v0.12.0-docs/skills/plumb-line-remediate/SKILL.md
+  16 Read aude/worktrees/v0.12.0-docs/reference/portable-principles.md
+  18 Read aude/jobs/ee009c9a/tmp/harness/rem-input/plumb-line-audit.md
+  20 Bash 
+  27 Bash 
+  31 text 81
+  32 Bash 
+  37 text 95
+  38 Bash 
+  42 text 85
+  43 Edit e/jobs/ee009c9a/tmp/harness/fixtures/rem-1/src/data/rates.js  <- FIRST EDIT TO FIXTURE
+### plan_file_first.py (requirement 1 as scored since #600: the plan-file write, then the first change)
+rem-1: plan write (101, 14, 'Write', 'a/tmp/harness/work/rem-1/plumb-line-remediation.md'); first change (43, 5, 'Edit', '09c9a/tmp/harness/fixtures/rem-1/src/data/rates.js'); plan step before change step: False
+   timing phrases in final message: ['s/check_report_format.py` (v6) passed the source report as conforming before any edit.']
+### diff_results.py (requirement 2: per-finding diffs in tool output, and in the final message)
+  diff of src/data/rates.js: hunks 1
+  diff of src/engine/pricing.js: hunks 3
+  diff of src/services/gateway.js: hunks 1
+  diff of src/services/gateway.js: hunks 1
+  hand-back: code fences with '@@' or leading -/+ code lines: 2
+
+## rem-2
+### plan_first2.py (requirement 1 as first scored: outputs before the first fixture edit)
+  13 Read /worktrees/v0.12.0-docs/skills/plumb-line-remediate/SKILL.md
+  15 Read aude/worktrees/v0.12.0-docs/reference/portable-principles.md
+  17 Read aude/jobs/ee009c9a/tmp/harness/rem-input/plumb-line-audit.md
+  19 Bash 
+  26 Bash 
+  30 Bash 
+  35 Bash 
+  39 text 86
+  40 Edit e/jobs/ee009c9a/tmp/harness/fixtures/rem-2/src/data/rates.js  <- FIRST EDIT TO FIXTURE
+### plan_file_first.py (requirement 1 as scored since #600: the plan-file write, then the first change)
+rem-2: plan write (72, 11, 'Write', 'a/tmp/harness/work/rem-2/plumb-line-remediation.md'); first change (40, 5, 'Edit', '09c9a/tmp/harness/fixtures/rem-2/src/data/rates.js'); plan step before change step: False
+   timing phrases in final message: ['**Fix plan, made before any edit.**']
+### diff_results.py (requirement 2: per-finding diffs in tool output, and in the final message)
+  diff of src/data/rates.js: hunks 1
+  diff of src/engine/pricing.js: hunks 3
+  diff of src/services/gateway.js: hunks 1
+  hand-back: code fences with '@@' or leading -/+ code lines: 2
+
+## rem-3
+### plan_first2.py (requirement 1 as first scored: outputs before the first fixture edit)
+  13 text 86
+  14 Read /worktrees/v0.12.0-docs/skills/plumb-line-remediate/SKILL.md
+  16 Read aude/worktrees/v0.12.0-docs/reference/portable-principles.md
+  18 Read aude/jobs/ee009c9a/tmp/harness/rem-input/plumb-line-audit.md
+  20 Bash 
+  27 Bash 
+  31 text 149
+  32 Bash 
+  38 Bash 
+  41 Edit e/jobs/ee009c9a/tmp/harness/fixtures/rem-3/src/data/rates.js  <- FIRST EDIT TO FIXTURE
+### plan_file_first.py (requirement 1 as scored since #600: the plan-file write, then the first change)
+rem-3: plan write (84, 12, 'Write', 'de/jobs/ee009c9a/tmp/harness/work/rem-3/message.md'); first change (41, 5, 'Edit', '09c9a/tmp/harness/fixtures/rem-3/src/data/rates.js'); plan step before change step: False
+   timing phrases in final message: ['### Fix plan (repeat; the same table was printed before the first edit)']
+### diff_results.py (requirement 2: per-finding diffs in tool output, and in the final message)
+  diff of src/data/rates.js: hunks 1
+  diff of src/engine/pricing.js: hunks 3
+  diff of src/services/gateway.js: hunks 1
+  hand-back: code fences with '@@' or leading -/+ code lines: 0
+
+## rem-4
+### plan_first2.py (requirement 1 as first scored: outputs before the first fixture edit)
+  13 text 62
+  14 Read /worktrees/v0.12.0-docs/skills/plumb-line-remediate/SKILL.md
+  16 Read aude/worktrees/v0.12.0-docs/reference/portable-principles.md
+  18 Read aude/jobs/ee009c9a/tmp/harness/rem-input/plumb-line-audit.md
+  20 Bash 
+  27 Bash 
+  31 text 116
+  32 Bash 
+  38 Edit e/jobs/ee009c9a/tmp/harness/fixtures/rem-4/src/data/rates.js  <- FIRST EDIT TO FIXTURE
+### plan_file_first.py (requirement 1 as scored since #600: the plan-file write, then the first change)
+rem-4: plan write (78, 12, 'Write', 'de/jobs/ee009c9a/tmp/harness/work/rem-4/message.md'); first change (38, 4, 'Edit', '09c9a/tmp/harness/fixtures/rem-4/src/data/rates.js'); plan step before change step: False
+   timing phrases in final message: ['**Fix plan (repeat; the same table was printed before the first edit)**']
+### diff_results.py (requirement 2: per-finding diffs in tool output, and in the final message)
+  diff of src/data/rates.js: hunks 1
+  diff of src/engine/pricing.js: hunks 3
+  diff of src/services/gateway.js: hunks 1
+  hand-back: code fences with '@@' or leading -/+ code lines: 0
+
+## rem-5
+### plan_first2.py (requirement 1 as first scored: outputs before the first fixture edit)
+  13 text 86
+  14 Read /worktrees/v0.12.0-docs/skills/plumb-line-remediate/SKILL.md
+  16 Read aude/worktrees/v0.12.0-docs/reference/portable-principles.md
+  18 Read aude/jobs/ee009c9a/tmp/harness/rem-input/plumb-line-audit.md
+  20 Bash 
+  27 Bash 
+  30 Bash 
+  35 Bash 
+  38 text 134
+  39 Write aude/jobs/ee009c9a/tmp/harness/work/rem-5/plumb-line-plan.md  <- PLAN
+  44 Edit e/jobs/ee009c9a/tmp/harness/fixtures/rem-5/src/data/rates.js  <- FIRST EDIT TO FIXTURE
+### plan_file_first.py (requirement 1 as scored since #600: the plan-file write, then the first change)
+rem-5: plan write (39, 5, 'Write', 'ee009c9a/tmp/harness/work/rem-5/plumb-line-plan.md'); first change (44, 6, 'Edit', '09c9a/tmp/harness/fixtures/rem-5/src/data/rates.js'); plan step before change step: True
+   timing phrases in final message: none
+### diff_results.py (requirement 2: per-finding diffs in tool output, and in the final message)
+  diff of src/data/rates.js: hunks 1
+  diff of src/engine/pricing.js: hunks 3
+  diff of src/services/gateway.js: hunks 1
+  hand-back: code fences with '@@' or leading -/+ code lines: 0
+
+## rem-6
+### plan_first2.py (requirement 1 as first scored: outputs before the first fixture edit)
+  13 Read /worktrees/v0.12.0-docs/skills/plumb-line-remediate/SKILL.md
+  15 Read aude/worktrees/v0.12.0-docs/reference/portable-principles.md
+  17 Read aude/jobs/ee009c9a/tmp/harness/rem-input/plumb-line-audit.md
+  19 Bash 
+  26 Bash 
+  30 Bash 
+  35 Bash 
+  38 Write aude/jobs/ee009c9a/tmp/harness/work/rem-6/plumb-line-plan.md  <- PLAN
+  42 text 28
+  43 Edit e/jobs/ee009c9a/tmp/harness/fixtures/rem-6/src/data/rates.js  <- FIRST EDIT TO FIXTURE
+### plan_file_first.py (requirement 1 as scored since #600: the plan-file write, then the first change)
+rem-6: plan write (38, 5, 'Write', 'ee009c9a/tmp/harness/work/rem-6/plumb-line-plan.md'); first change (43, 6, 'Edit', '09c9a/tmp/harness/fixtures/rem-6/src/data/rates.js'); plan step before change step: True
+   timing phrases in final message: none
+### diff_results.py (requirement 2: per-finding diffs in tool output, and in the final message)
+  diff of src/data/rates.js: hunks 1
+  diff of src/engine/pricing.js: hunks 3
+  diff of src/services/gateway.js: hunks 1
+  hand-back: code fences with '@@' or leading -/+ code lines: 0

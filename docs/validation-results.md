@@ -32,6 +32,7 @@ and earlier ones not at all.
 
 | Run | Date | Blind validation (Part 1) | Format scoring |
 | --- | --- | --- | --- |
+| [v0.12.0 release-harness record — 2026-09-30 (pre-tag)](records/validation/v0.12.0.md) | 2026-09-30 | 9/9 PASS | 17/18 conform; the dogfood report fails, honestly stamped |
 | [v0.11.5 release-harness record — 2026-09-28 (pre-tag)](records/validation/v0.11.5.md) | 2026-09-28 | 5/6 PASS first run; py-clean FAIL, fixed and re-validated 2/2 | 8/8 conform |
 | [Impossible-task spike — 2026-09-26 (#462)](records/validation/2026-09-26-impossible-task-spike-462.md) | 2026-09-26 | — (a spike, not a blind validation) | — (a spike, not a blind validation) |
 | [v0.11.4 release-harness record — 2026-09-26 (pre-tag)](records/validation/v0.11.4.md) | 2026-09-26 | 6/6 findings PASS | 6/6 conform |
@@ -65,5 +66,6 @@ Newest first. Whether a run counts as green is recorded with it, or marked pendi
 
 | Run | Date | Result |
 | --- | --- | --- |
+| [2026-09-30 re-run — the first green run: with the plugin 12/12, on the committed fixtures, every with-plugin clean report conforming](records/evals/2026-09-30-rerun.md) | 2026-09-30 | Green (owner decision, #291; #530's condition: the re-run with the scaffold and grader fixes). With the plugin 3/3 on all four cases; the anchored header grader passed every with-plugin broken run. Without: 0/3 everywhere (broken n/a; clean by the judge alone, out of scoring since #591). 6/6 with-plugin clean reports conform. |
 | [2026-09-30 — first run after #530: findings clean in every plugin run, but the js fixture was not the committed one, and two reports fail the format checker](records/evals/2026-09-30.md) | 2026-09-30 | Not green (owner decision, #530). With the plugin 3/3 on all four cases, every planted violation confirmed. Without: broken cases 0/3 (n/a, structural), js-clean 0/3, py-clean 2/3. The js fixture's ESLint was broken by the scaffold. 4 of the 6 with-plugin clean reports conform to the format checker; the broken reports' format is unknown. |
 | [2026-09-28 — first real run: drift pass, probes and full pass](records/evals/2026-09-28.md) | 2026-09-28 | Not a green run: it found and fixed drift, and the runner's LLM judge failed reports that confirm every planted violation (#291, #530). On every deterministic grader the plugin arm was clean and the no-plugin arm failed every case. |
