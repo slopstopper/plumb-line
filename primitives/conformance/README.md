@@ -57,7 +57,8 @@ A new-language port conforms to **envelope schema version 2** when it produces
 the expected result for every case in `cases.json` — see [SPEC §7](../SPEC.md).
 Mirror the runner pattern: load `cases.json`, translate the camelCase field
 names to your language's binding, run `combine`/`audit`/`validate`/`construct`/`derive`/`guard`,
-and assert every field a case carries (including `expectLineageIds`). A
+and assert every field a case carries (including `expectLineage`, the whole
+lineage, and `expectLineageIds`). A
 `construct` case expects your envelope constructor to refuse an off-ladder
 `source` or `confidence` with a message containing the pinned text (v0.12.0,
 #443), and to refuse a missing `source` rather than default it (v0.12.0,
