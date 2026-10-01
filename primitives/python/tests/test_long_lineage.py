@@ -38,6 +38,11 @@ def test_combines_to_the_weakest_confidence_score_and_source():
         ['low', 0.4, 'fallback', N + 1]
 
 
+def test_combines_200000_scores_to_the_weakest():
+    # Twin of the JS row added by the v0.12.0 dogfood audit.
+    assert combine_confidence_score([0.4 if i == WEAK_AT else 0.9 for i in range(N)]) == 0.4
+
+
 def test_audits_clean_when_the_headline_matches_the_lineage():
     assert audit_meta(LONG) == []
 

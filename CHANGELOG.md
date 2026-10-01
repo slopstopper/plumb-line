@@ -563,6 +563,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   the JS hook runner's import of the table guards, and two adapter tests
   that read `examples/` fixtures. No behaviour changes.
 ### Fixed
+- **The JS conformance runner requires a bad guard option's `TypeError`, and
+  judges a `derive` row only on `derive`** (`primitives/conformance/run-cases.mjs`;
+  v0.12.0 dogfood audit). SPEC §5c said only "an error" while ADR-0020 decided
+  `TypeError` in both languages, and the Python runner required one; the JS
+  runner accepted any throw that was not a supertype of the refusal, so a
+  `RangeError`, or a null-prototype object, passed. SPEC §5c now says
+  `TypeError`, and the JS runner asserts it (the null-prototype case, pinned
+  as conforming before, now fails). A `derive` row marked its inputs inside
+  the `try` that judges `expectError`, so a port whose `mark` threw the
+  expected words passed a row about `derive`; marking now fails the row on
+  its own, as in Python. SPEC §7 and the conformance README name
+  `expectLineage`, the whole-lineage field four `combine` rows carry. A
+  200,000-score row pins `combineConfidenceScore`'s fold (#560) in both
+  languages; it had no test.
 - **JS combine, audit and guard no longer overflow the stack on a long
   lineage** ([#560](https://github.com/slopstopper/plumb-line/issues/560);
   `primitives/js`). With 200,000 steps, `combineProvenance`, `auditMeta` and

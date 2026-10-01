@@ -38,6 +38,11 @@ describe("a 200,000-step lineage (#560)", { timeout: 60_000 }, () => {
     expect([c.confidence, c.confidenceScore, c.weakestSource, c.lineage.length]).toEqual(["low", 0.4, "fallback", N + 1]);
   });
 
+  it("combines 200,000 scores to the weakest (v0.12.0 dogfood: the fold had no test)", () => {
+    const scores = Array.from({ length: N }, (_, i) => (i === WEAK_AT ? 0.4 : 0.9));
+    expect(combineConfidenceScore(scores)).toBe(0.4);
+  });
+
   it("audits clean when the headline matches the lineage", () => {
     expect(auditMeta(long)).toEqual([]);
   });
