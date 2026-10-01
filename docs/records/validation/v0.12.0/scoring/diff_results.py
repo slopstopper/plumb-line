@@ -28,4 +28,5 @@ for d in lines:
         for c in d["message"].get("content", []):
             if c.get("type") == "tool_use" and c["name"] == "SubagentHandback":
                 m = c["input"]["message"]
-                print(f"  hand-back: code fences with '@@' or leading -/+ code lines: {len(re.findall(r'(?m)^```(?:diff)?\n(?:[-+ @].*\n)+```', m))}")
+                fences = re.findall(r'(?m)^```(?:diff)?\n(?:[-+ @].*\n)+```', m)
+                print(f"  hand-back: code fences with '@@' or leading -/+ code lines: {len(fences)}")
