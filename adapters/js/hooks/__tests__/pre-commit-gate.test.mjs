@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdtempSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { classifyBranch, decide, splitCommand } from "../pre-commit-gate.mjs";
-import { isBranchName } from "../branch-guard.mjs";
+import {
+  decide as guardDecide, ignoreCaseFrom, isBranchName, isCaseAlias, protectedMatch, readIgnoreCase,
+} from "../branch-guard.mjs";
 
 /**
  * Deterministic random strings over the characters the splitter treats
@@ -139,11 +141,11 @@ describe("pre-commit-gate decide", () => {
 // hook-cases.test.mjs (#475).
 
 // #613: the branch-aware gate. Its CLI is in adapters/commit-hook-cases.json;
-// these pin classifyBranch() in-process, and the gate copied alone. Python
-// twin: test_hooks.py.
+// these pin classifyBranch() in-process, and the case helpers it shares with
+// the branch guard (#615). Python twin: test_hooks.py.
 describe("classifyBranch (#613)", () => {
-  const classify = (resolved, protectedBranches = ["main"]) =>
-    classifyBranch({ resolved, protectedBranches, isBranchName });
+  const classify = (resolved, protectedBranches = ["main"], ignoreCase = false) =>
+    classifyBranch({ resolved, isBranchName, protectedName: (b) => protectedMatch(b, protectedBranches, ignoreCase) });
   it("reads the branch and every branch a rebase moves", () => {
     expect(classify({ branch: "feat" })).toEqual({ kind: "other", branch: "feat" });
     expect(classify({ branch: "main" })).toEqual({ kind: "protected", branch: "main" });
@@ -167,31 +169,39 @@ describe("classifyBranch (#613)", () => {
   });
 });
 
-describe("a gate copied alone, as installs from before #613 did", () => {
-  const gateAlone = () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), "plumb-line-gate-alone-"));
-    copyFileSync(fileURLToPath(new URL("../pre-commit-gate.mjs", import.meta.url)), path.join(dir, "pre-commit-gate.mjs"));
-    return dir;
-  };
-  const env = (extra) => ({
-    ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("PLUMBLINE_"))),
-    ...extra,
+describe("case aliases of a protected branch (#615)", () => {
+  const classify = (resolved, ignoreCase = false) =>
+    classifyBranch({ resolved, isBranchName, protectedName: (b) => protectedMatch(b, ["main"], ignoreCase) });
+  it("classifyBranch matches a case alias only where git ignores case", () => {
+    // The protected name is the one reported.
+    expect(classify({ branch: "Main" })).toEqual({ kind: "other", branch: "Main" });
+    expect(classify({ branch: "Main" }, true)).toEqual({ kind: "protected", branch: "main" });
+    expect(classify({ branch: "feat", also: ["MAIN"] }, true)).toEqual({ kind: "protected", branch: "main" });
   });
-  for (const [cmd, code] of [["true", 0], ["false", 2]]) {
-    it(`runs as before with PLUMBLINE_CFG unset: ${cmd} exits ${code}`, () => {
-      const dir = gateAlone();
-      const r = spawnSync(process.execPath, [path.join(dir, "pre-commit-gate.mjs")],
-        { cwd: dir, env: env({ PLUMBLINE_TEST_CMD: cmd }), encoding: "utf8" });
-      expect(r.status).toBe(code);
+  it("protectedMatch and isCaseAlias", () => {
+    expect(protectedMatch("main", ["main"])).toBe("main");
+    expect(protectedMatch("Main", ["main"])).toBeNull();
+    expect(protectedMatch("Main", ["main"], true)).toBe("main");
+    expect(protectedMatch("feat", ["main"], true)).toBeNull();
+    expect(isCaseAlias("Main", ["main"])).toBe(true);
+    expect(isCaseAlias("main", ["main"])).toBe(false);
+    expect(isCaseAlias("feat", ["main"])).toBe(false);
+  });
+  for (const [status, stdout, expected] of [
+    [0, "true\n", true], [0, "false\n", false], [1, "", false],
+    // Anything else cannot be read: fail closed.
+    [128, "", true], [0, "yes\n", false], [2, "", true],
+  ]) {
+    it(`ignoreCaseFrom(${status}, ${JSON.stringify(stdout)}) is ${expected}`, () => {
+      expect(ignoreCaseFrom(status, stdout)).toBe(expected);
     });
   }
-  it("blocks with PLUMBLINE_CFG set, naming the files it needs", () => {
-    const dir = gateAlone();
-    const r = spawnSync(process.execPath, [path.join(dir, "pre-commit-gate.mjs")],
-      { cwd: dir, env: env({ PLUMBLINE_TEST_CMD: "true", PLUMBLINE_CFG: "{}" }), encoding: "utf8" });
-    expect(r.status).toBe(2);
-    expect(r.stderr.startsWith("pre-commit blocked: PLUMBLINE_CFG is set, and the gate reads it with the "
-      + "branch guard's files, which cannot be loaded (")).toBe(true);
-    expect(r.stderr.endsWith("Copy branch-guard.mjs and branch-guard-commit.mjs beside the gate.\n")).toBe(true);
+  it("readIgnoreCase fails closed outside a repository", () => {
+    expect(readIgnoreCase(path.join(os.tmpdir(), "plumb-line-615-missing"))).toBe(true);
+  });
+  it("the branch guard's decide takes ignoreCase", () => {
+    expect(guardDecide({ filePath: "src/a.py", branch: "Main", protectedBranches: ["main"], ignoreCase: true }))
+      .toEqual({ allow: false, reason: "blocked: code edit to src/a.py on protected branch main. Branch first." });
+    expect(guardDecide({ filePath: "src/a.py", branch: "Main", protectedBranches: ["main"] }).allow).toBe(true);
   });
 });

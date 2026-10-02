@@ -17,7 +17,8 @@ import sys
 # under PYTHONSAFEPATH or `python3 -P` / `-I` the script's directory is not on
 # sys.path, and the import failed with exit 1.
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from branch_guard import _is_branch_name, config_from_env, decide  # noqa: E402
+from branch_guard import (  # noqa: E402
+    _is_branch_name, config_from_env, decide, is_case_alias, read_ignore_case)
 
 
 def branch_from_ref(ref):
@@ -75,7 +76,7 @@ def update_ref_branches(data):
     return [b for b in (branch_from_ref(line) for line in lines[::3]) if b is not None]
 
 
-def judge_commit(branch, paths, config, why=None):
+def judge_commit(branch, paths, config, why=None, ignore_case=False):
     """Judge a commit: every staged path through decide(), stopping at the
     first block. The branch is unknown when HEAD is on no branch (`branch`
     None) or on one git would not accept as a branch name, such as `-x`, which
@@ -84,7 +85,9 @@ def judge_commit(branch, paths, config, why=None):
     non-empty path, decide()'s only block on an unknown branch is the code
     edit, so that reason is replaced with one naming HEAD rather than
     PLUMBLINE_BRANCH, which this hook never reads; `why`, when given, says why
-    the branch is unknown (a rebase in progress, #547). JS twin: judgeCommit."""
+    the branch is unknown (a rebase in progress, #547). `ignore_case`: git
+    ignores case here, so a case alias of a protected branch is protected
+    (#615). JS twin: judgeCommit."""
     known = branch is not None and _is_branch_name(branch)
     for file_path in paths:
         r = decide(
@@ -92,6 +95,7 @@ def judge_commit(branch, paths, config, why=None):
             branch=branch if branch is not None else "",
             protected_branches=tuple(config.get("protectedBranches", ["main"])),
             docs_allowlist=tuple(config.get("docsAllowlist", [])),
+            ignore_case=ignore_case,
         )
         if r["allow"]:
             continue
@@ -194,7 +198,11 @@ def _main():
     diff = _git(["diff", "--cached", "--name-only", "-z", "--no-renames", "--ignore-submodules=none"],
                 "list the staged files")
     paths = staged_paths(diff.stdout)
-    r = judge_commit(branch, paths, config, why)
+    # core.ignorecase is read only when it decides (#615); unreadable fails closed.
+    protected = config.get("protectedBranches", ["main"])
+    ignore_case = any(b is not None and is_case_alias(b, protected) for b in (branch, *also)) \
+        and read_ignore_case()
+    r = judge_commit(branch, paths, config, why, ignore_case)
     if not r["allow"]:
         return r
     # Every branch the rebase will move must allow the commit (#547 review).
@@ -203,7 +211,7 @@ def _main():
     for other in also:
         r2 = judge_commit(other, paths, config,
                           f"the rebase also moves {json.dumps(other, ensure_ascii=False)}, "
-                          "which is not a branch name")
+                          "which is not a branch name", ignore_case)
         if not r2["allow"]:
             return r2
     return r

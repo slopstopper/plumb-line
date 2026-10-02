@@ -170,8 +170,10 @@ def _expand_repeat(c):
 
 def _is_cleared(k):
     """Removed first so the caller's shell cannot leak in: every PLUMBLINE_*
-    variable (including ones a later hook adds) and PYTHONIOENCODING."""
-    return k.startswith('PLUMBLINE_') or k == 'PYTHONIOENCODING'
+    variable (including ones a later hook adds), PYTHONIOENCODING, and
+    CLAUDE_PROJECT_DIR, the repository the branch guard reads core.ignorecase
+    from (#615)."""
+    return k.startswith('PLUMBLINE_') or k in ('PYTHONIOENCODING', 'CLAUDE_PROJECT_DIR')
 
 
 def _run(kind, row):

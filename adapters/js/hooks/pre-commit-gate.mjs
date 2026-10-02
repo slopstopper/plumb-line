@@ -44,16 +44,26 @@ export async function decide({ runners }) {
 /** What testsOnOtherBranches may be (#613); absent means "skip". */
 const TESTS_ON_OTHER_BRANCHES = ["skip", "run"];
 
+/** What the gate reads from the branch guard and its commit hook. Python twin: _GUARD_NEEDS, _COMMIT_HOOK_NEEDS. */
+const GUARD_NEEDS = ["configFromEnv", "isBranchName", "protectedMatch", "isCaseAlias", "readIgnoreCase"];
+const COMMIT_HOOK_NEEDS = ["resolveBranch", "GitRefused"];
+
+/** Why the gate cannot read PLUMBLINE_CFG without them, the same in both twins. */
+const CANNOT_LOAD = "pre-commit blocked: PLUMBLINE_CFG is set, and the gate reads it with the branch guard's files, "
+  + "which cannot be loaded. Copy the branch guard and its commit hook, from the same release as the gate, beside it.";
+
 /**
  * Where a commit lands, for the gate (#613), from resolveBranch() in
- * branch-guard-commit.mjs: `{ kind: "protected", branch }`,
- * `{ kind: "unknown", why }` or `{ kind: "other", branch }`. `isBranchName`
- * is the branch guard's rule. Judged in the commit hook's order: the branch
+ * branch-guard-commit.mjs: `{ kind: "protected", branch }` (the protected
+ * name), `{ kind: "unknown", why }` or `{ kind: "other", branch }`.
+ * `isBranchName` is the branch guard's rule; `protectedName(branch)` the
+ * protected branch a branch is, or null, as the branch guard matches it
+ * (protectedMatch, #615). Judged in the commit hook's order: the branch
  * itself, then every other branch a rebase with --update-refs will move. Any
  * of them protected makes the commit protected; any of them unknown makes it
  * unknown, which the gate treats as protected. Python twin: classify_branch.
  */
-export function classifyBranch({ resolved, protectedBranches, isBranchName }) {
+export function classifyBranch({ resolved, isBranchName, protectedName }) {
   const { branch = null } = resolved;
   let { why } = resolved;
   if (why != null || branch === null || !isBranchName(branch)) {
@@ -62,13 +72,13 @@ export function classifyBranch({ resolved, protectedBranches, isBranchName }) {
       : `HEAD is on ${JSON.stringify(branch)}, which is not a branch name`;
     return { kind: "unknown", why };
   }
-  if (protectedBranches.includes(branch)) return { kind: "protected", branch };
+  if (protectedName(branch) !== null) return { kind: "protected", branch: protectedName(branch) };
   if (resolved.alsoWhy != null) return { kind: "unknown", why: resolved.alsoWhy };
   for (const other of resolved.also ?? []) {
     if (!isBranchName(other)) {
       return { kind: "unknown", why: `the rebase also moves ${JSON.stringify(other)}, which is not a branch name` };
     }
-    if (protectedBranches.includes(other)) return { kind: "protected", branch: other };
+    if (protectedName(other) !== null) return { kind: "protected", branch: protectedName(other) };
   }
   return { kind: "other", branch };
 }
@@ -189,7 +199,8 @@ if (isMainModule()) {
           name: cmd,
           fn: () => {
             const res = spawnSync(prog, args, { stdio: "inherit" });
-            if (res.error) throw res.error; // not started: say so, as the Python twin does
+            // Not started: Node's error code (ENOENT, EACCES), as the Python twin gives the errno name.
+            if (res.error) throw new Error(res.error.code ?? res.error.message);
             return res.status === 0;
           },
         }],
@@ -211,16 +222,17 @@ if (isMainModule()) {
   if (!r) {
     // Imported only when PLUMBLINE_CFG is set, so a gate copied alone still
     // runs with it unset, as before.
+    // An older release's files import, but lack what the gate reads (#613
+    // review): say so, rather than fail on the first missing name.
     try {
       guard = await import("./branch-guard.mjs");
       commitHook = await import("./branch-guard-commit.mjs");
-    } catch (e) {
-      r = {
-        allow: false,
-        reason: "pre-commit blocked: PLUMBLINE_CFG is set, and the gate reads it with the branch guard's " +
-          `files, which cannot be loaded (${e.message}). Copy branch-guard.mjs and branch-guard-commit.mjs ` +
-          "beside the gate.",
-      };
+      if (!GUARD_NEEDS.every((n) => typeof guard[n] === "function")
+          || !COMMIT_HOOK_NEEDS.every((n) => typeof commitHook[n] === "function")) {
+        throw new Error("missing exports");
+      }
+    } catch {
+      r = { allow: false, reason: CANNOT_LOAD };
     }
   }
   let config;
@@ -248,10 +260,14 @@ if (isMainModule()) {
         why: e instanceof commitHook.GitRefused ? `the gate ${e.message}` : `the gate could not read the branch (${e.message})`,
       };
     }
+    // core.ignorecase is read only when it decides (#615); unreadable fails closed.
+    const protectedBranches = config.protectedBranches ?? ["main"];
+    const named = [resolved.branch ?? null, ...(resolved.also ?? [])].filter((b) => b !== null);
+    const ignoreCase = named.some((b) => guard.isCaseAlias(b, protectedBranches)) && guard.readIgnoreCase();
     const where = classifyBranch({
       resolved,
-      protectedBranches: config.protectedBranches ?? ["main"],
       isBranchName: guard.isBranchName,
+      protectedName: (b) => guard.protectedMatch(b, protectedBranches, ignoreCase),
     });
     if (where.kind === "other" && mode === "skip") {
       r = { allow: true, notice: MESSAGES.skipped(where.branch) };

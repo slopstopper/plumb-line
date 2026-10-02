@@ -7,6 +7,7 @@ table, so neither twin can quietly miss it."""
 import copy
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -24,14 +25,20 @@ with open(os.path.join(_REPO, 'adapters', 'commit-hook-cases.json'), encoding='u
 _HOOKS = {
     'commitHook': os.path.join(_HERE, 'branch_guard_commit.py'),
     'preCommitGate': os.path.join(_HERE, 'pre_commit_gate.py'),
+    # The PreToolUse guard itself, where a row needs a real repository (#615).
+    'branchGuard': os.path.join(_HERE, 'branch_guard.py'),
 }
+# A copy of the gate run in place of the shipped one: alone, or beside a
+# guard or commit hook with none of the exports it reads (#613 review).
+_GATE_COPIES = ('alone', 'emptyWrapper', 'emptyGuard')
 
 # Every field, case kind and table version this runner interprets (#441). JS
 # twin: MODEL in adapters/js/hooks/__tests__/commit-hook-cases.test.mjs.
 _ROW = ['name', 'repo', 'committed', 'committedText', 'fakeGit', 'side', 'branch', 'tags', 'headRef', 'config', 'merge',
         'rebaseStop', 'rebaseApply', 'rebaseAlso', 'rebaseHeadName', 'rebaseHeadNameDir', 'rebaseUpdateRefsDir', 'remove', 'move', 'stage', 'stageHex', 'gitlink', 'stageCount', 'modify', 'env', 'commit',
         'expectExit', 'expectStderr']
-_MODEL = {'versions': [1], 'meta': ['_doc', 'version'], 'fields': {kind: _ROW for kind in _HOOKS}}
+_MODEL = {'versions': [1], 'meta': ['_doc', 'version'],
+          'fields': {'commitHook': _ROW, 'preCommitGate': [*_ROW, 'gateCopy'], 'branchGuard': [*_ROW, 'stdin']}}
 
 
 def _is_strings(v):
@@ -93,6 +100,13 @@ def _type_problems(c):
             problems.append('fakeGit cannot be combined with commit')
     if not _is_int(c.get('expectExit')):
         problems.append('expectExit must be an integer')
+    if 'stdin' in c and not isinstance(c['stdin'], str):
+        problems.append('stdin must be a string')
+    if 'gateCopy' in c:
+        if c['gateCopy'] not in _GATE_COPIES:
+            problems.append('gateCopy must be one of alone, emptyWrapper, emptyGuard')
+        if 'commit' in c:
+            problems.append('gateCopy cannot be combined with commit')
     if not isinstance(c.get('expectStderr'), str):
         problems.append('expectStderr must be a string')
     # A detached HEAD, a tag, a HEAD ref, a side branch or a gitlink needs a
@@ -132,7 +146,7 @@ def _type_problems(c):
 # hook), and the global and system git config are not read, so a
 # core.hooksPath or commit.gpgsign there changes nothing.
 _BASE_ENV = {k: v for k, v in os.environ.items()
-             if not k.startswith(('GIT_', 'PLUMBLINE_')) and k != 'PYTHONIOENCODING'}
+             if not k.startswith(('GIT_', 'PLUMBLINE_')) and k not in ('PYTHONIOENCODING', 'CLAUDE_PROJECT_DIR')}
 _BASE_ENV.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1',
                  GIT_AUTHOR_NAME='t', GIT_AUTHOR_EMAIL='t@example.com',
                  GIT_COMMITTER_NAME='t', GIT_COMMITTER_EMAIL='t@example.com')
@@ -262,6 +276,21 @@ def _run(c, tmp_path, kind='commitHook'):
         else:
             env[k] = v
     options = dict(env=env, capture_output=True, timeout=30)  # a hang fails its row
+    if kind == 'branchGuard':
+        options['input'] = c.get('stdin', '').encode('utf-8')
+    if 'gateCopy' in c:
+        # JS twin: the same three copies, with an empty module standing in for
+        # an older guard or commit hook.
+        copy_dir = tmp_path / 'hooks-copy'
+        copy_dir.mkdir()
+        shutil.copy(hook_file, copy_dir)
+        if c['gateCopy'] == 'emptyWrapper':
+            shutil.copy(os.path.join(_HERE, 'branch_guard.py'), copy_dir)
+            (copy_dir / 'branch_guard_commit.py').write_text('', encoding='utf-8')
+        elif c['gateCopy'] == 'emptyGuard':
+            shutil.copy(os.path.join(_HERE, 'branch_guard_commit.py'), copy_dir)
+            (copy_dir / 'branch_guard.py').write_text('', encoding='utf-8')
+        hook_file = str(copy_dir / os.path.basename(hook_file))
     if c.get('repo') is False:
         cwd = tmp_path / 'no-repo'
         cwd.mkdir()

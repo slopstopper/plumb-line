@@ -1,5 +1,5 @@
 {
-  "_doc": "Cases for the branch guard's git commit hook (#464, kind `commitHook`) and the branch-aware pre-commit gate (#613, kind `preCommitGate`), run against a real temporary git repository by both twins: adapters/js/hooks/__tests__/commit-hook-cases.test.mjs and adapters/python/hooks/test_commit_hook_cases.py. Both kinds take the same fields; a `preCommitGate` row runs the gate where a `commitHook` row runs the wrapper, with its test command in `env.PLUMBLINE_TEST_CMD` (POSIX utilities only, so neither runner needs the other language). Each row builds the repository in this order: `git init` on an unborn main; `committed` paths committed as the base, with `committedText` files (path to content) committed beside them (absent: main stays unborn); `side` paths committed on a branch named side, made from the base, then main checked out again; `branch` checked out as a new branch (null: HEAD detached at the base; \"main\": stay); `tags` created at HEAD; `headRef` given to `git symbolic-ref HEAD`; `config` pairs set with `git config`; `merge` arguments given to `git merge`; `rebaseStop` path committed on the current branch, then `git rebase --exec false HEAD~1` run so the rebase stops with HEAD detached and `rebase-merge/head-name` written, as at an `edit` stop; with `rebaseAlso`, that branch is pointed at the commit, a tip commit is added and `git rebase --update-refs --exec false HEAD~2` runs instead, so the rebase will move `rebaseAlso` too (`rebaseUpdateRefsDir` then replaces `update-refs` with a directory); with `rebaseApply`, `conflict.txt` is committed beside the path and `git rebase --apply` onto a branch that adds it differently stops on the conflict, writing `rebase-apply/head-name`; the rebase directory's `head-name` `rebaseHeadName` then deletes (null) or overwrites (text), or `rebaseHeadNameDir` replaces with a directory; `remove` and `move` applied with `git rm` and `git mv`; `stage` paths written and added; `stageHex` paths (hex bytes, which need not be UTF-8) added to the index only; `gitlink` paths added to the index as submodule commits (HEAD's); `stageCount` [prefix, n] adds n index-only paths prefix0 to prefix(n-1); `modify` paths rewritten without staging. Then the wrapper runs in the repository with `env` applied (null unsets) and every PLUMBLINE_* variable cleared first, or, when `commit` is present, a pre-commit hook that runs the wrapper is installed and `git commit` runs with those arguments, and a commit must be made exactly when `expectExit` is 0. `repo: false` runs the wrapper outside any repository instead. `fakeGit` ({script, executable}) runs the wrapper with PATH holding only a directory whose `git` is that script, made executable or not; it cannot be combined with `commit`. `expectStderr` is compared exactly.",
+  "_doc": "Cases for the branch guard's git commit hook (#464, kind `commitHook`) and the branch-aware pre-commit gate (#613, kind `preCommitGate`), run against a real temporary git repository by both twins: adapters/js/hooks/__tests__/commit-hook-cases.test.mjs and adapters/python/hooks/test_commit_hook_cases.py. A third kind, `branchGuard` (#615), runs the PreToolUse branch guard in the repository, with `stdin` as its input. The kinds take the same fields: a `preCommitGate` row runs the gate where a `commitHook` row runs the wrapper, with its test command in `env.PLUMBLINE_TEST_CMD` (POSIX utilities only, so neither runner needs the other language); its `gateCopy` runs a copy of the gate instead, `alone`, or beside the guard and an empty commit hook (`emptyWrapper`) or the commit hook and an empty guard (`emptyGuard`), as an older release's files would lack what it reads; it cannot be combined with `commit`. CLAUDE_PROJECT_DIR is cleared with the PLUMBLINE_* variables. Each row builds the repository in this order: `git init` on an unborn main; `committed` paths committed as the base, with `committedText` files (path to content) committed beside them (absent: main stays unborn); `side` paths committed on a branch named side, made from the base, then main checked out again; `branch` checked out as a new branch (null: HEAD detached at the base; \"main\": stay); `tags` created at HEAD; `headRef` given to `git symbolic-ref HEAD`; `config` pairs set with `git config`; `merge` arguments given to `git merge`; `rebaseStop` path committed on the current branch, then `git rebase --exec false HEAD~1` run so the rebase stops with HEAD detached and `rebase-merge/head-name` written, as at an `edit` stop; with `rebaseAlso`, that branch is pointed at the commit, a tip commit is added and `git rebase --update-refs --exec false HEAD~2` runs instead, so the rebase will move `rebaseAlso` too (`rebaseUpdateRefsDir` then replaces `update-refs` with a directory); with `rebaseApply`, `conflict.txt` is committed beside the path and `git rebase --apply` onto a branch that adds it differently stops on the conflict, writing `rebase-apply/head-name`; the rebase directory's `head-name` `rebaseHeadName` then deletes (null) or overwrites (text), or `rebaseHeadNameDir` replaces with a directory; `remove` and `move` applied with `git rm` and `git mv`; `stage` paths written and added; `stageHex` paths (hex bytes, which need not be UTF-8) added to the index only; `gitlink` paths added to the index as submodule commits (HEAD's); `stageCount` [prefix, n] adds n index-only paths prefix0 to prefix(n-1); `modify` paths rewritten without staging. Then the wrapper runs in the repository with `env` applied (null unsets) and every PLUMBLINE_* variable cleared first, or, when `commit` is present, a pre-commit hook that runs the wrapper is installed and `git commit` runs with those arguments, and a commit must be made exactly when `expectExit` is 0. `repo: false` runs the wrapper outside any repository instead. `fakeGit` ({script, executable}) runs the wrapper with PATH holding only a directory whose `git` is that script, made executable or not; it cannot be combined with `commit`. `expectStderr` is compared exactly.",
   "version": 1,
   "commitHook": [
     {
@@ -481,6 +481,46 @@
       "stage": ["src/a.js"],
       "expectExit": 0,
       "expectStderr": ""
+    },
+    {
+      "name": "where git ignores case (core.ignorecase true), a commit on a case alias of a protected branch blocks (#615)",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/Main",
+      "config": [["core.ignorecase", "true"]],
+      "stage": ["src/a.js"],
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a docs-only commit on a case alias of a protected branch passes (#615)",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/Main",
+      "config": [["core.ignorecase", "true"]],
+      "stage": ["docs/guide.md"],
+      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"docs/\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git ignores case, a rebase whose update-refs moves a case alias of a protected branch blocks (#615)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "config": [["core.ignorecase", "true"]],
+      "rebaseStop": "src/r.js",
+      "rebaseAlso": "release",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"protectedBranches\": [\"RELEASE\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch RELEASE. Branch first.\n"
+    },
+    {
+      "name": "where git does not ignore case (core.ignorecase false), a case alias is another branch, as git reads it (#615)",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/Main",
+      "config": [["core.ignorecase", "false"]],
+      "stage": ["src/a.js"],
+      "expectExit": 0,
+      "expectStderr": ""
     }
   ],
   "preCommitGate": [
@@ -787,6 +827,181 @@
       "commit": [],
       "expectExit": 1,
       "expectStderr": "pre-commit blocked: the tests failed, and `main` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `main` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
+    },
+    {
+      "name": "where git ignores case (core.ignorecase true), a case alias of a protected branch is protected",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/Main",
+      "config": [["core.ignorecase", "true"]],
+      "stage": ["docs/a.md"],
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and `main` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `main` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
+    },
+    {
+      "name": "where git ignores case, a case alias of a protected branch in update-refs is protected",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "config": [["core.ignorecase", "true"]],
+      "rebaseStop": "src/r.js",
+      "rebaseAlso": "release",
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"RELEASE\"]}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and `RELEASE` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `RELEASE` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
+    },
+    {
+      "name": "where git ignores case, a feature branch still skips the tests",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "config": [["core.ignorecase", "true"]],
+      "env": {"PLUMBLINE_TEST_CMD": "sh -c \"echo the tests ran >&2; exit 1\"", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "expectExit": 0,
+      "expectStderr": "pre-commit: tests not run on `feat` (testsOnOtherBranches is \"skip\"), so this commit is unchecked. Set testsOnOtherBranches to \"run\" to run them here.\n"
+    },
+    {
+      "name": "where git does not ignore case (core.ignorecase false), a case alias is another branch, as git reads it",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/Main",
+      "config": [["core.ignorecase", "false"]],
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "sh -c \"echo the tests ran >&2; exit 1\"", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "expectExit": 0,
+      "expectStderr": "pre-commit: tests not run on `Main` (testsOnOtherBranches is \"skip\"), so this commit is unchecked. Set testsOnOtherBranches to \"run\" to run them here.\n"
+    },
+    {
+      "name": "on another branch with \"run\" a command that cannot be started blocks: it is broken, not failing",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "plumb-line-no-such-command-613", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"run\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the test command could not be run (ENOENT)\n"
+    },
+    {
+      "name": "on a protected branch a command that cannot be started blocks, naming the error code",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["docs/a.md"],
+      "env": {"PLUMBLINE_TEST_CMD": "plumb-line-no-such-command-613", "PLUMBLINE_CFG": "{}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the test command could not be run (ENOENT)\n"
+    },
+    {
+      "name": "a PLUMBLINE_TEST_CMD that is not valid UTF-8 blocks even where the tests would be skipped (#501)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "test � = �", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: PLUMBLINE_TEST_CMD is not valid UTF-8 (or holds U+FFFD, which invalid bytes are replaced with). Set it to UTF-8 text.\n"
+    },
+    {
+      "name": "a git that cannot be started leaves the branch unknown, so failing tests block, naming the error code",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "fakeGit": {"script": "#!/bin/sh\nexit 0\n", "executable": false},
+      "env": {"PLUMBLINE_TEST_CMD": "/bin/sh -c \"exit 1\"", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and the branch is unknown (the gate could not run git (EACCES)), so it is treated as protected. Fix the code, or commit on a named branch.\n"
+    },
+    {
+      "name": "a git killed by a signal leaves the branch unknown, so failing tests block, naming the signal",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "fakeGit": {"script": "#!/bin/sh\nkill -KILL $$\n", "executable": true},
+      "env": {"PLUMBLINE_TEST_CMD": "/bin/sh -c \"exit 1\"", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and the branch is unknown (the gate could not read the branch (git symbolic-ref was killed by SIGKILL)), so it is treated as protected. Fix the code, or commit on a named branch.\n"
+    },
+    {
+      "name": "a gate copied alone runs as before with PLUMBLINE_CFG unset",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "gateCopy": "alone",
+      "env": {"PLUMBLINE_TEST_CMD": "false"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: false failed\n"
+    },
+    {
+      "name": "a gate copied alone blocks with PLUMBLINE_CFG set, naming what to copy",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "gateCopy": "alone",
+      "env": {"PLUMBLINE_TEST_CMD": "true", "PLUMBLINE_CFG": "{}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: PLUMBLINE_CFG is set, and the gate reads it with the branch guard's files, which cannot be loaded. Copy the branch guard and its commit hook, from the same release as the gate, beside it.\n"
+    },
+    {
+      "name": "a gate beside a commit hook without the exports it needs (an older release) blocks, naming what to copy",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "gateCopy": "emptyWrapper",
+      "env": {"PLUMBLINE_TEST_CMD": "true", "PLUMBLINE_CFG": "{}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: PLUMBLINE_CFG is set, and the gate reads it with the branch guard's files, which cannot be loaded. Copy the branch guard and its commit hook, from the same release as the gate, beside it.\n"
+    },
+    {
+      "name": "a gate beside a branch guard without the exports it needs blocks, naming what to copy",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "gateCopy": "emptyGuard",
+      "env": {"PLUMBLINE_TEST_CMD": "true", "PLUMBLINE_CFG": "{}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: PLUMBLINE_CFG is set, and the gate reads it with the branch guard's files, which cannot be loaded. Copy the branch guard and its commit hook, from the same release as the gate, beside it.\n"
+    }
+  ],
+  "branchGuard": [
+    {
+      "name": "where git ignores case, a code edit on a case alias of a protected branch blocks (#615)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "Main", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"docs/\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a docs edit on a case alias of a protected branch is allowed (#615)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"docs/x.md\"}",
+      "env": {"PLUMBLINE_BRANCH": "MAIN", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"docs/\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git does not ignore case, a case alias is another branch, as git reads it (#615)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "false"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "Main", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"docs/\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "CLAUDE_PROJECT_DIR names the repository read, over the working directory: one git cannot read fails closed (#615)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "false"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "Main", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"docs/\"]}", "CLAUDE_PROJECT_DIR": "/nonexistent-plumb-line-615"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "outside a git repository a case alias of a protected branch is protected: fail closed (#615)",
+      "repo": false,
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "Main", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"docs/\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch main. Branch first.\n"
     }
   ]
 }

@@ -408,11 +408,13 @@ def test_normalize_path_matches_node_posix_normalize():
 
 
 # --- #613: the branch-aware gate. Its CLI is in adapters/commit-hook-cases.json;
-# these pin classify_branch() in-process, and the gate copied alone. JS twin:
-# pre-commit-gate.test.mjs.
+# these pin classify_branch() in-process, and the case helpers it shares with
+# the branch guard (#615). JS twin: pre-commit-gate.test.mjs.
 
-def _classify(resolved, protected=("main",)):
-    return pre_commit_gate.classify_branch(resolved, list(protected), branch_guard._is_branch_name)
+def _classify(resolved, protected=("main",), ignore_case=False):
+    return pre_commit_gate.classify_branch(
+        resolved, branch_guard._is_branch_name,
+        lambda b: branch_guard.protected_match(b, list(protected), ignore_case))
 
 
 def test_classify_branch_reads_the_branch_and_every_branch_a_rebase_moves():
@@ -439,31 +441,37 @@ def test_classify_branch_judges_the_branch_before_the_ones_a_rebase_moves():
     assert _classify({"branch": "main", "also_why": "unread"}) == ("protected", "main")
 
 
-def _gate_alone(tmp_path):
-    import shutil
-    shutil.copy(os.path.join(os.path.dirname(__file__), "pre_commit_gate.py"), tmp_path)
-    return str(tmp_path / "pre_commit_gate.py")
+def test_classify_branch_matches_a_case_alias_only_where_git_ignores_case():
+    # #615: the protected name is the one reported.
+    assert _classify({"branch": "Main"}) == ("other", "Main")
+    assert _classify({"branch": "Main"}, ignore_case=True) == ("protected", "main")
+    assert _classify({"branch": "feat", "also": ["MAIN"]}, ignore_case=True) == ("protected", "main")
 
 
-def _gate_env(**extra):
-    env = {k: v for k, v in os.environ.items() if not k.startswith("PLUMBLINE_")}
-    return dict(env, **extra)
+def test_protected_match_and_is_case_alias():
+    assert branch_guard.protected_match("main", ["main"]) == "main"
+    assert branch_guard.protected_match("Main", ["main"]) is None
+    assert branch_guard.protected_match("Main", ["main"], True) == "main"
+    assert branch_guard.protected_match("feat", ["main"], True) is None
+    assert branch_guard.is_case_alias("Main", ["main"]) is True
+    assert branch_guard.is_case_alias("main", ["main"]) is False
+    assert branch_guard.is_case_alias("feat", ["main"]) is False
 
 
-@pytest.mark.parametrize("cmd,code", [("true", 0), ("false", 2)])
-def test_a_gate_copied_alone_runs_as_before_with_plumbline_cfg_unset(tmp_path, cmd, code):
-    # An install from before #613 copied the gate without the branch guard.
-    import subprocess
-    r = subprocess.run([sys.executable, _gate_alone(tmp_path)], capture_output=True, text=True,
-                       env=_gate_env(PLUMBLINE_TEST_CMD=cmd), cwd=tmp_path)
-    assert r.returncode == code
+@pytest.mark.parametrize("status,stdout,expected", [
+    (0, b"true\n", True), (0, b"false\n", False), (1, b"", False),
+    # Anything else cannot be read: fail closed (#615).
+    (128, b"", True), (0, b"yes\n", False), (2, b"", True),
+])
+def test_ignore_case_from_reads_git_config_and_fails_closed(status, stdout, expected):
+    assert branch_guard.ignore_case_from(status, stdout) is expected
 
 
-def test_a_gate_copied_alone_blocks_with_plumbline_cfg_set_naming_the_files_it_needs(tmp_path):
-    import subprocess
-    r = subprocess.run([sys.executable, _gate_alone(tmp_path)], capture_output=True, text=True,
-                       env=_gate_env(PLUMBLINE_TEST_CMD="true", PLUMBLINE_CFG="{}"), cwd=tmp_path)
-    assert r.returncode == 2
-    assert r.stderr.startswith("pre-commit blocked: PLUMBLINE_CFG is set, and the gate reads it with the "
-                               "branch guard's files, which cannot be loaded (")
-    assert r.stderr.endswith("Copy branch_guard.py and branch_guard_commit.py beside the gate.\n")
+def test_read_ignore_case_fails_closed_outside_a_repository(tmp_path):
+    assert branch_guard.read_ignore_case(str(tmp_path / "missing")) is True
+
+
+def test_branch_guard_decide_takes_ignore_case():
+    r = branch_guard.decide(file_path="src/a.py", branch="Main", protected_branches=("main",), ignore_case=True)
+    assert r == {"allow": False, "reason": "blocked: code edit to src/a.py on protected branch main. Branch first."}
+    assert branch_guard.decide(file_path="src/a.py", branch="Main", protected_branches=("main",))["allow"] is True

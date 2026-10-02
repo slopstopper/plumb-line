@@ -11,7 +11,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { configFromEnv, decide, isBranchName } from "./branch-guard.mjs";
+import { configFromEnv, decide, isBranchName, isCaseAlias, readIgnoreCase } from "./branch-guard.mjs";
 
 /**
  * The branch HEAD names, from `git symbolic-ref HEAD`'s full ref, or null when
@@ -98,9 +98,10 @@ export function updateRefBranches(bytes) {
  * path, decide()'s only block on an unknown branch is the code edit, so that
  * reason is replaced with one naming HEAD rather than PLUMBLINE_BRANCH, which
  * this hook never reads; `why`, when given, says why the branch is unknown
- * (a rebase in progress, #547).
+ * (a rebase in progress, #547). `ignoreCase`: git ignores case here, so a
+ * case alias of a protected branch is protected (#615).
  */
-export function judgeCommit({ branch, paths, config, why: given }) {
+export function judgeCommit({ branch, paths, config, why: given, ignoreCase = false }) {
   const known = branch !== null && isBranchName(branch);
   for (const filePath of paths) {
     const r = decide({
@@ -108,6 +109,7 @@ export function judgeCommit({ branch, paths, config, why: given }) {
       branch: branch ?? "",
       protectedBranches: config.protectedBranches,
       docsAllowlist: config.docsAllowlist,
+      ignoreCase,
     });
     if (r.allow) continue;
     if (known) return r;
@@ -220,12 +222,16 @@ function main() {
   const diff = git(["diff", "--cached", "--name-only", "-z", "--no-renames", "--ignore-submodules=none"],
     "list the staged files");
   const paths = stagedPaths(diff.stdout);
-  const r = judgeCommit({ branch, paths, config, why });
+  // core.ignorecase is read only when it decides (#615); unreadable fails closed.
+  const protectedBranches = config.protectedBranches ?? ["main"];
+  const ignoreCase = [branch, ...also].some((b) => b !== null && isCaseAlias(b, protectedBranches))
+    && readIgnoreCase();
+  const r = judgeCommit({ branch, paths, config, why, ignoreCase });
   if (!r.allow) return r;
   // Every branch the rebase will move must allow the commit (#547 review).
   if (alsoWhy !== undefined) return judgeCommit({ branch: null, paths, config, why: alsoWhy });
   for (const other of also) {
-    const r2 = judgeCommit({ branch: other, paths, config,
+    const r2 = judgeCommit({ branch: other, paths, config, ignoreCase,
       why: `the rebase also moves ${JSON.stringify(other)}, which is not a branch name` });
     if (!r2.allow) return r2;
   }

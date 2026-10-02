@@ -592,7 +592,29 @@
     {"name": "backslash dots do not step out of a directory (#515)", "stdin": "{\"filePath\": \"docs\\\\..\\\\src\\\\a.py\"}", "env": {"PLUMBLINE_BRANCH": "main"}, "cfg": {"protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"]}, "expectExit": 2, "expectStderr": "on protected branch main"},
     {"name": "backslash dots cannot reach a code file outside docs/ (#515)", "stdin": "{\"filePath\": \"docs\\\\..\\\\..\\\\etc\\\\x.py\"}", "env": {"PLUMBLINE_BRANCH": "main"}, "cfg": {"protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"]}, "expectExit": 2, "expectStderr": "on protected branch main"},
     {"name": "a file inside an allowlisted directory is still allowed (#515 control)", "stdin": "{\"filePath\": \"docs/./guide/../x.md\"}", "env": {"PLUMBLINE_BRANCH": "main"}, "cfg": {"protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"]}, "expectExit": 0},
-    {"name": "an allowlisted file is still allowed (#515 control)", "stdin": "{\"filePath\": \"./README.md\"}", "env": {"PLUMBLINE_BRANCH": "main"}, "cfg": {"protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"]}, "expectExit": 0}
+    {"name": "an allowlisted file is still allowed (#515 control)", "stdin": "{\"filePath\": \"./README.md\"}", "env": {"PLUMBLINE_BRANCH": "main"}, "cfg": {"protectedBranches": ["main"], "docsAllowlist": ["docs/", "README.md"]}, "expectExit": 0},
+    {
+      "name": "a case alias of a protected branch blocks a code edit when git cannot say whether case is ignored: fail closed (#615)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "Main", "CLAUDE_PROJECT_DIR": "/nonexistent-plumb-line-615"},
+      "cfg": {"protectedBranches": ["main"], "docsAllowlist": ["docs/"]},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch main. Branch first."
+    },
+    {
+      "name": "a case alias of a protected branch still allows a docs edit (#615)",
+      "stdin": "{\"filePath\": \"docs/x.md\"}",
+      "env": {"PLUMBLINE_BRANCH": "MAIN", "CLAUDE_PROJECT_DIR": "/nonexistent-plumb-line-615"},
+      "cfg": {"protectedBranches": ["main"], "docsAllowlist": ["docs/"]},
+      "expectExit": 0
+    },
+    {
+      "name": "a branch that is no case alias of a protected one is allowed, whatever git says about case (#615)",
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "feature/main", "CLAUDE_PROJECT_DIR": "/nonexistent-plumb-line-615"},
+      "cfg": {"protectedBranches": ["main"], "docsAllowlist": ["docs/"]},
+      "expectExit": 0
+    }
   ],
   "boundaryGuard": [
     {

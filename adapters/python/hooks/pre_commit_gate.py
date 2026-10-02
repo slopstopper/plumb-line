@@ -1,5 +1,6 @@
 """pre_commit_gate — block a commit if any runner fails; with PLUMBLINE_CFG
 set, only on a protected branch (#613). JS twin: pre-commit-gate.mjs."""
+import errno
 import inspect
 import itertools
 import json
@@ -55,33 +56,56 @@ def _guard_modules():
         sys.path.insert(0, here)
     import branch_guard
     import branch_guard_commit
+    # An older release's files import, but lack what the gate reads (#613
+    # review): say so, rather than fail on the first missing name.
+    for module, names in ((branch_guard, _GUARD_NEEDS), (branch_guard_commit, _COMMIT_HOOK_NEEDS)):
+        if not all(callable(getattr(module, n, None)) for n in names):
+            raise ImportError(f"{module.__name__} lacks what the gate reads")
     return branch_guard, branch_guard_commit
 
 
-def classify_branch(resolved, protected_branches, is_branch_name):
+# What the gate reads from the branch guard and its commit hook. JS twin:
+# GUARD_NEEDS, COMMIT_HOOK_NEEDS.
+_GUARD_NEEDS = ("config_from_env", "_is_branch_name", "protected_match", "is_case_alias", "read_ignore_case")
+_COMMIT_HOOK_NEEDS = ("resolve_branch", "GitRefused")
+
+# Why the gate cannot read PLUMBLINE_CFG without them, the same in both twins.
+_CANNOT_LOAD = ("pre-commit blocked: PLUMBLINE_CFG is set, and the gate reads it with the branch guard's files, "
+                "which cannot be loaded. Copy the branch guard and its commit hook, from the same release as "
+                "the gate, beside it.")
+
+
+class _NotStarted(Exception):
+    """The test command could not be started; the message is the errno name
+    (ENOENT, EACCES), as the JS twin gives Node's error code."""
+
+
+def classify_branch(resolved, is_branch_name, protected_name):
     """Where a commit lands, for the gate (#613), from resolve_branch() in
-    branch_guard_commit.py: ("protected", branch), ("unknown", why) or
-    ("other", branch). `is_branch_name` is the branch guard's rule. Judged in
-    the commit hook's order: the branch itself, then every other branch a
-    rebase with --update-refs will move. Any of them protected makes the
-    commit protected; any of them unknown makes it unknown, which the gate
-    treats as protected. JS twin: classifyBranch."""
+    branch_guard_commit.py: ("protected", the protected name), ("unknown",
+    why) or ("other", branch). `is_branch_name` is the branch guard's rule;
+    `protected_name(branch)` the protected branch a branch is, or None, as
+    the branch guard matches it (protected_match, #615). Judged in the commit
+    hook's order: the branch itself, then every other branch a rebase with
+    --update-refs will move. Any of them protected makes the commit
+    protected; any of them unknown makes it unknown, which the gate treats as
+    protected. JS twin: classifyBranch."""
     branch, why = resolved["branch"], resolved.get("why")
     if why is not None or branch is None or not is_branch_name(branch):
         if why is None:
             why = ("HEAD is not on a branch" if branch is None
                    else f"HEAD is on {json.dumps(branch, ensure_ascii=False)}, which is not a branch name")
         return ("unknown", why)
-    if branch in protected_branches:
-        return ("protected", branch)
+    if protected_name(branch) is not None:
+        return ("protected", protected_name(branch))
     if resolved.get("also_why") is not None:
         return ("unknown", resolved["also_why"])
     for other in resolved.get("also", []):
         if not is_branch_name(other):
             return ("unknown", f"the rebase also moves {json.dumps(other, ensure_ascii=False)}, "
                                "which is not a branch name")
-        if other in protected_branches:
-            return ("protected", other)
+        if protected_name(other) is not None:
+            return ("protected", protected_name(other))
     return ("other", branch)
 
 
@@ -167,7 +191,11 @@ def _main():
     run_argv = [w.encode("utf-8") for w in argv] if os.supports_bytes_environ else argv
 
     def _runner():
-        return subprocess.run(run_argv).returncode == 0
+        try:
+            return subprocess.run(run_argv).returncode == 0
+        except OSError as e:
+            # Not started: the errno name, as the JS twin gives Node's code.
+            raise _NotStarted(errno.errorcode.get(e.errno, str(e)) if e.errno else str(e)) from None
 
     # With no PLUMBLINE_CFG the tests run on every branch and a failure
     # blocks, as before #613, and nothing else is read.
@@ -175,11 +203,8 @@ def _main():
         return decide(runners=[(cmd, _runner)])
     try:
         branch_guard, branch_guard_commit = _guard_modules()
-    except ImportError as e:
-        return {"allow": False,
-                "reason": "pre-commit blocked: PLUMBLINE_CFG is set, and the gate reads it with the branch "
-                          f"guard's files, which cannot be loaded ({e}). Copy branch_guard.py and "
-                          "branch_guard_commit.py beside the gate."}
+    except Exception:  # noqa: BLE001 — missing, older or broken: the same reason in both twins
+        return {"allow": False, "reason": _CANNOT_LOAD}
     config, reason = branch_guard.config_from_env()
     if reason:
         return {"allow": False, "reason": "pre-commit " + reason}
@@ -194,8 +219,13 @@ def _main():
         resolved = {"branch": None, "why": f"the gate {e}"}
     except Exception as e:  # noqa: BLE001 — fail closed: unknown, never a pass
         resolved = {"branch": None, "why": f"the gate could not read the branch ({e})"}
-    kind, which = classify_branch(resolved, config.get("protectedBranches", ["main"]),
-                                  branch_guard._is_branch_name)
+    # core.ignorecase is read only when it decides (#615); unreadable fails closed.
+    protected = config.get("protectedBranches", ["main"])
+    named = [b for b in (resolved["branch"], *resolved.get("also", [])) if b is not None]
+    ignore_case = (any(branch_guard.is_case_alias(b, protected) for b in named)
+                   and branch_guard.read_ignore_case())
+    kind, which = classify_branch(resolved, branch_guard._is_branch_name,
+                                  lambda b: branch_guard.protected_match(b, protected, ignore_case))
     if kind == "other" and mode == "skip":
         return {"allow": True, "reason": "tests skipped", "notice": _skipped(which)}
     r = decide(runners=[(cmd, _runner)])
