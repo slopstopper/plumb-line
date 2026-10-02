@@ -199,8 +199,9 @@ if (isMainModule()) {
           name: cmd,
           fn: () => {
             const res = spawnSync(prog, args, { stdio: "inherit" });
-            // Not started: Node's error code (ENOENT, EACCES), as the Python twin gives the errno name.
-            if (res.error) throw new Error(res.error.code ?? res.error.message);
+            // Not started: the program and Node's error code (ENOENT, EACCES),
+            // as the Python twin gives the errno name.
+            if (res.error) throw new Error(`${prog}: ${res.error.code ?? res.error.message}`);
             return res.status === 0;
           },
         }],

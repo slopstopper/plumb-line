@@ -453,6 +453,9 @@ def test_protected_match_and_is_case_alias():
     assert branch_guard.protected_match("Main", ["main"]) is None
     assert branch_guard.protected_match("Main", ["main"], True) == "main"
     assert branch_guard.protected_match("feat", ["main"], True) is None
+    # Upper then lower: U+017F long s folds to s, as APFS reads it (#615 review).
+    assert branch_guard.protected_match("maſter", ["master"], True) == "master"
+    assert branch_guard.is_case_alias("maſter", ["master"]) is True
     assert branch_guard.is_case_alias("Main", ["main"]) is True
     assert branch_guard.is_case_alias("main", ["main"]) is False
     assert branch_guard.is_case_alias("feat", ["main"]) is False

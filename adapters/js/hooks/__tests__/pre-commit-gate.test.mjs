@@ -183,6 +183,9 @@ describe("case aliases of a protected branch (#615)", () => {
     expect(protectedMatch("Main", ["main"])).toBeNull();
     expect(protectedMatch("Main", ["main"], true)).toBe("main");
     expect(protectedMatch("feat", ["main"], true)).toBeNull();
+    // Upper then lower: U+017F long s folds to s, as APFS reads it (#615 review).
+    expect(protectedMatch("maſter", ["master"], true)).toBe("master");
+    expect(isCaseAlias("maſter", ["master"])).toBe(true);
     expect(isCaseAlias("Main", ["main"])).toBe(true);
     expect(isCaseAlias("main", ["main"])).toBe(false);
     expect(isCaseAlias("feat", ["main"])).toBe(false);

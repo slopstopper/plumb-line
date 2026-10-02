@@ -488,6 +488,7 @@
       "headRef": "refs/heads/Main",
       "config": [["core.ignorecase", "true"]],
       "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"README.md\"]}"},
       "expectExit": 2,
       "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
     },
@@ -497,7 +498,7 @@
       "headRef": "refs/heads/Main",
       "config": [["core.ignorecase", "true"]],
       "stage": ["docs/guide.md"],
-      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"docs/\"]}"},
+      "env": {"PLUMBLINE_CFG": "{\"docsAllowlist\": [\"docs/\", \"README.md\"]}"},
       "expectExit": 0,
       "expectStderr": ""
     },
@@ -521,6 +522,16 @@
       "stage": ["src/a.js"],
       "expectExit": 0,
       "expectStderr": ""
+    },
+    {
+      "name": "where git ignores case, a commit on a Unicode case alias of a protected branch blocks: maſter is master (#615 review)",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/maſter",
+      "config": [["core.ignorecase", "true"]],
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"protectedBranches\": [\"master\"], \"docsAllowlist\": [\"README.md\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch master. Branch first.\n"
     }
   ],
   "preCommitGate": [
@@ -877,7 +888,7 @@
       "stage": ["src/a.js"],
       "env": {"PLUMBLINE_TEST_CMD": "plumb-line-no-such-command-613", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"run\"}"},
       "expectExit": 2,
-      "expectStderr": "pre-commit blocked: the test command could not be run (ENOENT)\n"
+      "expectStderr": "pre-commit blocked: the test command could not be run (plumb-line-no-such-command-613: ENOENT)\n"
     },
     {
       "name": "on a protected branch a command that cannot be started blocks, naming the error code",
@@ -886,7 +897,7 @@
       "stage": ["docs/a.md"],
       "env": {"PLUMBLINE_TEST_CMD": "plumb-line-no-such-command-613", "PLUMBLINE_CFG": "{}"},
       "expectExit": 2,
-      "expectStderr": "pre-commit blocked: the test command could not be run (ENOENT)\n"
+      "expectStderr": "pre-commit blocked: the test command could not be run (plumb-line-no-such-command-613: ENOENT)\n"
     },
     {
       "name": "a PLUMBLINE_TEST_CMD that is not valid UTF-8 blocks even where the tests would be skipped (#501)",
@@ -956,6 +967,16 @@
       "env": {"PLUMBLINE_TEST_CMD": "true", "PLUMBLINE_CFG": "{}"},
       "expectExit": 2,
       "expectStderr": "pre-commit blocked: PLUMBLINE_CFG is set, and the gate reads it with the branch guard's files, which cannot be loaded. Copy the branch guard and its commit hook, from the same release as the gate, beside it.\n"
+    },
+    {
+      "name": "where git ignores case, a Unicode case alias of a protected branch is protected: maſter is master (#615 review)",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/maſter",
+      "config": [["core.ignorecase", "true"]],
+      "stage": ["docs/a.md"],
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"master\"]}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and `master` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `master` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
     }
   ],
   "branchGuard": [
@@ -1002,6 +1023,15 @@
       "env": {"PLUMBLINE_BRANCH": "Main", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"docs/\"]}"},
       "expectExit": 2,
       "expectStderr": "blocked: code edit to src/app.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a code edit on a Unicode case alias of a protected branch blocks: maſter is master (#615 review)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "maſter", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"master\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch master. Branch first.\n"
     }
   ]
 }

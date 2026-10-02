@@ -76,8 +76,10 @@ def _is_branch_name(name):
 
 
 def _fold(name):
-    """A branch name compared without case. JS twin: fold (toLowerCase)."""
-    return str(name).lower()
+    """A branch name compared without case: upper, then lower, so a letter
+    whose lowercase is not its fold still folds (U+017F long s: "maſter" is
+    "master", as APFS reads it; lower() alone kept it). JS twin: fold."""
+    return str(name).upper().lower()
 
 
 def protected_match(branch, protected_branches, ignore_case=False):

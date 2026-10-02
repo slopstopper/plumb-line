@@ -56,8 +56,12 @@ export function isBranchName(name) {
   return name.split("/").every((c) => c !== "" && !c.startsWith(".") && !c.endsWith(".lock"));
 }
 
-/** A branch name compared without case. Python twin: _fold (lower). */
-const fold = (name) => String(name).toLowerCase();
+/**
+ * A branch name compared without case: upper, then lower, so a letter whose
+ * lowercase is not its fold still folds (U+017F long s: "maſter" is
+ * "master", as APFS reads it; toLowerCase() alone kept it). Python twin: _fold.
+ */
+const fold = (name) => String(name).toUpperCase().toLowerCase();
 
 /**
  * The protected branch `branch` is, or null (#615). Exact, or, when git

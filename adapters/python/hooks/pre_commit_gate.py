@@ -76,8 +76,8 @@ _CANNOT_LOAD = ("pre-commit blocked: PLUMBLINE_CFG is set, and the gate reads it
 
 
 class _NotStarted(Exception):
-    """The test command could not be started; the message is the errno name
-    (ENOENT, EACCES), as the JS twin gives Node's error code."""
+    """The test command could not be started; the message is the program and
+    the errno name (`prog: ENOENT`), as the JS twin gives Node's error code."""
 
 
 def classify_branch(resolved, is_branch_name, protected_name):
@@ -194,8 +194,10 @@ def _main():
         try:
             return subprocess.run(run_argv).returncode == 0
         except OSError as e:
-            # Not started: the errno name, as the JS twin gives Node's code.
-            raise _NotStarted(errno.errorcode.get(e.errno, str(e)) if e.errno else str(e)) from None
+            # Not started: the program and the errno name, as the JS twin
+            # gives Node's code.
+            code = errno.errorcode.get(e.errno, str(e)) if e.errno else str(e)
+            raise _NotStarted(f"{argv[0]}: {code}") from None
 
     # With no PLUMBLINE_CFG the tests run on every branch and a failure
     # blocks, as before #613, and nothing else is read.

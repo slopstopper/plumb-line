@@ -86,11 +86,17 @@ an empty slot in a sparse JS lineage array.
   - With `PLUMBLINE_CFG` set, the gate needs the same release's branch guard
     and commit hook beside it, else it blocks. **Do:** re-copy all three.
   - A failure on a protected branch has a new message, which no longer names
-    the command. A command that cannot be started is named by its error code
-    (`ENOENT`).
+    the command.
   - A red feature-branch commit can now reach `main` by a local fast-forward
     or clean merge, which runs no pre-commit hook. **Do:** merge through
     review, or set `"run"`.
+- **The gate's reason for a command that cannot be started changed**, with
+  or without `PLUMBLINE_CFG` (#613): it names the program and the error code,
+  the same in both twins (`... could not be run (nosuchprog: ENOENT)`).
+- **May break: a case alias of a protected branch is protected**
+  ([#615](https://github.com/slopstopper/plumb-line/issues/615)). Where
+  `core.ignorecase` is true, a code edit or red commit on `Main` (or `maſter`)
+  now blocks. **Do:** use the branch's real name.
 - **The report checker rejects slash- or hyphen-joined principle codes
   (checker v5)**
   ([#527](https://github.com/slopstopper/plumb-line/issues/527);
