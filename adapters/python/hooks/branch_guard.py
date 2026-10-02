@@ -129,6 +129,9 @@ _CFG_KEYS = ("protectedBranches", "docsAllowlist")
 # #469). The branch guard never reads them, so allowing them cannot fail open;
 # anything neither guard reads still blocks.
 _BOUNDARY_KEYS = ("layers", "direction")
+# The pre-commit gate's key, allowed and left to it to validate in the same
+# way (#613): the gate reads protectedBranches with this guard's own checks.
+_GATE_KEYS = ("testsOnOtherBranches",)
 _CFG_RENAMES = {"protected_branches": "protectedBranches", "docs_allowlist": "docsAllowlist"}
 
 
@@ -141,8 +144,8 @@ def _read_config(raw):
     """PLUMBLINE_CFG as (config, None), or (None, a reason to block) (#469).
     Unset gives the defaults; set, it must be a JSON object whose own keys are
     the camelCase ones, each an array of strings with no empty docsAllowlist
-    entry, plus the boundary guard's keys, left unchecked (_BOUNDARY_KEYS).
-    Anything else fails closed: an
+    entry, plus the boundary guard's keys and the pre-commit gate's, left
+    unchecked (_BOUNDARY_KEYS, _GATE_KEYS). Anything else fails closed: an
     ignored key fell back to protecting only main, and a coerced value
     (tuple("main") is its characters) left main unprotected. Twin of
     readConfig in branch-guard.mjs."""
@@ -156,7 +159,7 @@ def _read_config(raw):
     if not isinstance(cfg, dict):
         return None, "blocked: PLUMBLINE_CFG is not a JSON object." + retry
     # Sorted by UTF-16 code unit, as the JS twin's sort() orders them.
-    unknown = sorted((k for k in cfg if k not in _CFG_KEYS and k not in _BOUNDARY_KEYS),
+    unknown = sorted((k for k in cfg if k not in (*_CFG_KEYS, *_BOUNDARY_KEYS, *_GATE_KEYS)),
                      key=lambda k: k.encode("utf-16-be", "surrogatepass"))
     if unknown:
         # json.dumps escapes everything outside printable ASCII, as the JS
@@ -165,7 +168,8 @@ def _read_config(raw):
                  else json.dumps(k) for k in unknown]
         return None, (f"blocked: PLUMBLINE_CFG has unknown key(s) {', '.join(named)}. "
                       'The branch guard reads only "protectedBranches" and "docsAllowlist"; '
-                      '"layers" and "direction" are the boundary guard\'s.')
+                      '"layers" and "direction" are the boundary guard\'s; '
+                      '"testsOnOtherBranches" is the pre-commit gate\'s.')
     for key in _CFG_KEYS:
         if key in cfg and not (isinstance(cfg[key], list)
                                and all(isinstance(e, str) for e in cfg[key])):

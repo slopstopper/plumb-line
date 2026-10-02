@@ -405,3 +405,65 @@ def test_normalize_path_matches_node_posix_normalize():
     expected = json.loads(node.stdout)
     got = [branch_guard._normalize_path(p) for p in paths]
     assert [(p, g, e) for p, g, e in zip(paths, got, expected) if g != e] == []
+
+
+# --- #613: the branch-aware gate. Its CLI is in adapters/commit-hook-cases.json;
+# these pin classify_branch() in-process, and the gate copied alone. JS twin:
+# pre-commit-gate.test.mjs.
+
+def _classify(resolved, protected=("main",)):
+    return pre_commit_gate.classify_branch(resolved, list(protected), branch_guard._is_branch_name)
+
+
+def test_classify_branch_reads_the_branch_and_every_branch_a_rebase_moves():
+    assert _classify({"branch": "feat"}) == ("other", "feat")
+    assert _classify({"branch": "main"}) == ("protected", "main")
+    assert _classify({"branch": "feat", "also": ["other", "main"]}) == ("protected", "main")
+    assert _classify({"branch": "feat", "also": ["other"]}) == ("other", "feat")
+
+
+def test_classify_branch_treats_every_unreadable_branch_as_unknown():
+    assert _classify({"branch": None}) == ("unknown", "HEAD is not on a branch")
+    assert _classify({"branch": "-x"}) == ("unknown", 'HEAD is on "-x", which is not a branch name')
+    assert _classify({"branch": "feat", "why": "a reason"}) == ("unknown", "a reason")
+    assert _classify({"branch": "feat", "also_why": "unread"}) == ("unknown", "unread")
+    assert _classify({"branch": "feat", "also": ["-y"]}) == (
+        "unknown", 'the rebase also moves "-y", which is not a branch name')
+    # Unknown is never a pass, even with no branch protected.
+    assert _classify({"branch": None}, protected=()) == ("unknown", "HEAD is not on a branch")
+
+
+def test_classify_branch_judges_the_branch_before_the_ones_a_rebase_moves():
+    # As the commit hook does: a protected branch is named before an
+    # update-refs that cannot be read.
+    assert _classify({"branch": "main", "also_why": "unread"}) == ("protected", "main")
+
+
+def _gate_alone(tmp_path):
+    import shutil
+    shutil.copy(os.path.join(os.path.dirname(__file__), "pre_commit_gate.py"), tmp_path)
+    return str(tmp_path / "pre_commit_gate.py")
+
+
+def _gate_env(**extra):
+    env = {k: v for k, v in os.environ.items() if not k.startswith("PLUMBLINE_")}
+    return dict(env, **extra)
+
+
+@pytest.mark.parametrize("cmd,code", [("true", 0), ("false", 2)])
+def test_a_gate_copied_alone_runs_as_before_with_plumbline_cfg_unset(tmp_path, cmd, code):
+    # An install from before #613 copied the gate without the branch guard.
+    import subprocess
+    r = subprocess.run([sys.executable, _gate_alone(tmp_path)], capture_output=True, text=True,
+                       env=_gate_env(PLUMBLINE_TEST_CMD=cmd), cwd=tmp_path)
+    assert r.returncode == code
+
+
+def test_a_gate_copied_alone_blocks_with_plumbline_cfg_set_naming_the_files_it_needs(tmp_path):
+    import subprocess
+    r = subprocess.run([sys.executable, _gate_alone(tmp_path)], capture_output=True, text=True,
+                       env=_gate_env(PLUMBLINE_TEST_CMD="true", PLUMBLINE_CFG="{}"), cwd=tmp_path)
+    assert r.returncode == 2
+    assert r.stderr.startswith("pre-commit blocked: PLUMBLINE_CFG is set, and the gate reads it with the "
+                               "branch guard's files, which cannot be loaded (")
+    assert r.stderr.endswith("Copy branch_guard.py and branch_guard_commit.py beside the gate.\n")

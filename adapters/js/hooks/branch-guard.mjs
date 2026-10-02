@@ -153,6 +153,11 @@ const CFG_KEYS = ["protectedBranches", "docsAllowlist"];
  * open; anything neither guard reads still blocks.
  */
 const BOUNDARY_KEYS = ["layers", "direction"];
+/**
+ * The pre-commit gate's key, allowed and left to it to validate in the same
+ * way (#613): the gate reads protectedBranches with this guard's own checks.
+ */
+const GATE_KEYS = ["testsOnOtherBranches"];
 const CFG_RENAMES = {
   protected_branches: "protectedBranches",
   docs_allowlist: "docsAllowlist",
@@ -172,7 +177,8 @@ function quoteKey(k) {
  * PLUMBLINE_CFG as the config decide() takes, or a reason to block (#469).
  * Unset gives the defaults; set, it must be a JSON object whose own keys are
  * the camelCase ones, each an array of strings with no empty docsAllowlist
- * entry, plus the boundary guard's keys, left unchecked (BOUNDARY_KEYS).
+ * entry, plus the boundary guard's keys and the pre-commit gate's, left
+ * unchecked (BOUNDARY_KEYS, GATE_KEYS).
  * Anything else fails closed: an
  * ignored key (a typo, or the snake_case spelling the Python twin used to
  * accept) fell back to protecting only main. Twin of _read_config in
@@ -193,7 +199,7 @@ function readConfig(raw) {
   // Sorted by UTF-16 code unit, as the Python twin sorts: Object.keys puts
   // integer-like keys first, so parse order is not the same in both.
   const unknown = Object.keys(cfg)
-    .filter((k) => !CFG_KEYS.includes(k) && !BOUNDARY_KEYS.includes(k))
+    .filter((k) => ![...CFG_KEYS, ...BOUNDARY_KEYS, ...GATE_KEYS].includes(k))
     .sort();
   if (unknown.length > 0) {
     const named = unknown.map((k) =>
@@ -205,7 +211,8 @@ function readConfig(raw) {
       reason:
         `blocked: PLUMBLINE_CFG has unknown key(s) ${named.join(", ")}. ` +
         `The branch guard reads only "protectedBranches" and "docsAllowlist"; ` +
-        `"layers" and "direction" are the boundary guard's.`,
+        `"layers" and "direction" are the boundary guard's; ` +
+        `"testsOnOtherBranches" is the pre-commit gate's.`,
     };
   }
   for (const key of CFG_KEYS) {

@@ -133,25 +133,38 @@ function isMainModule() {
 }
 
 /**
- * Run git; the finished process, or throw with the reason to block. No output
- * limit: Node's default of 1 MiB blocked a large commit (vendored files) on
- * any branch, where the Python twin read it all. Reasons match the twin's:
- * the errno name when git cannot start, the signal's name when it is killed.
+ * A git step that failed: what could not be done, without a subject, such as
+ * "could not read the branch (git symbolic-ref exited 128)", for the caller
+ * to name itself in. Python twin: GitRefused.
+ */
+export class GitRefused extends Error {}
+
+/**
+ * Run git; the finished process, or throw GitRefused saying why not. No
+ * output limit: Node's default of 1 MiB blocked a large commit (vendored
+ * files) on any branch, where the Python twin read it all. Reasons match the
+ * twin's: the errno name when git cannot start, the signal's name when it is
+ * killed.
  */
 function git(args, what, okStatuses = [0]) {
   const r = spawnSync("git", args, { stdio: ["ignore", "pipe", "pipe"], maxBuffer: Infinity });
-  if (r.error) throw new Error(`the branch guard's commit hook could not run git (${r.error.code ?? r.error.message}).`);
-  if (r.signal) throw new Error(`the branch guard's commit hook could not ${what} (git ${args[0]} was killed by ${r.signal}).`);
+  if (r.error) throw new GitRefused(`could not run git (${r.error.code ?? r.error.message})`);
+  if (r.signal) throw new GitRefused(`could not ${what} (git ${args[0]} was killed by ${r.signal})`);
   if (!okStatuses.includes(r.status)) {
-    throw new Error(`the branch guard's commit hook could not ${what} (git ${args[0]} exited ${r.status}).`);
+    throw new GitRefused(`could not ${what} (git ${args[0]} exited ${r.status})`);
   }
   return r;
 }
 
-function main() {
-  // The config first: a bad PLUMBLINE_CFG blocks whatever is staged.
-  const { config, reason } = configFromEnv();
-  if (reason) return { allow: false, reason };
+/**
+ * The branch a commit made now lands on, read from git as this hook reads it:
+ * `{ branch, why, also, alsoWhy }`. `branch` is null on no branch; `why`,
+ * when set, says why the branch is unknown; `also` lists the other branches a
+ * rebase with --update-refs will move, and `alsoWhy` says why they cannot be
+ * read. Throws GitRefused when a git step fails. Shared with the pre-commit
+ * gate (#613), so the two read the same branch. Python twin: resolve_branch.
+ */
+export function resolveBranch() {
   // --quiet: exit 1, silently, when HEAD is detached.
   const head = git(["symbolic-ref", "--quiet", "HEAD"], "read the branch", [0, 1]);
   let branch = head.status === 0
@@ -189,6 +202,14 @@ function main() {
       break;
     }
   }
+  return { branch, why, also, alsoWhy };
+}
+
+function main() {
+  // The config first: a bad PLUMBLINE_CFG blocks whatever is staged.
+  const { config, reason } = configFromEnv();
+  if (reason) return { allow: false, reason };
+  const { branch, why, also, alsoWhy } = resolveBranch();
   // --cached against HEAD (or the empty tree on an unborn branch), in the
   // index git is committing: during `git commit -a` or `git commit <path>`
   // that is the temporary index GIT_INDEX_FILE names. --no-renames: a rename
@@ -218,7 +239,10 @@ if (isMainModule()) {
   try {
     r = main();
   } catch (e) {
-    r = { allow: false, reason: `blocked: ${e.message}` };
+    r = {
+      allow: false,
+      reason: e instanceof GitRefused ? `blocked: the branch guard's commit hook ${e.message}.` : `blocked: ${e.message}`,
+    };
   }
   if (!r.allow) {
     process.stderr.write(r.reason + "\n");

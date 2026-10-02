@@ -106,37 +106,40 @@ def judge_commit(branch, paths, config, why=None):
     return {"allow": True, "reason": "no staged path is blocked"}
 
 
-class _Refused(Exception):
-    """A reason to block, from a git step that failed."""
+class GitRefused(Exception):
+    """A git step that failed: what could not be done, without a subject, such
+    as "could not read the branch (git symbolic-ref exited 128)", for the
+    caller to name itself in. JS twin: GitRefused."""
 
 
 def _git(args, what, ok_statuses=(0,)):
-    """Run git; the finished process, or _Refused with the reason to block.
-    Reasons match the JS twin's: the errno name when git cannot start (Node's
-    error code), the signal's name when it is killed."""
+    """Run git; the finished process, or GitRefused saying why not. Reasons
+    match the JS twin's: the errno name when git cannot start (Node's error
+    code), the signal's name when it is killed."""
     try:
         r = subprocess.run(["git", *args], stdin=subprocess.DEVNULL, capture_output=True)
     except OSError as e:
         code = errno.errorcode.get(e.errno, str(e)) if e.errno else str(e)
-        raise _Refused(f"the branch guard's commit hook could not run git ({code}).") from None
+        raise GitRefused(f"could not run git ({code})") from None
     if r.returncode < 0:
         try:
             name = signal.Signals(-r.returncode).name
         except ValueError:
             name = f"signal {-r.returncode}"
-        raise _Refused(f"the branch guard's commit hook could not {what} "
-                       f"(git {args[0]} was killed by {name}).")
+        raise GitRefused(f"could not {what} (git {args[0]} was killed by {name})")
     if r.returncode not in ok_statuses:
-        raise _Refused(f"the branch guard's commit hook could not {what} "
-                       f"(git {args[0]} exited {r.returncode}).")
+        raise GitRefused(f"could not {what} (git {args[0]} exited {r.returncode})")
     return r
 
 
-def _main():
-    # The config first: a bad PLUMBLINE_CFG blocks whatever is staged.
-    config, reason = config_from_env()
-    if reason:
-        return {"allow": False, "reason": reason}
+def resolve_branch():
+    """The branch a commit made now lands on, read from git as this hook reads
+    it: {"branch", "why", "also", "also_why"}. `branch` is None on no branch;
+    `why`, when set, says why the branch is unknown; `also` lists the other
+    branches a rebase with --update-refs will move, and `also_why` says why
+    they cannot be read. Raises GitRefused when a git step fails. Shared with
+    the pre-commit gate (#613), so the two read the same branch. JS twin:
+    resolveBranch."""
     # --quiet: exit 1, silently, when HEAD is detached.
     head = _git(["symbolic-ref", "--quiet", "HEAD"], "read the branch", (0, 1))
     branch = (branch_from_ref(head.stdout.decode("utf-8", "replace").removesuffix("\n"))
@@ -171,6 +174,16 @@ def _main():
                     ucode = errno.errorcode.get(e.errno, str(e)) if e.errno else str(e)
                     also_why = f"HEAD is detached by a rebase whose {dir_name}/update-refs cannot be read: {ucode}"
             break
+    return {"branch": branch, "why": why, "also": also, "also_why": also_why}
+
+
+def _main():
+    # The config first: a bad PLUMBLINE_CFG blocks whatever is staged.
+    config, reason = config_from_env()
+    if reason:
+        return {"allow": False, "reason": reason}
+    resolved = resolve_branch()
+    branch, why, also, also_why = (resolved[k] for k in ("branch", "why", "also", "also_why"))
     # --cached against HEAD (or the empty tree on an unborn branch), in the
     # index git is committing: during `git commit -a` or `git commit <path>`
     # that is the temporary index GIT_INDEX_FILE names. --no-renames: a rename
@@ -203,8 +216,8 @@ if __name__ == "__main__":
         sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
     try:
         result = _main()
-    except _Refused as e:
-        result = {"allow": False, "reason": f"blocked: {e}"}
+    except GitRefused as e:
+        result = {"allow": False, "reason": f"blocked: the branch guard's commit hook {e}."}
     except Exception as e:  # noqa: BLE001 — fail closed on anything
         result = {"allow": False, "reason": f"blocked: the branch guard's commit hook could not run ({e})."}
     if not result["allow"]:

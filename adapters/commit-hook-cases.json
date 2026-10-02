@@ -1,5 +1,5 @@
 {
-  "_doc": "Cases for the branch guard's git commit hook (#464), run against a real temporary git repository by both twins: adapters/js/hooks/__tests__/commit-hook-cases.test.mjs and adapters/python/hooks/test_commit_hook_cases.py. Each row builds the repository in this order: `git init` on an unborn main; `committed` paths committed as the base, with `committedText` files (path to content) committed beside them (absent: main stays unborn); `side` paths committed on a branch named side, made from the base, then main checked out again; `branch` checked out as a new branch (null: HEAD detached at the base; \"main\": stay); `tags` created at HEAD; `headRef` given to `git symbolic-ref HEAD`; `config` pairs set with `git config`; `merge` arguments given to `git merge`; `rebaseStop` path committed on the current branch, then `git rebase --exec false HEAD~1` run so the rebase stops with HEAD detached and `rebase-merge/head-name` written, as at an `edit` stop; with `rebaseAlso`, that branch is pointed at the commit, a tip commit is added and `git rebase --update-refs --exec false HEAD~2` runs instead, so the rebase will move `rebaseAlso` too (`rebaseUpdateRefsDir` then replaces `update-refs` with a directory); with `rebaseApply`, `conflict.txt` is committed beside the path and `git rebase --apply` onto a branch that adds it differently stops on the conflict, writing `rebase-apply/head-name`; the rebase directory's `head-name` `rebaseHeadName` then deletes (null) or overwrites (text), or `rebaseHeadNameDir` replaces with a directory; `remove` and `move` applied with `git rm` and `git mv`; `stage` paths written and added; `stageHex` paths (hex bytes, which need not be UTF-8) added to the index only; `gitlink` paths added to the index as submodule commits (HEAD's); `stageCount` [prefix, n] adds n index-only paths prefix0 to prefix(n-1); `modify` paths rewritten without staging. Then the wrapper runs in the repository with `env` applied (null unsets) and every PLUMBLINE_* variable cleared first, or, when `commit` is present, a pre-commit hook that runs the wrapper is installed and `git commit` runs with those arguments, and a commit must be made exactly when `expectExit` is 0. `repo: false` runs the wrapper outside any repository instead. `fakeGit` ({script, executable}) runs the wrapper with PATH holding only a directory whose `git` is that script, made executable or not; it cannot be combined with `commit`. `expectStderr` is compared exactly.",
+  "_doc": "Cases for the branch guard's git commit hook (#464, kind `commitHook`) and the branch-aware pre-commit gate (#613, kind `preCommitGate`), run against a real temporary git repository by both twins: adapters/js/hooks/__tests__/commit-hook-cases.test.mjs and adapters/python/hooks/test_commit_hook_cases.py. Both kinds take the same fields; a `preCommitGate` row runs the gate where a `commitHook` row runs the wrapper, with its test command in `env.PLUMBLINE_TEST_CMD` (POSIX utilities only, so neither runner needs the other language). Each row builds the repository in this order: `git init` on an unborn main; `committed` paths committed as the base, with `committedText` files (path to content) committed beside them (absent: main stays unborn); `side` paths committed on a branch named side, made from the base, then main checked out again; `branch` checked out as a new branch (null: HEAD detached at the base; \"main\": stay); `tags` created at HEAD; `headRef` given to `git symbolic-ref HEAD`; `config` pairs set with `git config`; `merge` arguments given to `git merge`; `rebaseStop` path committed on the current branch, then `git rebase --exec false HEAD~1` run so the rebase stops with HEAD detached and `rebase-merge/head-name` written, as at an `edit` stop; with `rebaseAlso`, that branch is pointed at the commit, a tip commit is added and `git rebase --update-refs --exec false HEAD~2` runs instead, so the rebase will move `rebaseAlso` too (`rebaseUpdateRefsDir` then replaces `update-refs` with a directory); with `rebaseApply`, `conflict.txt` is committed beside the path and `git rebase --apply` onto a branch that adds it differently stops on the conflict, writing `rebase-apply/head-name`; the rebase directory's `head-name` `rebaseHeadName` then deletes (null) or overwrites (text), or `rebaseHeadNameDir` replaces with a directory; `remove` and `move` applied with `git rm` and `git mv`; `stage` paths written and added; `stageHex` paths (hex bytes, which need not be UTF-8) added to the index only; `gitlink` paths added to the index as submodule commits (HEAD's); `stageCount` [prefix, n] adds n index-only paths prefix0 to prefix(n-1); `modify` paths rewritten without staging. Then the wrapper runs in the repository with `env` applied (null unsets) and every PLUMBLINE_* variable cleared first, or, when `commit` is present, a pre-commit hook that runs the wrapper is installed and `git commit` runs with those arguments, and a commit must be made exactly when `expectExit` is 0. `repo: false` runs the wrapper outside any repository instead. `fakeGit` ({script, executable}) runs the wrapper with PATH holding only a directory whose `git` is that script, made executable or not; it cannot be combined with `commit`. `expectStderr` is compared exactly.",
   "version": 1,
   "commitHook": [
     {
@@ -164,7 +164,7 @@
       "stage": ["src/a.js"],
       "env": {"PLUMBLINE_CFG": "{\"protected_branches\": [\"release\"]}"},
       "expectExit": 2,
-      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"protected_branches\" (use \"protectedBranches\"). The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"; \"layers\" and \"direction\" are the boundary guard's.\n"
+      "expectStderr": "blocked: PLUMBLINE_CFG has unknown key(s) \"protected_branches\" (use \"protectedBranches\"). The branch guard reads only \"protectedBranches\" and \"docsAllowlist\"; \"layers\" and \"direction\" are the boundary guard's; \"testsOnOtherBranches\" is the pre-commit gate's.\n"
     },
     {
       "name": "the boundary guard's keys in a shared PLUMBLINE_CFG are allowed",
@@ -481,6 +481,312 @@
       "stage": ["src/a.js"],
       "expectExit": 0,
       "expectStderr": ""
+    }
+  ],
+  "preCommitGate": [
+    {
+      "name": "with no PLUMBLINE_CFG the tests run on any branch and a failure blocks, as before #613",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "false"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: false failed\n"
+    },
+    {
+      "name": "with no PLUMBLINE_CFG passing tests are allowed on any branch, silently",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "true"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "on a protected branch failing tests block, naming the honest routes (#613 message 1)",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["docs/a.md"],
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and `main` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `main` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
+    },
+    {
+      "name": "on a protected branch failing tests block even with testsOnOtherBranches \"skip\"",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["docs/a.md"],
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and `main` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `main` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
+    },
+    {
+      "name": "on a protected branch passing tests are allowed, silently",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["docs/a.md"],
+      "env": {"PLUMBLINE_TEST_CMD": "true", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "with protectedBranches absent main is protected, as the guards read it",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["docs/a.md"],
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and `main` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `main` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
+    },
+    {
+      "name": "a configured protected branch other than main is the one named",
+      "committed": ["README.md"],
+      "branch": "release",
+      "stage": ["docs/a.md"],
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"release\"]}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and `release` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `release` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
+    },
+    {
+      "name": "on another branch with testsOnOtherBranches absent the tests are not run, and the commit is allowed with a notice (#613 message 3)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "sh -c \"echo the tests ran >&2; exit 1\"", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "expectExit": 0,
+      "expectStderr": "pre-commit: tests not run on `feat` (testsOnOtherBranches is \"skip\"), so this commit is unchecked. Set testsOnOtherBranches to \"run\" to run them here.\n"
+    },
+    {
+      "name": "on another branch with testsOnOtherBranches \"skip\" the tests are not run, and the commit is allowed with a notice",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "sh -c \"echo the tests ran >&2; exit 1\"", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 0,
+      "expectStderr": "pre-commit: tests not run on `feat` (testsOnOtherBranches is \"skip\"), so this commit is unchecked. Set testsOnOtherBranches to \"run\" to run them here.\n"
+    },
+    {
+      "name": "main is another branch when it is not protected, so its tests are skipped",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "sh -c \"echo the tests ran >&2; exit 1\"", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"release\"]}"},
+      "expectExit": 0,
+      "expectStderr": "pre-commit: tests not run on `main` (testsOnOtherBranches is \"skip\"), so this commit is unchecked. Set testsOnOtherBranches to \"run\" to run them here.\n"
+    },
+    {
+      "name": "on another branch with testsOnOtherBranches \"run\" failing tests are allowed with a notice that the commit is red (#613 message 4)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"testsOnOtherBranches\": \"run\"}"},
+      "expectExit": 0,
+      "expectStderr": "pre-commit: the tests failed on `feat`; committed anyway (only protected branches block). This commit is red: say so when you report it.\n"
+    },
+    {
+      "name": "on another branch with testsOnOtherBranches \"run\" passing tests are allowed, silently (#613 message 5)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "true", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"testsOnOtherBranches\": \"run\"}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "a testsOnOtherBranches other than \"skip\" or \"run\" blocks, on any branch",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "true", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"always\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: PLUMBLINE_CFG testsOnOtherBranches must be \"skip\" or \"run\".\n"
+    },
+    {
+      "name": "a testsOnOtherBranches that is not a string blocks",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "true", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": [\"run\"]}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: PLUMBLINE_CFG testsOnOtherBranches must be \"skip\" or \"run\".\n"
+    },
+    {
+      "name": "testsOnOtherBranches is case-sensitive: \"Run\" blocks",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "true", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"Run\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: PLUMBLINE_CFG testsOnOtherBranches must be \"skip\" or \"run\".\n"
+    },
+    {
+      "name": "a PLUMBLINE_CFG the guards refuse blocks the gate too, with their reason",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "true", "PLUMBLINE_CFG": "{\"protectedBranches\": \"main\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: PLUMBLINE_CFG protectedBranches must be an array of strings.\n"
+    },
+    {
+      "name": "an empty PLUMBLINE_CFG (a missing branch-guard.json) blocks: it is set, and is not JSON",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "true", "PLUMBLINE_CFG": ""},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: PLUMBLINE_CFG is not valid JSON. Set it to a JSON object, or unset it for the defaults.\n"
+    },
+    {
+      "name": "an unset PLUMBLINE_TEST_CMD blocks even where the tests would be skipped (#467)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: PLUMBLINE_TEST_CMD is not set\n"
+    },
+    {
+      "name": "a blank PLUMBLINE_TEST_CMD blocks even where the tests would be skipped (#467)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "  ", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: PLUMBLINE_TEST_CMD is not set\n"
+    },
+    {
+      "name": "a PLUMBLINE_TEST_CMD that cannot be split blocks even where the tests would be skipped (#472)",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "echo 'unbalanced", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the test command could not be run (No closing quotation)\n"
+    },
+    {
+      "name": "on a detached HEAD failing tests block: the branch is unknown, so it is treated as protected (#613 message 2)",
+      "committed": ["README.md"],
+      "branch": null,
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and the branch is unknown (HEAD is not on a branch), so it is treated as protected. Fix the code, or commit on a named branch.\n"
+    },
+    {
+      "name": "on a detached HEAD failing tests block even with no branch protected: unknown is never a pass",
+      "committed": ["README.md"],
+      "branch": null,
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"protectedBranches\": [], \"testsOnOtherBranches\": \"run\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and the branch is unknown (HEAD is not on a branch), so it is treated as protected. Fix the code, or commit on a named branch.\n"
+    },
+    {
+      "name": "on a detached HEAD passing tests are allowed, silently",
+      "committed": ["README.md"],
+      "branch": null,
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "true", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "a HEAD on a name git refuses as a branch name is unknown, as the commit hook reads it",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/-x",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and the branch is unknown (HEAD is on \"-x\", which is not a branch name), so it is treated as protected. Fix the code, or commit on a named branch.\n"
+    },
+    {
+      "name": "outside a git repository the branch cannot be read, so failing tests block, naming why",
+      "repo": false,
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and the branch is unknown (the gate could not read the branch (git symbolic-ref exited 128)), so it is treated as protected. Fix the code, or commit on a named branch.\n"
+    },
+    {
+      "name": "outside a git repository passing tests are allowed, silently",
+      "repo": false,
+      "env": {"PLUMBLINE_TEST_CMD": "true", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "at a rebase stop on a feature branch the branch is the one being rebased, so the tests are skipped",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "rebaseStop": "src/r.js",
+      "env": {"PLUMBLINE_TEST_CMD": "sh -c \"echo the tests ran >&2; exit 1\"", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 0,
+      "expectStderr": "pre-commit: tests not run on `feat` (testsOnOtherBranches is \"skip\"), so this commit is unchecked. Set testsOnOtherBranches to \"run\" to run them here.\n"
+    },
+    {
+      "name": "at a rebase stop on main failing tests block: main is the branch being rebased",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["docs/a.md"],
+      "rebaseStop": "src/r.js",
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and `main` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `main` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
+    },
+    {
+      "name": "a rebase with --update-refs that will move main is on a protected branch, though the branch rebased is not",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "rebaseStop": "src/r.js",
+      "rebaseAlso": "main",
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and `main` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `main` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
+    },
+    {
+      "name": "a rebase with --update-refs moving only unprotected branches skips the tests",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "rebaseStop": "src/r.js",
+      "rebaseAlso": "other",
+      "env": {"PLUMBLINE_TEST_CMD": "sh -c \"echo the tests ran >&2; exit 1\"", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 0,
+      "expectStderr": "pre-commit: tests not run on `feat` (testsOnOtherBranches is \"skip\"), so this commit is unchecked. Set testsOnOtherBranches to \"run\" to run them here.\n"
+    },
+    {
+      "name": "a rebase whose update-refs cannot be read leaves the branch unknown, so failing tests block",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "rebaseStop": "src/r.js",
+      "rebaseAlso": "other",
+      "rebaseUpdateRefsDir": true,
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"testsOnOtherBranches\": \"skip\"}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and the branch is unknown (HEAD is detached by a rebase whose rebase-merge/update-refs cannot be read: EISDIR), so it is treated as protected. Fix the code, or commit on a named branch.\n"
+    },
+    {
+      "name": "through git commit on a feature branch with the tests skipped: the commit is made, with the notice",
+      "committed": ["README.md"],
+      "branch": "feat",
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_TEST_CMD": "sh -c \"echo the tests ran >&2; exit 1\"", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "commit": [],
+      "expectExit": 0,
+      "expectStderr": "pre-commit: tests not run on `feat` (testsOnOtherBranches is \"skip\"), so this commit is unchecked. Set testsOnOtherBranches to \"run\" to run them here.\n"
+    },
+    {
+      "name": "through git commit on a protected branch with failing tests: refused, and no commit is made",
+      "committed": ["README.md"],
+      "branch": "main",
+      "stage": ["docs/a.md"],
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "commit": [],
+      "expectExit": 1,
+      "expectStderr": "pre-commit blocked: the tests failed, and `main` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `main` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
     }
   ]
 }

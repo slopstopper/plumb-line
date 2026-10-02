@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { copyFileSync, mkdtempSync, readFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { decide, splitCommand } from "../pre-commit-gate.mjs";
+import { classifyBranch, decide, splitCommand } from "../pre-commit-gate.mjs";
+import { isBranchName } from "../branch-guard.mjs";
 
 /**
  * Deterministic random strings over the characters the splitter treats
@@ -134,3 +137,61 @@ describe("pre-commit-gate decide", () => {
 
 // CLI behaviour is in adapters/hook-cases.json, run against both twins by
 // hook-cases.test.mjs (#475).
+
+// #613: the branch-aware gate. Its CLI is in adapters/commit-hook-cases.json;
+// these pin classifyBranch() in-process, and the gate copied alone. Python
+// twin: test_hooks.py.
+describe("classifyBranch (#613)", () => {
+  const classify = (resolved, protectedBranches = ["main"]) =>
+    classifyBranch({ resolved, protectedBranches, isBranchName });
+  it("reads the branch and every branch a rebase moves", () => {
+    expect(classify({ branch: "feat" })).toEqual({ kind: "other", branch: "feat" });
+    expect(classify({ branch: "main" })).toEqual({ kind: "protected", branch: "main" });
+    expect(classify({ branch: "feat", also: ["other", "main"] })).toEqual({ kind: "protected", branch: "main" });
+    expect(classify({ branch: "feat", also: ["other"] })).toEqual({ kind: "other", branch: "feat" });
+  });
+  it("treats every unreadable branch as unknown", () => {
+    expect(classify({ branch: null })).toEqual({ kind: "unknown", why: "HEAD is not on a branch" });
+    expect(classify({ branch: "-x" })).toEqual({ kind: "unknown", why: 'HEAD is on "-x", which is not a branch name' });
+    expect(classify({ branch: "feat", why: "a reason" })).toEqual({ kind: "unknown", why: "a reason" });
+    expect(classify({ branch: "feat", alsoWhy: "unread" })).toEqual({ kind: "unknown", why: "unread" });
+    expect(classify({ branch: "feat", also: ["-y"] }))
+      .toEqual({ kind: "unknown", why: 'the rebase also moves "-y", which is not a branch name' });
+    // Unknown is never a pass, even with no branch protected.
+    expect(classify({ branch: null }, [])).toEqual({ kind: "unknown", why: "HEAD is not on a branch" });
+  });
+  it("judges the branch before the ones a rebase moves", () => {
+    // As the commit hook does: a protected branch is named before an
+    // update-refs that cannot be read.
+    expect(classify({ branch: "main", alsoWhy: "unread" })).toEqual({ kind: "protected", branch: "main" });
+  });
+});
+
+describe("a gate copied alone, as installs from before #613 did", () => {
+  const gateAlone = () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "plumb-line-gate-alone-"));
+    copyFileSync(fileURLToPath(new URL("../pre-commit-gate.mjs", import.meta.url)), path.join(dir, "pre-commit-gate.mjs"));
+    return dir;
+  };
+  const env = (extra) => ({
+    ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("PLUMBLINE_"))),
+    ...extra,
+  });
+  for (const [cmd, code] of [["true", 0], ["false", 2]]) {
+    it(`runs as before with PLUMBLINE_CFG unset: ${cmd} exits ${code}`, () => {
+      const dir = gateAlone();
+      const r = spawnSync(process.execPath, [path.join(dir, "pre-commit-gate.mjs")],
+        { cwd: dir, env: env({ PLUMBLINE_TEST_CMD: cmd }), encoding: "utf8" });
+      expect(r.status).toBe(code);
+    });
+  }
+  it("blocks with PLUMBLINE_CFG set, naming the files it needs", () => {
+    const dir = gateAlone();
+    const r = spawnSync(process.execPath, [path.join(dir, "pre-commit-gate.mjs")],
+      { cwd: dir, env: env({ PLUMBLINE_TEST_CMD: "true", PLUMBLINE_CFG: "{}" }), encoding: "utf8" });
+    expect(r.status).toBe(2);
+    expect(r.stderr.startsWith("pre-commit blocked: PLUMBLINE_CFG is set, and the gate reads it with the "
+      + "branch guard's files, which cannot be loaded (")).toBe(true);
+    expect(r.stderr.endsWith("Copy branch-guard.mjs and branch-guard-commit.mjs beside the gate.\n")).toBe(true);
+  });
+});

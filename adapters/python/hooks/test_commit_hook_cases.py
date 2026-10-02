@@ -1,5 +1,6 @@
 """Runs adapters/commit-hook-cases.json against the Python branch guard's git
-commit hook, in a real temporary git repository per row (#464). Twin of
+commit hook (#464) and the pre-commit gate (#613), in a real temporary git
+repository per row. Twin of
 adapters/js/hooks/__tests__/commit-hook-cases.test.mjs. As with
 hook-cases.json, the twins' parity is a data contract: a case lives in the
 table, so neither twin can quietly miss it."""
@@ -19,14 +20,18 @@ from case_table_guards import table_problems  # noqa: E402
 with open(os.path.join(_REPO, 'adapters', 'commit-hook-cases.json'), encoding='utf-8') as f:
     CASES = json.load(f)
 
-_HOOK = os.path.join(_HERE, 'branch_guard_commit.py')
+# Each case kind and the hook its rows run. JS twin: HOOKS.
+_HOOKS = {
+    'commitHook': os.path.join(_HERE, 'branch_guard_commit.py'),
+    'preCommitGate': os.path.join(_HERE, 'pre_commit_gate.py'),
+}
 
 # Every field, case kind and table version this runner interprets (#441). JS
 # twin: MODEL in adapters/js/hooks/__tests__/commit-hook-cases.test.mjs.
 _ROW = ['name', 'repo', 'committed', 'committedText', 'fakeGit', 'side', 'branch', 'tags', 'headRef', 'config', 'merge',
         'rebaseStop', 'rebaseApply', 'rebaseAlso', 'rebaseHeadName', 'rebaseHeadNameDir', 'rebaseUpdateRefsDir', 'remove', 'move', 'stage', 'stageHex', 'gitlink', 'stageCount', 'modify', 'env', 'commit',
         'expectExit', 'expectStderr']
-_MODEL = {'versions': [1], 'meta': ['_doc', 'version'], 'fields': {'commitHook': _ROW}}
+_MODEL = {'versions': [1], 'meta': ['_doc', 'version'], 'fields': {kind: _ROW for kind in _HOOKS}}
 
 
 def _is_strings(v):
@@ -248,7 +253,8 @@ def _build(c, repo):
         _write(repo, p, 'modified\n')
 
 
-def _run(c, tmp_path):
+def _run(c, tmp_path, kind='commitHook'):
+    hook_file = _HOOKS[kind]
     env = dict(_BASE_ENV)
     for k, v in c.get('env', {}).items():
         if v is None:
@@ -260,7 +266,7 @@ def _run(c, tmp_path):
         cwd = tmp_path / 'no-repo'
         cwd.mkdir()
         env['GIT_CEILING_DIRECTORIES'] = str(tmp_path)
-        return subprocess.run([sys.executable, _HOOK], cwd=cwd, **options)
+        return subprocess.run([sys.executable, hook_file], cwd=cwd, **options)
     repo = str(tmp_path / 'repo')
     os.mkdir(repo)
     _build(c, repo)
@@ -271,10 +277,10 @@ def _run(c, tmp_path):
         os.chmod(bin_dir / 'git', 0o755 if c['fakeGit']['executable'] else 0o644)
         env['PATH'] = str(bin_dir)
     if 'commit' not in c:
-        return subprocess.run([sys.executable, _HOOK], cwd=repo, **options)
+        return subprocess.run([sys.executable, hook_file], cwd=repo, **options)
     hook = os.path.join(repo, '.git', 'hooks', 'pre-commit')
     with open(hook, 'w', encoding='utf-8') as f:
-        f.write(f"#!/bin/sh\nexec '{sys.executable}' '{_HOOK}'\n")
+        f.write(f"#!/bin/sh\nexec '{sys.executable}' '{hook_file}'\n")
     os.chmod(hook, 0o755)
 
     def head():
@@ -303,7 +309,8 @@ def test_a_planted_unknown_kind_or_version_fails():
 
 
 def test_every_rows_fields_have_the_types_this_runner_reads():
-    problems = [f"{json.dumps(c.get('name'))}: {p}" for c in CASES['commitHook'] for p in _type_problems(c)]
+    problems = [f"{kind} {json.dumps(c.get('name'))}: {p}"
+                for kind in _HOOKS for c in CASES[kind] for p in _type_problems(c)]
     assert problems == []
 
 
@@ -338,10 +345,23 @@ def test_covers_the_four_cases_464_names():
         assert kind in names
 
 
-@pytest.mark.parametrize('c', CASES['commitHook'], ids=lambda c: c['name'])
-def test_commit_hook_case(c, tmp_path):
+def test_covers_the_cases_613_names():
+    """The branch-aware gate's cases (#613); a table edit cannot drop one."""
+    names = '\n'.join(c['name'] for c in CASES['preCommitGate'])
+    for kind in ('with no PLUMBLINE_CFG the tests run on any branch and a failure blocks',
+                 'on a protected branch failing tests block', 'testsOnOtherBranches absent the tests are not run',
+                 '"skip" the tests are not run', '"run" failing tests are allowed',
+                 '"run" passing tests are allowed, silently', 'other than "skip" or "run" blocks',
+                 'an unset PLUMBLINE_TEST_CMD blocks even where the tests would be skipped',
+                 'on a detached HEAD failing tests block', '--update-refs that will move main'):
+        assert kind in names
+
+
+@pytest.mark.parametrize('kind,c', [(k, c) for k in _HOOKS for c in CASES[k]],
+                         ids=lambda v: v['name'] if isinstance(v, dict) else v)
+def test_commit_hook_case(kind, c, tmp_path):
     assert _type_problems(c) == []
-    r = _run(c, tmp_path)
+    r = _run(c, tmp_path, kind)
     stderr = r.stderr.decode('utf-8')
     assert r.returncode == c['expectExit'], stderr
     assert stderr == c['expectStderr']
