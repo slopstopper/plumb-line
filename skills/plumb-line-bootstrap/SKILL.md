@@ -86,7 +86,9 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
   a test command (see *Hook I/O contract* below). Advise a fast one for the
   gate, such as the unit tests, and leave the full suite to CI: the gate runs
   it on every commit to a protected branch, and on every commit with
-  `testsOnOtherBranches` `"run"`.
+  `testsOnOtherBranches` `"run"`. Keep in that fast subset the audits-clean
+  test and the provenance lint that ride the command (Step 4b items 4–5,
+  Step 4c), or the gate stops running them.
 - Tell the builder exactly what was written and how to enable the hooks.
 - **Verify, don't assume.** After installing, plant a deliberate upward import
   and confirm the boundary check errors; on the protected branch, run a code
@@ -102,8 +104,10 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
   run `git commit`, and confirm it is refused with the branch guard's reason
   and `git log` shows no new commit; unstage and delete the file after. Then
   on a scratch feature branch, commit a scratch code file and confirm it is
-  made, with the gate's notice that the tests were not run (`"skip"`) or
-  with the tests run (`"run"`); delete the branch after.
+  made: with `"skip"`, with the gate's notice that the tests were not run;
+  with `"run"`, a passing run is silent, so plant a failing test first and
+  confirm the commit is made with the notice that it is red, then remove the
+  test. Delete the branch after.
 
 ### JS boundary zones — get the direction right (easy to invert silently)
 
@@ -174,7 +178,9 @@ convention"):
   reads the branch as the commit hook does and blocks a failure only on a
   protected branch (or an unknown one); elsewhere it skips the tests, or with
   `testsOnOtherBranches` `"run"` runs them and reports a failure without
-  blocking. A missing or broken command blocks on every branch. The command is split into
+  blocking. A command that is unset, blank, cannot be split or is not valid
+  UTF-8 blocks on every branch; one that cannot be started blocks only where
+  the tests run. The command is split into
   words with shell-style quoting (`'…'`, `"…"`, backslash escapes, as Python's
   `shlex.split`) and run without a shell, in both twins, so give it a single
   command (e.g. `npm test`), not a shell pipeline or `&&` chain; wrap several
@@ -304,8 +310,10 @@ all of them** — the goal is a builder who can extend it, not a wrapped codebas
    — in JS compare the length or use a deep-equal matcher, since `===` compares
    array identity, never contents), and
    wire it into the test command the pre-commit gate already runs (Step 4) — so
-   an unmarked or laundered return is caught before review, by the gate the
-   builder just installed.
+   an unmarked or laundered return is caught by the gate the builder just
+   installed: before a commit to a protected branch, and on other branches
+   only with `testsOnOtherBranches` `"run"` (where it is reported, not
+   blocked).
 5. **Install the bypass lint over the scaffolded sites** (#214 — until this
    step existed, nothing ever installed it). **JS:** copy the adapter's
    `provenance-lint/` directory and `eslint-provenance.template.cjs` from
@@ -390,8 +398,8 @@ enforcement manifest that step writes.
     gate takes exactly one runner, so never bolt a second command onto the
     gate itself.
 - **Verify, don't assume** (same rule as Step 4): plant a function inside the
-  surface that returns a raw computation, confirm the gate blocks, then remove
-  it. An installed-but-inert rule is the failure mode to rule out — and this one
+  surface that returns a raw computation, confirm the gate blocks a commit
+  on the protected branch, then remove it. An installed-but-inert rule is the failure mode to rule out — and this one
   is silent by design outside its surface, so "no output" is not evidence it is
   working.
 

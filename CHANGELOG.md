@@ -83,6 +83,14 @@ an empty slot in a sparse JS lineage array.
   them on a feature branch, so a red commit there is allowed with a notice.
   This is a loosening. **Do:** set `"testsOnOtherBranches": "run"` in
   `branch-guard.json` to run them there (a failure is reported, not blocked).
+  - With `PLUMBLINE_CFG` set, the gate needs the same release's branch guard
+    and commit hook beside it, else it blocks. **Do:** re-copy all three.
+  - A failure on a protected branch has a new message, which no longer names
+    the command. A command that cannot be started is named by its error code
+    (`ENOENT`).
+  - A red feature-branch commit can now reach `main` by a local fast-forward
+    or clean merge, which runs no pre-commit hook. **Do:** merge through
+    review, or set `"run"`.
 - **The report checker rejects slash- or hyphen-joined principle codes
   (checker v5)**
   ([#527](https://github.com/slopstopper/plumb-line/issues/527);
@@ -408,6 +416,10 @@ an empty slot in a sparse JS lineage array.
   a fast test command for the gate. Cases: `adapters/commit-hook-cases.json`.
 
 ### Fixed
+- **The branch guard protects a case alias (`Main` for `main`) where git
+  ignores case** ([#615](https://github.com/slopstopper/plumb-line/issues/615)):
+  in the PreToolUse guard, its commit hook and the gate, failing closed when
+  `core.ignorecase` cannot be read.
 - **JS conformance runner: a bad guard option must be a `TypeError`, and a
   `derive` row is judged only on `derive`**
   (`primitives/conformance/run-cases.mjs`; v0.12.0 dogfood audit). SPEC §5c

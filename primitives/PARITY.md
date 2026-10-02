@@ -76,8 +76,9 @@ fourth case file, `adapters/hook-cases.json`, with one kind per hook
 (#475). The JS gate's command splitter is also checked word for word against
 Python's `shlex.split` (`pre-commit-gate.test.mjs`, #472). Behaviour that
 needs a real git repository is in `adapters/commit-hook-cases.json`: the
-branch guard's commit hook (`commitHook`, #464) and the gate's branch-aware
-mode (`preCommitGate`, #613).
+branch guard's commit hook (`commitHook`, #464), the gate's branch-aware
+mode (`preCommitGate`, #613), and the branch guard's reading of
+`core.ignorecase` (`branchGuard`, #615).
 Environment values are read the same way in both twins: one that is not
 valid UTF-8, or holds U+FFFD, blocks (#501). Rows set such values as raw
 bytes with `envHex`.
