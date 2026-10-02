@@ -58,6 +58,12 @@ supply defaults; these answers are the builder's, not yours:
 8. For each key output, the inputs needed to reproduce it.
 9. Which derived outputs to freeze as a golden baseline.
 10. The phrasing for a valid null result in this domain.
+11. On branches that are not protected, should the pre-commit gate run the
+    tests (`"run"`: a failure is reported, not blocked) or skip them
+    (`"skip"`)? A protected branch always runs them and blocks on failure.
+    Recommend `"run"` when the project has no CI, since nothing else would run
+    them before review. Write the answer into `branch-guard.json` as
+    `testsOnOtherBranches` (Step 4).
 
 HONESTY CONSTRAINT: if the builder cannot name a source-truth layer, stop and
 say so — that absence is the finding. Do not fabricate one.
@@ -74,9 +80,13 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
 - Copy the guard hook scripts into the target repo's `.claude/guards/` (or
   hooks dir): the branch guard, its commit-hook wrapper
   (`branch-guard-commit.mjs` / `branch_guard_commit.py`, which imports the
-  guard, so the two must sit in the same directory) and the pre-commit gate.
+  guard) and the pre-commit gate (which imports the wrapper), all three in
+  the same directory.
 - Wire git's pre-commit hook to run the wrapper, then the pre-commit gate with
-  the adapter's declared test command (see *Hook I/O contract* below).
+  a test command (see *Hook I/O contract* below). Advise a fast one for the
+  gate, such as the unit tests, and leave the full suite to CI: the gate runs
+  it on every commit to a protected branch, and on every commit with
+  `testsOnOtherBranches` `"run"`.
 - Tell the builder exactly what was written and how to enable the hooks.
 - **Verify, don't assume.** After installing, plant a deliberate upward import
   and confirm the boundary check errors; on the protected branch, run a code
@@ -90,7 +100,10 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
   blocks every docs edit is the other. Then verify the git wiring the same
   way, through git itself: on the protected branch, stage a scratch code file,
   run `git commit`, and confirm it is refused with the branch guard's reason
-  and `git log` shows no new commit; unstage and delete the file after.
+  and `git log` shows no new commit; unstage and delete the file after. Then
+  on a scratch feature branch, commit a scratch code file and confirm it is
+  made, with the gate's notice that the tests were not run (`"skip"`) or
+  with the tests run (`"run"`); delete the branch after.
 
 ### JS boundary zones — get the direction right (easy to invert silently)
 
@@ -144,7 +157,7 @@ Each hook is a stdin/exit-code CLI; exit 0 allows, exit 2 (with a message on
 stderr) blocks. A Claude Code hook treats only exit 2 as a block. The branch and
 boundary guards also exit 2 when they cannot read their input or their
 `PLUMBLINE_CFG`, and the pre-commit gate when `PLUMBLINE_TEST_CMD` is unset,
-blank or cannot be run. Input is per hook (`adapter-contract.md`, "Hook I/O
+blank or cannot be run, or `PLUMBLINE_CFG` is set and invalid. Input is per hook (`adapter-contract.md`, "Hook I/O
 convention"):
 
 - **branch guard:** `{ "filePath": "..." }` on stdin; the branch from
@@ -157,20 +170,25 @@ convention"):
   `PLUMBLINE_CFG` it blocks ("no layers configured"), so always wire it with
   the project's layers set.
 - **pre-commit gate:** no stdin; runs the command in `PLUMBLINE_TEST_CMD` and
-  blocks when it fails or the variable is unset. The command is split into
+  blocks when it fails or the variable is unset. With `PLUMBLINE_CFG` set it
+  reads the branch as the commit hook does and blocks a failure only on a
+  protected branch (or an unknown one); elsewhere it skips the tests, or with
+  `testsOnOtherBranches` `"run"` runs them and reports a failure without
+  blocking. A missing or broken command blocks on every branch. The command is split into
   words with shell-style quoting (`'…'`, `"…"`, backslash escapes, as Python's
   `shlex.split`) and run without a shell, in both twins, so give it a single
   command (e.g. `npm test`), not a shell pipeline or `&&` chain; wrap several
   in a script.
 
 Git runs a hook with no stdin and none of these variables, so the guards are
-not git hooks on their own. The pre-commit gate needs only
-`PLUMBLINE_TEST_CMD`, so a pre-commit hook that sets it and runs the gate
-works. The branch guard runs from git through its commit-hook wrapper, which
+not git hooks on their own. The pre-commit gate needs `PLUMBLINE_TEST_CMD`,
+and `PLUMBLINE_CFG` to know which branches are protected: without it the
+gate runs the tests on every branch and blocks on failure. The branch guard runs from git through its commit-hook wrapper, which
 reads the branch from git (a detached HEAD is an unknown branch, so a code
 commit there blocks, except during a rebase, when the branch is the one
 being rebased and any it will move) and judges every staged path, a rename
-as both of its paths. Keep the builder's protected branches and docs allowlist in one
+as both of its paths. Keep the builder's protected branches, docs allowlist and
+`testsOnOtherBranches` answer in one
 committed file, such as `.claude/guards/branch-guard.json`, and read it into
 `PLUMBLINE_CFG` in every wiring (this hook and the PreToolUse hook below), so
 the two cannot protect different branches; a missing file leaves the
