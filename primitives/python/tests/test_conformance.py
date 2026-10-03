@@ -77,6 +77,21 @@ def _strict(a, b):
     return (type(a) is type(b) or (isinstance(a, (int, float)) and isinstance(b, (int, float)))) and a == b
 
 
+# A key the output lacks. _strict finds it equal to no value, None included.
+_MISSING = object()
+
+
+def _expect_problem(out, expect):
+    """The first `expect` field the output does not hold, or None. Compared
+    with _strict, as the JS twin compares with isDeepStrictEqual (#595):
+    `==` read True as 1, and `out.get` read a missing key as None."""
+    for k, v in expect.items():
+        got = out.get(_KEY.get(k, k), _MISSING)
+        if not _strict(got, v):
+            return f"expected {k}={v!r}, got {'no such field' if got is _MISSING else repr(got)}"
+    return None
+
+
 def setup_function():
     p.reset_step_counter()
 
@@ -86,9 +101,8 @@ def test_combine_cases():
         p.reset_step_counter()
         inputs = [_meta_to_snake(m) for m in c['inputs']]
         out = p.combine_provenance(*inputs)
-        for k, v in c['expect'].items():
-            sk = _KEY.get(k, k)
-            assert out.get(sk) == v, f"{c['name']}: {sk} == {out.get(sk)!r}, expected {v!r}"
+        problem = _expect_problem(out, c['expect'])
+        assert problem is None, f"{c['name']}: {problem}"
         for k in c.get('absent', []):
             sk = _KEY.get(k, k)
             assert sk not in out, f"{c['name']}: {sk} should be absent"
@@ -146,9 +160,8 @@ def _shape_problem(kind, c):
 
 
 def _envelope_problems(name, out, c):
-    for k, v in c['expect'].items():
-        sk = _KEY.get(k, k)
-        assert out.get(sk) == v, f"{name}: {sk} == {out.get(sk)!r}, expected {v!r}"
+    problem = _expect_problem(out, c['expect'])
+    assert problem is None, f"{name}: {problem}"
     # A field that must not be written at all (#566).
     for k in c.get('absent', []):
         sk = _KEY.get(k, k)
@@ -228,6 +241,27 @@ def test_derive_cases():
 _GUARD_OPTION = {'noMock': 'no_mock', 'minConfidence': 'min_confidence', 'minSource': 'min_source'}
 
 
+def _guard_shape_problem(c):
+    """A guard row's shape, as the JS twin's runGuard checks it, with the same
+    messages; None when the row can be judged (#595)."""
+    expectations = [k for k in ('expectPass', 'expectRefused', 'expectError') if k in c]
+    if len(expectations) != 1:
+        return 'a guard case needs exactly one of expectPass, expectRefused or expectError'
+    if 'expectAbsent' in c and 'expectRefused' not in c:
+        return 'expectAbsent is read only beside expectRefused'
+    # These would otherwise be read as a pass, or as any refusal at all.
+    if 'expectPass' in c and c['expectPass'] is not True:
+        return 'expectPass must be true'
+    for key in ('expectRefused', 'expectAbsent'):
+        if key in c and not (isinstance(c[key], list) and c[key]):
+            return f'{key} must list at least one reason'
+    # An empty needle is in every string, so it would pin nothing.
+    needles = c.get('expectRefused', []) + c.get('expectAbsent', []) + ([c['expectError']] if 'expectError' in c else [])
+    if not all(isinstance(n, str) and n for n in needles):
+        return 'every expected reason or error text must be a non-empty string'
+    return None
+
+
 def test_guard_cases():
     # The egress guard (#120). JS twin: runGuard in
     # primitives/conformance/run-cases.mjs. A row's `meta` becomes a marked
@@ -235,21 +269,9 @@ def test_guard_cases():
     # passed as is, to pin that a value with no envelope is refused.
     for c in CASES['guard']:
         name = c['name']
+        problem = _guard_shape_problem(c)
+        assert problem is None, f"{name}: {problem}"
         expectations = [k for k in ('expectPass', 'expectRefused', 'expectError') if k in c]
-        assert len(expectations) == 1, \
-            f"{name}: a guard case needs exactly one of expectPass, expectRefused or expectError"
-        assert 'expectAbsent' not in c or 'expectRefused' in c, \
-            f"{name}: expectAbsent is read only beside expectRefused"
-        # As in the JS twin: these would otherwise be read as a pass, or as
-        # any refusal at all.
-        assert 'expectPass' not in c or c['expectPass'] is True, f"{name}: expectPass must be true"
-        for key in ('expectRefused', 'expectAbsent'):
-            assert key not in c or (isinstance(c[key], list) and c[key]), \
-                f"{name}: {key} must list at least one reason"
-        # An empty needle is in every string, so it would pin nothing.
-        needles = c.get('expectRefused', []) + c.get('expectAbsent', []) + ([c['expectError']] if 'expectError' in c else [])
-        assert all(isinstance(n, str) and n for n in needles), \
-            f"{name}: every expected reason or error text must be a non-empty string"
         raw = c['meta']
         x = {'value': 1, 'meta': _meta_to_snake(raw)} if isinstance(raw, dict) else raw
         kwargs = {_GUARD_OPTION.get(k, k): v for k, v in c.get('options', {}).items()}
@@ -288,18 +310,42 @@ _KNOWN_FIELDS = {
 }
 
 
+def _unknown_fields(kind, c):
+    """The fields of a row this runner does not interpret, named; or None.
+    JS twin: unknownFields in run-cases.mjs."""
+    extra = sorted(set(c) - _KNOWN_FIELDS[kind])
+    return f"unknown case field(s) {', '.join(extra)}: teach this runner to interpret them" if extra else None
+
+
+# Top-level keys of cases.json that are metadata, not case kinds.
+_META_KEYS = {'_doc', 'version'}
+
+
+def _kind_problems(cases):
+    """What is wrong with a table's kinds, as the JS twin's runCases reports
+    it: a modelled kind missing or not a list, then any kind no test reads."""
+    problems = []
+    for kind in _KNOWN_FIELDS:
+        if kind not in cases:
+            problems.append(f'case kind {kind} is missing from the table')
+        elif not isinstance(cases[kind], list):
+            problems.append(f'case kind {kind} is not a list of cases')
+    for kind in sorted(set(cases) - _META_KEYS - set(_KNOWN_FIELDS)):
+        problems.append(f'unknown case kind {kind}: teach this runner to interpret it')
+    return problems
+
+
 def test_every_case_field_is_interpreted():
-    for kind, known in _KNOWN_FIELDS.items():
+    for kind in _KNOWN_FIELDS:
         for c in CASES[kind]:
-            extra = set(c) - known
-            assert not extra, (f"{kind} case {c['name']!r}: unknown field(s) {sorted(extra)} "
-                               f"— teach this runner to interpret them")
+            problem = _unknown_fields(kind, c)
+            assert problem is None, f"{kind} case {c['name']!r}: {problem}"
 
 
 def test_every_case_kind_is_interpreted():
-    # A top-level kind no test above reads would otherwise never run (#369).
-    kinds = set(CASES) - {'_doc', 'version'}
-    assert kinds == set(_KNOWN_FIELDS), f"unknown case kind(s) {sorted(kinds - set(_KNOWN_FIELDS))}"
+    # A top-level kind no test above reads would otherwise never run (#369),
+    # and a table with a kind deleted must not pass (#443 review).
+    assert _kind_problems(CASES) == []
 
 
 def _is_modelled_version(v):
@@ -317,3 +363,79 @@ def test_case_table_version_is_one_this_runner_models():
 def test_a_boolean_version_is_not_version_one():
     assert not _is_modelled_version(True)
     assert _is_modelled_version(1)
+
+
+# #595: planted bad rows for the checks the JS runner proves in
+# primitives/js/conformance-runner.test.mjs and this runner did not.
+
+# `expect` is compared as the JS twin's isDeepStrictEqual compares it: True is
+# not 1, and a key the output lacks is not None.
+_BAD_EXPECT = [
+    ({'derived_from_mock': True}, {'derivedFromMock': 1}),
+    ({'confidence_score': 0}, {'confidenceScore': False}),
+    ({'lineage': [{'id': 'a', 'n': True}]}, {'lineage': [{'id': 'a', 'n': 1}]}),
+    ({}, {'basis': None}),
+]
+
+
+def test_expect_fails_a_bool_against_a_number_and_a_missing_key_against_null():
+    for out, expect in _BAD_EXPECT:
+        assert _expect_problem(out, expect) is not None, (out, expect)
+
+
+def test_expect_passes_an_equal_value_and_one_number_written_two_ways():
+    assert _expect_problem({'derived_from_mock': True, 'basis': None}, {'derivedFromMock': True, 'basis': None}) is None
+    assert _expect_problem({'confidence_score': 1}, {'confidenceScore': 1.0}) is None
+
+
+def test_a_construct_or_derive_envelope_is_compared_strictly():
+    import pytest
+    for out, expect in _BAD_EXPECT:
+        with pytest.raises(AssertionError):
+            _envelope_problems('x', out, {'expect': expect})
+
+
+# The guard row-shape checks, with the JS runner's messages.
+_CLEAN = {'provenanceVersion': 2, 'source': 'real', 'confidence': 'high', 'derivedFromMock': False, 'lineage': []}
+_ONE = 'a guard case needs exactly one of expectPass, expectRefused or expectError'
+_NEEDLE = 'every expected reason or error text must be a non-empty string'
+_BAD_GUARD_ROWS = [
+    ({'meta': _CLEAN}, _ONE),
+    ({'meta': _CLEAN, 'expectPass': True, 'expectError': 'y'}, _ONE),
+    ({'meta': _CLEAN, 'expectRefused': ['mock:'], 'expectError': 'y'}, _ONE),
+    ({'meta': _CLEAN, 'expectPass': True, 'expectAbsent': ['mock:']}, 'expectAbsent is read only beside expectRefused'),
+    ({'meta': _CLEAN, 'expectPass': False}, 'expectPass must be true'),
+    ({'meta': _CLEAN, 'expectPass': 1}, 'expectPass must be true'),
+    ({'meta': _CLEAN, 'expectRefused': []}, 'expectRefused must list at least one reason'),
+    ({'meta': _CLEAN, 'expectRefused': 'mock:'}, 'expectRefused must list at least one reason'),
+    ({'meta': _CLEAN, 'expectRefused': ['mock:'], 'expectAbsent': 'zzz'}, 'expectAbsent must list at least one reason'),
+    ({'meta': _CLEAN, 'expectRefused': ['mock:'], 'expectAbsent': []}, 'expectAbsent must list at least one reason'),
+    ({'meta': _CLEAN, 'expectRefused': ['']}, _NEEDLE),
+    ({'meta': _CLEAN, 'expectRefused': [1]}, _NEEDLE),
+    ({'meta': _CLEAN, 'expectRefused': ['mock:'], 'expectAbsent': ['']}, _NEEDLE),
+    ({'meta': _CLEAN, 'options': {'minConfidence': 'hi'}, 'expectError': ''}, _NEEDLE),
+    ({'meta': _CLEAN, 'expectPass': True}, None),
+    ({'meta': _CLEAN, 'expectRefused': ['mock:'], 'expectAbsent': ['low']}, None),
+    ({'meta': _CLEAN, 'options': {'minConfidence': 'hi'}, 'expectError': 'guard:'}, None),
+]
+
+
+def test_the_guard_row_shape_checks_refuse_what_the_js_runner_refuses():
+    for row, expected in _BAD_GUARD_ROWS:
+        assert _guard_shape_problem(row) == expected, row
+
+
+def test_an_unknown_case_field_is_named():
+    row = {**CASES['combine'][0], 'expectSomethingNew': True}
+    problem = _unknown_fields('combine', row)
+    assert problem is not None and 'expectSomethingNew' in problem
+    assert _unknown_fields('combine', CASES['combine'][0]) is None
+
+
+def test_an_unknown_missing_or_malformed_case_kind_fails_the_table():
+    assert _kind_problems(CASES) == []
+    assert _kind_problems({**CASES, 'clone': [{'name': 'x'}]}) == [
+        'unknown case kind clone: teach this runner to interpret it']
+    rest = {k: v for k, v in CASES.items() if k != 'construct'}
+    assert _kind_problems(rest) == ['case kind construct is missing from the table']
+    assert _kind_problems({**CASES, 'guard': {'name': 'x'}}) == ['case kind guard is not a list of cases']
