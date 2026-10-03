@@ -96,7 +96,9 @@ export function isCaseAlias(branch, protectedBranches) {
  * ignore_case_from.
  */
 export function ignoreCaseFrom(status, stdout) {
-  if (status === 0) return String(stdout).trim() !== "false";
+  // ASCII whitespace only, as Python's bytes.strip(): a BOM or a no-break
+  // space is not git's answer, so it is not read as "false".
+  if (status === 0) return String(stdout).replace(/^[ \t\n\r\v\f]+|[ \t\n\r\v\f]+$/g, "") !== "false";
   return status !== 1;
 }
 

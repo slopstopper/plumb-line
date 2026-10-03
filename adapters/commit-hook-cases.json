@@ -1032,6 +1032,15 @@
       "env": {"PLUMBLINE_BRANCH": "maſter", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"master\"]}"},
       "expectExit": 2,
       "expectStderr": "blocked: code edit to src/app.js on protected branch master. Branch first.\n"
+    },
+    {
+      "name": "git that answers core.ignorecase with neither true nor false: a case alias of a protected branch is protected, fail closed (v0.12.0 dogfood of #617)",
+      "committed": ["README.md"],
+      "fakeGit": {"script": "#!/bin/sh\necho yes\nexit 0\n", "executable": true},
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "Main", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"docs/\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch main. Branch first.\n"
     }
   ]
 }

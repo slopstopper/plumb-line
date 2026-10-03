@@ -109,7 +109,7 @@ real hook payload or config nests near even the lowest of these.
 names by folding both (upper, then lower case, #615), and each twin takes its
 runtime's own Unicode tables. On a letter whose case mapping is newer than one
 runtime's Unicode, the twins disagree: with protected `x꟏` and branch
-`x꟎`, Node 24 (Unicode 17) blocks a code edit and Python 3.14
+`x꟎`, Node 24.15 (Unicode 17) blocks a code edit and Python 3.14.4
 (Unicode 16) allows it. One twin allows what the other blocks, so this does
 not meet the waiver rule above. It is recorded here as open until #625 ships
 one reference fold for both twins.

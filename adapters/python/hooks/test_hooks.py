@@ -466,6 +466,8 @@ def test_protected_match_and_is_case_alias():
     # Anything else cannot be read: fail closed (#615), including exit 0 with
     # output other than true or false (v0.12.0 dogfood of #617).
     (128, b"", True), (0, b"yes\n", True), (0, b"", True), (2, b"", True),
+    # Only ASCII whitespace is trimmed, as in the JS twin.
+    (0, "﻿false\n".encode(), True), (0, "false \n".encode(), True), (0, b"false\r\n", False),
 ])
 def test_ignore_case_from_reads_git_config_and_fails_closed(status, stdout, expected):
     assert branch_guard.ignore_case_from(status, stdout) is expected

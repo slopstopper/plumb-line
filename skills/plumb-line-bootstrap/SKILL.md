@@ -316,7 +316,8 @@ all of them** — the goal is a builder who can extend it, not a wrapped codebas
    array identity, never contents), and
    wire it into the test command the pre-commit gate already runs (Step 4) — so
    an unmarked or laundered return is caught by the gate the builder just
-   installed: before a commit to a protected branch, and on other branches
+   installed: before a commit to a protected branch (a local fast-forward or
+   clean merge is not such a commit, and runs no hook), and on other branches
    only with `testsOnOtherBranches` `"run"` (where it is reported, not
    blocked).
 5. **Install the bypass lint over the scaffolded sites** (#214 — until this

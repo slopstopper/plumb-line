@@ -195,6 +195,8 @@ describe("case aliases of a protected branch (#615)", () => {
     // Anything else cannot be read: fail closed, including exit 0 with output
     // other than true or false (v0.12.0 dogfood of #617).
     [128, "", true], [0, "yes\n", true], [0, "", true], [2, "", true],
+    // Only ASCII whitespace is trimmed, as in the Python twin.
+    [0, "﻿false\n", true], [0, "false \n", true], [0, "false\r\n", false],
   ]) {
     it(`ignoreCaseFrom(${status}, ${JSON.stringify(stdout)}) is ${expected}`, () => {
       expect(ignoreCaseFrom(status, stdout)).toBe(expected);
