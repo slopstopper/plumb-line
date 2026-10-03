@@ -210,6 +210,12 @@ jobs:
           if grep -q 'SKIPPED.*test_fit_map_snippets\.py' /tmp/scripts-pytest.txt; then
             echo "::error::a fit-map snippet test skipped in CI — requests/pandas missing, or the stdlib http is shadowed again (#171)"; exit 1
           fi
+          # The handed-envelope probe runs the JS twin (#594). Its pre-fix
+          # test skips by design on this shallow checkout; a skip for want of
+          # node does not.
+          if grep -q 'SKIPPED.*test_handed_probe\.py.*node is not on PATH' /tmp/scripts-pytest.txt; then
+            echo "::error::the handed-envelope probe tests skipped in CI — node is missing"; exit 1
+          fi
 
   action:
     name: Action (uses ./ against the fixtures)

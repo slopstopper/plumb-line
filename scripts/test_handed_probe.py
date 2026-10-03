@@ -56,17 +56,43 @@ def test_a_snake_case_field_name_in_a_message_is_a_name_difference():
     assert probe.classify(d) == 'field-name'
 
 
+# A number JSON cannot write (a non-finite one, or -0) reaches the comparison
+# tagged, from both halves, so JSON.stringify's null and 0 hide nothing.
+NEG0 = {'$number': '-0'}
+INF = {'$number': 'Infinity'}
+
+
+def test_python_tags_the_numbers_json_cannot_write():
+    probe = _load_probe()
+    assert probe.tag_numbers([-0.0, float('inf'), float('-inf'), 0.0, 0, 1.0, 10 ** 400]) == \
+        [NEG0, INF, {'$number': '-Infinity'}, 0.0, 0, 1.0, 10 ** 400]
+    assert probe.tag_numbers({'a': [float('nan')]}) == {'a': [{'$number': 'NaN'}]}
+
+
+def test_the_same_value_tagged_in_both_halves_is_no_difference():
+    probe = _load_probe()
+    assert probe.diff({'combine': {'confidenceScore': NEG0}}, {'combine': {'confidenceScore': NEG0}}) == []
+    assert probe.diff({'combine': {'source': INF}}, {'combine': {'source': INF}}) == []
+
+
 @pytest.mark.parametrize('py, js', [
-    (-0.0, 0),            # JSON's -0.0: Python keeps the sign, JS writes 0
-    (1.0, 1),             # Python keeps a float, JS writes an integer
-    (10 ** 400, None),    # beyond double range: Python's int, JS's Infinity -> null
-    (float('inf'), None),  # 1e400: infinity in both, which JSON.stringify writes null
+    (1.0, 1),             # Python's parser keeps a float; JS has one number type
+    (0, NEG0),            # JSON's -0: Python's parser reads the integer 0, JS's reads -0
+    (NEG0, 0),            # a -0.0 one twin holds and the other does not
+    (10 ** 400, INF),     # beyond double range: Python's parser keeps the integer, JS's reads Infinity
 ])
-def test_the_same_double_written_differently_is_a_number_difference(py, js):
+def test_the_same_double_held_differently_is_a_number_difference(py, js):
     probe = _load_probe()
     d = probe.diff({'combine': {'lineage': [{'source': py}]}}, {'combine': {'lineage': [{'source': js}]}})
     assert [c for _, c in d] == ['number']
     assert probe.classify(d) == 'number'
+
+
+def test_a_record_s_top_level_detail_is_not_compared_but_a_step_s_is():
+    probe = _load_probe()
+    assert probe.diff({'combine': {}, 'detail': 'KeyError'}, {'combine': {}, 'detail': 'TypeError'}) == []
+    d = probe.diff({'combine': {'lineage': [{'detail': 'a'}]}}, {'combine': {'lineage': [{'detail': 'b'}]}})
+    assert probe.classify(d) == 'outcome'
 
 
 @pytest.mark.parametrize('py, js', [
@@ -110,6 +136,8 @@ def test_a_message_quoting_a_different_value_is_an_outcome_difference(py, js):
     ({'combine': {'raises': True}}, {'combine': {'source': 'derived'}}),                   # one raises
     ({'audit': ['over-claiming: 1']}, {'audit': ['over-claiming: 2']}),                    # message text
     ({'combine': {'confidence': 0}}, {'combine': {'confidence': None}}),                   # a finite number is not null
+    ({'combine': {'confidence': 10 ** 400}}, {'combine': {'confidence': None}}),          # nor is a huge one
+    ({'combine': {'confidence': INF}}, {'combine': {'confidence': None}}),                # nor an infinite one
 ])
 def test_any_other_difference_is_an_outcome_difference(py, js):
     probe = _load_probe()
@@ -119,8 +147,8 @@ def test_any_other_difference_is_an_outcome_difference(py, js):
 
 def test_a_name_and_a_number_difference_together_stay_below_outcome():
     probe = _load_probe()
-    d = probe.diff({'audit': ['derived_from_mock'], 'combine': {'confidence': -0.0}},
-                   {'audit': ['derivedFromMock'], 'combine': {'confidence': 0}})
+    d = probe.diff({'audit': ['derived_from_mock'], 'combine': {'confidence': 1.0}},
+                   {'audit': ['derivedFromMock'], 'combine': {'confidence': 1}})
     assert probe.classify(d) == 'field-name+number'
 
 
@@ -156,8 +184,9 @@ def test_the_probe_runs_both_twins_and_finds_no_outcome_difference():
     assert code == 0
 
 
-# The parent of #525's first fix (8cef0a2): the tree the divergences were found in.
-_PRE_525 = '8cef0a2^'
+# The parent of #525's first fix 8cef0a2, in full so it cannot grow ambiguous:
+# the tree the divergences were found in.
+_PRE_525 = '2e6ebc56f9294323e864842dc7f2f4eab836060e'
 
 
 def _stated_counts(column):
@@ -181,6 +210,47 @@ def test_parity_md_states_the_counts_the_probe_prints():
     _, out = _run_probe()
     stated = _stated_counts(0)
     assert stated == _printed(out), f'PARITY.md states {stated}; the probe prints {_printed(out)}'
+
+
+def _groups(out):
+    """The four groups PARITY.md sorts main's differences into, counted from
+    the probe's own listing, by class and input name."""
+    by = {}
+    for d in out['differences']:
+        cls, name = d['class'], d['input']
+        if cls == 'number':
+            key = 'score' if name.startswith(('confidenceScore=', 'scores ')) else 'field'
+        elif cls in ('quoted-value', 'number+quoted-value'):
+            key = cls
+            if name.endswith('={"a":1}'):
+                by['object'] = by.get('object', 0) + 1
+        else:
+            key = cls
+        by[key] = by.get(key, 0) + 1
+    return by
+
+
+def test_parity_md_states_the_totals_and_groups_the_probe_prints():
+    _, out = _run_probe()
+    with open(_PARITY, encoding='utf-8') as fh:
+        parity = fh.read()
+
+    def stated(pattern):
+        m = re.search(pattern, parity)
+        assert m, f'PARITY.md no longer states {pattern!r}'
+        return [int(g) for g in m.groups()]
+    assert stated(r'## Handed envelopes .*?; (\d+) inputs still differ') == [out['differ']]
+    assert stated(r'Out of (\d+) inputs, (\d+) still differ') == [out['inputs'], out['differ']]
+    g = _groups(out)
+    assert stated(r'cannot hold one\*\* \((\d+) `number` inputs\)') == [g.get('field', 0)]
+    assert stated(r'A valid score\*\* \((\d+) `number` inputs\)') == [g.get('score', 0)]
+    assert stated(r'in a refusal\*\* \((\d+) `quoted-value` and (\d+)\s+`number\+quoted-value` inputs\)') == \
+        [g.get('quoted-value', 0), g.get('number+quoted-value', 0)]
+    assert stated(r'The (\d+) object inputs') == [g.get('object', 0)]
+    assert stated(r'name in a message\*\* \((\d+) `field-name` inputs\)') == [g.get('field-name', 0)]
+    # Every difference is in one of the four groups.
+    assert sum(g.get(k, 0) for k in ('field', 'score', 'quoted-value', 'number+quoted-value', 'field-name')) \
+        == out['differ']
 
 
 def _copy_primitives(dest):

@@ -18,23 +18,31 @@ It exits 1 when any input differs in outcome, else 0.
 **What is compared.** Each input is JSON text, and each twin parses it with
 its own JSON parser, as a caller in that language would. A twin's record of
 an input is its combined envelope (camelCase keys), its audit issues and its
-guard verdict (a pass, or the refusal's reasons), each written by that
-twin's own JSON serializer. A throw is recorded as one, without its text. The
-records are compared leaf by leaf, after JSON round-trips; each differing leaf
-is one of:
+guard verdict (a pass, or the refusal's reasons): the values the twin holds,
+carried as JSON. A number JSON cannot write (``-0``, an infinity, ``NaN``)
+is tagged ``{"$number": "-0"}`` and so on by both halves, so that neither
+serializer's rendering of it (``JSON.stringify`` writes ``0`` and ``null``)
+hides or makes a difference. A throw is recorded as one; its text, the
+record's top-level ``detail``, is not compared. The records are compared leaf
+by leaf; each differing leaf is one of:
 
 - ``field-name``: two strings that agree once Python's snake_case field names
   are written in camelCase (an audit or guard message naming the field).
-- ``number``: two numbers that are the same IEEE-754 double, written
-  differently (Python's ``-0.0`` or ``1.0``, JS's ``0`` or ``1``), or a value
-  infinite as a double, which Python writes and ``JSON.stringify`` writes as
-  ``null``. These are numbers each language's JSON parser already reads
-  differently, kept verbatim on a step.
+- ``number``: two numbers that are the same IEEE-754 double, held as
+  different values. Each language's JSON parser makes these from the same
+  text: Python reads ``1.0`` as a float and JS as its one number type, ``-0``
+  as the integer 0 where JS reads -0, and an integer beyond double range
+  exactly where JS reads Infinity. ``combine`` keeps them verbatim on a step,
+  and Python's ``min`` keeps whichever zero came first.
+- ``quoted-value``: two messages that are the same apart from one value they
+  quote, each in its own language's JSON rendering (``1e-07`` against
+  ``1e-7``, ``{"a": 1}`` against ``{"a":1}``), as a guard refusal quotes it.
 - ``outcome``: any other difference — taint, an id, a verdict, the record's
   shape, one twin throwing, other message text.
 
-An input is classed by its leaves: ``agree``, ``field-name``, ``number``,
-``field-name+number``, or ``outcome`` if any leaf is.
+An input is classed by its leaves: ``agree``; ``field-name``, ``number`` or
+``quoted-value``, or a ``+``-joined mix of them; or ``outcome`` if any leaf
+is.
 
 **The corpus** is generated below, not sampled: a ladder of JSON values that
 handed envelopes carry in practice or by accident, set in turn into each field
@@ -136,7 +144,9 @@ def corpus():
                 continue
             step = _obj(_with(_STEP, field, v))
             out.append((f'step.{field}={name}', f'[{_obj(_with(_BASE, "lineage", f"[{step}]"))}]'))
-    # 4. Order: the result must not depend on which input came first.
+    # 4. Inputs whose result once depended on their order in one twin (#525
+    # review): Python's min over 0 and -0.0, and ids sorted by UTF-16 unit in
+    # JS. Each order is compared across the twins, not with the other order.
     def scored(score):
         return _obj(_with(_BASE, 'confidenceScore', score))
 
@@ -207,10 +217,28 @@ def _python_records(texts, root):
             else:
                 r['guard'] = {'raises': True}
                 r['detail'] = repr(e)
-        # Through Python's own serializer, as the JS records come through
-        # JSON.stringify: the comparison is of what each twin writes.
-        return json.loads(json.dumps(r, default=repr))
+        # Carried as JSON, as the JS half's records are, with the numbers JSON
+        # cannot write tagged the same way (tagNumbers in handed-probe.mjs).
+        return json.loads(json.dumps(tag_numbers(r), default=repr))
     return [record(t) for t in texts]
+
+
+def tag_numbers(v):
+    """``v`` with each number JSON cannot write — ``-0.0``, an infinity,
+    ``NaN`` — replaced by ``{"$number": <its JS name>}``, as the JS half's
+    tagNumbers replaces it. Any other value is kept as it is."""
+    if isinstance(v, dict):
+        return {k: tag_numbers(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [tag_numbers(x) for x in v]
+    if isinstance(v, float):
+        if math.isnan(v):
+            return {'$number': 'NaN'}
+        if math.isinf(v):
+            return {'$number': 'Infinity' if v > 0 else '-Infinity'}
+        if v == 0 and math.copysign(1, v) < 0:
+            return {'$number': '-0'}
+    return v
 
 
 def _js_records(texts, root):
@@ -234,11 +262,27 @@ def _as_double(x):
         return math.inf if x > 0 else -math.inf
 
 
+_TAGGED = {'-0': -0.0, 'Infinity': math.inf, '-Infinity': -math.inf, 'NaN': math.nan}
+
+
+def _tagged(x):
+    """The number a ``{"$number": ...}`` tag stands for, else None."""
+    if isinstance(x, dict) and len(x) == 1 and x.get('$number') in _TAGGED:
+        return _TAGGED[x['$number']]
+    return None
+
+
+def _numeric(x):
+    return _is_number(x) or _tagged(x) is not None
+
+
 def _same_double(py, js):
-    """Whether two numbers are one IEEE-754 double. JS's None stands for a
-    non-finite number, which JSON.stringify writes as null."""
-    d = _as_double(py)
-    return (not math.isfinite(d)) if js is None else d == _as_double(js)
+    """Whether two numbers, either of them perhaps tagged, are one IEEE-754
+    double (-0 and 0 are one double; NaN is never the same)."""
+    def d(x):
+        t = _tagged(x)
+        return t if t is not None else _as_double(x)
+    return d(py) == d(js)
 
 
 def _same_quoted(py, js):
@@ -281,18 +325,20 @@ def _leaf_class(py, js):
         if renamed == js:
             return 'field-name'
         return 'quoted-value' if _quoted_value_only(py, js) else 'outcome'
-    if _is_number(py) and (_is_number(js) or js is None):
+    if _numeric(py) and _numeric(js):
         return 'number' if _same_double(py, js) else 'outcome'
     return 'outcome'
 
 
 def diff(py, js, path='$'):
-    """Every leaf where two records differ, as (path, class). A record's
-    `detail` (an error's text) is not compared."""
-    if isinstance(py, dict) and isinstance(js, dict):
+    """Every leaf where two records differ, as (path, class). A tagged number
+    is a leaf. The record's own `detail` (an error's text) is not compared;
+    a `detail` key deeper in, such as one a handed step carries, is."""
+    if (isinstance(py, dict) and isinstance(js, dict)
+            and _tagged(py) is None and _tagged(js) is None):
         out = []
         for k in sorted(set(py) | set(js)):
-            if k == 'detail':
+            if k == 'detail' and path == '$':
                 continue
             if k not in py or k not in js:
                 out.append((f'{path}.{k}', 'outcome'))

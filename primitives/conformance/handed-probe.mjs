@@ -7,10 +7,10 @@
 //
 // stdin is a JSON array of JSON texts, each an array of `combine` inputs.
 // Each text is parsed here by JSON.parse, as a JS caller would read it, so a
-// value the two languages' JSON parsers read differently (-0.0, an integer
+// value the two languages' JSON parsers read differently (-0, 1.0, an integer
 // beyond double range) reaches this twin as JS reads it. stdout is one record
-// per text, written by JSON.stringify: what this twin's combine, audit and
-// egress guard make of it. ROOT (default: this checkout) is the tree whose
+// per text: what this twin's combine, audit and egress guard make of it, with
+// a number JSON cannot write tagged (tagNumbers). ROOT (default: this checkout) is the tree whose
 // primitives/js is probed, so an older tree can be probed as well.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -48,5 +48,14 @@ function record(text) {
   return r;
 }
 
+// A number JSON cannot write is tagged, as the Python half's tag_numbers
+// tags it: JSON.stringify would write Infinity and NaN as null and -0 as 0,
+// and a genuine null or 0 would then hide a difference.
+function tagNumbers(_key, v) {
+  if (typeof v !== "number") return v;
+  if (Object.is(v, -0)) return { $number: "-0" };
+  return Number.isFinite(v) ? v : { $number: String(v) };
+}
+
 const texts = JSON.parse(readFileSync(0, "utf8"));
-process.stdout.write(JSON.stringify(texts.map(record)));
+process.stdout.write(JSON.stringify(texts.map(record), tagNumbers));
