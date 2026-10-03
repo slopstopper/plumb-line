@@ -14,7 +14,7 @@ Round 3b led to two fixes:
 - **The pre-commit gate (#613),** merged in #617 as `0a97ee6` and measured
   after it merged.
 - **The method skill (#623),** measured on the fix commit `2d3a0ec` before
-  merge. Its PR, #624, was open when this record was written.
+  merge, then merged in #624.
 
 Every decision and ruling below is on #462 or #623 with its date. The
 runner, tasks, transcripts and scoring live in a private spike repository:
