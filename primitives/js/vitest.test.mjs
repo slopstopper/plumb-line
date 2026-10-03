@@ -4,6 +4,7 @@
 // guard (#120) with its defaults. Python twin: tests/test_pytest_plugin.py.
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
+import * as nodeModule from "node:module"; // a namespace: a named import of a missing export fails to link
 import { appendFileSync, copyFileSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -162,32 +163,43 @@ function plantedHelper(line) {
   return { url: pathToFileURL(join(dir, "vitest.mjs")), dir };
 }
 
-describe("the helper stays dependency-free", () => {
-  it("never imports vitest: it loads and runs where vitest cannot be resolved, asking for it neither at load nor on use", () => {
-    const r = loadWithVitestUnresolvable(new URL("./vitest.mjs", import.meta.url));
-    expect(r.probe).toBe("refused: vitest");
-    expect(r.probeRecorded).toBe(true);
-    expect(r.asked).toEqual([]);
-    expect(r.loaded).toBe("loaded");
-    expect(r.exports).toEqual(expect.arrayContaining(["assertNoTaint", "assertTainted", "markFixture", "plumbMatchers"]));
-  });
+// The engines floor is Node >= 22, but the child's hook needs
+// module.registerHooks (Node >= 22.15). Below that these tests skip, with the
+// reason in their title, rather than fail a contributor's change for a reason
+// unrelated to it. Not in CI: there a skip would be a lost proof (ADR-0016),
+// so CI runs them, and they fail if its Node is too old.
+const NO_REGISTER_HOOKS = typeof nodeModule.registerHooks !== "function" && !process.env.CI;
 
-  it.each([
-    ["a named import", 'import { expect } from "vitest";'],
-    ["a side-effect import", 'import "vitest";'],
-    ["a subpath import", 'import "vitest/config";'],
-    ["a dynamic import at load time, its failure swallowed", 'void import("vitest").catch(() => {});'],
-    ["a dynamic import on first use of a matcher", [
-      "const _plain = plumbMatchers.toBeUntainted;",
-      'plumbMatchers.toBeUntainted = function (...a) { void import("vitest").catch(() => {}); return _plain.apply(this, a); };',
-    ].join("\n")],
-  ])("catches a planted helper that imports vitest through %s", (_how, line) => {
-    const { url, dir } = plantedHelper(line);
-    try {
-      expect(loadWithVitestUnresolvable(url).asked).not.toEqual([]);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+describe("the helper stays dependency-free", () => {
+  describe.skipIf(NO_REGISTER_HOOKS)(NO_REGISTER_HOOKS
+    ? `with vitest unresolvable: SKIPPED, needs module.registerHooks (Node >= 22.15); this is Node ${process.versions.node}`
+    : "with vitest unresolvable", () => {
+    it("never imports vitest: it loads and runs where vitest cannot be resolved, asking for it neither at load nor on use", () => {
+      const r = loadWithVitestUnresolvable(new URL("./vitest.mjs", import.meta.url));
+      expect(r.probe).toBe("refused: vitest");
+      expect(r.probeRecorded).toBe(true);
+      expect(r.asked).toEqual([]);
+      expect(r.loaded).toBe("loaded");
+      expect(r.exports).toEqual(expect.arrayContaining(["assertNoTaint", "assertTainted", "markFixture", "plumbMatchers"]));
+    });
+
+    it.each([
+      ["a named import", 'import { expect } from "vitest";'],
+      ["a side-effect import", 'import "vitest";'],
+      ["a subpath import", 'import "vitest/config";'],
+      ["a dynamic import at load time, its failure swallowed", 'void import("vitest").catch(() => {});'],
+      ["a dynamic import on first use of a matcher", [
+        "const _plain = plumbMatchers.toBeUntainted;",
+        'plumbMatchers.toBeUntainted = function (...a) { void import("vitest").catch(() => {}); return _plain.apply(this, a); };',
+      ].join("\n")],
+    ])("catches a planted helper that imports vitest through %s", (_how, line) => {
+      const { url, dir } = plantedHelper(line);
+      try {
+        expect(loadWithVitestUnresolvable(url).asked).not.toEqual([]);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
   });
 
   it("is published on the ./vitest subpath", () => {
