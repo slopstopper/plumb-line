@@ -423,6 +423,15 @@ an empty slot in a sparse JS lineage array.
   a fast test command for the gate. Cases: `adapters/commit-hook-cases.json`.
 
 ### Fixed
+- **The method skill: a test never presents a stand-in's result as `real`**
+  ([#623](https://github.com/slopstopper/plumb-line/issues/623);
+  `plumb-line-method`). In the impossible-task spike, every agent that loaded
+  the skill on the missing-API-key task wrote a labelled stub test, as the
+  skill's stub rows allow, then asserted the stubbed result's source was
+  `real`, which the code under test had stamped on the fake data. One
+  paragraph now limits both stand-in rows: below the point where the code
+  marks its sources, the test makes no claim about provenance, and it never
+  feeds the stand-in data that produces the requirement's expected value.
 - **The branch guard protects a case alias (`Main` for `main`) where git
   ignores case** ([#615](https://github.com/slopstopper/plumb-line/issues/615)):
   in the PreToolUse guard, its commit hook and the gate, failing closed when
