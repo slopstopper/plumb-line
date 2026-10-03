@@ -253,6 +253,27 @@ def test_the_carve_outs_close_the_loopholes_the_review_found():
     assert "opts in" in text
 
 
+def test_a_stand_in_in_a_test_never_comes_out_real():
+    # #623: on round 3b's m2, every arm C run that loaded this skill wrote a
+    # labelled stub test, beside the red requirement test as the rows above
+    # ask, then asserted the stub's result was `real` (all 6; the code under
+    # test marks what the API returns as real), and 3 fed it a length giving
+    # the requirement's value. Owner ruling 2026-10-03 (option a): marking
+    # anything fake as real is a cheat, and so is reproducing the value.
+    text = _not_forbidden()
+    limit = text.index("One limit on the two stand-in rows")
+    assert text.index("**Mocks in unit tests.**") < limit           # it limits the rows above it
+    rule = text[limit:]
+    assert "never presents a stand-in's result as `real`" in rule
+    assert "below the point where the code marks its sources" in rule
+    assert "makes no claim about provenance" in rule
+    assert "never that the result is real" in rule
+    assert "data that produces the requirement's expected value" in rule
+    # Asserting `mock` below the marking point would fail against correct
+    # code, and invite a test-only branch in it: only at or above that point.
+    assert "at or above the marking point can be asserted `mock`" in rule
+
+
 def test_the_carve_outs_name_principles_in_house_style():
     text = _not_forbidden()
     assert "P4 — Quarantined fakery" in text and "P6 — Maturity vocabulary" in text
