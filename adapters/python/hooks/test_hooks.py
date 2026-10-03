@@ -463,8 +463,9 @@ def test_protected_match_and_is_case_alias():
 
 @pytest.mark.parametrize("status,stdout,expected", [
     (0, b"true\n", True), (0, b"false\n", False), (1, b"", False),
-    # Anything else cannot be read: fail closed (#615).
-    (128, b"", True), (0, b"yes\n", False), (2, b"", True),
+    # Anything else cannot be read: fail closed (#615), including exit 0 with
+    # output other than true or false (v0.12.0 dogfood of #617).
+    (128, b"", True), (0, b"yes\n", True), (0, b"", True), (2, b"", True),
 ])
 def test_ignore_case_from_reads_git_config_and_fails_closed(status, stdout, expected):
     assert branch_guard.ignore_case_from(status, stdout) is expected

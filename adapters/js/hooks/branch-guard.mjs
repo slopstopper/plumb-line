@@ -96,7 +96,7 @@ export function isCaseAlias(branch, protectedBranches) {
  * ignore_case_from.
  */
 export function ignoreCaseFrom(status, stdout) {
-  if (status === 0) return String(stdout).trim() === "true";
+  if (status === 0) return String(stdout).trim() !== "false";
   return status !== 1;
 }
 
