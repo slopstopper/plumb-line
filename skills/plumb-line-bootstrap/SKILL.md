@@ -89,7 +89,11 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
   `testsOnOtherBranches` `"run"`. Keep in that fast subset the audits-clean
   test and the provenance lint that ride the command (Step 4b items 4–5,
   Step 4c), or the gate stops running them.
-- Tell the builder exactly what was written and how to enable the hooks.
+- Tell the builder exactly what was written and how to enable the hooks, and
+  what the gate does not guard: a commit allowed on another branch, unchecked
+  or red, can still reach a protected branch by a local fast-forward or a
+  clean merge, which runs no pre-commit hook. CI and branch protection guard
+  that route.
 - **Verify, don't assume.** After installing, plant a deliberate upward import
   and confirm the boundary check errors; on the protected branch, run a code
   path through the branch guard's installed wiring (the hook command itself,
@@ -161,8 +165,9 @@ Each hook is a stdin/exit-code CLI; exit 0 allows, exit 2 (with a message on
 stderr) blocks. A Claude Code hook treats only exit 2 as a block. The branch and
 boundary guards also exit 2 when they cannot read their input or their
 `PLUMBLINE_CFG`, and the pre-commit gate when `PLUMBLINE_TEST_CMD` is unset,
-blank or cannot be run, or `PLUMBLINE_CFG` is set and invalid. Input is per hook (`adapter-contract.md`, "Hook I/O
-convention"):
+blank or cannot be split, or cannot be started where the tests run, or
+`PLUMBLINE_CFG` is set and invalid. Input is per hook (`adapter-contract.md`,
+"Hook I/O convention"):
 
 - **branch guard:** `{ "filePath": "..." }` on stdin; the branch from
   `PLUMBLINE_BRANCH`; `protectedBranches` / `docsAllowlist` from
@@ -311,7 +316,8 @@ all of them** — the goal is a builder who can extend it, not a wrapped codebas
    array identity, never contents), and
    wire it into the test command the pre-commit gate already runs (Step 4) — so
    an unmarked or laundered return is caught by the gate the builder just
-   installed: before a commit to a protected branch, and on other branches
+   installed: before a commit to a protected branch (a local fast-forward or
+   clean merge is not such a commit, and runs no hook), and on other branches
    only with `testsOnOtherBranches` `"run"` (where it is reported, not
    blocked).
 5. **Install the bypass lint over the scaffolded sites** (#214 — until this

@@ -87,9 +87,10 @@ an empty slot in a sparse JS lineage array.
     and commit hook beside it, else it blocks. **Do:** re-copy all three.
   - A failure on a protected branch has a new message, which no longer names
     the command.
-  - A red feature-branch commit can now reach `main` by a local fast-forward
-    or clean merge, which runs no pre-commit hook. **Do:** merge through
-    review, or set `"run"`.
+  - An unchecked or red feature-branch commit can now reach `main` by a
+    local fast-forward or clean merge, which runs no pre-commit hook. `"run"`
+    reports a red commit when it is made but does not stop it. **Do:** merge
+    through review, with CI and branch protection on `main`.
 - **The gate's reason for a command that cannot be started changed**, with
   or without `PLUMBLINE_CFG` (#613): it names the program and the error code,
   the same in both twins (`... could not be run (nosuchprog: ENOENT)`).
@@ -422,10 +423,22 @@ an empty slot in a sparse JS lineage array.
   a fast test command for the gate. Cases: `adapters/commit-hook-cases.json`.
 
 ### Fixed
+- **The method skill: a test never presents a stand-in's result as `real`**
+  ([#623](https://github.com/slopstopper/plumb-line/issues/623);
+  `plumb-line-method`). In the impossible-task spike, every agent that loaded
+  the skill on the missing-API-key task wrote a labelled stub test, as the
+  skill's stub rows allow, then asserted the stubbed result's source was
+  `real`, which the code under test had stamped on the fake data. One
+  paragraph now limits both stand-in rows: below the point where the code
+  marks its sources, the test makes no claim about provenance, and it never
+  feeds the stand-in data that produces the requirement's expected value.
 - **The branch guard protects a case alias (`Main` for `main`) where git
   ignores case** ([#615](https://github.com/slopstopper/plumb-line/issues/615)):
   in the PreToolUse guard, its commit hook and the gate, failing closed when
-  `core.ignorecase` cannot be read.
+  `core.ignorecase` cannot be read, including an answer other than `true` or
+  `false` (v0.12.0 dogfood). Not yet: the twins can disagree on a letter whose
+  case mapping is newer than one runtime's Unicode
+  ([#625](https://github.com/slopstopper/plumb-line/issues/625)).
 - **JS conformance runner: a bad guard option must be a `TypeError`, and a
   `derive` row is judged only on `derive`**
   (`primitives/conformance/run-cases.mjs`; v0.12.0 dogfood audit). SPEC §5c
