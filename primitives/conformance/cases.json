@@ -285,7 +285,7 @@
       "expectContains": ["taint dropped"]
     },
     {
-      "name": "the taint-dropped message names the taint flag by its wire field, derivedFromMock, in both languages: the whole message is pinned (#635)",
+      "name": "the taint-dropped message names the taint flag by its wire field, derivedFromMock, in both languages: the full message text is required (#635)",
       "meta": {
         "source": "derived", "confidence": "low", "derivedFromMock": false,
         "lineage": [ { "id": "s1", "of": "input", "source": "mock", "confidence": "low", "derivedFromMock": true } ]
@@ -293,7 +293,7 @@
       "expectContains": ["taint dropped: lineage contains a tainted step but derivedFromMock is false"]
     },
     {
-      "name": "the laundering message names the taint flag by its wire field, derivedFromMock, in both languages: the whole message is pinned (#635)",
+      "name": "the laundering message names the taint flag by its wire field, derivedFromMock, in both languages: the full message text is required (#635)",
       "meta": { "source": "real", "confidence": "high", "derivedFromMock": true, "lineage": [] },
       "expectContains": ["laundering: clean source 'real' but derivedFromMock is true"]
     },
