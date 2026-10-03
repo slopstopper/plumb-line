@@ -179,6 +179,15 @@ recommendation's reasons:
   `ValueError` in Python like the others, and every `construct` and
   `derive` refusal row is judged by one rule.
 
+  *Ratified by the owner, 2026-10-03 (v0.12.1 dogfood self-audit):* the
+  `RangeError` for a non-boolean `derivedFromMock` is now the owner's
+  decision, not only an implementation choice. The paragraph above records
+  how it was first made and is kept as written. From this date, the code
+  comments that call every constructor refusal's `RangeError` the owner's
+  decision (`makeMeta` in `primitives/js/provenance.mjs`, and the #602 block
+  in `primitives/js/marked.test.mjs`) are true of the taint-flag refusal
+  too.
+
   Recorded here rather than by editing the Decision, because this record is
   append-only.
 
