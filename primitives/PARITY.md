@@ -272,8 +272,8 @@ the owner's decision. The draft is held on #594, pending that decision.
   rendering. The 6 also hold a number of the first group on the step.
   ADR-0019 records the same rendering difference for `construct`'s
   refusals, and the guard uses the same quoting, but that ADR covers
-  construction only. The number forms (`-0.0` against `0`, `1e-07` against
-  `1e-7`, 401 digits against `Infinity`) meet the rule. The 3 object inputs
+  construction only. The number forms (`-0.0` against `0`, `1.0` against `1`,
+  `1e-07` against `1e-7`, 401 digits against `Infinity`) meet the rule. The 3 object inputs
   (`{"a": 1}` against `{"a":1}`) **fail** the first condition: the spacing
   is the default of Python's `json.dumps`, which this repo could change.
 - **The field's name in a message** (2 `field-name` inputs): Python's
