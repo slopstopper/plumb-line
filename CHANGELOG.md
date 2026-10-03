@@ -77,6 +77,26 @@ an empty slot in a sparse JS lineage array.
   `layers` that are not a list of non-empty strings with "layers must be a
   list of layer names" (these crashed, or let an import pass). Python still
   accepts a tuple. Matches the pre-commit gate's "no gates configured" (#476).
+- **The pre-commit gate skips the tests on unprotected branches when
+  `PLUMBLINE_CFG` is set** ([#613](https://github.com/slopstopper/plumb-line/issues/613)).
+  A bootstrap-wired install (which exports `PLUMBLINE_CFG`) no longer runs
+  them on a feature branch, so a red commit there is allowed with a notice.
+  This is a loosening. **Do:** set `"testsOnOtherBranches": "run"` in
+  `branch-guard.json` to run them there (a failure is reported, not blocked).
+  - With `PLUMBLINE_CFG` set, the gate needs the same release's branch guard
+    and commit hook beside it, else it blocks. **Do:** re-copy all three.
+  - A failure on a protected branch has a new message, which no longer names
+    the command.
+  - A red feature-branch commit can now reach `main` by a local fast-forward
+    or clean merge, which runs no pre-commit hook. **Do:** merge through
+    review, or set `"run"`.
+- **The gate's reason for a command that cannot be started changed**, with
+  or without `PLUMBLINE_CFG` (#613): it names the program and the error code,
+  the same in both twins (`... could not be run (nosuchprog: ENOENT)`).
+- **May break: a case alias of a protected branch is protected**
+  ([#615](https://github.com/slopstopper/plumb-line/issues/615)). Where
+  `core.ignorecase` is true, a code edit or red commit on `Main` (or `maſter`)
+  now blocks. **Do:** use the branch's real name.
 - **The report checker rejects slash- or hyphen-joined principle codes
   (checker v5)**
   ([#527](https://github.com/slopstopper/plumb-line/issues/527);
@@ -391,8 +411,21 @@ an empty slot in a sparse JS lineage array.
   amendment puts `adapters/hook-cases.json` in the source-truth layer: a row's
   expected result is recorded only once both twins produce it. No behaviour
   changes.
+- **The pre-commit gate is branch-aware**
+  ([#613](https://github.com/slopstopper/plumb-line/issues/613)). With
+  `PLUMBLINE_CFG` set, it reads the branch as the commit hook does. On a
+  protected or unknown branch a test failure blocks, naming the honest routes.
+  Elsewhere, `testsOnOtherBranches` (`"skip"`, the default, or `"run"`) decides
+  whether the tests run; a failure there is reported, never blocked. Unset,
+  the gate behaves as before. Both guards accept the key, and their
+  unknown-key reasons now name it. Bootstrap asks for the setting and advises
+  a fast test command for the gate. Cases: `adapters/commit-hook-cases.json`.
 
 ### Fixed
+- **The branch guard protects a case alias (`Main` for `main`) where git
+  ignores case** ([#615](https://github.com/slopstopper/plumb-line/issues/615)):
+  in the PreToolUse guard, its commit hook and the gate, failing closed when
+  `core.ignorecase` cannot be read.
 - **JS conformance runner: a bad guard option must be a `TypeError`, and a
   `derive` row is judged only on `derive`**
   (`primitives/conformance/run-cases.mjs`; v0.12.0 dogfood audit). SPEC §5c

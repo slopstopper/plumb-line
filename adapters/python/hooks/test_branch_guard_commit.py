@@ -165,8 +165,36 @@ def test_the_bootstrap_wiring_commits_docs_on_main_and_code_on_a_branch(tmp_path
     _stage(repo, "src/a.py")
     _git(repo, "switch", "-q", "-c", "feat")  # the staged change comes along
     r = _git(repo, "commit", "-q", "-m", "code")
-    assert r.stderr == ""
+    # On a feature branch the gate skips the tests by default, and says so (#613).
+    assert r.stderr == ('pre-commit: tests not run on `feat` (testsOnOtherBranches is "skip"), so this commit '
+                        'is unchecked. Set testsOnOtherBranches to "run" to run them here.\n')
     assert r.returncode == 0
+
+
+def test_the_bootstrap_wiring_with_tests_run_commits_a_red_feature_branch_and_says_so(tmp_path):
+    # testsOnOtherBranches "run" (#613): the failing tests run on a feature
+    # branch, and the commit is made, reported red.
+    repo = _wired_repo(tmp_path)
+    with open(os.path.join(repo, ".claude", "guards", "branch-guard.json"), "w", encoding="utf-8") as f:
+        f.write('{"protectedBranches": ["main"], "docsAllowlist": ["docs/", "*.md"], '
+                '"testsOnOtherBranches": "run"}\n')
+    py = sys.executable
+    _write_hook(repo, "\n".join([
+        "#!/bin/sh",
+        'PLUMBLINE_CFG="$(cat .claude/guards/branch-guard.json)"',
+        "export PLUMBLINE_CFG",
+        f"'{py}' .claude/guards/branch_guard_commit.py || exit 1",
+        f"""PLUMBLINE_TEST_CMD="'{py}' -c 'raise SystemExit(1)'" '{py}' .claude/guards/pre_commit_gate.py || exit 1""",
+        "",
+    ]))
+    _git(repo, "switch", "-q", "-c", "feat")
+    _stage(repo, "src/a.py")
+    before = _head(repo)
+    r = _git(repo, "commit", "-q", "-m", "code")
+    assert r.returncode == 0
+    assert r.stderr == ("pre-commit: the tests failed on `feat`; committed anyway (only protected branches "
+                        "block). This commit is red: say so when you report it.\n")
+    assert _head(repo) != before
 
 
 def test_added_to_an_existing_hook_with_lines_after_it_a_failing_gate_still_refuses(tmp_path):
@@ -182,12 +210,14 @@ def test_added_to_an_existing_hook_with_lines_after_it_a_failing_gate_still_refu
         "echo existing-after",
         "",
     ]))
-    _git(repo, "switch", "-q", "-c", "feat")
-    _stage(repo, "src/a.py")
+    # On the protected branch, where the gate runs the tests (#613): a docs
+    # commit, so the branch guard lets it through to the gate.
+    _stage(repo, "docs/guide.md")
     before = _head(repo)
-    r = _git(repo, "commit", "-q", "-m", "code")
+    r = _git(repo, "commit", "-q", "-m", "docs")
     assert r.returncode == 1
-    assert "pre-commit blocked:" in r.stderr
+    assert "pre-commit blocked: the tests failed, and `main` is a protected branch." in r.stderr
+    assert "existing-after" not in r.stderr
     assert _head(repo) == before
 
 

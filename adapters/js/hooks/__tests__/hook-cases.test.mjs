@@ -146,9 +146,11 @@ function expandRepeat(c) {
 }
 
 // Removed first so the caller's shell cannot leak in: every PLUMBLINE_*
-// variable (including ones a later hook adds) and PYTHONIOENCODING.
+// variable (including ones a later hook adds), PYTHONIOENCODING, and
+// CLAUDE_PROJECT_DIR, the repository the branch guard reads core.ignorecase
+// from (#615).
 function isCleared(k) {
-  return k.startsWith("PLUMBLINE_") || k === "PYTHONIOENCODING";
+  return k.startsWith("PLUMBLINE_") || k === "PYTHONIOENCODING" || k === "CLAUDE_PROJECT_DIR";
 }
 
 function run(kind, row) {

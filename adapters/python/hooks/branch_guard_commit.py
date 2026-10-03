@@ -17,7 +17,8 @@ import sys
 # under PYTHONSAFEPATH or `python3 -P` / `-I` the script's directory is not on
 # sys.path, and the import failed with exit 1.
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from branch_guard import _is_branch_name, config_from_env, decide  # noqa: E402
+from branch_guard import (  # noqa: E402
+    _is_branch_name, config_from_env, decide, is_case_alias, read_ignore_case)
 
 
 def branch_from_ref(ref):
@@ -75,7 +76,7 @@ def update_ref_branches(data):
     return [b for b in (branch_from_ref(line) for line in lines[::3]) if b is not None]
 
 
-def judge_commit(branch, paths, config, why=None):
+def judge_commit(branch, paths, config, why=None, ignore_case=False):
     """Judge a commit: every staged path through decide(), stopping at the
     first block. The branch is unknown when HEAD is on no branch (`branch`
     None) or on one git would not accept as a branch name, such as `-x`, which
@@ -84,7 +85,9 @@ def judge_commit(branch, paths, config, why=None):
     non-empty path, decide()'s only block on an unknown branch is the code
     edit, so that reason is replaced with one naming HEAD rather than
     PLUMBLINE_BRANCH, which this hook never reads; `why`, when given, says why
-    the branch is unknown (a rebase in progress, #547). JS twin: judgeCommit."""
+    the branch is unknown (a rebase in progress, #547). `ignore_case`: git
+    ignores case here, so a case alias of a protected branch is protected
+    (#615). JS twin: judgeCommit."""
     known = branch is not None and _is_branch_name(branch)
     for file_path in paths:
         r = decide(
@@ -92,6 +95,7 @@ def judge_commit(branch, paths, config, why=None):
             branch=branch if branch is not None else "",
             protected_branches=tuple(config.get("protectedBranches", ["main"])),
             docs_allowlist=tuple(config.get("docsAllowlist", [])),
+            ignore_case=ignore_case,
         )
         if r["allow"]:
             continue
@@ -106,37 +110,40 @@ def judge_commit(branch, paths, config, why=None):
     return {"allow": True, "reason": "no staged path is blocked"}
 
 
-class _Refused(Exception):
-    """A reason to block, from a git step that failed."""
+class GitRefused(Exception):
+    """A git step that failed: what could not be done, without a subject, such
+    as "could not read the branch (git symbolic-ref exited 128)", for the
+    caller to name itself in. JS twin: GitRefused."""
 
 
 def _git(args, what, ok_statuses=(0,)):
-    """Run git; the finished process, or _Refused with the reason to block.
-    Reasons match the JS twin's: the errno name when git cannot start (Node's
-    error code), the signal's name when it is killed."""
+    """Run git; the finished process, or GitRefused saying why not. Reasons
+    match the JS twin's: the errno name when git cannot start (Node's error
+    code), the signal's name when it is killed."""
     try:
         r = subprocess.run(["git", *args], stdin=subprocess.DEVNULL, capture_output=True)
     except OSError as e:
         code = errno.errorcode.get(e.errno, str(e)) if e.errno else str(e)
-        raise _Refused(f"the branch guard's commit hook could not run git ({code}).") from None
+        raise GitRefused(f"could not run git ({code})") from None
     if r.returncode < 0:
         try:
             name = signal.Signals(-r.returncode).name
         except ValueError:
             name = f"signal {-r.returncode}"
-        raise _Refused(f"the branch guard's commit hook could not {what} "
-                       f"(git {args[0]} was killed by {name}).")
+        raise GitRefused(f"could not {what} (git {args[0]} was killed by {name})")
     if r.returncode not in ok_statuses:
-        raise _Refused(f"the branch guard's commit hook could not {what} "
-                       f"(git {args[0]} exited {r.returncode}).")
+        raise GitRefused(f"could not {what} (git {args[0]} exited {r.returncode})")
     return r
 
 
-def _main():
-    # The config first: a bad PLUMBLINE_CFG blocks whatever is staged.
-    config, reason = config_from_env()
-    if reason:
-        return {"allow": False, "reason": reason}
+def resolve_branch():
+    """The branch a commit made now lands on, read from git as this hook reads
+    it: {"branch", "why", "also", "also_why"}. `branch` is None on no branch;
+    `why`, when set, says why the branch is unknown; `also` lists the other
+    branches a rebase with --update-refs will move, and `also_why` says why
+    they cannot be read. Raises GitRefused when a git step fails. Shared with
+    the pre-commit gate (#613), so the two read the same branch. JS twin:
+    resolveBranch."""
     # --quiet: exit 1, silently, when HEAD is detached.
     head = _git(["symbolic-ref", "--quiet", "HEAD"], "read the branch", (0, 1))
     branch = (branch_from_ref(head.stdout.decode("utf-8", "replace").removesuffix("\n"))
@@ -171,6 +178,16 @@ def _main():
                     ucode = errno.errorcode.get(e.errno, str(e)) if e.errno else str(e)
                     also_why = f"HEAD is detached by a rebase whose {dir_name}/update-refs cannot be read: {ucode}"
             break
+    return {"branch": branch, "why": why, "also": also, "also_why": also_why}
+
+
+def _main():
+    # The config first: a bad PLUMBLINE_CFG blocks whatever is staged.
+    config, reason = config_from_env()
+    if reason:
+        return {"allow": False, "reason": reason}
+    resolved = resolve_branch()
+    branch, why, also, also_why = (resolved[k] for k in ("branch", "why", "also", "also_why"))
     # --cached against HEAD (or the empty tree on an unborn branch), in the
     # index git is committing: during `git commit -a` or `git commit <path>`
     # that is the temporary index GIT_INDEX_FILE names. --no-renames: a rename
@@ -181,7 +198,11 @@ def _main():
     diff = _git(["diff", "--cached", "--name-only", "-z", "--no-renames", "--ignore-submodules=none"],
                 "list the staged files")
     paths = staged_paths(diff.stdout)
-    r = judge_commit(branch, paths, config, why)
+    # core.ignorecase is read only when it decides (#615); unreadable fails closed.
+    protected = config.get("protectedBranches", ["main"])
+    ignore_case = any(b is not None and is_case_alias(b, protected) for b in (branch, *also)) \
+        and read_ignore_case()
+    r = judge_commit(branch, paths, config, why, ignore_case)
     if not r["allow"]:
         return r
     # Every branch the rebase will move must allow the commit (#547 review).
@@ -190,7 +211,7 @@ def _main():
     for other in also:
         r2 = judge_commit(other, paths, config,
                           f"the rebase also moves {json.dumps(other, ensure_ascii=False)}, "
-                          "which is not a branch name")
+                          "which is not a branch name", ignore_case)
         if not r2["allow"]:
             return r2
     return r
@@ -203,8 +224,8 @@ if __name__ == "__main__":
         sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
     try:
         result = _main()
-    except _Refused as e:
-        result = {"allow": False, "reason": f"blocked: {e}"}
+    except GitRefused as e:
+        result = {"allow": False, "reason": f"blocked: the branch guard's commit hook {e}."}
     except Exception as e:  # noqa: BLE001 — fail closed on anything
         result = {"allow": False, "reason": f"blocked: the branch guard's commit hook could not run ({e})."}
     if not result["allow"]:

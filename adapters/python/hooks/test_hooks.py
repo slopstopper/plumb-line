@@ -405,3 +405,76 @@ def test_normalize_path_matches_node_posix_normalize():
     expected = json.loads(node.stdout)
     got = [branch_guard._normalize_path(p) for p in paths]
     assert [(p, g, e) for p, g, e in zip(paths, got, expected) if g != e] == []
+
+
+# --- #613: the branch-aware gate. Its CLI is in adapters/commit-hook-cases.json;
+# these pin classify_branch() in-process, and the case helpers it shares with
+# the branch guard (#615). JS twin: pre-commit-gate.test.mjs.
+
+def _classify(resolved, protected=("main",), ignore_case=False):
+    return pre_commit_gate.classify_branch(
+        resolved, branch_guard._is_branch_name,
+        lambda b: branch_guard.protected_match(b, list(protected), ignore_case))
+
+
+def test_classify_branch_reads_the_branch_and_every_branch_a_rebase_moves():
+    assert _classify({"branch": "feat"}) == ("other", "feat")
+    assert _classify({"branch": "main"}) == ("protected", "main")
+    assert _classify({"branch": "feat", "also": ["other", "main"]}) == ("protected", "main")
+    assert _classify({"branch": "feat", "also": ["other"]}) == ("other", "feat")
+
+
+def test_classify_branch_treats_every_unreadable_branch_as_unknown():
+    assert _classify({"branch": None}) == ("unknown", "HEAD is not on a branch")
+    assert _classify({"branch": "-x"}) == ("unknown", 'HEAD is on "-x", which is not a branch name')
+    assert _classify({"branch": "feat", "why": "a reason"}) == ("unknown", "a reason")
+    assert _classify({"branch": "feat", "also_why": "unread"}) == ("unknown", "unread")
+    assert _classify({"branch": "feat", "also": ["-y"]}) == (
+        "unknown", 'the rebase also moves "-y", which is not a branch name')
+    # Unknown is never a pass, even with no branch protected.
+    assert _classify({"branch": None}, protected=()) == ("unknown", "HEAD is not on a branch")
+
+
+def test_classify_branch_judges_the_branch_before_the_ones_a_rebase_moves():
+    # As the commit hook does: a protected branch is named before an
+    # update-refs that cannot be read.
+    assert _classify({"branch": "main", "also_why": "unread"}) == ("protected", "main")
+
+
+def test_classify_branch_matches_a_case_alias_only_where_git_ignores_case():
+    # #615: the protected name is the one reported.
+    assert _classify({"branch": "Main"}) == ("other", "Main")
+    assert _classify({"branch": "Main"}, ignore_case=True) == ("protected", "main")
+    assert _classify({"branch": "feat", "also": ["MAIN"]}, ignore_case=True) == ("protected", "main")
+
+
+def test_protected_match_and_is_case_alias():
+    assert branch_guard.protected_match("main", ["main"]) == "main"
+    assert branch_guard.protected_match("Main", ["main"]) is None
+    assert branch_guard.protected_match("Main", ["main"], True) == "main"
+    assert branch_guard.protected_match("feat", ["main"], True) is None
+    # Upper then lower: U+017F long s folds to s, as APFS reads it (#615 review).
+    assert branch_guard.protected_match("maſter", ["master"], True) == "master"
+    assert branch_guard.is_case_alias("maſter", ["master"]) is True
+    assert branch_guard.is_case_alias("Main", ["main"]) is True
+    assert branch_guard.is_case_alias("main", ["main"]) is False
+    assert branch_guard.is_case_alias("feat", ["main"]) is False
+
+
+@pytest.mark.parametrize("status,stdout,expected", [
+    (0, b"true\n", True), (0, b"false\n", False), (1, b"", False),
+    # Anything else cannot be read: fail closed (#615).
+    (128, b"", True), (0, b"yes\n", False), (2, b"", True),
+])
+def test_ignore_case_from_reads_git_config_and_fails_closed(status, stdout, expected):
+    assert branch_guard.ignore_case_from(status, stdout) is expected
+
+
+def test_read_ignore_case_fails_closed_outside_a_repository(tmp_path):
+    assert branch_guard.read_ignore_case(str(tmp_path / "missing")) is True
+
+
+def test_branch_guard_decide_takes_ignore_case():
+    r = branch_guard.decide(file_path="src/a.py", branch="Main", protected_branches=("main",), ignore_case=True)
+    assert r == {"allow": False, "reason": "blocked: code edit to src/a.py on protected branch main. Branch first."}
+    assert branch_guard.decide(file_path="src/a.py", branch="Main", protected_branches=("main",))["allow"] is True

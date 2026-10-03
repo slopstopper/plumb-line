@@ -1,11 +1,11 @@
 // commit-hook-cases.test.mjs — runs adapters/commit-hook-cases.json against
-// the JS branch guard's git commit hook, in a real temporary git repository
-// per row (#464). Twin: adapters/python/hooks/test_commit_hook_cases.py. As
+// the JS branch guard's git commit hook (#464) and the pre-commit gate
+// (#613), in a real temporary git repository per row. Twin: adapters/python/hooks/test_commit_hook_cases.py. As
 // with hook-cases.json, the twins' parity is a data contract: a case lives in
 // the table, so neither twin can quietly miss it.
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, chmodSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, chmodSync, rmSync, copyFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,14 +13,27 @@ import { tableProblems } from "../../../../primitives/conformance/table-guards.m
 
 const cases = JSON.parse(readFileSync(
   fileURLToPath(new URL("../../../commit-hook-cases.json", import.meta.url)), "utf8"));
-const HOOK = fileURLToPath(new URL("../branch-guard-commit.mjs", import.meta.url));
+// Each case kind and the hook its rows run. Python twin: _HOOKS.
+const HOOKS = {
+  commitHook: fileURLToPath(new URL("../branch-guard-commit.mjs", import.meta.url)),
+  preCommitGate: fileURLToPath(new URL("../pre-commit-gate.mjs", import.meta.url)),
+  // The PreToolUse guard itself, where a row needs a real repository (#615).
+  branchGuard: fileURLToPath(new URL("../branch-guard.mjs", import.meta.url)),
+};
 
 // Every field, case kind and table version this runner interprets (#441).
 // Python twin: _MODEL in adapters/python/hooks/test_commit_hook_cases.py.
 const ROW = ["name", "repo", "committed", "committedText", "fakeGit", "side", "branch", "tags", "headRef", "config", "merge",
   "rebaseStop", "rebaseApply", "rebaseAlso", "rebaseHeadName", "rebaseHeadNameDir", "rebaseUpdateRefsDir", "remove", "move", "stage", "stageHex", "gitlink", "stageCount", "modify", "env", "commit",
   "expectExit", "expectStderr"];
-const MODEL = { versions: [1], meta: ["_doc", "version"], fields: { commitHook: ROW } };
+const MODEL = {
+  versions: [1],
+  meta: ["_doc", "version"],
+  fields: { commitHook: ROW, preCommitGate: [...ROW, "gateCopy"], branchGuard: [...ROW, "stdin"] },
+};
+// A copy of the gate run in place of the shipped one: alone, or beside a
+// guard or commit hook with none of the exports it reads (#613 review).
+const GATE_COPIES = ["alone", "emptyWrapper", "emptyGuard"];
 
 const isStrings = (v) => Array.isArray(v) && v.every((s) => typeof s === "string");
 const isHex = (s) => typeof s === "string" && /^(?:[0-9a-fA-F]{2})+$/.test(s);
@@ -68,6 +81,11 @@ function typeProblems(c) {
     if ("commit" in c) problems.push("fakeGit cannot be combined with commit");
   }
   if (!Number.isInteger(c.expectExit)) problems.push("expectExit must be an integer");
+  if ("stdin" in c && typeof c.stdin !== "string") problems.push("stdin must be a string");
+  if ("gateCopy" in c) {
+    if (!GATE_COPIES.includes(c.gateCopy)) problems.push("gateCopy must be one of alone, emptyWrapper, emptyGuard");
+    if ("commit" in c) problems.push("gateCopy cannot be combined with commit");
+  }
   if (typeof c.expectStderr !== "string") problems.push("expectStderr must be a string");
   // A detached HEAD, a tag, a HEAD ref, a side branch or a gitlink needs a
   // commit to stand on, and a merge needs the side branch.
@@ -103,7 +121,7 @@ function typeProblems(c) {
 // core.hooksPath or commit.gpgsign there changes nothing.
 const BASE_ENV = {
   ...Object.fromEntries(Object.entries(process.env).filter(([k]) =>
-    !k.startsWith("GIT_") && !k.startsWith("PLUMBLINE_") && k !== "PYTHONIOENCODING")),
+    !k.startsWith("GIT_") && !k.startsWith("PLUMBLINE_") && k !== "PYTHONIOENCODING" && k !== "CLAUDE_PROJECT_DIR")),
   GIT_CONFIG_GLOBAL: os.devNull,
   GIT_CONFIG_NOSYSTEM: "1",
   GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@example.com",
@@ -214,13 +232,30 @@ function build(c) {
   return repo;
 }
 
-function run(c) {
+function run(c, kind = "commitHook") {
+  let HOOK = HOOKS[kind];
   const env = { ...BASE_ENV };
   for (const [k, v] of Object.entries(c.env ?? {})) {
     if (v === null) delete env[k];
     else env[k] = v;
   }
   const options = { env, encoding: "utf8", timeout: 30_000 }; // a hang fails its row
+  if (kind === "branchGuard") options.input = c.stdin ?? "";
+  if (c.gateCopy !== undefined) {
+    // Python twin: the same three copies, with an empty module standing in
+    // for an older guard or commit hook.
+    const dir = mkdtempSync(path.join(os.tmpdir(), "plumb-line-gate-copy-"));
+    const hooks = path.dirname(HOOK);
+    copyFileSync(HOOK, path.join(dir, path.basename(HOOK)));
+    if (c.gateCopy === "emptyWrapper") {
+      copyFileSync(path.join(hooks, "branch-guard.mjs"), path.join(dir, "branch-guard.mjs"));
+      writeFileSync(path.join(dir, "branch-guard-commit.mjs"), "");
+    } else if (c.gateCopy === "emptyGuard") {
+      copyFileSync(path.join(hooks, "branch-guard-commit.mjs"), path.join(dir, "branch-guard-commit.mjs"));
+      writeFileSync(path.join(dir, "branch-guard.mjs"), "");
+    }
+    HOOK = path.join(dir, path.basename(HOOK));
+  }
   if (c.repo === false) {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "plumb-line-no-repo-"));
     env.GIT_CEILING_DIRECTORIES = path.dirname(cwd);
@@ -259,7 +294,8 @@ describe("commit-hook-cases.json — the runner interprets every field, kind and
       .toEqual([expect.stringContaining("unknown case-table version 2")]);
   });
   it("every row's fields have the types this runner reads", () => {
-    const problems = cases.commitHook.flatMap((c) => typeProblems(c).map((p) => `${JSON.stringify(c.name)}: ${p}`));
+    const problems = Object.keys(HOOKS).flatMap((kind) => cases[kind].flatMap((c) =>
+      typeProblems(c).map((p) => `${kind} ${JSON.stringify(c.name)}: ${p}`)));
     expect(problems).toEqual([]);
   });
   it("a planted wrong type fails", () => {
@@ -290,13 +326,29 @@ describe("commit-hook-cases.json — the runner interprets every field, kind and
       expect(names).toContain(kind);
     }
   });
+  // The branch-aware gate's cases (#613); a table edit cannot drop one.
+  it("covers the cases #613 names", () => {
+    const names = cases.preCommitGate.map((c) => c.name).join("\n");
+    for (const kind of ["with no PLUMBLINE_CFG the tests run on any branch and a failure blocks",
+      "on a protected branch failing tests block", "testsOnOtherBranches absent the tests are not run",
+      '"skip" the tests are not run', '"run" failing tests are allowed',
+      '"run" passing tests are allowed, silently', 'other than "skip" or "run" blocks',
+      "an unset PLUMBLINE_TEST_CMD blocks even where the tests would be skipped",
+      "on a detached HEAD failing tests block", "--update-refs that will move main"]) {
+      expect(names).toContain(kind);
+    }
+  });
 });
 
-describe("commit hook cases — JS wrapper in a real git repository", () => {
-  for (const c of cases.commitHook) {
+for (const [kind, title] of [
+  ["commitHook", "commit hook cases — JS wrapper in a real git repository"],
+  ["preCommitGate", "pre-commit gate cases — JS gate in a real git repository"],
+  ["branchGuard", "branch guard cases — JS PreToolUse guard in a real git repository"],
+]) describe(title, () => {
+  for (const c of cases[kind]) {
     it(c.name, () => {
       expect(typeProblems(c)).toEqual([]);
-      const r = run(c);
+      const r = run(c, kind);
       expect(r.error, "the hook did not start, or timed out").toBeUndefined();
       expect(r.status, r.stderr).toBe(c.expectExit);
       expect(r.stderr).toBe(c.expectStderr);

@@ -255,3 +255,15 @@ found one runtime use the first draft missed, now listed).
 
   Recorded here rather than by editing §1, §2 or the lists, because this
   record is append-only.
+- **2026-10-02 (#613, #615; owner decision).** `adapters/commit-hook-cases.json`
+  now holds two more case kinds, on the same source-truth terms as its
+  `commitHook` rows (the 2026-09-30 amendment above). The `preCommitGate`
+  rows are the parity source truth for the pre-commit gate wherever its
+  result depends on the branch (#613), so they need a real repository: the
+  branch-aware mode with `PLUMBLINE_CFG` set, and the gate run as a copy
+  (`gateCopy`), alone or beside a guard or commit hook without the exports
+  it reads. The `branchGuard` rows hold the PreToolUse branch guard's cases
+  that need a repository's `core.ignorecase` (#615). Its other cases stay in
+  `adapters/hook-cases.json`. As before, a row records only what both twins
+  produce, git is the reference where a row encodes git's behaviour, and
+  both runners fail on a field, kind or version they do not interpret.

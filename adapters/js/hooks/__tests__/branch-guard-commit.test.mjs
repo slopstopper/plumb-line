@@ -178,8 +178,33 @@ describe("the hook as bootstrap Step 4 wires it", () => {
     stage(repo, "src/a.js");
     git(repo, "switch", "-q", "-c", "feat"); // the staged change comes along
     const r = git(repo, "commit", "-q", "-m", "code");
-    expect(r.stderr).toBe("");
+    // On a feature branch the gate skips the tests by default, and says so (#613).
+    expect(r.stderr).toBe('pre-commit: tests not run on `feat` (testsOnOtherBranches is "skip"), so this commit '
+      + 'is unchecked. Set testsOnOtherBranches to "run" to run them here.\n');
     expect(r.status).toBe(0);
+  });
+  it("with testsOnOtherBranches \"run\", commits a red feature branch and says so", () => {
+    // #613: the failing tests run on a feature branch, and the commit is made, reported red.
+    const repo = wiredRepo();
+    writeFileSync(path.join(repo, ".claude", "guards", "branch-guard.json"),
+      '{"protectedBranches": ["main"], "docsAllowlist": ["docs/", "*.md"], "testsOnOtherBranches": "run"}\n');
+    const hook = path.resolve(repo, git(repo, "rev-parse", "--git-path", "hooks").stdout.trim(), "pre-commit");
+    writeFileSync(hook, [
+      "#!/bin/sh",
+      'PLUMBLINE_CFG="$(cat .claude/guards/branch-guard.json)"',
+      "export PLUMBLINE_CFG",
+      `'${process.execPath}' .claude/guards/branch-guard-commit.mjs || exit 1`,
+      `PLUMBLINE_TEST_CMD="'${process.execPath}' -e 'process.exit(1)'" '${process.execPath}' .claude/guards/pre-commit-gate.mjs || exit 1`,
+      "",
+    ].join("\n"));
+    git(repo, "switch", "-q", "-c", "feat");
+    stage(repo, "src/a.js");
+    const before = head(repo);
+    const r = git(repo, "commit", "-q", "-m", "code");
+    expect(r.status).toBe(0);
+    expect(r.stderr).toBe("pre-commit: the tests failed on `feat`; committed anyway (only protected branches "
+      + "block). This commit is red: say so when you report it.\n");
+    expect(head(repo)).not.toBe(before);
   });
   it("added to an existing hook with lines after it, a failing test gate still refuses the commit", () => {
     const repo = wiredRepo();
@@ -194,12 +219,14 @@ describe("the hook as bootstrap Step 4 wires it", () => {
       "echo existing-after",
       "",
     ].join("\n"));
-    git(repo, "switch", "-q", "-c", "feat");
-    stage(repo, "src/a.js");
+    // On the protected branch, where the gate runs the tests (#613): a docs
+    // commit, so the branch guard lets it through to the gate.
+    stage(repo, "docs/guide.md");
     const before = head(repo);
-    const r = git(repo, "commit", "-q", "-m", "code");
+    const r = git(repo, "commit", "-q", "-m", "docs");
     expect(r.status).toBe(1);
-    expect(r.stderr).toContain("pre-commit blocked:");
+    expect(r.stderr).toContain("pre-commit blocked: the tests failed, and `main` is a protected branch.");
+    expect(r.stderr).not.toContain("existing-after");
     expect(head(repo)).toBe(before);
   });
   it("still runs the test gate after the branch guard passes", () => {

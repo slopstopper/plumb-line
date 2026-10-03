@@ -1,8 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { decide, splitCommand } from "../pre-commit-gate.mjs";
+import { classifyBranch, decide, splitCommand } from "../pre-commit-gate.mjs";
+import {
+  decide as guardDecide, ignoreCaseFrom, isBranchName, isCaseAlias, protectedMatch, readIgnoreCase,
+} from "../branch-guard.mjs";
 
 /**
  * Deterministic random strings over the characters the splitter treats
@@ -134,3 +139,72 @@ describe("pre-commit-gate decide", () => {
 
 // CLI behaviour is in adapters/hook-cases.json, run against both twins by
 // hook-cases.test.mjs (#475).
+
+// #613: the branch-aware gate. Its CLI is in adapters/commit-hook-cases.json;
+// these pin classifyBranch() in-process, and the case helpers it shares with
+// the branch guard (#615). Python twin: test_hooks.py.
+describe("classifyBranch (#613)", () => {
+  const classify = (resolved, protectedBranches = ["main"], ignoreCase = false) =>
+    classifyBranch({ resolved, isBranchName, protectedName: (b) => protectedMatch(b, protectedBranches, ignoreCase) });
+  it("reads the branch and every branch a rebase moves", () => {
+    expect(classify({ branch: "feat" })).toEqual({ kind: "other", branch: "feat" });
+    expect(classify({ branch: "main" })).toEqual({ kind: "protected", branch: "main" });
+    expect(classify({ branch: "feat", also: ["other", "main"] })).toEqual({ kind: "protected", branch: "main" });
+    expect(classify({ branch: "feat", also: ["other"] })).toEqual({ kind: "other", branch: "feat" });
+  });
+  it("treats every unreadable branch as unknown", () => {
+    expect(classify({ branch: null })).toEqual({ kind: "unknown", why: "HEAD is not on a branch" });
+    expect(classify({ branch: "-x" })).toEqual({ kind: "unknown", why: 'HEAD is on "-x", which is not a branch name' });
+    expect(classify({ branch: "feat", why: "a reason" })).toEqual({ kind: "unknown", why: "a reason" });
+    expect(classify({ branch: "feat", alsoWhy: "unread" })).toEqual({ kind: "unknown", why: "unread" });
+    expect(classify({ branch: "feat", also: ["-y"] }))
+      .toEqual({ kind: "unknown", why: 'the rebase also moves "-y", which is not a branch name' });
+    // Unknown is never a pass, even with no branch protected.
+    expect(classify({ branch: null }, [])).toEqual({ kind: "unknown", why: "HEAD is not on a branch" });
+  });
+  it("judges the branch before the ones a rebase moves", () => {
+    // As the commit hook does: a protected branch is named before an
+    // update-refs that cannot be read.
+    expect(classify({ branch: "main", alsoWhy: "unread" })).toEqual({ kind: "protected", branch: "main" });
+  });
+});
+
+describe("case aliases of a protected branch (#615)", () => {
+  const classify = (resolved, ignoreCase = false) =>
+    classifyBranch({ resolved, isBranchName, protectedName: (b) => protectedMatch(b, ["main"], ignoreCase) });
+  it("classifyBranch matches a case alias only where git ignores case", () => {
+    // The protected name is the one reported.
+    expect(classify({ branch: "Main" })).toEqual({ kind: "other", branch: "Main" });
+    expect(classify({ branch: "Main" }, true)).toEqual({ kind: "protected", branch: "main" });
+    expect(classify({ branch: "feat", also: ["MAIN"] }, true)).toEqual({ kind: "protected", branch: "main" });
+  });
+  it("protectedMatch and isCaseAlias", () => {
+    expect(protectedMatch("main", ["main"])).toBe("main");
+    expect(protectedMatch("Main", ["main"])).toBeNull();
+    expect(protectedMatch("Main", ["main"], true)).toBe("main");
+    expect(protectedMatch("feat", ["main"], true)).toBeNull();
+    // Upper then lower: U+017F long s folds to s, as APFS reads it (#615 review).
+    expect(protectedMatch("maſter", ["master"], true)).toBe("master");
+    expect(isCaseAlias("maſter", ["master"])).toBe(true);
+    expect(isCaseAlias("Main", ["main"])).toBe(true);
+    expect(isCaseAlias("main", ["main"])).toBe(false);
+    expect(isCaseAlias("feat", ["main"])).toBe(false);
+  });
+  for (const [status, stdout, expected] of [
+    [0, "true\n", true], [0, "false\n", false], [1, "", false],
+    // Anything else cannot be read: fail closed.
+    [128, "", true], [0, "yes\n", false], [2, "", true],
+  ]) {
+    it(`ignoreCaseFrom(${status}, ${JSON.stringify(stdout)}) is ${expected}`, () => {
+      expect(ignoreCaseFrom(status, stdout)).toBe(expected);
+    });
+  }
+  it("readIgnoreCase fails closed outside a repository", () => {
+    expect(readIgnoreCase(path.join(os.tmpdir(), "plumb-line-615-missing"))).toBe(true);
+  });
+  it("the branch guard's decide takes ignoreCase", () => {
+    expect(guardDecide({ filePath: "src/a.py", branch: "Main", protectedBranches: ["main"], ignoreCase: true }))
+      .toEqual({ allow: false, reason: "blocked: code edit to src/a.py on protected branch main. Branch first." });
+    expect(guardDecide({ filePath: "src/a.py", branch: "Main", protectedBranches: ["main"] }).allow).toBe(true);
+  });
+});

@@ -1,4 +1,6 @@
-// pre-commit-gate.mjs — block a commit if any runner fails.
+// pre-commit-gate.mjs — block a commit if any runner fails; with
+// PLUMBLINE_CFG set, only on a protected branch (#613). Python twin:
+// pre_commit_gate.py.
 import fs from "fs";
 import { fileURLToPath } from "url";
 
@@ -38,6 +40,70 @@ export async function decide({ runners }) {
   }
   return { allow: true, reason: "all gates passed" };
 }
+
+/** What testsOnOtherBranches may be (#613); absent means "skip". */
+const TESTS_ON_OTHER_BRANCHES = ["skip", "run"];
+
+/** What the gate reads from the branch guard and its commit hook. Python twin: _GUARD_NEEDS, _COMMIT_HOOK_NEEDS. */
+const GUARD_NEEDS = ["configFromEnv", "isBranchName", "protectedMatch", "isCaseAlias", "readIgnoreCase"];
+const COMMIT_HOOK_NEEDS = ["resolveBranch", "GitRefused"];
+
+/** Why the gate cannot read PLUMBLINE_CFG without them, the same in both twins. */
+const CANNOT_LOAD = "pre-commit blocked: PLUMBLINE_CFG is set, and the gate reads it with the branch guard's files, "
+  + "which cannot be loaded. Copy the branch guard and its commit hook, from the same release as the gate, beside it.";
+
+/**
+ * Where a commit lands, for the gate (#613), from resolveBranch() in
+ * branch-guard-commit.mjs: `{ kind: "protected", branch }` (the protected
+ * name), `{ kind: "unknown", why }` or `{ kind: "other", branch }`.
+ * `isBranchName` is the branch guard's rule; `protectedName(branch)` the
+ * protected branch a branch is, or null, as the branch guard matches it
+ * (protectedMatch, #615). Judged in the commit hook's order: the branch
+ * itself, then every other branch a rebase with --update-refs will move. Any
+ * of them protected makes the commit protected; any of them unknown makes it
+ * unknown, which the gate treats as protected. Python twin: classify_branch.
+ */
+export function classifyBranch({ resolved, isBranchName, protectedName }) {
+  const { branch = null } = resolved;
+  let { why } = resolved;
+  if (why != null || branch === null || !isBranchName(branch)) {
+    why ??= branch === null
+      ? "HEAD is not on a branch"
+      : `HEAD is on ${JSON.stringify(branch)}, which is not a branch name`;
+    return { kind: "unknown", why };
+  }
+  if (protectedName(branch) !== null) return { kind: "protected", branch: protectedName(branch) };
+  if (resolved.alsoWhy != null) return { kind: "unknown", why: resolved.alsoWhy };
+  for (const other of resolved.also ?? []) {
+    if (!isBranchName(other)) {
+      return { kind: "unknown", why: `the rebase also moves ${JSON.stringify(other)}, which is not a branch name` };
+    }
+    if (protectedName(other) !== null) return { kind: "protected", branch: protectedName(other) };
+  }
+  return { kind: "other", branch };
+}
+
+/**
+ * The gate's messages (#613), approved as text by the owner: change them only
+ * with the owner's approval. Python twin: _protected_failed, _unknown_failed,
+ * _skipped, _other_failed.
+ */
+export const MESSAGES = {
+  protectedFailed: (branch) =>
+    `pre-commit blocked: the tests failed, and \`${branch}\` is a protected branch. Fix the code, or ` +
+    "commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches " +
+    `\`${branch}\` through review, not a local merge. Mark a test as an expected failure only if the user ` +
+    "decides it should wait; mark it strict, with their reason.",
+  unknownFailed: (why) =>
+    `pre-commit blocked: the tests failed, and the branch is unknown (${why}), so it is treated as ` +
+    "protected. Fix the code, or commit on a named branch.",
+  skipped: (branch) =>
+    `pre-commit: tests not run on \`${branch}\` (testsOnOtherBranches is "skip"), so this commit is ` +
+    'unchecked. Set testsOnOtherBranches to "run" to run them here.',
+  otherFailed: (branch) =>
+    `pre-commit: the tests failed on \`${branch}\`; committed anyway (only protected branches block). ` +
+    "This commit is red: say so when you report it.",
+};
 
 /**
  * Split a command into words with shell-style quoting and no shell, as the
@@ -101,7 +167,8 @@ function envProblem(name) {
     : null;
 }
 
-// CLI wrapper: reads PLUMBLINE_TEST_CMD from env; runs it via child_process.
+// CLI wrapper: reads PLUMBLINE_TEST_CMD (and PLUMBLINE_CFG, #613) from env;
+// runs the command via child_process.
 // Process-entry glue (env/spawn/exit); not exercised in-process. Excluded from
 // coverage — the pure decide() above is unit-tested.
 /* v8 ignore start */
@@ -124,27 +191,104 @@ if (isMainModule()) {
   if (!r && argv.length === 0) {
     r = { allow: false, reason: "pre-commit blocked: PLUMBLINE_TEST_CMD is not set" };
   }
-  if (!r) {
-    const [prog, ...args] = argv;
+  const [prog, ...args] = argv;
+  const runTests = async () => {
     try {
-      r = await decide({
+      return await decide({
         runners: [{
           name: cmd,
           fn: () => {
             const res = spawnSync(prog, args, { stdio: "inherit" });
-            if (res.error) throw res.error; // not started: say so, as the Python twin does
+            // Not started: the program and Node's error code (ENOENT, EACCES),
+            // as the Python twin gives the errno name.
+            if (res.error) throw new Error(`${prog}: ${res.error.code ?? res.error.message}`);
             return res.status === 0;
           },
         }],
       });
     } catch (e) {
-      r = { allow: false, reason: `pre-commit blocked: the test command could not be run (${e.message})` };
+      return { allow: false, broken: true, reason: `pre-commit blocked: the test command could not be run (${e.message})` };
+    }
+  };
+  // With no PLUMBLINE_CFG the tests run on every branch and a failure
+  // blocks, as before #613, and nothing else is read. With it set the gate is
+  // branch-aware: a protected or unknown branch runs the tests and blocks on
+  // failure; any other branch skips them, or with testsOnOtherBranches "run"
+  // runs them and only reports a failure. The test command is checked first
+  // (above), so a broken one blocks even where the tests would be skipped.
+  // Cases: adapters/commit-hook-cases.json.
+  if (!r && process.env.PLUMBLINE_CFG === undefined) r = await runTests();
+  let guard;
+  let commitHook;
+  if (!r) {
+    // Imported only when PLUMBLINE_CFG is set, so a gate copied alone still
+    // runs with it unset, as before.
+    // An older release's files import, but lack what the gate reads (#613
+    // review): say so, rather than fail on the first missing name.
+    try {
+      guard = await import("./branch-guard.mjs");
+      commitHook = await import("./branch-guard-commit.mjs");
+      if (!GUARD_NEEDS.every((n) => typeof guard[n] === "function")
+          || !COMMIT_HOOK_NEEDS.every((n) => typeof commitHook[n] === "function")) {
+        throw new Error("missing exports");
+      }
+    } catch {
+      r = { allow: false, reason: CANNOT_LOAD };
+    }
+  }
+  let config;
+  let mode;
+  if (!r) {
+    const read = guard.configFromEnv();
+    if (read.reason) r = { allow: false, reason: `pre-commit ${read.reason}` };
+    config = read.config;
+  }
+  if (!r) {
+    // Own key only, as the guards read keys: a null or inherited value is not "skip".
+    mode = Object.hasOwn(config, "testsOnOtherBranches") ? config.testsOnOtherBranches : "skip";
+    if (!TESTS_ON_OTHER_BRANCHES.includes(mode)) {
+      r = { allow: false, reason: 'pre-commit blocked: PLUMBLINE_CFG testsOnOtherBranches must be "skip" or "run".' };
+    }
+  }
+  if (!r) {
+    // A branch that cannot be read is unknown, so treated as protected.
+    let resolved;
+    try {
+      resolved = commitHook.resolveBranch();
+    } catch (e) {
+      resolved = {
+        branch: null,
+        why: e instanceof commitHook.GitRefused ? `the gate ${e.message}` : `the gate could not read the branch (${e.message})`,
+      };
+    }
+    // core.ignorecase is read only when it decides (#615); unreadable fails closed.
+    const protectedBranches = config.protectedBranches ?? ["main"];
+    const named = [resolved.branch ?? null, ...(resolved.also ?? [])].filter((b) => b !== null);
+    const ignoreCase = named.some((b) => guard.isCaseAlias(b, protectedBranches)) && guard.readIgnoreCase();
+    const where = classifyBranch({
+      resolved,
+      isBranchName: guard.isBranchName,
+      protectedName: (b) => guard.protectedMatch(b, protectedBranches, ignoreCase),
+    });
+    if (where.kind === "other" && mode === "skip") {
+      r = { allow: true, notice: MESSAGES.skipped(where.branch) };
+    } else {
+      r = await runTests();
+      if (!r.allow && !r.broken) {
+        r = where.kind === "other"
+          ? { allow: true, notice: MESSAGES.otherFailed(where.branch) }
+          : {
+              allow: false,
+              reason: where.kind === "protected" ? MESSAGES.protectedFailed(where.branch) : MESSAGES.unknownFailed(where.why),
+            };
+      }
     }
   }
   if (!r.allow) {
     process.stderr.write(r.reason + "\n");
     process.exit(2);
   }
+  if (r.notice) process.stderr.write(r.notice + "\n");
   process.exit(0);
 }
 /* v8 ignore stop */

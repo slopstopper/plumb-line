@@ -78,6 +78,9 @@ _CFG_KEYS = ("layers", "direction")
 # blocks. The snake_case spellings the branch guard renames are named with the
 # key to use, as it names them.
 _BRANCH_KEYS = ("protectedBranches", "docsAllowlist")
+# The pre-commit gate's key, allowed and left to it to validate in the same
+# way (#613).
+_GATE_KEYS = ("testsOnOtherBranches",)
 _CFG_RENAMES = {"protected_branches": "protectedBranches", "docs_allowlist": "docsAllowlist"}
 _DIRECTIONS = ("downward", "upward")
 
@@ -92,7 +95,8 @@ def _read_config(raw):
     Unset gives the defaults (no layers, so an import to judge blocks, #516;
     direction downward); set, it must be a JSON object whose own keys are `layers`, a
     non-empty array of non-empty strings, and `direction`, exactly "downward"
-    or "upward", plus the branch guard's keys, left unchecked (_BRANCH_KEYS).
+    or "upward", plus the branch guard's keys and the pre-commit gate's, left
+    unchecked (_BRANCH_KEYS, _GATE_KEYS).
     Anything else fails closed: an ignored `layer` typo checked no layers, and
     any direction but "downward" was read as upward. Twin of readConfig in
     boundary-guard.mjs; mirrors _read_config in branch_guard.py."""
@@ -106,7 +110,7 @@ def _read_config(raw):
     if not isinstance(cfg, dict):
         return None, "blocked: PLUMBLINE_CFG is not a JSON object." + retry
     # Sorted by UTF-16 code unit, as the JS twin's sort() orders them.
-    unknown = sorted((k for k in cfg if k not in _CFG_KEYS and k not in _BRANCH_KEYS),
+    unknown = sorted((k for k in cfg if k not in (*_CFG_KEYS, *_BRANCH_KEYS, *_GATE_KEYS)),
                      key=lambda k: k.encode("utf-16-be", "surrogatepass"))
     if unknown:
         # json.dumps escapes everything outside printable ASCII, as the JS
@@ -115,7 +119,8 @@ def _read_config(raw):
                  else json.dumps(k) for k in unknown]
         return None, (f"blocked: PLUMBLINE_CFG has unknown key(s) {', '.join(named)}. "
                       'The boundary guard reads only "layers" and "direction"; '
-                      '"protectedBranches" and "docsAllowlist" are the branch guard\'s.')
+                      '"protectedBranches" and "docsAllowlist" are the branch guard\'s; '
+                      '"testsOnOtherBranches" is the pre-commit gate\'s.')
     if "layers" in cfg:
         layers = cfg["layers"]
         if not (isinstance(layers, list) and all(isinstance(e, str) for e in layers)):

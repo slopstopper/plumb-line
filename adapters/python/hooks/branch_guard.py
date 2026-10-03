@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import subprocess
 import sys
 
 # What counts as a blank branch: ASCII whitespace only, as in the JS twin
@@ -74,6 +75,62 @@ def _is_branch_name(name):
     return all(c and not c.startswith(".") and not c.endswith(".lock") for c in name.split("/"))
 
 
+def _fold(name):
+    """A branch name compared without case: upper, then lower, so a letter
+    whose lowercase is not its fold still folds (U+017F long s: "maſter" is
+    "master", as APFS reads it; lower() alone kept it). JS twin: fold."""
+    return str(name).upper().lower()
+
+
+def protected_match(branch, protected_branches, ignore_case=False):
+    """The protected branch `branch` is, or None (#615). Exact, or, when git
+    ignores case (core.ignorecase), any protected name that differs only in
+    case: on a case-insensitive filesystem `git checkout Main` is on `main`.
+    Shared by this guard, its commit hook and the pre-commit gate, so the
+    three agree. JS twin: protectedMatch."""
+    if branch in protected_branches:
+        return branch
+    if ignore_case:
+        for name in protected_branches:
+            if _fold(name) == _fold(branch):
+                return name
+    return None
+
+
+def is_case_alias(branch, protected_branches):
+    """True when `branch` is protected only if git ignores case: the one time
+    core.ignorecase has to be read. JS twin: isCaseAlias."""
+    return protected_match(branch, protected_branches) is None and \
+        protected_match(branch, protected_branches, True) is not None
+
+
+def ignore_case_from(status, stdout):
+    """Whether git ignores case, from `git config --bool core.ignorecase` run in
+    a repository: exit 0 prints true or false, exit 1 means unset (git's
+    default, false). Any other answer cannot be read, so it fails closed:
+    case is ignored, and a case alias of a protected branch is protected.
+    JS twin: ignoreCaseFrom."""
+    if status == 0:
+        return stdout.strip() == b"true"
+    return status != 1
+
+
+def read_ignore_case(where=None):
+    """Whether git ignores case in the repository at `where` (default: the
+    working directory). True, failing closed, when that is not a repository
+    or git cannot be run (#615). JS twin: readIgnoreCase."""
+    try:
+        repo = subprocess.run(["git", "rev-parse", "--git-dir"], cwd=where, stdin=subprocess.DEVNULL,
+                              capture_output=True)
+        if repo.returncode != 0:
+            return True
+        r = subprocess.run(["git", "config", "--bool", "core.ignorecase"], cwd=where,
+                           stdin=subprocess.DEVNULL, capture_output=True)
+    except OSError:
+        return True
+    return ignore_case_from(r.returncode, r.stdout)
+
+
 def _is_blank(branch):
     """Unset, or ASCII whitespace only, as in the JS twin."""
     return branch is None or not str(branch).strip(_ASCII_WHITESPACE)
@@ -90,15 +147,18 @@ def _blocked(file_path, branch, unknown):
                       "Set it to the current branch."}
 
 
-def decide(file_path, branch, protected_branches=("main",), docs_allowlist=()):
+def decide(file_path, branch, protected_branches=("main",), docs_allowlist=(), ignore_case=False):
     # An unknown branch (unset, or empty as on a detached HEAD) is an
     # inconclusive result, never a pass (#449): judge the edit as if the
     # branch were protected, so only an edit allowed on every branch passes.
     # A value git would not accept as a branch name, such as HEAD or "main "
     # (#474), is unknown too: it names no branch the edit could be on.
+    # ignore_case: git ignores case here, so a case alias is protected (#615).
     unknown = _is_blank(branch) or not _is_branch_name(str(branch))
-    if not unknown and branch not in protected_branches:
-        return {"allow": True, "reason": "not a protected branch"}
+    if not unknown:
+        branch = protected_match(branch, tuple(protected_branches), ignore_case)
+        if branch is None:
+            return {"allow": True, "reason": "not a protected branch"}
     # No path to judge (an unmapped host payload) cannot be a docs edit.
     if not isinstance(file_path, str) or not file_path:
         return {"allow": False,
@@ -129,6 +189,9 @@ _CFG_KEYS = ("protectedBranches", "docsAllowlist")
 # #469). The branch guard never reads them, so allowing them cannot fail open;
 # anything neither guard reads still blocks.
 _BOUNDARY_KEYS = ("layers", "direction")
+# The pre-commit gate's key, allowed and left to it to validate in the same
+# way (#613): the gate reads protectedBranches with this guard's own checks.
+_GATE_KEYS = ("testsOnOtherBranches",)
 _CFG_RENAMES = {"protected_branches": "protectedBranches", "docs_allowlist": "docsAllowlist"}
 
 
@@ -141,8 +204,8 @@ def _read_config(raw):
     """PLUMBLINE_CFG as (config, None), or (None, a reason to block) (#469).
     Unset gives the defaults; set, it must be a JSON object whose own keys are
     the camelCase ones, each an array of strings with no empty docsAllowlist
-    entry, plus the boundary guard's keys, left unchecked (_BOUNDARY_KEYS).
-    Anything else fails closed: an
+    entry, plus the boundary guard's keys and the pre-commit gate's, left
+    unchecked (_BOUNDARY_KEYS, _GATE_KEYS). Anything else fails closed: an
     ignored key fell back to protecting only main, and a coerced value
     (tuple("main") is its characters) left main unprotected. Twin of
     readConfig in branch-guard.mjs."""
@@ -156,7 +219,7 @@ def _read_config(raw):
     if not isinstance(cfg, dict):
         return None, "blocked: PLUMBLINE_CFG is not a JSON object." + retry
     # Sorted by UTF-16 code unit, as the JS twin's sort() orders them.
-    unknown = sorted((k for k in cfg if k not in _CFG_KEYS and k not in _BOUNDARY_KEYS),
+    unknown = sorted((k for k in cfg if k not in (*_CFG_KEYS, *_BOUNDARY_KEYS, *_GATE_KEYS)),
                      key=lambda k: k.encode("utf-16-be", "surrogatepass"))
     if unknown:
         # json.dumps escapes everything outside printable ASCII, as the JS
@@ -165,7 +228,8 @@ def _read_config(raw):
                  else json.dumps(k) for k in unknown]
         return None, (f"blocked: PLUMBLINE_CFG has unknown key(s) {', '.join(named)}. "
                       'The branch guard reads only "protectedBranches" and "docsAllowlist"; '
-                      '"layers" and "direction" are the boundary guard\'s.')
+                      '"layers" and "direction" are the boundary guard\'s; '
+                      '"testsOnOtherBranches" is the pre-commit gate\'s.')
     for key in _CFG_KEYS:
         if key in cfg and not (isinstance(cfg[key], list)
                                and all(isinstance(e, str) for e in cfg[key])):
@@ -257,11 +321,18 @@ def _main():
     cfg, reason = config_from_env()
     if reason:
         return {"allow": False, "reason": reason}
+    branch = _env("PLUMBLINE_BRANCH")
+    protected = tuple(cfg.get("protectedBranches", ["main"]))
+    # core.ignorecase is read only when it decides (#615), from the project
+    # Claude Code names, else the working directory; unreadable fails closed.
+    ignore_case = (isinstance(branch, str) and is_case_alias(branch, protected)
+                   and read_ignore_case(_env("CLAUDE_PROJECT_DIR") or None))
     return decide(
         file_path=input_data.get("filePath") if isinstance(input_data, dict) else None,
-        branch=_env("PLUMBLINE_BRANCH"),
-        protected_branches=tuple(cfg.get("protectedBranches", ["main"])),
+        branch=branch,
+        protected_branches=protected,
         docs_allowlist=tuple(cfg.get("docsAllowlist", [])),
+        ignore_case=ignore_case,
     )
 
 

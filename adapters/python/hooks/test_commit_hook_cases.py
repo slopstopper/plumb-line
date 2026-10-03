@@ -1,11 +1,13 @@
 """Runs adapters/commit-hook-cases.json against the Python branch guard's git
-commit hook, in a real temporary git repository per row (#464). Twin of
+commit hook (#464) and the pre-commit gate (#613), in a real temporary git
+repository per row. Twin of
 adapters/js/hooks/__tests__/commit-hook-cases.test.mjs. As with
 hook-cases.json, the twins' parity is a data contract: a case lives in the
 table, so neither twin can quietly miss it."""
 import copy
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -19,14 +21,24 @@ from case_table_guards import table_problems  # noqa: E402
 with open(os.path.join(_REPO, 'adapters', 'commit-hook-cases.json'), encoding='utf-8') as f:
     CASES = json.load(f)
 
-_HOOK = os.path.join(_HERE, 'branch_guard_commit.py')
+# Each case kind and the hook its rows run. JS twin: HOOKS.
+_HOOKS = {
+    'commitHook': os.path.join(_HERE, 'branch_guard_commit.py'),
+    'preCommitGate': os.path.join(_HERE, 'pre_commit_gate.py'),
+    # The PreToolUse guard itself, where a row needs a real repository (#615).
+    'branchGuard': os.path.join(_HERE, 'branch_guard.py'),
+}
+# A copy of the gate run in place of the shipped one: alone, or beside a
+# guard or commit hook with none of the exports it reads (#613 review).
+_GATE_COPIES = ('alone', 'emptyWrapper', 'emptyGuard')
 
 # Every field, case kind and table version this runner interprets (#441). JS
 # twin: MODEL in adapters/js/hooks/__tests__/commit-hook-cases.test.mjs.
 _ROW = ['name', 'repo', 'committed', 'committedText', 'fakeGit', 'side', 'branch', 'tags', 'headRef', 'config', 'merge',
         'rebaseStop', 'rebaseApply', 'rebaseAlso', 'rebaseHeadName', 'rebaseHeadNameDir', 'rebaseUpdateRefsDir', 'remove', 'move', 'stage', 'stageHex', 'gitlink', 'stageCount', 'modify', 'env', 'commit',
         'expectExit', 'expectStderr']
-_MODEL = {'versions': [1], 'meta': ['_doc', 'version'], 'fields': {'commitHook': _ROW}}
+_MODEL = {'versions': [1], 'meta': ['_doc', 'version'],
+          'fields': {'commitHook': _ROW, 'preCommitGate': [*_ROW, 'gateCopy'], 'branchGuard': [*_ROW, 'stdin']}}
 
 
 def _is_strings(v):
@@ -88,6 +100,13 @@ def _type_problems(c):
             problems.append('fakeGit cannot be combined with commit')
     if not _is_int(c.get('expectExit')):
         problems.append('expectExit must be an integer')
+    if 'stdin' in c and not isinstance(c['stdin'], str):
+        problems.append('stdin must be a string')
+    if 'gateCopy' in c:
+        if c['gateCopy'] not in _GATE_COPIES:
+            problems.append('gateCopy must be one of alone, emptyWrapper, emptyGuard')
+        if 'commit' in c:
+            problems.append('gateCopy cannot be combined with commit')
     if not isinstance(c.get('expectStderr'), str):
         problems.append('expectStderr must be a string')
     # A detached HEAD, a tag, a HEAD ref, a side branch or a gitlink needs a
@@ -127,7 +146,7 @@ def _type_problems(c):
 # hook), and the global and system git config are not read, so a
 # core.hooksPath or commit.gpgsign there changes nothing.
 _BASE_ENV = {k: v for k, v in os.environ.items()
-             if not k.startswith(('GIT_', 'PLUMBLINE_')) and k != 'PYTHONIOENCODING'}
+             if not k.startswith(('GIT_', 'PLUMBLINE_')) and k not in ('PYTHONIOENCODING', 'CLAUDE_PROJECT_DIR')}
 _BASE_ENV.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1',
                  GIT_AUTHOR_NAME='t', GIT_AUTHOR_EMAIL='t@example.com',
                  GIT_COMMITTER_NAME='t', GIT_COMMITTER_EMAIL='t@example.com')
@@ -248,7 +267,8 @@ def _build(c, repo):
         _write(repo, p, 'modified\n')
 
 
-def _run(c, tmp_path):
+def _run(c, tmp_path, kind='commitHook'):
+    hook_file = _HOOKS[kind]
     env = dict(_BASE_ENV)
     for k, v in c.get('env', {}).items():
         if v is None:
@@ -256,11 +276,26 @@ def _run(c, tmp_path):
         else:
             env[k] = v
     options = dict(env=env, capture_output=True, timeout=30)  # a hang fails its row
+    if kind == 'branchGuard':
+        options['input'] = c.get('stdin', '').encode('utf-8')
+    if 'gateCopy' in c:
+        # JS twin: the same three copies, with an empty module standing in for
+        # an older guard or commit hook.
+        copy_dir = tmp_path / 'hooks-copy'
+        copy_dir.mkdir()
+        shutil.copy(hook_file, copy_dir)
+        if c['gateCopy'] == 'emptyWrapper':
+            shutil.copy(os.path.join(_HERE, 'branch_guard.py'), copy_dir)
+            (copy_dir / 'branch_guard_commit.py').write_text('', encoding='utf-8')
+        elif c['gateCopy'] == 'emptyGuard':
+            shutil.copy(os.path.join(_HERE, 'branch_guard_commit.py'), copy_dir)
+            (copy_dir / 'branch_guard.py').write_text('', encoding='utf-8')
+        hook_file = str(copy_dir / os.path.basename(hook_file))
     if c.get('repo') is False:
         cwd = tmp_path / 'no-repo'
         cwd.mkdir()
         env['GIT_CEILING_DIRECTORIES'] = str(tmp_path)
-        return subprocess.run([sys.executable, _HOOK], cwd=cwd, **options)
+        return subprocess.run([sys.executable, hook_file], cwd=cwd, **options)
     repo = str(tmp_path / 'repo')
     os.mkdir(repo)
     _build(c, repo)
@@ -271,10 +306,10 @@ def _run(c, tmp_path):
         os.chmod(bin_dir / 'git', 0o755 if c['fakeGit']['executable'] else 0o644)
         env['PATH'] = str(bin_dir)
     if 'commit' not in c:
-        return subprocess.run([sys.executable, _HOOK], cwd=repo, **options)
+        return subprocess.run([sys.executable, hook_file], cwd=repo, **options)
     hook = os.path.join(repo, '.git', 'hooks', 'pre-commit')
     with open(hook, 'w', encoding='utf-8') as f:
-        f.write(f"#!/bin/sh\nexec '{sys.executable}' '{_HOOK}'\n")
+        f.write(f"#!/bin/sh\nexec '{sys.executable}' '{hook_file}'\n")
     os.chmod(hook, 0o755)
 
     def head():
@@ -303,7 +338,8 @@ def test_a_planted_unknown_kind_or_version_fails():
 
 
 def test_every_rows_fields_have_the_types_this_runner_reads():
-    problems = [f"{json.dumps(c.get('name'))}: {p}" for c in CASES['commitHook'] for p in _type_problems(c)]
+    problems = [f"{kind} {json.dumps(c.get('name'))}: {p}"
+                for kind in _HOOKS for c in CASES[kind] for p in _type_problems(c)]
     assert problems == []
 
 
@@ -338,10 +374,23 @@ def test_covers_the_four_cases_464_names():
         assert kind in names
 
 
-@pytest.mark.parametrize('c', CASES['commitHook'], ids=lambda c: c['name'])
-def test_commit_hook_case(c, tmp_path):
+def test_covers_the_cases_613_names():
+    """The branch-aware gate's cases (#613); a table edit cannot drop one."""
+    names = '\n'.join(c['name'] for c in CASES['preCommitGate'])
+    for kind in ('with no PLUMBLINE_CFG the tests run on any branch and a failure blocks',
+                 'on a protected branch failing tests block', 'testsOnOtherBranches absent the tests are not run',
+                 '"skip" the tests are not run', '"run" failing tests are allowed',
+                 '"run" passing tests are allowed, silently', 'other than "skip" or "run" blocks',
+                 'an unset PLUMBLINE_TEST_CMD blocks even where the tests would be skipped',
+                 'on a detached HEAD failing tests block', '--update-refs that will move main'):
+        assert kind in names
+
+
+@pytest.mark.parametrize('kind,c', [(k, c) for k in _HOOKS for c in CASES[k]],
+                         ids=lambda v: v['name'] if isinstance(v, dict) else v)
+def test_commit_hook_case(kind, c, tmp_path):
     assert _type_problems(c) == []
-    r = _run(c, tmp_path)
+    r = _run(c, tmp_path, kind)
     stderr = r.stderr.decode('utf-8')
     assert r.returncode == c['expectExit'], stderr
     assert stderr == c['expectStderr']

@@ -1,6 +1,7 @@
 // branch-guard.mjs — block the first code edit on a protected branch.
 import path from "path";
 import fs from "fs";
+import { spawnSync } from "child_process";
 import { fileURLToPath } from "url";
 
 /** A bare "*.ext" extension glob (no path separators). */
@@ -55,6 +56,64 @@ export function isBranchName(name) {
   return name.split("/").every((c) => c !== "" && !c.startsWith(".") && !c.endsWith(".lock"));
 }
 
+/**
+ * A branch name compared without case: upper, then lower, so a letter whose
+ * lowercase is not its fold still folds (U+017F long s: "maſter" is
+ * "master", as APFS reads it; toLowerCase() alone kept it). Python twin: _fold.
+ */
+const fold = (name) => String(name).toUpperCase().toLowerCase();
+
+/**
+ * The protected branch `branch` is, or null (#615). Exact, or, when git
+ * ignores case (core.ignorecase), any protected name that differs only in
+ * case: on a case-insensitive filesystem `git checkout Main` is on `main`.
+ * Shared by this guard, its commit hook and the pre-commit gate, so the three
+ * agree. Python twin: protected_match.
+ */
+export function protectedMatch(branch, protectedBranches, ignoreCase = false) {
+  if (protectedBranches.includes(branch)) return branch;
+  if (ignoreCase) {
+    const found = protectedBranches.find((name) => fold(name) === fold(branch));
+    if (found !== undefined) return found;
+  }
+  return null;
+}
+
+/**
+ * True when `branch` is protected only if git ignores case: the one time
+ * core.ignorecase has to be read. Python twin: is_case_alias.
+ */
+export function isCaseAlias(branch, protectedBranches) {
+  return protectedMatch(branch, protectedBranches) === null
+    && protectedMatch(branch, protectedBranches, true) !== null;
+}
+
+/**
+ * Whether git ignores case, from `git config --bool core.ignorecase` run in a
+ * repository: exit 0 prints true or false, exit 1 means unset (git's default,
+ * false). Any other answer cannot be read, so it fails closed: case is
+ * ignored, and a case alias of a protected branch is protected. Python twin:
+ * ignore_case_from.
+ */
+export function ignoreCaseFrom(status, stdout) {
+  if (status === 0) return String(stdout).trim() === "true";
+  return status !== 1;
+}
+
+/**
+ * Whether git ignores case in the repository at `where` (default: the
+ * working directory). True, failing closed, when that is not a repository or
+ * git cannot be run (#615). Python twin: read_ignore_case.
+ */
+export function readIgnoreCase(where) {
+  const opts = { cwd: where, stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" };
+  const repo = spawnSync("git", ["rev-parse", "--git-dir"], opts);
+  if (repo.error || repo.status !== 0) return true;
+  const r = spawnSync("git", ["config", "--bool", "core.ignorecase"], opts);
+  if (r.error || r.status === null) return true;
+  return ignoreCaseFrom(r.status, r.stdout);
+}
+
 function blocked(filePath, branch, unknown) {
   if (!unknown) {
     return {
@@ -81,15 +140,18 @@ export function decide({
   branch,
   protectedBranches = ["main"],
   docsAllowlist = [],
+  ignoreCase = false,
 }) {
   // An unknown branch (unset, or empty as on a detached HEAD) is an
   // inconclusive result, never a pass (#449): judge the edit as if the branch
   // were protected, so only an edit allowed on every branch passes. A value
   // git would not accept as a branch name, such as `HEAD` or `main ` (#474),
   // is unknown too: it names no branch the edit could be on.
+  // ignoreCase: git ignores case here, so a case alias is protected (#615).
   const unknown = isBlank(branch) || !isBranchName(String(branch));
-  if (!unknown && !protectedBranches.includes(branch)) {
-    return { allow: true, reason: "not a protected branch" };
+  if (!unknown) {
+    branch = protectedMatch(branch, protectedBranches, ignoreCase);
+    if (branch === null) return { allow: true, reason: "not a protected branch" };
   }
   // No path to judge (an unmapped host payload) cannot be a docs edit.
   if (typeof filePath !== "string" || filePath === "") {
@@ -153,6 +215,11 @@ const CFG_KEYS = ["protectedBranches", "docsAllowlist"];
  * open; anything neither guard reads still blocks.
  */
 const BOUNDARY_KEYS = ["layers", "direction"];
+/**
+ * The pre-commit gate's key, allowed and left to it to validate in the same
+ * way (#613): the gate reads protectedBranches with this guard's own checks.
+ */
+const GATE_KEYS = ["testsOnOtherBranches"];
 const CFG_RENAMES = {
   protected_branches: "protectedBranches",
   docs_allowlist: "docsAllowlist",
@@ -172,7 +239,8 @@ function quoteKey(k) {
  * PLUMBLINE_CFG as the config decide() takes, or a reason to block (#469).
  * Unset gives the defaults; set, it must be a JSON object whose own keys are
  * the camelCase ones, each an array of strings with no empty docsAllowlist
- * entry, plus the boundary guard's keys, left unchecked (BOUNDARY_KEYS).
+ * entry, plus the boundary guard's keys and the pre-commit gate's, left
+ * unchecked (BOUNDARY_KEYS, GATE_KEYS).
  * Anything else fails closed: an
  * ignored key (a typo, or the snake_case spelling the Python twin used to
  * accept) fell back to protecting only main. Twin of _read_config in
@@ -193,7 +261,7 @@ function readConfig(raw) {
   // Sorted by UTF-16 code unit, as the Python twin sorts: Object.keys puts
   // integer-like keys first, so parse order is not the same in both.
   const unknown = Object.keys(cfg)
-    .filter((k) => !CFG_KEYS.includes(k) && !BOUNDARY_KEYS.includes(k))
+    .filter((k) => ![...CFG_KEYS, ...BOUNDARY_KEYS, ...GATE_KEYS].includes(k))
     .sort();
   if (unknown.length > 0) {
     const named = unknown.map((k) =>
@@ -205,7 +273,8 @@ function readConfig(raw) {
       reason:
         `blocked: PLUMBLINE_CFG has unknown key(s) ${named.join(", ")}. ` +
         `The branch guard reads only "protectedBranches" and "docsAllowlist"; ` +
-        `"layers" and "direction" are the boundary guard's.`,
+        `"layers" and "direction" are the boundary guard's; ` +
+        `"testsOnOtherBranches" is the pre-commit gate's.`,
     };
   }
   for (const key of CFG_KEYS) {
@@ -278,15 +347,21 @@ if (isMainModule()) {
       const { config, reason } = branchReason
         ? { reason: `blocked: ${branchReason}` }
         : configFromEnv();
-      // Only the two documented config keys, never a spread: a spread let a
+      // Only the documented config keys, never a spread: a spread let a
       // config `branch` or `filePath` override the real ones.
+      // core.ignorecase is read only when it decides (#615), from the project
+      // Claude Code names, else the working directory; unreadable fails closed.
+      const branch = process.env.PLUMBLINE_BRANCH;
+      const protectedBranches = config?.protectedBranches ?? ["main"];
       r = reason
         ? { allow: false, reason }
         : decide({
             filePath: input?.filePath,
-            branch: process.env.PLUMBLINE_BRANCH,
-            protectedBranches: config.protectedBranches,
+            branch,
+            protectedBranches,
             docsAllowlist: config.docsAllowlist,
+            ignoreCase: typeof branch === "string" && isCaseAlias(branch, protectedBranches)
+              && readIgnoreCase(process.env.CLAUDE_PROJECT_DIR || undefined),
           });
     } catch (e) {
       process.stderr.write(`blocked: the branch guard could not run (${e.message}).\n`);
