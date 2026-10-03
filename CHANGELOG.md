@@ -11,6 +11,64 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 _Nothing yet._
 
+## [0.12.1] — 2026-10-03
+
+### Changed
+- **JS constructors refuse with a `RangeError`**
+  ([#602](https://github.com/slopstopper/plumb-line/issues/602); ADR-0019
+  amendment). `mark`, `makeMeta` and a `derive` override throw `RangeError`,
+  where they threw a plain `Error`, for an off-ladder or missing `source` or
+  `confidence` or a non-boolean `derivedFromMock`, mirroring Python's
+  `ValueError`. Every message is unchanged, and a wrong kind of input (an
+  unmarked `derive` input) is still a `TypeError`. May break: code that checks
+  `e.constructor === Error`, `e.name` or `String(e)`; a `catch` or
+  `instanceof Error` still works. **Do:** match `RangeError`, or the message.
+- **The case-alias check normalises names, and an unknown character matches
+  any one character** ([#625](https://github.com/slopstopper/plumb-line/issues/625);
+  the branch guard, its commit hook and the gate, in both twins). Where
+  `core.ignorecase` is true, names are NFC-normalised before the fold, so a
+  decomposed spelling of an accented protected name is now protected; it was
+  missed. A character a runtime does not know (Unicode `Cn`) matches any one
+  character, so the JS and Python twins agree on letters newer than one
+  runtime's Unicode, and a feature branch holding one is not blocked unless
+  it could be an alias. Not yet: a protected name holding a very new
+  character or combining mark can still be reached through normalization on
+  an older runtime ([#642](https://github.com/slopstopper/plumb-line/issues/642)).
+
+### Fixed
+- **Python's audit names the taint flag `derivedFromMock`, as JS does**
+  ([#635](https://github.com/slopstopper/plumb-line/issues/635)). The
+  `taint dropped:` and `laundering:` messages, and the guard reasons built from
+  them, said `derived_from_mock`. Pinned by four case rows.
+- **The conformance runners are stricter, and no row can crash the run**
+  ([#595](https://github.com/slopstopper/plumb-line/issues/595),
+  [#602](https://github.com/slopstopper/plumb-line/issues/602)). Python compares
+  `expect` strictly (`True` no longer equals `1`, and a missing key is not
+  `None`), and plants bad guard rows as JS does. In JS, a construct or derive
+  refusal must be a `RangeError`, and each row is judged in its own `try`, so a
+  port that throws `null` fails its row instead of stopping the run.
+- **PARITY.md's handed-envelope counts come from a committed probe**
+  ([#594](https://github.com/slopstopper/plumb-line/issues/594); ADR-0019
+  amendment). The counts it gave ("20 of 28", "19 of 143") came from probes
+  that were never committed. `primitives/conformance/handed_probe.py` now runs
+  224 handed inputs through both twins, and a test checks every count the file
+  states. 34 differ in form and none in outcome: 30 are waived under the #505
+  rule (numbers each JSON parser reads differently, and how a guard refusal
+  quotes a value), and 4 are valid scores that compare equal, recorded as by
+  design. CI runs the probe and fails if it is skipped for want of `node`.
+- **PARITY.md's Unicode figures come from a committed sweep, and the
+  probes record what they ran on** (v0.12.1 dogfood; ADR-0018 amendment).
+  `primitives/conformance/fold_sweep.py` compares the running Node and
+  Python code point by code point; the #625 figures are now a dated
+  measurement naming the runtimes. Re-running it widened one: the
+  normalization fail-open (#642) reaches 56 combining marks against
+  Python 3.11 and 34 against 3.14, where 18 and 5 were stated. The handed
+  probe's output records the commit and both runtime versions.
+- **Two tests prove what their names say**
+  ([#597](https://github.com/slopstopper/plumb-line/issues/597)). The vitest
+  helper is loaded where `vitest` cannot be resolved, and the pytest plugin is
+  loaded through its installed entry point and turned off with `-p no:`.
+
 ## [0.12.0] — 2026-10-03
 
 ### Breaking
@@ -2261,7 +2319,8 @@ These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes th
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.12.1...HEAD
+[0.12.1]: https://github.com/slopstopper/plumb-line/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/slopstopper/plumb-line/compare/v0.11.5...v0.12.0
 [0.11.5]: https://github.com/slopstopper/plumb-line/compare/v0.11.4...v0.11.5
 [0.11.4]: https://github.com/slopstopper/plumb-line/compare/v0.11.3...v0.11.4
