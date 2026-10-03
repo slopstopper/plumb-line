@@ -143,19 +143,19 @@ function runConstruct(impl, c) {
 }
 
 // What a construct or derive row makes of a thrown value (#602). A refusal
-// must be an Error of this runner's realm, judged on its prototype chain as
-// the guard's TypeError is; any subclass is accepted. The reference throws a
-// plain Error, and SPEC §2 names no subclass for JS (the Python runner
-// requires a ValueError). Never throws, whatever was thrown.
+// must be a RangeError (SPEC §2, owner decision 2026-10-03), as the Python
+// runner requires a ValueError: a plain Error or a TypeError fails the row.
+// Judged on the prototype chain against this runner's realm, as the guard's
+// TypeError is; a subclass passes. Never throws, whatever was thrown.
 function judgeRefusal(c, e) {
   if (c.expectError === undefined) return `expected an envelope, got an error: ${describeThrown(e)}`;
-  let isError = false;
+  let isRangeError = false;
   try {
-    isError = e !== null && typeof e === "object" && Object.prototype.isPrototypeOf.call(Error.prototype, e);
+    isRangeError = e !== null && typeof e === "object" && Object.prototype.isPrototypeOf.call(RangeError.prototype, e);
   } catch {
-    // A Proxy whose getPrototypeOf trap throws is not judged an Error.
+    // A Proxy whose getPrototypeOf trap throws is not judged a RangeError.
   }
-  if (!isError) return `a refusal must be an Error, got ${thrownKind(e)}: ${describeThrown(e)}`;
+  if (!isRangeError) return `a refusal must be a RangeError (SPEC §2), got ${thrownKind(e)}: ${describeThrown(e)}`;
   const message = describeThrown(e);
   return message.includes(c.expectError)
     ? null
