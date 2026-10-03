@@ -348,6 +348,7 @@ describe("conformance runner — refusal type and odd throws (#602)", () => {
 
   it.each([
     ["null", () => null, /a refusal must be an Error, got null/],
+    ["undefined", () => undefined, /a refusal must be an Error, got undefined/],
     ["a string", () => "source must be one of", /a refusal must be an Error, got a string/],
     ["a plain object", () => ({ message: "source must be one of" }), /a refusal must be an Error, got an Object/],
     ["a null-prototype object", () => Object.assign(Object.create(null), { message: "source must be one of" }),
@@ -388,7 +389,7 @@ describe("conformance runner — refusal type and odd throws (#602)", () => {
     ["combine", "combineProvenance"],
     ["audit", "auditMeta"],
     ["validate", "validateEnvelope"],
-  ])("fails, rather than crashes, a %s row whose port throws null, and judges the next row", (kind, fn) => {
+  ])("fails, rather than crashes, a row of kind %s whose port throws null, and judges the next row", (kind, fn) => {
     // Throw on the first call only, so the second row shows the run went on.
     let calls = 0;
     const odd = { ...impl, [fn]: (...a) => { if (calls++ === 0) throw null; return impl[fn](...a); } };

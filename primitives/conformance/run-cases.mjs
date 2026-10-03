@@ -175,7 +175,7 @@ function describeThrown(e) {
 // A thrown value's kind, for a failure message: null, a primitive's type, or
 // the name of its prototype's own constructor. Never throws.
 function thrownKind(e) {
-  if (e === null) return "null";
+  if (e === null || e === undefined) return String(e);
   if (typeof e !== "object" && typeof e !== "function") return `a ${typeof e}`;
   try {
     const proto = Object.getPrototypeOf(e);
