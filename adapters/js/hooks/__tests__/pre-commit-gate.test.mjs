@@ -192,42 +192,50 @@ describe("case aliases of a protected branch (#615)", () => {
   });
   it("normalizes both names to NFC before folding, only where case is ignored (#625)", () => {
     // é precomposed (U+00E9) and e + U+0301 are one name to APFS.
-    expect(protectedMatch("café", ["café"], true)).toBe("café");
-    expect(protectedMatch("CAFÉ", ["café"], true)).toBe("café");
-    expect(protectedMatch("café", ["café"], true)).toBe("café");
-    expect(protectedMatch("café", ["café"])).toBeNull();
-    expect(isCaseAlias("café", ["café"])).toBe(true);
+    expect(protectedMatch("cafe\u0301", ["caf\u00e9"], true)).toBe("caf\u00e9");
+    expect(protectedMatch("CAFE\u0301", ["caf\u00e9"], true)).toBe("caf\u00e9");
+    expect(protectedMatch("caf\u00e9", ["cafe\u0301"], true)).toBe("cafe\u0301");
+    expect(protectedMatch("cafe\u0301", ["caf\u00e9"])).toBeNull();
+    expect(isCaseAlias("cafe\u0301", ["caf\u00e9"])).toBe(true);
     // ASCII is unchanged.
     expect(protectedMatch("MAIN", ["main"], true)).toBe("main");
     expect(protectedMatch("feat", ["main"], true)).toBeNull();
   });
-  it("fails closed on a character the runtime does not know, only where case is ignored (#625)", () => {
+  it("matches a character the runtime does not know as any one character, on either name, only where case is ignored (#625)", () => {
     // U+40000 is unassigned (Cn) in Unicode 17; if a later Unicode assigns
-    // it, this row needs another unassigned code point.
+    // it, these rows need another unassigned code point.
     expect(/\p{Cn}/u.test("\u{40000}")).toBe(true);
-    expect(protectedMatch("x\u{40000}", ["main", "release"], true)).toBe("main");
-    expect(protectedMatch("x\u{40000}", ["main"])).toBeNull();
-    expect(isCaseAlias("x\u{40000}", ["main"])).toBe(true);
-    // A real fold match is named over the first protected branch.
-    expect(protectedMatch("X\u{40000}", ["main", "x\u{40000}"], true)).toBe("x\u{40000}");
-    // With no branch protected, there is nothing for it to be.
+    // In the branch.
+    expect(protectedMatch("mai\u{40000}", ["main"], true)).toBe("main");
+    expect(protectedMatch("MAI\u{40000}", ["main"], true)).toBe("main");
+    expect(protectedMatch("releas\u{40000}", ["main", "release"], true)).toBe("release");
+    expect(protectedMatch("mai\u{40000}", ["main"])).toBeNull();
+    expect(isCaseAlias("mai\u{40000}", ["main"])).toBe(true);
+    // In the protected name.
+    expect(protectedMatch("xy", ["main", "x\u{40000}"], true)).toBe("x\u{40000}");
+    expect(protectedMatch("XY", ["main", "x\u{40000}"], true)).toBe("x\u{40000}");
+    expect(protectedMatch("xy", ["x\u{40000}"])).toBeNull();
+    // One character for one: the folded lengths must agree, and every other
+    // character must equal the one opposite it.
+    expect(protectedMatch("x\u{40000}", ["main"], true)).toBeNull();
+    expect(protectedMatch("ma\u{40000}", ["main"], true)).toBeNull();
+    expect(protectedMatch("main\u{40000}", ["main"], true)).toBeNull();
+    expect(protectedMatch("xai\u{40000}", ["main"], true)).toBeNull();
+    expect(protectedMatch("feat", ["main", "x\u{40000}"], true)).toBeNull();
+    expect(isCaseAlias("feat", ["x\u{40000}"])).toBe(false);
+    // An emoji newer than an older runtime's Unicode is no alias of main.
+    expect(protectedMatch("fix-\u{1face}", ["main"], true)).toBeNull();
+    expect(protectedMatch("fix-\u{1f6d8}", ["main"], true)).toBeNull();
+    // A fold match with no unknown character in it is named first.
+    expect(protectedMatch("MAIN", ["mai\u{40000}", "main"], true)).toBe("main");
+    // With no branch protected, nothing matches.
     expect(protectedMatch("x\u{40000}", [], true)).toBeNull();
-    // The pair that split the twins: folded where U+A7CE is known, and
-    // protected by the rule above where it is not.
-    expect(protectedMatch("x꟎", ["x꟏"], true)).toBe("x꟏");
   });
-  it("fails closed on a protected name holding a character the runtime does not know (#625)", () => {
-    // Where case is ignored, every branch counts as that name: this runtime
-    // cannot say which branches a newer one would fold to it.
-    expect(protectedMatch("feat", ["main", "x\u{40000}"], true)).toBe("x\u{40000}");
-    expect(protectedMatch("feat", ["main", "x\u{40000}"])).toBeNull();
-    expect(isCaseAlias("feat", ["x\u{40000}"])).toBe(true);
-    // A real fold match, and then an unknown branch, are named first.
-    expect(protectedMatch("MAIN", ["x\u{40000}", "main"], true)).toBe("main");
-    expect(protectedMatch("y\u{40000}", ["main", "x\u{40000}"], true)).toBe("main");
-    // Folded where U+A7D2 is known (Unicode 17), protected by this rule
-    // where it is not.
-    expect(protectedMatch("xꟓ", ["x꟒"], true)).toBe("x꟒");
+  it("blocks the pairs that split the twins, on every supported runtime (#625)", () => {
+    // Folded where the runtime knows U+A7CE and U+A7D2 (Unicode 17), and
+    // matched as any one character where it does not.
+    expect(protectedMatch("x\ua7ce", ["x\ua7cf"], true)).toBe("x\ua7cf");
+    expect(protectedMatch("x\ua7d3", ["x\ua7d2"], true)).toBe("x\ua7d2");
   });
   for (const [status, stdout, expected] of [
     [0, "true\n", true], [0, "false\n", false], [1, "", false],

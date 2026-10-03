@@ -464,44 +464,53 @@ def test_protected_match_and_is_case_alias():
 
 def test_protected_match_normalizes_to_nfc_before_folding_only_where_case_is_ignored():
     # #625: é precomposed (U+00E9) and e + U+0301 are one name to APFS.
-    assert branch_guard.protected_match("café", ["café"], True) == "café"
-    assert branch_guard.protected_match("CAFÉ", ["café"], True) == "café"
-    assert branch_guard.protected_match("café", ["café"], True) == "café"
-    assert branch_guard.protected_match("café", ["café"]) is None
-    assert branch_guard.is_case_alias("café", ["café"]) is True
+    assert branch_guard.protected_match("cafe\u0301", ["caf\u00e9"], True) == "caf\u00e9"
+    assert branch_guard.protected_match("CAFE\u0301", ["caf\u00e9"], True) == "caf\u00e9"
+    assert branch_guard.protected_match("caf\u00e9", ["cafe\u0301"], True) == "cafe\u0301"
+    assert branch_guard.protected_match("cafe\u0301", ["caf\u00e9"]) is None
+    assert branch_guard.is_case_alias("cafe\u0301", ["caf\u00e9"]) is True
     # ASCII is unchanged.
     assert branch_guard.protected_match("MAIN", ["main"], True) == "main"
     assert branch_guard.protected_match("feat", ["main"], True) is None
 
 
-def test_protected_match_fails_closed_on_a_character_the_runtime_does_not_know():
+def test_protected_match_matches_an_unknown_character_as_any_one_character():
     # #625. U+40000 is unassigned (Cn) in Unicode 17; if a later Unicode
-    # assigns it, this test needs another unassigned code point.
+    # assigns it, these rows need another unassigned code point.
+    pm = branch_guard.protected_match
     assert unicodedata.category("\U00040000") == "Cn"
-    assert branch_guard.protected_match("x\U00040000", ["main", "release"], True) == "main"
-    assert branch_guard.protected_match("x\U00040000", ["main"]) is None
-    assert branch_guard.is_case_alias("x\U00040000", ["main"]) is True
-    # A real fold match is named over the first protected branch.
-    assert branch_guard.protected_match("X\U00040000", ["main", "x\U00040000"], True) == "x\U00040000"
-    # With no branch protected, there is nothing for it to be.
-    assert branch_guard.protected_match("x\U00040000", [], True) is None
-    # The pair that split the twins: folded where U+A7CE is known, and
-    # protected by the rule above where it is not.
-    assert branch_guard.protected_match("x꟎", ["x꟏"], True) == "x꟏"
+    # In the branch.
+    assert pm("mai\U00040000", ["main"], True) == "main"
+    assert pm("MAI\U00040000", ["main"], True) == "main"
+    assert pm("releas\U00040000", ["main", "release"], True) == "release"
+    assert pm("mai\U00040000", ["main"]) is None
+    assert branch_guard.is_case_alias("mai\U00040000", ["main"]) is True
+    # In the protected name.
+    assert pm("xy", ["main", "x\U00040000"], True) == "x\U00040000"
+    assert pm("XY", ["main", "x\U00040000"], True) == "x\U00040000"
+    assert pm("xy", ["x\U00040000"]) is None
+    # One character for one: the folded lengths must agree, and every other
+    # character must equal the one opposite it.
+    assert pm("x\U00040000", ["main"], True) is None
+    assert pm("ma\U00040000", ["main"], True) is None
+    assert pm("main\U00040000", ["main"], True) is None
+    assert pm("xai\U00040000", ["main"], True) is None
+    assert pm("feat", ["main", "x\U00040000"], True) is None
+    assert branch_guard.is_case_alias("feat", ["x\U00040000"]) is False
+    # An emoji newer than an older runtime's Unicode is no alias of main.
+    assert pm("fix-\U0001face", ["main"], True) is None
+    assert pm("fix-\U0001f6d8", ["main"], True) is None
+    # A fold match with no unknown character in it is named first.
+    assert pm("MAIN", ["mai\U00040000", "main"], True) == "main"
+    # With no branch protected, nothing matches.
+    assert pm("x\U00040000", [], True) is None
 
 
-def test_protected_match_fails_closed_on_a_protected_name_the_runtime_does_not_know():
-    # #625. Where case is ignored, every branch counts as that name: this
-    # runtime cannot say which branches a newer one would fold to it.
-    assert branch_guard.protected_match("feat", ["main", "x\U00040000"], True) == "x\U00040000"
-    assert branch_guard.protected_match("feat", ["main", "x\U00040000"]) is None
-    assert branch_guard.is_case_alias("feat", ["x\U00040000"]) is True
-    # A real fold match, and then an unknown branch, are named first.
-    assert branch_guard.protected_match("MAIN", ["x\U00040000", "main"], True) == "main"
-    assert branch_guard.protected_match("y\U00040000", ["main", "x\U00040000"], True) == "main"
-    # Folded where U+A7D2 is known (Unicode 17), protected by this rule
-    # where it is not.
-    assert branch_guard.protected_match("xꟓ", ["x꟒"], True) == "x꟒"
+def test_protected_match_blocks_the_pairs_that_split_the_twins():
+    # #625. Folded where the runtime knows U+A7CE and U+A7D2 (Unicode 17),
+    # and matched as any one character where it does not.
+    assert branch_guard.protected_match("x\ua7ce", ["x\ua7cf"], True) == "x\ua7cf"
+    assert branch_guard.protected_match("x\ua7d3", ["x\ua7d2"], True) == "x\ua7d2"
 
 
 @pytest.mark.parametrize("status,stdout,expected", [
