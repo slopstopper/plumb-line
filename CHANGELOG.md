@@ -52,6 +52,14 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   rule (numbers each JSON parser reads differently, and how a guard refusal
   quotes a value), and 4 are valid scores that compare equal, recorded as by
   design. CI runs the probe and fails if it is skipped for want of `node`.
+- **PARITY.md's Unicode figures come from a committed sweep, and the
+  probes record what they ran on** (v0.12.1 dogfood; ADR-0018 amendment).
+  `primitives/conformance/fold_sweep.py` compares the running Node and
+  Python code point by code point; the #625 figures are now a dated
+  measurement naming the runtimes. Re-running it widened one: the
+  normalization fail-open (#642) reaches 56 combining marks against
+  Python 3.11 and 34 against 3.14, where 18 and 5 were stated. The handed
+  probe's output records the commit and both runtime versions.
 - **Two tests prove what their names say**
   ([#597](https://github.com/slopstopper/plumb-line/issues/597)). The vitest
   helper is loaded where `vitest` cannot be resolved, and the pytest plugin is
