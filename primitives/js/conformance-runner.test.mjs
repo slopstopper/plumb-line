@@ -334,3 +334,75 @@ describe("conformance runner — v0.12.0 dogfood", () => {
     expect(r.error).toMatch(/marking the inputs failed/);
   });
 });
+
+// #602: a construct or derive refusal must be an Error, and no thrown value,
+// on any row, may crash the run. JS's makeMeta throws a plain Error, so the
+// runner requires an Error instance of any subclass; which subclass a refusal
+// must be is the owner's call, not this runner's. The Python runner requires
+// a ValueError (SPEC §2).
+describe("conformance runner — refusal type and odd throws (#602)", () => {
+  const table = (kind, rows) => ({ version: cases.version, combine: [], audit: [], validate: [], construct: [], derive: [], guard: [], [kind]: rows });
+  const refusedInput = { source: "bogus" };
+  const marked = [{ source: "real", confidence: "high" }];
+  const throwing = (make) => () => { throw make(); };
+
+  it.each([
+    ["null", () => null, /a refusal must be an Error, got null/],
+    ["undefined", () => undefined, /a refusal must be an Error, got undefined/],
+    ["a string", () => "source must be one of", /a refusal must be an Error, got a string/],
+    ["a plain object", () => ({ message: "source must be one of" }), /a refusal must be an Error, got an Object/],
+    ["a null-prototype object", () => Object.assign(Object.create(null), { message: "source must be one of" }),
+      /a refusal must be an Error, got a value with no constructor name/],
+  ])("fails, rather than crashes, a construct refusal that throws %s", (_label, make, pattern) => {
+    const odd = { ...impl, makeMeta: throwing(make) };
+    const results = runCases(odd, table("construct", [{ name: "x", input: refusedInput, expectError: "source must be one of" }]));
+    expect(results).toHaveLength(1);
+    expect(results[0].error).toMatch(pattern);
+  });
+
+  it.each([
+    ["null", () => null, /a refusal must be an Error, got null/],
+    ["a plain object", () => ({ message: "source must be one of" }), /a refusal must be an Error, got an Object/],
+  ])("fails a derive refusal that throws %s", (_label, make, pattern) => {
+    const odd = { ...impl, derive: throwing(make) };
+    const [r] = runCases(odd, table("derive", [{ name: "x", inputs: marked, override: { source: "bogus" }, expectError: "source must be one of" }]));
+    expect(r.error).toMatch(pattern);
+  });
+
+  it("fails, rather than crashes, a construct row expecting an envelope when makeMeta throws null", () => {
+    const odd = { ...impl, makeMeta: throwing(() => null) };
+    const results = runCases(odd, table("construct", [{ name: "x", input: { source: "real" }, expect: {} }]));
+    expect(results).toHaveLength(1);
+    expect(results[0].error).toMatch(/expected an envelope, got an error/);
+  });
+
+  it("passes a refusal that is an Error of any subclass, as the reference's plain Error is", () => {
+    class RefusalError extends Error {}
+    for (const make of [() => new Error("source must be one of x"), () => new RefusalError("source must be one of x")]) {
+      const odd = { ...impl, makeMeta: throwing(make) };
+      expect(runCases(odd, table("construct", [{ name: "x", input: refusedInput, expectError: "source must be one of" }]))[0].error)
+        .toBe(null);
+    }
+  });
+
+  it.each([
+    ["combine", "combineProvenance"],
+    ["audit", "auditMeta"],
+    ["validate", "validateEnvelope"],
+  ])("fails, rather than crashes, a row of kind %s whose port throws null, and judges the next row", (kind, fn) => {
+    // Throw on the first call only, so the second row shows the run went on.
+    let calls = 0;
+    const odd = { ...impl, [fn]: (...a) => { if (calls++ === 0) throw null; return impl[fn](...a); } };
+    const row = cases[kind][0];
+    const results = runCases(odd, table(kind, [row, row]));
+    expect(results).toHaveLength(2);
+    expect(results[0].error).toMatch(/judging the row threw/);
+    expect(results[1].error).toBe(null);
+  });
+
+  it("fails, rather than crashes, a row that is not an object", () => {
+    const results = runCases(impl, table("construct", [null]));
+    expect(results).toHaveLength(1);
+    expect(results[0].error).toMatch(/judging the row threw/);
+  });
+});
