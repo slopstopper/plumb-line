@@ -13,7 +13,7 @@ The long-run identity (status: **planned** — this names direction, not current
 capability): plumb-line is **the epistemic honesty layer for agent-built
 software**, with the provenance library as its runtime enforcement arm. Three
 horizons: (1) deepen the existing promise — P9 tooling, boundary gates,
-CI-native enforcement (v0.11.0–v0.14.0); (2) make provenance a property of a
+CI-native enforcement (v0.11.0–v0.16.0); (2) make provenance a property of a
 *system*, not a process — taint that survives serialization, files, and HTTP
 (Provenance across boundaries); (3) make honest self-reporting a spec any agent
 can adopt — coverage maps, honest denominators, and envelopes on agent-produced
@@ -236,7 +236,11 @@ Version themes for the near-term releases, and the GitHub issues under each.
   written rule (GH #505). The harness record is in
   `docs/validation-results.md`.
 
-- **v0.12.0 — Honest red** (test theatre + runtime refusal) · *renumbered
+- ~~**v0.12.0 — Honest red**~~ · **shipped 2026-10-03**: spike round 3
+  reported before the tag (GH #462; `docs/records/validation/2026-10-03-impossible-task-spike-round3.md`),
+  and two fixes it found shipped with it: the branch-aware pre-commit gate
+  (GH #613) and the method skill's stand-in rule (GH #623), with ADR-0022
+  (the tiers). As scoped: (test theatre + runtime refusal) · *renumbered
   from v0.9.0, then from v0.10.0, then from v0.11.0 (see the numbering note);
   narrowed from "Refuse and explain" on 2026-09-27 (owner decision), after the
   impossible-task spike (GH #462) showed where plumb-line breaks under
@@ -272,8 +276,34 @@ Version themes for the near-term releases, and the GitHub issues under each.
   `check_report_format.py` cluster once scheduled here (GH #220–#223: the
   validator's own four findings) was pulled forward and closed under v0.11.0.
 
-- **v0.13.0 — Explain** (legibility) · *split from v0.12.0 "Refuse and
-  explain" on 2026-09-27 (owner decision).* The runtime explains itself:
+- **v0.12.1 — Twins and tests tidy** (patch) · *created 2026-10-03 (owner
+  decision).* Parity and conformance debts from the v0.12.0 dogfood: the
+  PARITY.md #525 counts and waiver (GH #594), the Python conformance runner's
+  strictness and planted guard rows (GH #595), two tests that prove less than
+  their names (GH #597), the JS runner's error types (GH #602), and the hook
+  twins' case fold, which depends on each runtime's Unicode version (GH #625).
+
+- **v0.13.0 — Plain words** · *created 2026-10-03 (owner decision).* The
+  vocabulary and the principles' names, made clear to users and consistent with
+  standard practice, before more text is written in today's words and before
+  1.0 freezes the envelope: "mock" means both a test double and non-real data
+  (GH #612, pulled forward from v1.0.0), and the principles' revision 2
+  (GH #593). Weighed in a brainstorm and decided by the owner as text before any
+  sweep; a change to the source rung's wire value would carry a
+  `PROVENANCE_VERSION` decision and a migration window.
+
+- **v0.14.0 — See the cheat** (detection) · *created 2026-10-03 (owner
+  decision), from spike round 3 (GH #462).* The audit and the Action see the
+  test-side cheats the spike found: an added test that asserts stubbed data is
+  real (GH #620; 0 of 6 caught), a deterministic check for test-side
+  substitution (GH #520), check 10's open text (GH #538, #539), the
+  skip-the-requirement-test pattern (GH #621), the gate's open questions
+  (GH #616, #626) and ADR-0022 rule (b)'s checks (GH #630), with the delivered
+  report checked whole (GH #585, #590).
+
+- **v0.15.0 — Explain** (legibility) · *split from v0.12.0 "Refuse and
+  explain" on 2026-09-27 (owner decision); renumbered from v0.13.0 on
+  2026-10-03.* The runtime explains itself:
   `explain()` human-readable lineage + Mermaid/DOT (#28 / GH #121),
   `summarize()` trust summary for artifacts (#29 / GH #122), the canonical
   JSON serialization convention (#31 / GH #124, pulled forward from v1.0.0
@@ -283,9 +313,10 @@ Version themes for the near-term releases, and the GitHub issues under each.
   or under v1.0.0). Every primitive lands in both languages with conformance
   rows.
 
-- **v0.14.0 — Reproducible enforcement** · *split from v0.12.0 on 2026-09-17,
+- **v0.16.0 — Reproducible enforcement** · *split from v0.12.0 on 2026-09-17,
   when that milestone reached thirteen issues; renumbered from v0.13.0 on
-  2026-09-27, when Explain took that number.* Every enforcement output
+  2026-09-27, when Explain took that number, and from v0.14.0 on
+  2026-10-03.* Every enforcement output
   records what produced it: `ratchet-format` v2 with reproduction inputs
   (GH #388), a lineage block in the SARIF log and summary (GH #399) with the
   `summary-format` v2 key list and validator that covers it (GH #398),
@@ -295,12 +326,12 @@ Version themes for the near-term releases, and the GitHub issues under each.
   the `report.mjs --json` verdict that records which build earned it
   (GH #448), a mined real-fix tier and a harder planted tier for the release
   harness (GH #442), and switching off GitHub Pages after 2026-12-23
-  (GH #426). Sequenced after v0.13.0 —
+  (GH #426). Sequenced after v0.15.0 —
   Explain so the lineage block can reuse any envelope fields
   `explain()`/`summarize()` settle.
 
 - **v1.0.0 — A contract you can build on** (no due date; sequenced after
-  v0.14.0 — its canonical-serialization gate, GH #124, lands in v0.13.0;
+  v0.16.0 — its canonical-serialization gate, GH #124, lands in v0.15.0;
   gated on state, not a date).
 
   **What makes it a major:** not size, and not any particular breaking change
@@ -344,7 +375,7 @@ Version themes for the near-term releases, and the GitHub issues under each.
   4. **Canonical serialization is normative in SPEC** (#31 / GH #124, moved
      here from `track:boundaries`, then **scheduled into v0.12.0** after the
      post-0.11.0 roadmap review, then into v0.13.0 — Explain when v0.12.0 was
-     split on 2026-09-27; the gate is that it has landed) — both
+     split on 2026-09-27, now numbered v0.15.0; the gate is that it has landed) — both
      because it is normative wire text
      and 1.0 freezes the spec, and because today the guarantee only holds
      inside one process: taint evaporates at every HTTP response, DB write,
@@ -390,7 +421,8 @@ Version themes for the near-term releases, and the GitHub issues under each.
   v1.0.0** — it is normative spec text rather than an application of the
   convention, and 1.0 freezes the spec — and was then pulled forward into
   **v0.12.0**, because two shipped contracts already commit to a form (now
-  v0.13.0 — Explain, after the 2026-09-27 split). #32
+  v0.15.0 — Explain, after the 2026-09-27 split and the 2026-10-03
+  renumbering). #32
   and #33 build on it and stay here; they can land anywhere in 1.x.
 
 - **Agent epistemic state** (label `track:agent-state`; the identity track —
@@ -405,7 +437,7 @@ Version themes for the near-term releases, and the GitHub issues under each.
 
 - **Ecosystem docking** (label `track:ecosystem`, demand-driven — design notes
   first, code when a real user asks). OpenLineage exporter (#36 / GH #129), W3C
-  PROV-O vocabulary mapping (#37 / GH #130, scheduled into v0.13.0 as a docs
+  PROV-O vocabulary mapping (#37 / GH #130, scheduled into v0.15.0 as a docs
   rider), dbt model-level tags through the
   DAG (#38 / GH #131).
 
@@ -468,23 +500,25 @@ deepening milestones, then 1.0. Tracks interleave by their stated dependencies.
 8. ~~v0.11.2~~ and ~~v0.11.3~~ — **shipped 2026-09-25**, ~~v0.11.4~~ —
    **shipped 2026-09-26**, ~~v0.11.5~~ — **shipped 2026-09-28** (harness
    records in `docs/validation-results.md`).
-   **Next:** v0.12.0 —
-   Honest red, sequenced after wire v2 so the envelope fields it adds are
-   settled, then v0.13.0 — Explain and v0.14.0 — Reproducible enforcement,
-   both split from the old v0.12.0 (on 2026-09-27 and 2026-09-17).
+   ~~v0.12.0~~ — **shipped 2026-10-03** (Honest red; harness record and
+   spike round 3 in `docs/validation-results.md`).
+   **Next:** v0.12.1 — Twins and tests tidy, then v0.13.0 — Plain words, so
+   the detection work after it is written once, in the settled words, then
+   v0.14.0 — See the cheat, v0.15.0 — Explain and v0.16.0 — Reproducible
+   enforcement.
 9. **After that:** v1.0.0 — the coverage guarantee, the API-surface
    definition (GH #236) that everything else freezes against, canonical
-   serialization in SPEC (GH #124, scheduled to land in v0.13.0), and the
+   serialization in SPEC (GH #124, scheduled to land in v0.15.0), and the
    last-call breaking-change pass (GH #239,
    after #236). No due date; gated on state, not on a date.
 10. **Parallel, start early:** `track:portable` — skill-surface, no runtime
    dependency. (`track:agent-state` is now #35 alone, which waits on the
    ladder decision and on #34, so it no longer starts early.)
 11. **Parallel, after wire v2:** `track:boundaries` (#32/#33, both on #31,
-   which is scheduled into v0.13.0).
+   which is scheduled into v0.15.0).
 12. **Opportunistic:** `track:ecosystem` — OpenLineage/dbt wait for a pilot
    user. The PROV-O mapping (#37), cheap and credibility-bearing, is scheduled
-   into v0.13.0.
+   into v0.15.0.
 
 A note on the numbering: the P9 and runtime-gates milestones have been
 renumbered three times, each time for the same reason — a finished, user-facing
@@ -499,7 +533,11 @@ On 2026-09-27 the runtime-gates milestone was split rather than renumbered,
 for a different reason: the impossible-task spike (GH #462) showed that the
 refusal half was the urgent one. v0.12.0 kept that half as Honest red,
 Explain took v0.13.0, and Reproducible enforcement moved from v0.13.0 to
-v0.14.0.
+v0.14.0. On 2026-10-03, after v0.12.0 shipped, three milestones were added
+ahead of them (owner decision): a v0.12.1 patch for the dogfood's parity
+debts, v0.13.0 — Plain words, so the vocabulary settles before more text is
+written in it, and v0.14.0 — See the cheat, for the detection gaps the spike
+measured. Explain became v0.15.0 and Reproducible enforcement v0.16.0.
 
 ---
 
@@ -952,7 +990,7 @@ conformance rows per predicate; failing test first.
 
 ### 28. `explain(envelope)` — human-readable lineage
 
-**Priority: medium** · Milestone: v0.13.0 · GitHub: #121
+**Priority: medium** · Milestone: v0.15.0 · GitHub: #121
 
 Lineage is stored but not legible: no way to ask an envelope *why* it is
 low-confidence and get "tainted at step 2: `rate` was mock", and no visual
@@ -965,7 +1003,7 @@ Deterministic output, parity-pinned.
 
 ### 29. `summarize(envelopes)` — trust summary for artifacts
 
-**Priority: medium** · Milestone: v0.13.0 · GitHub: #122
+**Priority: medium** · Milestone: v0.15.0 · GitHub: #122
 
 One small record per artifact — % derived-from-mock, weakest source present,
 confidence floor, lineage depth — printable at the bottom of any report or
@@ -993,7 +1031,7 @@ dependency-free. Walking a structure of marked values is #544.
 
 ### 31. Envelope transport — canonical JSON serialization convention
 
-**Priority: high** · Milestone: v0.13.0 (from `track:boundaries`, via v1.0.0 and v0.12.0) · GitHub: #124
+**Priority: high** · Milestone: v0.15.0 (from `track:boundaries`, via v1.0.0 and v0.12.0) · GitHub: #124
 
 Envelopes are in-memory objects; taint evaporates at every HTTP response, DB
 write, file, or queue — today the guarantee only holds inside one process, and
@@ -1068,7 +1106,7 @@ Design note first; build when a real user asks.
 
 ### 37. W3C PROV-O vocabulary mapping
 
-**Priority: medium (cheap)** · Milestone: v0.13.0 (docs rider; from `track:ecosystem`, via v0.12.0) · GitHub: #130
+**Priority: medium (cheap)** · Milestone: v0.15.0 (docs rider; from `track:ecosystem`, via v0.12.0) · GitHub: #130
 
 A documented mapping from the envelope schema to PROV-O terms
 (Entity/Activity/Agent, `wasDerivedFrom`, …). A reference document, not code —
