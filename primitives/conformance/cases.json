@@ -285,6 +285,19 @@
       "expectContains": ["taint dropped"]
     },
     {
+      "name": "the taint-dropped message names the taint flag by its wire field, derivedFromMock, in both languages: the whole message is pinned (#635)",
+      "meta": {
+        "source": "derived", "confidence": "low", "derivedFromMock": false,
+        "lineage": [ { "id": "s1", "of": "input", "source": "mock", "confidence": "low", "derivedFromMock": true } ]
+      },
+      "expectContains": ["taint dropped: lineage contains a tainted step but derivedFromMock is false"]
+    },
+    {
+      "name": "the laundering message names the taint flag by its wire field, derivedFromMock, in both languages: the whole message is pinned (#635)",
+      "meta": { "source": "real", "confidence": "high", "derivedFromMock": true, "lineage": [] },
+      "expectContains": ["laundering: clean source 'real' but derivedFromMock is true"]
+    },
+    {
       "name": "unreproducible — derived source with empty lineage",
       "meta": { "source": "derived", "confidence": "none", "derivedFromMock": false, "lineage": [] },
       "expectContains": ["unreproducible"]
@@ -573,6 +586,20 @@
       "meta": { "provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": true, "lineage": [] },
       "options": { "noMock": false },
       "expectRefused": ["audit: laundering"]
+    },
+    {
+      "name": "the guard's laundering reason names the taint flag by its wire field, derivedFromMock, in both languages (#635)",
+      "meta": { "provenanceVersion": 2, "source": "real", "confidence": "high", "derivedFromMock": true, "lineage": [] },
+      "options": { "noMock": false },
+      "expectRefused": ["audit: laundering: clean source 'real' but derivedFromMock is true"],
+      "expectAbsent": ["derived_from_mock"]
+    },
+    {
+      "name": "the guard's taint-dropped reason names the taint flag by its wire field, derivedFromMock, in both languages (#635)",
+      "meta": { "provenanceVersion": 2, "source": "derived", "confidence": "low", "derivedFromMock": false, "lineage": [{ "id": "s1", "of": "input", "source": "mock", "confidence": "low", "derivedFromMock": true }] },
+      "options": { "noMock": false },
+      "expectRefused": ["audit: taint dropped: lineage contains a tainted step but derivedFromMock is false"],
+      "expectAbsent": ["derived_from_mock"]
     },
     {
       "name": "a value with no envelope is refused",
