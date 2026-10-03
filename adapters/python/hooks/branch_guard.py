@@ -111,7 +111,7 @@ def ignore_case_from(status, stdout):
     case is ignored, and a case alias of a protected branch is protected.
     JS twin: ignoreCaseFrom."""
     if status == 0:
-        return stdout.strip() == b"true"
+        return stdout.strip() != b"false"
     return status != 1
 
 
