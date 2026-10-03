@@ -139,10 +139,12 @@ function copyStep(s) {
  *   null, like undefined, writes no field: SPEC §1, #566)
  * @param {*} [opts.adapter] - Adapter identifier (passed through unchanged; null writes no field)
  * @returns {Readonly<object>} Frozen envelope
- * @throws {Error} When `source` is missing ("source is required", #177), or
+ * @throws {RangeError} When `source` is missing ("source is required", #177),
  *   `source` is not in {@link STATUS} or `confidence` is not in
  *   {@link CONFIDENCE} (#443; the message starts "source must be one of" /
- *   "confidence must be one of"). An error thrown while a lineage step's
+ *   "confidence must be one of"), or `derivedFromMock` is not a boolean
+ *   (#555). A RangeError is an Error, so a catch for Error still catches it
+ *   (#602; Python raises ValueError). An error thrown while a lineage step's
  *   fields are read (a getter, a Proxy trap) propagates (SPEC §3).
  */
 export function makeMeta({
@@ -161,19 +163,20 @@ export function makeMeta({
   // Python twin: make_meta; the message prefix is the same in both
   // (cases.json "construct"). A missing source has no default (#177, owner
   // decision 2026-09-28): the old "derived" was untrue of a leaf, which has no
-  // parents, and audited as unreproducible.
+  // parents, and audited as unreproducible. Each refusal is a RangeError
+  // (#602, owner decision 2026-10-03), as Python's is a ValueError.
   if (source === undefined)
-    throw new Error(`source is required (one of ${STATUS.join(", ")})`);
+    throw new RangeError(`source is required (one of ${STATUS.join(", ")})`);
   if (!STATUS.includes(source))
-    throw new Error(`source must be one of ${STATUS.join(", ")}; got ${quote(source)}`);
+    throw new RangeError(`source must be one of ${STATUS.join(", ")}; got ${quote(source)}`);
   if (!CONFIDENCE.includes(confidence))
-    throw new Error(`confidence must be one of ${CONFIDENCE.join(", ")}; got ${quote(confidence)}`);
+    throw new RangeError(`confidence must be one of ${CONFIDENCE.join(", ")}; got ${quote(confidence)}`);
   // A taint flag that is not a boolean is refused, as an off-ladder rung is
   // (#555, ADR-0019 amendment): read as taint it called an unreadable value
   // mock, and read by truthiness it disagreed with the Python twin. Absent or
   // null takes the default.
   if (!isTaintFlag(derivedFromMock))
-    throw new Error(`derivedFromMock must be a boolean; got ${quote(derivedFromMock)}`);
+    throw new RangeError(`derivedFromMock must be a boolean; got ${quote(derivedFromMock)}`);
   const meta = {
     provenanceVersion: PROVENANCE_VERSION,
     source,

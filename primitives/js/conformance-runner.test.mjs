@@ -335,34 +335,37 @@ describe("conformance runner — v0.12.0 dogfood", () => {
   });
 });
 
-// #602: a construct or derive refusal must be an Error, and no thrown value,
-// on any row, may crash the run. JS's makeMeta throws a plain Error, so the
-// runner requires an Error instance of any subclass; which subclass a refusal
-// must be is the owner's call, not this runner's. The Python runner requires
-// a ValueError (SPEC §2).
+// #602: a construct or derive refusal must be a RangeError (SPEC §2, owner
+// decision 2026-10-03), as the Python runner requires a ValueError; and no
+// thrown value, on any row, may crash the run.
 describe("conformance runner — refusal type and odd throws (#602)", () => {
   const table = (kind, rows) => ({ version: cases.version, combine: [], audit: [], validate: [], construct: [], derive: [], guard: [], [kind]: rows });
   const refusedInput = { source: "bogus" };
   const marked = [{ source: "real", confidence: "high" }];
   const throwing = (make) => () => { throw make(); };
+  const NOT_RANGE = "a refusal must be a RangeError (SPEC §2), got";
 
   it.each([
-    ["null", () => null, /a refusal must be an Error, got null/],
-    ["undefined", () => undefined, /a refusal must be an Error, got undefined/],
-    ["a string", () => "source must be one of", /a refusal must be an Error, got a string/],
-    ["a plain object", () => ({ message: "source must be one of" }), /a refusal must be an Error, got an Object/],
+    ["a plain Error", () => new Error("source must be one of x"), `${NOT_RANGE} an Error: source must be one of x`],
+    ["a TypeError", () => new TypeError("source must be one of x"), `${NOT_RANGE} a TypeError: source must be one of x`],
+    ["null", () => null, `${NOT_RANGE} null: undefined`],
+    ["undefined", () => undefined, `${NOT_RANGE} undefined: undefined`],
+    ["a string", () => "source must be one of", `${NOT_RANGE} a string: undefined`],
+    ["a plain object", () => ({ message: "source must be one of" }), `${NOT_RANGE} an Object: source must be one of`],
     ["a null-prototype object", () => Object.assign(Object.create(null), { message: "source must be one of" }),
-      /a refusal must be an Error, got a value with no constructor name/],
-  ])("fails, rather than crashes, a construct refusal that throws %s", (_label, make, pattern) => {
+      `${NOT_RANGE} a value with no constructor name: source must be one of`],
+  ])("fails, rather than crashes, a construct refusal that throws %s", (_label, make, message) => {
     const odd = { ...impl, makeMeta: throwing(make) };
     const results = runCases(odd, table("construct", [{ name: "x", input: refusedInput, expectError: "source must be one of" }]));
     expect(results).toHaveLength(1);
-    expect(results[0].error).toMatch(pattern);
+    expect(results[0].error).toBe(message);
   });
 
   it.each([
-    ["null", () => null, /a refusal must be an Error, got null/],
-    ["a plain object", () => ({ message: "source must be one of" }), /a refusal must be an Error, got an Object/],
+    ["a plain Error", () => new Error("source must be one of x"), /must be a RangeError \(SPEC §2\), got an Error/],
+    ["a TypeError", () => new TypeError("source must be one of x"), /must be a RangeError \(SPEC §2\), got a TypeError/],
+    ["null", () => null, /must be a RangeError \(SPEC §2\), got null/],
+    ["a plain object", () => ({ message: "source must be one of" }), /must be a RangeError \(SPEC §2\), got an Object/],
   ])("fails a derive refusal that throws %s", (_label, make, pattern) => {
     const odd = { ...impl, derive: throwing(make) };
     const [r] = runCases(odd, table("derive", [{ name: "x", inputs: marked, override: { source: "bogus" }, expectError: "source must be one of" }]));
@@ -376,11 +379,14 @@ describe("conformance runner — refusal type and odd throws (#602)", () => {
     expect(results[0].error).toMatch(/expected an envelope, got an error/);
   });
 
-  it("passes a refusal that is an Error of any subclass, as the reference's plain Error is", () => {
-    class RefusalError extends Error {}
-    for (const make of [() => new Error("source must be one of x"), () => new RefusalError("source must be one of x")]) {
+  it("passes a refusal that is a RangeError or a subclass of one", () => {
+    class RefusalError extends RangeError {}
+    for (const make of [() => new RangeError("source must be one of x"), () => new RefusalError("source must be one of x")]) {
       const odd = { ...impl, makeMeta: throwing(make) };
       expect(runCases(odd, table("construct", [{ name: "x", input: refusedInput, expectError: "source must be one of" }]))[0].error)
+        .toBe(null);
+      const oddDerive = { ...impl, derive: throwing(make) };
+      expect(runCases(oddDerive, table("derive", [{ name: "x", inputs: marked, override: { source: "bogus" }, expectError: "source must be one of" }]))[0].error)
         .toBe(null);
     }
   });
