@@ -112,7 +112,8 @@ double range), in a `source`, `confidence`, taint flag, lineage step or step
 envelopes" below.) Separately, a guard refusal quotes the
 number it refuses in its own language's rendering. That includes `-0.0`
 against `0` and `1e-07` against `1e-7`, numbers both parsers read alike.
-The taint, the computed ids and the guard's verdict and reason all agree.
+The taint, the computed ids and the guard's verdict, reason class and field
+agree.
 Both twins refuse every such input, except a step `id` that is not a
 string, which both pass and neither reads. No producer writes a number in
 `source`, `confidence`, the taint flag, a lineage step or its `id`. Copying
@@ -127,15 +128,28 @@ ADR-0019's amendment of 2026-10-03 records. The probe's counts and the
 residue that is not waived are in "Handed envelopes" below.
 
 **Case folding across Unicode versions**
-([#625](https://github.com/slopstopper/plumb-line/issues/625)). Where
+([#625](https://github.com/slopstopper/plumb-line/issues/625); the two open
+divergences below are tracked in
+[#642](https://github.com/slopstopper/plumb-line/issues/642)). Where
 `core.ignorecase` is true, the hooks compare a branch with the protected
 names by normalizing both to NFC and folding them (upper, then lower case,
 #615), each twin with its runtime's own Unicode tables. Those tables agree on
-every character both runtimes know: checked one code point at a time on
-2026-10-03, Node 22.23.3 and 24.15.0 (Unicode 17) and Python 3.11.15,
-3.12.13, 3.13.13 and 3.14.4 (Unicode 14 to 16) fold none of them
-differently, and none of them folds to more or fewer than one character
-where the other runtime does not know it. A character the runtime does not
+every character both runtimes know, and none of them folds to more or fewer
+than one character where the other runtime does not know it.
+
+*The figures in this section are a dated measurement, not a guarantee.*
+`primitives/conformance/fold_sweep.py` compares the running Node and Python
+one code point at a time, as the hooks read them. Run on 2026-10-03 on
+macOS, it found no fold difference between Node 24.15.0 (Unicode 17) and
+each of Python 3.11.15, 3.12.13, 3.13.13 and 3.14.4 (Unicode 14 to 16), and
+it gave the counts below. The first, uncommitted check behind #625 also
+covered Node 22.23.3. That part has not been re-run with the committed
+sweep. A CI job has one Node and one Python. CI runs
+`scripts/test_fold_sweep.py` on Node 22 against each of Python 3.11 to
+3.14, and that test fails on a fold difference. CI does not reproduce the
+counts below, which pair Node 24 with each Python.
+
+A character the runtime does not
 know (`Cn`) matches any one character, in the branch or a protected name,
 after the fold: the names must agree character for character, with a `Cn`
 character matching whatever is opposite it. So where one runtime folds two
@@ -145,31 +159,43 @@ in both. A branch that differs from every protected name elsewhere, such as
 `fix-🫎` (U+1FACE, Unicode 15, unknown to Python 3.11) against `main`, is
 allowed in both.
 
-**Open divergence, safe direction, not waived** (#625). A name that differs
-from a protected name only where one runtime has an unknown character is
-over-protected by that runtime: with protected `main`, Python 3.11 blocks a
-code edit on `mai🫎` while Node 22.23.3 and 24.15.0, which fold `🫎` to
-itself, allow it, and where two protected names could match, the reason may
-name a different one. Real names can reach it (Node knows 15,104 code points
-Python 3.11 does not, and 4,803 that Python 3.14 does not), so it does not
+**Open divergence, safe direction, not waived** (#625; tracked in
+[#642](https://github.com/slopstopper/plumb-line/issues/642)). A name that
+differs from a protected name only where one runtime has an unknown
+character is over-protected by that runtime: with protected `main`, Python
+3.11 blocks a code edit on `mai🫎` while Node 24.15.0, which folds `🫎` to
+itself, allows it (Node 22.23.3 too, in the uncommitted check; not re-run),
+and where two protected names could match, the reason may name a different
+one. Real names can reach it (Node 24.15.0 knows 15,104 code points Python
+3.11.15 does not, and 4,803 that Python 3.14.4 does not), so it does not
 meet the waiver rule above.
 
-**Open divergence, fails open, not waived** (#625). Normalization can
-change a name's length on a runtime that knows a character and not on one
-that does not; the lengths then differ there, so the unknown characters
-match nothing. There are two routes. *Composition:* Node composes 20
-sequences into one character that Python 3.11 to 3.13 cannot, since a part
-of each is new in Unicode 16 (Todhri, Tulu-Tigalari, Gurung Khema, Kirat
-Rai). With protected `x` + U+105C9 and branch `x` + U+105D2 + U+0307, Node
+**Open divergence, fails open, not waived** (#625; tracked in
+[#642](https://github.com/slopstopper/plumb-line/issues/642)).
+Normalization can change a name's length on a runtime that knows a
+character and not on one that does not; the lengths then differ there, so
+the unknown characters match nothing. There are two routes. *Composition:*
+Node 24.15.0 composes 20 sequences into one character that Python 3.11 to
+3.13 cannot, since a part of each is new in Unicode 16 (Todhri,
+Tulu-Tigalari, Gurung Khema, Kirat Rai); Python 3.14.4 composes all of
+them. With protected `x` + U+105C9 and branch `x` + U+105D2 + U+0307, Node
 blocks a code edit and Python 3.11 to 3.13 allow it. *Reordering:* a
 combining mark the older runtime does not know has no combining class
 there, so canonical ordering does not move it, and a mark after it does not
 compose. With protected `cafe` + U+1ADD + U+0301 and branch `café` +
-U+1ADD, Node blocks and Python 3.11 and 3.14.4 allow. Node 24 has 18 such
-marks against Python 3.11 and 5 against 3.14 (U+1ADD, U+1AE6, U+1AEB,
-U+10EFA, U+10EFB), so this route reaches Python 3.14 too. Both names must
-hold a character the older runtime does not know. The unit tests pin the
-reordering case as a known open divergence.
+U+1ADD, Node blocks and Python 3.11 and 3.14.4 allow. Any mark with a
+class other than 0 can do this, given a following mark of a lower class
+that composes with the base. U+1ACF has class 230, so U+0301 does not reach
+it, but protected `cafe` + U+1ACF + U+0323 against branch `caf` + `ẹ` +
+U+1ACF blocks on Node and is allowed on Python 3.14.4. Node 24.15.0 has 56
+such marks against Python 3.11.15 and 34 against 3.14.4, so this route
+reaches Python 3.14 too. Of them, 18 and 5 have a class other than 230 and
+are reached through U+0301 (against 3.14: U+1ADD, U+1AE6, U+1AEB, U+10EFA,
+U+10EFB). Until the sweep was committed, this section counted only those.
+Both names must hold a character the older runtime does not know. Each
+twin's unit tests pin both routes as known open divergences: the reordering
+case above, and the composition case, whose expected outcome each test
+takes from whether NFC composes the pair on the runtime it runs on.
 
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |
@@ -281,7 +307,11 @@ a difference nor makes one. `--verbose` lists every difference, `--root DIR`
 probes another tree, and it exits 1 on any difference in outcome.
 `scripts/test_handed_probe.py` checks this table, the totals and the group
 counts below against what it prints. The second column is checked only in a
-clone that has the history; CI's shallow checkout skips it.
+clone that has the history; CI's shallow checkout skips it. The probe's
+output names the tree's commit and the Node and Python versions it ran,
+because the `number` class comes from their JSON parsers. The `main` column
+was printed on 2026-10-03 by Node 24.15.0 and Python 3.14.4. CI re-checks it
+on Node 22 against each of Python 3.11 to 3.14.
 
 <!-- handed-probe counts -->
 | Class | Inputs, `main` | Inputs, before the fix (`8cef0a2^`) | What differs |
