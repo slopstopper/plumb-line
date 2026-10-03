@@ -9,6 +9,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.12.1] — 2026-10-03
+
 ### Changed
 - **JS constructors refuse with a `RangeError`**
   ([#602](https://github.com/slopstopper/plumb-line/issues/602); ADR-0019
@@ -2315,7 +2319,8 @@ These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes th
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.12.1...HEAD
+[0.12.1]: https://github.com/slopstopper/plumb-line/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/slopstopper/plumb-line/compare/v0.11.5...v0.12.0
 [0.11.5]: https://github.com/slopstopper/plumb-line/compare/v0.11.4...v0.11.5
 [0.11.4]: https://github.com/slopstopper/plumb-line/compare/v0.11.3...v0.11.4
