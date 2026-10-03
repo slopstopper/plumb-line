@@ -514,13 +514,27 @@ def test_protected_match_blocks_the_pairs_that_split_the_twins():
 
 
 def test_protected_match_pins_a_known_open_divergence_reordering_around_an_unknown_mark():
-    # #625: open, not waived (PARITY.md). U+1ADD is a combining mark in
-    # Unicode 17. Where the runtime knows it, NFC reorders U+0301 before it and
-    # composes e + U+0301, so the names match; where it does not, nothing
-    # moves, the lengths differ, and the protected name is missed.
+    # #625, #642: open, not waived (PARITY.md; tracked in #642). U+1ADD is a
+    # combining mark in Unicode 17. Where the runtime knows it, NFC reorders
+    # U+0301 before it and composes e + U+0301, so the names match; where it
+    # does not, nothing moves, the lengths differ, and the protected name is
+    # missed.
     known = unicodedata.category("\u1add") != "Cn"
     got = branch_guard.protected_match("caf\u00e9\u1add", ["cafe\u1add\u0301"], True)
     assert got == ("cafe\u1add\u0301" if known else None)
+
+
+def test_protected_match_pins_a_known_open_divergence_composition_the_runtime_does_not_know():
+    # #625, #642: open, not waived (PARITY.md; tracked in #642). U+105D2
+    # TODHRI LETTER I + U+0307 composes to U+105C9 TODHRI LETTER EI in Unicode
+    # 16. Where the runtime knows the composition, NFC turns the branch into
+    # the protected name and it is blocked; where it does not, the branch keeps
+    # three code points against two, the unknown characters match nothing, and
+    # the protected name is missed. Measured 2026-10-03: composed on Node 24
+    # and Python 3.14, not on Python 3.11 to 3.13.
+    composes = unicodedata.normalize("NFC", "\U000105d2\u0307") == "\U000105c9"
+    got = branch_guard.protected_match("x\U000105d2\u0307", ["x\U000105c9"], True)
+    assert got == ("x\U000105c9" if composes else None)
 
 
 @pytest.mark.parametrize("status,stdout,expected", [
