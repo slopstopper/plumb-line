@@ -3,8 +3,11 @@
 // takes a marked value only (#544 assesses walking a structure). The check is
 // guard (#120) with its defaults. Python twin: tests/test_pytest_plugin.py.
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
+import { appendFileSync, copyFileSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { markFixture, assertNoTaint, assertTainted, plumbMatchers } from "./vitest.mjs";
 import { mark, derive, metaOf, unwrap } from "./index.mjs";
 
@@ -96,10 +99,95 @@ describe("assertTainted — the positive claim, verified (twin: assert_tainted)"
   });
 });
 
+// Loads a module in a child Node process whose resolver refuses `vitest`
+// (and `vitest/*`, `@vitest/*`), and records every attempt to resolve it,
+// as the Python twin makes `pytest` unimportable (#597). The hook is
+// synchronous (module.registerHooks, Node >= 22.15), so an import("vitest")
+// made while the module loads, or while the child runs each export once, is
+// recorded at the call, even when the module swallows the rejection. It is
+// not exhaustive: a path the child does not run is not checked. `probe` is
+// the child's own import("vitest") afterwards: refused by the hook, and
+// recorded, it shows the hook was live, so an empty record is not vacuous;
+// vitest resolves from this directory without it.
+const CHILD = `
+import { registerHooks } from "node:module";
+if (typeof registerHooks !== "function")
+  throw new Error("this check needs module.registerHooks (Node >= 22.15)");
+const attempts = [];
+registerHooks({
+  resolve(specifier, context, next) {
+    if (/^(vitest|@vitest\\/[^/]+)(\\/|$)/.test(specifier)) {
+      attempts.push(specifier);
+      throw new Error("refused: " + specifier);
+    }
+    return next(specifier, context);
+  },
+});
+let loaded = "loaded", exports = [];
+try {
+  const m = await import(process.env.PLUMB_TARGET);
+  exports = Object.keys(m).sort();
+  // Run each export once too, so an import("vitest") made on first use is recorded.
+  const tainted = m.markFixture(1);
+  m.assertTainted(tainted);
+  try { m.assertNoTaint(tainted); } catch { /* expected: tainted */ }
+  m.plumbMatchers.toBeUntainted.call({ isNot: false }, tainted);
+  m.plumbMatchers.toBeUntainted.call({ isNot: true }, tainted);
+  for (let i = 0; i < 3; i++) await new Promise((r) => setImmediate(r));
+} catch (e) { loaded = String(e); }
+const asked = [...attempts];
+const probe = await import("vitest").then(() => "resolved", (e) => String(e.message));
+const probeRecorded = attempts.length === asked.length + 1;
+process.stdout.write(JSON.stringify({ loaded, exports, asked, probe, probeRecorded }));
+`;
+
+function loadWithVitestUnresolvable(url) {
+  const p = spawnSync(process.execPath, ["--input-type=module", "-e", CHILD], {
+    encoding: "utf8",
+    cwd: fileURLToPath(new URL(".", import.meta.url)), // where the probe's vitest would resolve
+    env: { ...process.env, PLUMB_TARGET: url.href },
+  });
+  expect(p.status, p.stderr).toBe(0);
+  return JSON.parse(p.stdout);
+}
+
+// The shipped modules, copied to a temporary directory with `line` added to
+// vitest.mjs: a planted wrong version of the helper.
+function plantedHelper(line) {
+  const pkg = JSON.parse(readFileSync(fileURLToPath(new URL("./package.json", import.meta.url)), "utf8"));
+  const dir = mkdtempSync(join(tmpdir(), "plumb-vitest-plant-"));
+  for (const f of pkg.files.filter((f) => f.endsWith(".mjs")))
+    copyFileSync(fileURLToPath(new URL(`./${f}`, import.meta.url)), join(dir, f));
+  appendFileSync(join(dir, "vitest.mjs"), `\n${line}\n`);
+  return { url: pathToFileURL(join(dir, "vitest.mjs")), dir };
+}
+
 describe("the helper stays dependency-free", () => {
-  it("never imports vitest: the user registers the matchers", () => {
-    const src = readFileSync(fileURLToPath(new URL("./vitest.mjs", import.meta.url)), "utf8");
-    expect(src).not.toMatch(/from\s+["']vitest["']/);
+  it("never imports vitest: it loads and runs where vitest cannot be resolved, asking for it neither at load nor on use", () => {
+    const r = loadWithVitestUnresolvable(new URL("./vitest.mjs", import.meta.url));
+    expect(r.probe).toBe("refused: vitest");
+    expect(r.probeRecorded).toBe(true);
+    expect(r.asked).toEqual([]);
+    expect(r.loaded).toBe("loaded");
+    expect(r.exports).toEqual(expect.arrayContaining(["assertNoTaint", "assertTainted", "markFixture", "plumbMatchers"]));
+  });
+
+  it.each([
+    ["a named import", 'import { expect } from "vitest";'],
+    ["a side-effect import", 'import "vitest";'],
+    ["a subpath import", 'import "vitest/config";'],
+    ["a dynamic import at load time, its failure swallowed", 'void import("vitest").catch(() => {});'],
+    ["a dynamic import on first use of a matcher", [
+      "const _plain = plumbMatchers.toBeUntainted;",
+      'plumbMatchers.toBeUntainted = function (...a) { void import("vitest").catch(() => {}); return _plain.apply(this, a); };',
+    ].join("\n")],
+  ])("catches a planted helper that imports vitest through %s", (_how, line) => {
+    const { url, dir } = plantedHelper(line);
+    try {
+      expect(loadWithVitestUnresolvable(url).asked).not.toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("is published on the ./vitest subpath", () => {
