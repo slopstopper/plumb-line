@@ -96,8 +96,9 @@ NOT refuse an unknown value there; they read it as above. It does not extend to 
 or a `confidence` not in the certainty ladder, with an error whose message
 contains `source must be one of <the ladder, comma-separated>` or
 `confidence must be one of <the ladder, comma-separated>`. Refusing means the
-constructor throws (JS) or raises `ValueError` (Python); it does not return
-an envelope. A numeric `confidence` (`0`, `0.8`) is refused: the number
+constructor throws an `Error` (JS; this section names no subclass) or raises
+`ValueError` (Python); it does not return an envelope. Each language's
+conformance runner checks its type (#602). A numeric `confidence` (`0`, `0.8`) is refused: the number
 belongs in `confidenceScore`. Added in v0.12.0 (#443, ADR-0019). Before that, an
 off-ladder value was stored silently, and only `validateEnvelope` noticed a
 non-string.
