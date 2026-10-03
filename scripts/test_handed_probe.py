@@ -11,6 +11,7 @@ Run from the repo root: python3 -m pytest -q scripts/test_handed_probe.py
 import importlib.util
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -175,6 +176,41 @@ def _run_probe(*args):
     return proc.returncode, json.loads(proc.stdout)
 
 
+def _git(*args, cwd=_ROOT):
+    return subprocess.run(['git', *args], cwd=cwd, capture_output=True, text=True)
+
+
+def test_the_probe_records_the_tree_and_the_runtimes_it_probed():
+    # Its counts depend on the tree probed and on both runtimes' JSON parsers
+    # (the `number` class), so its output names all three (v0.12.1 dogfood).
+    _, out = _run_probe()
+    probed = out['probed']
+    assert probed['root'] == _ROOT
+    head = _git('rev-parse', 'HEAD')
+    if head.returncode == 0:
+        assert probed['commit'] == head.stdout.strip()
+        dirty = _git('status', '--porcelain', '--', 'primitives')
+        assert probed['dirty'] is bool(dirty.stdout.strip())
+    else:
+        assert probed['commit'] is None and probed['dirty'] is None
+    node = subprocess.run(['node', '--version'], capture_output=True, text=True, check=True)
+    assert probed['node'] == node.stdout.strip()
+    assert probed['python'] == platform.python_version()
+
+
+def test_the_printed_form_names_the_tree_and_the_runtimes():
+    if shutil.which('node') is None:
+        pytest.skip('node is not on PATH; the probe runs the JS twin')
+    proc = subprocess.run([sys.executable, _PROBE], cwd=_ROOT, capture_output=True, text=True, timeout=300)
+    assert proc.returncode in (0, 1), proc.stderr
+    _, out = _run_probe()
+    p = out['probed']
+    line = proc.stdout.splitlines()[1]
+    assert line.startswith('  probed: ')
+    assert p['root'] in line and f'Node {p["node"]}' in line and f'Python {p["python"]}' in line
+    assert (p['commit'] or 'no commit') in line
+
+
 def test_the_probe_runs_both_twins_and_finds_no_outcome_difference():
     code, out = _run_probe()
     assert out['inputs'] == len(_load_probe().corpus()) > 0
@@ -282,6 +318,10 @@ def test_the_probe_sees_an_outcome_difference_when_one_twin_drops_taint(tmp_path
     prov.write_text(text.replace(needle, '    return False\n'), encoding='utf-8')
     code, out = _run_probe('--root', str(tmp_path))
     assert out['byClass'].get('outcome', 0) > 0 and code == 1
+    # A copied tree is no git checkout: the probe says it has no commit,
+    # rather than naming the commit of a repository around it.
+    assert out['probed']['root'] == str(tmp_path)
+    assert out['probed']['commit'] is None and out['probed']['dirty'] is None
 
 
 def test_parity_md_states_the_counts_the_probe_prints_before_525s_fix(tmp_path):
