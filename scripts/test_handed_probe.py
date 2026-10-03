@@ -241,11 +241,13 @@ def test_parity_md_states_the_totals_and_groups_the_probe_prints():
         return [int(g) for g in m.groups()]
     g = _groups(out)
     # The owner's decisions of 2026-10-03 (#594): groups 1 and 3 waived, the
-    # scores by design, the field name a gap being fixed (#635).
+    # scores by design. The field name was a gap, fixed in #635, so the
+    # heading counts no gap and the probe must find none.
     assert stated(r'## Handed envelopes .*?; (\d+) inputs still differ in form: (\d+) waived, '
-                  r'(\d+) by design, (\d+) a gap being fixed') == \
+                  r'(\d+) by design \(') == \
         [out['differ'], g.get('field', 0) + g.get('quoted-value', 0) + g.get('number+quoted-value', 0),
-         g.get('score', 0), g.get('field-name', 0)]
+         g.get('score', 0)]
+    assert g.get('field-name', 0) == 0, 'a field-name difference is back; #635 fixed the last one'
     waiver = parity[parity.index('**When parity is waived**'):parity.index('**Case folding across Unicode versions**')]
     assert 'Waived (owner decision, 2026-10-03, #594)' in waiver, 'the #594 waiver is not under "When parity is waived"'
     assert stated(r'Out of (\d+) inputs, (\d+) still differ') == [out['inputs'], out['differ']]

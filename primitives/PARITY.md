@@ -223,7 +223,7 @@ by the `cases.json` "empty envelope" row, which requires the advisory, and by
 each language's unit test, which requires it to be the only issue
 (`audit.test.mjs`, `tests/test_audit.py`), not by this table.
 
-## Handed envelopes (#525) — no difference in outcome found; 36 inputs still differ in form: 30 waived, 4 by design, 2 a gap being fixed (#594, #635)
+## Handed envelopes (#525) — no difference in outcome found; 34 inputs still differ in form: 30 waived, 4 by design (#594)
 
 A handed envelope is one a caller built or parsed itself, not one `makeMeta`
 made, so it can carry anything JSON can write. A differential probe fed the
@@ -286,22 +286,22 @@ clone that has the history; CI's shallow checkout skips it.
 <!-- handed-probe counts -->
 | Class | Inputs, `main` | Inputs, before the fix (`8cef0a2^`) | What differs |
 | --- | --- | --- | --- |
-| `agree` | 188 | 96 | nothing |
+| `agree` | 190 | 96 | nothing |
 | `outcome` | 0 | 101 | taint, a computed id, a verdict, the record's shape, a throw, or other message text |
-| `field-name` | 2 | 11 | a message names the field `derived_from_mock` in Python, `derivedFromMock` in JS |
+| `field-name` | 0 | 11 | a message names the field `derived_from_mock` in Python, `derivedFromMock` in JS (fixed in #635) |
 | `number` | 19 | 9 | one IEEE-754 double, held as different values (`0`/`-0`, `1.0`/`1`, a 401-digit integer/`Infinity`) |
 | `quoted-value` | 9 | 3 | a refusal quotes the value in each language's JSON rendering (`-0.0`/`0`, `1e-07`/`1e-7`, `{"a": 1}`/`{"a":1}`) |
 | `number+quoted-value` | 6 | 2 | both of those |
 | `field-name+number` | 0 | 2 | both of those |
 <!-- /handed-probe counts -->
 
-Out of 224 inputs, 36 still differ on `main`. On every one of them, the
+Out of 224 inputs, 34 still differ on `main`. On every one of them, the
 taint, the step ids `combine` computes and the guard's verdict agree. A
 handed step `id` that is not a string is copied as it is, so on the step-`id`
 inputs below the copied value differs. Against the waiver rule above (a
 runtime's limit, not a rule; both fail closed or judge correctly; no real
-input reaches it), they fall into four groups, decided by the owner on
-2026-10-03 (#594).
+input reaches it), they fall into three groups, decided by the owner on
+2026-10-03 (#594). A fourth group, now fixed, is listed after them.
 
 - **A number on a field that cannot hold one** (15 `number` inputs): a
   `source`, `confidence`, taint flag, lineage step or step `id` of `-0`,
@@ -337,11 +337,10 @@ input reaches it), they fall into four groups, decided by the owner on
   Python's `json.dumps`, which this repo could change. They are **waived**
   too, because no behaviour differs (above; ADR-0019's amendment of
   2026-10-03).
-- **The field's name in a message** (2 `field-name` inputs): Python's
-  `taint dropped:` message, and its `laundering:` message (which `combine`'s
-  output cannot reach), say `derived_from_mock`. Python's other messages say
-  `derivedFromMock`, as JS's do. This **fails** the rule: the name is text
-  this repo chose, and every taint-dropped envelope reaches it. It is a gap,
-  not waived, and is being fixed in
-  [#635](https://github.com/slopstopper/plumb-line/issues/635). The probe's
-  `field-name` count, and this table with it, fall to 0 when the fix lands.
+- **The field's name in a message** (0 `field-name` inputs): until
+  [#635](https://github.com/slopstopper/plumb-line/issues/635), Python's
+  `taint dropped:` and `laundering:` messages said `derived_from_mock`,
+  where its other messages and JS's say `derivedFromMock`. That failed the
+  rule, because the name was text this repo chose and every taint-dropped
+  envelope reached it, so it was a gap, not a waiver. **Fixed** in #635: the
+  probe now finds no `field-name` difference.
