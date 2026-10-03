@@ -109,16 +109,25 @@ real hook payload or config nests near even the lowest of these.
 names by normalizing both to NFC and folding them (upper, then lower case,
 #615), each twin with its runtime's own Unicode tables. Those tables agree on
 every character both runtimes know: checked one code point at a time on
-2026-10-03, Node 22 and 24 (Unicode 17) and Python 3.11 to 3.14 (Unicode 14
-to 16) fold none of them differently. A character the runtime does not know
-(`Cn`) fails closed: a branch holding one counts as protected, and a
-protected name holding one is matched by every branch. So where one runtime
-folds two names together, the other blocks too: `x꟎` against protected
-`x꟏`, the pair that split the twins, and `xꟓ` against protected `x꟒`
-(U+A7D2), now block in both. What remains differs only in the safe
-direction, and meets the waiver rule above: a runtime that does not know a
-character blocks where a newer runtime may judge, correctly, that the branch
-is not protected, and the reason may name a different protected branch.
+2026-10-03, Node 22.23.3 and 24.15.0 (Unicode 17) and Python 3.11.15,
+3.12.13, 3.13.13 and 3.14.4 (Unicode 14 to 16) fold none of them
+differently. A character the runtime does not know (`Cn`) fails closed: a
+branch holding one counts as protected, and a protected name holding one is
+matched by every branch. So where one runtime folds two names together, the
+other blocks too: `x꟎` against protected `x꟏`, the pair that split the
+twins, and `xꟓ` against protected `x꟒` (U+A7D2), now block in both.
+
+**Open divergence, safe direction, not waived** (#625). What remains differs
+only in the direction of blocking, but real names reach it, so it does not
+meet the waiver rule above. A runtime blocks a branch holding a character it
+does not know where a newer runtime, by the hooks' fold, allows it, and the
+reason may name a different protected branch. Newer emoji are such
+characters: where case is ignored, Python 3.11 blocks a code edit on
+`fix-🫎` (U+1FACE, Unicode 15), Python 3.14 one on a branch holding U+1F6D8
+(Unicode 17), and Node 22.23.3 and 24.15.0 allow both. Node knows 15,104
+code points Python 3.11 does not, and 4,803 that Python 3.14 does not. On the older
+runtime, a protected name holding such a character makes every branch
+protected.
 
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |

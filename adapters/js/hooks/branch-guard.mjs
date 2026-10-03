@@ -75,11 +75,12 @@ const hasUnknown = (name) => /\p{Cn}/u.test(String(name));
 /**
  * The protected branch `branch` is, or null (#615). Exact, or, when git
  * ignores case (core.ignorecase), any protected name that differs only in
- * case: on a case-insensitive filesystem `git checkout Main` is on `main`.
- * Where case is ignored, a character this runtime does not know fails closed
- * (#625), since a runtime with newer Unicode may fold it: a branch holding one
- * is the first protected branch, and a protected name holding one is matched
- * by every branch. Shared by this guard, its commit hook and the pre-commit
+ * case or normalization (#625): on a case-insensitive filesystem
+ * `git checkout Main` is on `main`. Where case is ignored, a character this
+ * runtime does not know fails closed (#625), since a runtime with newer
+ * Unicode may fold it: a branch holding one is the first protected branch
+ * (after a real fold match), and a protected name holding one is matched by
+ * every branch. Shared by this guard, its commit hook and the pre-commit
  * gate, so the three agree. Python twin: protected_match.
  */
 export function protectedMatch(branch, protectedBranches, ignoreCase = false) {

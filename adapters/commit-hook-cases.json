@@ -1100,7 +1100,7 @@
       "expectStderr": "blocked: code edit to src/app.js on protected branch main. Branch first.\n"
     },
     {
-      "name": "where git ignores case, a docs edit on a branch the runtime cannot read is still allowed (#625)",
+      "name": "where git ignores case, a docs edit on a branch holding a character the runtime does not know is still allowed (#625)",
       "committed": ["README.md"],
       "config": [["core.ignorecase", "true"]],
       "stdin": "{\"filePath\": \"docs/x.md\"}",
