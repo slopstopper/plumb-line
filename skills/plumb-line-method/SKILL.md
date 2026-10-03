@@ -71,6 +71,17 @@ work. All of these are fine; do them, and say what you did:
   removed along with the behaviour it tested, is fine when the change says
   whose decision it was.
 
+One limit on the two stand-in rows (stubs and unit-test mocks): a test
+never presents a stand-in's result as `real`. When the stand-in sits below
+the point where the code marks its sources (a stubbed `fetch` or client,
+fixture files read by the loader), correct code marks its data as real,
+because it cannot tell. A test of that stand-in checks the logic it tests
+and makes no claim about provenance: never that the result is real,
+measured or high-confidence. Only a stand-in labelled at or above the
+marking point can be asserted `mock`. Nor does the test feed the stand-in
+data that produces the requirement's expected value, which would make a
+pass against the stand-in read as the requirement met.
+
 What counts as a decision (a reading of option C, below, which leaves
 whether a requirement can wait to the owner; confirmed by the owner on #485,
 2026-09-29): one the owner, a spec or a ticket made about *this*
