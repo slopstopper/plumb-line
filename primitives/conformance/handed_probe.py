@@ -13,7 +13,10 @@ that it states them as printed.
     python3 primitives/conformance/handed_probe.py --json     # machine-readable
     python3 primitives/conformance/handed_probe.py --root DIR # probe another tree
 
-It exits 1 when any input differs in outcome, else 0.
+It exits 1 when any input differs in outcome, else 0. Its output, printed
+and ``--json`` (``probed``), names what the counts were measured on: the
+probed tree, its commit when the tree is a git checkout, and the Node and
+Python versions run, whose JSON parsers make the ``number`` class.
 
 **What is compared.** Each input is JSON text, and each twin parses it with
 its own JSON parser, as a caller in that language would. A twin's record of
@@ -57,6 +60,7 @@ import argparse
 import json
 import math
 import os
+import platform
 import subprocess
 import sys
 
@@ -368,6 +372,35 @@ def classify(differences):
     return '+'.join(sorted(classes))
 
 
+def _git(root, *args):
+    try:
+        proc = subprocess.run(['git', '-C', root, *args], capture_output=True, text=True, check=False)
+    except OSError:  # no git on PATH
+        return None
+    return proc.stdout.strip() if proc.returncode == 0 else None
+
+
+def probed(root):
+    """What the counts were measured on: the probed tree, its commit and the
+    two runtimes whose JSON parsers read the corpus (the ``number`` class
+    depends on them). ``commit`` is None unless ``root`` is the top of a git
+    checkout, so a copied tree inside another repository is not credited with
+    that repository's commit; ``dirty`` says whether anything under the
+    tree's ``primitives/`` (the twins, and this probe when it probes its own
+    checkout) differs from that commit."""
+    commit = dirty = None
+    top = _git(root, 'rev-parse', '--show-toplevel')
+    if top is not None and os.path.realpath(top) == os.path.realpath(root):
+        commit = _git(root, 'rev-parse', 'HEAD')
+        if commit is not None:
+            status = _git(root, 'status', '--porcelain', '--', 'primitives')
+            dirty = None if status is None else bool(status)
+    node = subprocess.run(['node', '--version'], capture_output=True, text=True, check=False)
+    return {'root': root, 'commit': commit, 'dirty': dirty,
+            'node': node.stdout.strip() if node.returncode == 0 else None,
+            'python': platform.python_version()}
+
+
 def run(root):
     cases = corpus()
     texts = [t for _, t in cases]
@@ -380,7 +413,7 @@ def run(root):
             by_class[cls] = by_class.get(cls, 0) + 1
             differences.append({'input': name, 'class': cls, 'leaves': [p for p, _ in d],
                                 'python': a, 'js': b})
-    return {'inputs': len(cases), 'agree': len(cases) - len(differences),
+    return {'probed': probed(root), 'inputs': len(cases), 'agree': len(cases) - len(differences),
             'differ': len(differences), 'byClass': by_class, 'differences': differences}
 
 
@@ -394,7 +427,13 @@ def main(argv=None):
     if args.json:
         print(json.dumps(res, indent=2))
     else:
+        p = res['probed']
+        if p['commit'] is None:
+            tree = 'no commit'
+        else:
+            tree = p['commit'] + (', primitives/ has uncommitted changes' if p['dirty'] else '')
         print(f'handed-envelope probe: {res["inputs"]} inputs through combine, audit and guard, JS vs Python')
+        print(f'  probed: {p["root"]} ({tree}); Node {p["node"]}, Python {p["python"]}')
         print(f'  agree:  {res["agree"]}')
         print(f'  differ: {res["differ"]}')
         for cls in sorted(res['byClass']):

@@ -51,6 +51,28 @@ python3 primitives/conformance/handed_probe.py --verbose   # counts and each dif
 python3 primitives/conformance/handed_probe.py --root DIR  # probe another tree's primitives/
 ```
 
+Its output, printed and `--json`, names the probed tree's commit (when the
+tree is a git checkout) and the Node and Python versions it ran.
+
+## The case-fold sweep
+
+`fold_sweep.py` (with its JS half, `fold-sweep.mjs`) compares the running
+Node and Python one code point at a time, as the hooks' case-alias check
+reads them (#625, #642). It counts the code points one runtime knows and the
+other does not, fold differences, and the composites and combining marks
+behind the open divergences [PARITY.md](../PARITY.md) records. PARITY.md
+cites its figures as a dated measurement on named runtimes: CI runs one
+Node and one Python per job, so it cannot reproduce figures that pair
+others. `scripts/test_fold_sweep.py` checks on the pair it runs on that the
+folds agree. To measure another pair, run the sweep with that Python and
+with that Node first on `PATH`. It exits 1 when a premise of the hooks'
+rule fails on the pair, or when its way of finding a combining class in JS
+disagrees with Python's `unicodedata.combining`.
+
+```bash
+python3 primitives/conformance/fold_sweep.py --verbose   # counts and the code points behind them
+```
+
 ## The badge
 
 A project that enforces provenance with plumb-line (or ships a conformant

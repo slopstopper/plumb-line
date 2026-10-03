@@ -267,3 +267,33 @@ found one runtime use the first draft missed, now listed).
   `adapters/hook-cases.json`. As before, a row records only what both twins
   produce, git is the reference where a row encodes git's behaviour, and
   both runners fail on a field, kind or version they do not interpret.
+- **2026-10-03 (v0.12.1 dogfood finding; #594, #625, #642).** The owner
+  approved the fix plan. The placement below applies §2 as written and
+  makes no new ruling. Two differential tools in `primitives/conformance/`
+  had no layer: `handed_probe.py` (#594) and `fold_sweep.py` (#642, which
+  replaces the uncommitted check behind PARITY.md's #625 figures). §2's
+  consumers row lists `primitives/conformance/*.mjs`, but neither `.py`
+  file.
+  - **Both are consumers,** with their JS halves `handed-probe.mjs` and
+    `fold-sweep.mjs`, which the consumers row already covers. They run the
+    implementations rather than being one. No published module, and no
+    primitives test, imports or runs them. Each spawns its own JS half: a
+    consumer-to-consumer use, stated here. `handed_probe.py` imports
+    `primitives/python` and its JS half imports `primitives/js/index.mjs`,
+    both from the tree it probes. That is a consumer depending on the
+    layer above, which §2 allows. `fold_sweep.py` and `fold-sweep.mjs`
+    import nothing from this repository. They restate the hooks' fold and
+    unknown-character test, and the test below holds the copies to the
+    hooks.
+  - **Their tests, in `scripts/`, use them: consumer to consumer, stated
+    here.** `scripts/test_handed_probe.py` loads `handed_probe.py` by path
+    and runs it. It also reads `primitives/PARITY.md` to hold the counts it
+    states to the probe's output. `scripts/test_fold_sweep.py` loads
+    `fold_sweep.py` by path and runs it. It loads
+    `adapters/python/hooks/branch_guard.py` and reads the text of
+    `adapters/js/hooks/branch-guard.mjs`, to hold the sweep's copies to
+    the hooks. That is a consumer depending on the adapters, which §2
+    allows.
+
+  Recorded here rather than by editing §2 or the lists, because this
+  record is append-only.

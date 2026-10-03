@@ -237,14 +237,27 @@ describe("case aliases of a protected branch (#615)", () => {
     expect(protectedMatch("x\ua7ce", ["x\ua7cf"], true)).toBe("x\ua7cf");
     expect(protectedMatch("x\ua7d3", ["x\ua7d2"], true)).toBe("x\ua7d2");
   });
-  it("pins a known open divergence: reordering around a mark the runtime does not know fails open (#625)", () => {
-    // Open, not waived (PARITY.md). U+1ADD is a combining mark in Unicode 17.
-    // Where the runtime knows it, NFC reorders U+0301 before it and composes
-    // e + U+0301, so the names match; where it does not, nothing moves, the
-    // lengths differ, and the protected name is missed.
+  it("pins a known open divergence: reordering around a mark the runtime does not know fails open (#625, #642)", () => {
+    // Open, not waived (PARITY.md; tracked in #642). U+1ADD is a combining
+    // mark in Unicode 17, of a class below U+0301's. Where the runtime knows
+    // it, NFC composes e + U+0301 across it, so the names match; where it
+    // does not, it blocks the composition, the lengths differ, and the
+    // protected name is missed.
     const known = !/\p{Cn}/u.test("\u1add");
     expect(protectedMatch("caf\u00e9\u1add", ["cafe\u1add\u0301"], true))
       .toBe(known ? "cafe\u1add\u0301" : null);
+  });
+  it("pins a known open divergence: a composition the runtime does not know fails open (#625, #642)", () => {
+    // Open, not waived (PARITY.md; tracked in #642). U+105D2 TODHRI LETTER I
+    // + U+0307 composes to U+105C9 TODHRI LETTER EI in Unicode 16. Where the
+    // runtime knows the composition, NFC turns the branch into the protected
+    // name and it is blocked; where it does not, the branch keeps three code
+    // points against two, the unknown characters match nothing, and the
+    // protected name is missed. Measured 2026-10-03: composed on Node 24 and
+    // Python 3.14, not on Python 3.11 to 3.13.
+    const composes = "\u{105d2}\u0307".normalize("NFC") === "\u{105c9}";
+    expect(protectedMatch("x\u{105d2}\u0307", ["x\u{105c9}"], true))
+      .toBe(composes ? "x\u{105c9}" : null);
   });
   for (const [status, stdout, expected] of [
     [0, "true\n", true], [0, "false\n", false], [1, "", false],
