@@ -532,6 +532,35 @@
       "env": {"PLUMBLINE_CFG": "{\"protectedBranches\": [\"master\"], \"docsAllowlist\": [\"README.md\"]}"},
       "expectExit": 2,
       "expectStderr": "blocked: code edit to src/a.js on protected branch master. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a commit on a branch holding a character the runtime does not know (U+40000, unassigned) blocks: fail closed (#625)",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/x񀀀",
+      "config": [["core.ignorecase", "true"]],
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"README.md\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a commit on x꟎ blocks where x꟏ is protected, on every supported runtime: folded where U+A7CE is known, fail closed where it is not (#625)",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/x꟎",
+      "config": [["core.ignorecase", "true"]],
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"protectedBranches\": [\"x꟏\"], \"docsAllowlist\": [\"README.md\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch x꟏. Branch first.\n"
+    },
+    {
+      "name": "where git does not ignore case, a branch holding a character the runtime does not know is another branch (#625)",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/x񀀀",
+      "config": [["core.ignorecase", "false"]],
+      "stage": ["src/a.js"],
+      "expectExit": 0,
+      "expectStderr": ""
     }
   ],
   "preCommitGate": [
@@ -977,6 +1006,16 @@
       "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"master\"]}"},
       "expectExit": 2,
       "expectStderr": "pre-commit blocked: the tests failed, and `master` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `master` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
+    },
+    {
+      "name": "where git ignores case, a branch holding a character the runtime does not know (U+40000, unassigned) is protected: fail closed (#625)",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/x񀀀",
+      "config": [["core.ignorecase", "true"]],
+      "stage": ["docs/a.md"],
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and `main` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `main` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
     }
   ],
   "branchGuard": [
@@ -1041,6 +1080,69 @@
       "env": {"PLUMBLINE_BRANCH": "Main", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"docs/\"]}"},
       "expectExit": 2,
       "expectStderr": "blocked: code edit to src/app.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a branch with an accent in decomposed form (e + U+0301) is the protected precomposed name: both are normalized to NFC (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "café", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"café\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch café. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a branch holding a character the runtime does not know (U+40000, unassigned) is protected: fail closed, naming the first protected branch (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "x񀀀", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\", \"release\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a docs edit on a branch the runtime cannot read is still allowed (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"docs/x.md\"}",
+      "env": {"PLUMBLINE_BRANCH": "x񀀀", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"docs/\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git ignores case, x꟎ is protected x꟏ on every supported runtime: folded where U+A7CE is known, fail closed where it is not (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "x꟎", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"x꟏\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch x꟏. Branch first.\n"
+    },
+    {
+      "name": "where git does not ignore case, nothing is folded or normalized: a decomposed accent is another branch (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "false"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "café", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"café\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git does not ignore case, a branch holding a character the runtime does not know is another branch (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "false"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "x񀀀", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git ignores case, an ASCII case alias still blocks as before (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "RELEASE", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\", \"Release\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch Release. Branch first.\n"
     }
   ]
 }

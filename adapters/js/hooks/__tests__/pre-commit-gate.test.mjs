@@ -190,6 +190,32 @@ describe("case aliases of a protected branch (#615)", () => {
     expect(isCaseAlias("main", ["main"])).toBe(false);
     expect(isCaseAlias("feat", ["main"])).toBe(false);
   });
+  it("normalizes both names to NFC before folding, only where case is ignored (#625)", () => {
+    // é precomposed (U+00E9) and e + U+0301 are one name to APFS.
+    expect(protectedMatch("café", ["café"], true)).toBe("café");
+    expect(protectedMatch("CAFÉ", ["café"], true)).toBe("café");
+    expect(protectedMatch("café", ["café"], true)).toBe("café");
+    expect(protectedMatch("café", ["café"])).toBeNull();
+    expect(isCaseAlias("café", ["café"])).toBe(true);
+    // ASCII is unchanged.
+    expect(protectedMatch("MAIN", ["main"], true)).toBe("main");
+    expect(protectedMatch("feat", ["main"], true)).toBeNull();
+  });
+  it("fails closed on a character the runtime does not know, only where case is ignored (#625)", () => {
+    // U+40000 is unassigned (Cn) in Unicode 17; if a later Unicode assigns
+    // it, this row needs another unassigned code point.
+    expect(/\p{Cn}/u.test("\u{40000}")).toBe(true);
+    expect(protectedMatch("x\u{40000}", ["main", "release"], true)).toBe("main");
+    expect(protectedMatch("x\u{40000}", ["main"])).toBeNull();
+    expect(isCaseAlias("x\u{40000}", ["main"])).toBe(true);
+    // A real fold match is named over the first protected branch.
+    expect(protectedMatch("X\u{40000}", ["main", "x\u{40000}"], true)).toBe("x\u{40000}");
+    // With no branch protected, there is nothing for it to be.
+    expect(protectedMatch("x\u{40000}", [], true)).toBeNull();
+    // The pair that split the twins: folded where U+A7CE is known, and
+    // protected by the rule above where it is not.
+    expect(protectedMatch("x꟎", ["x꟏"], true)).toBe("x꟏");
+  });
   for (const [status, stdout, expected] of [
     [0, "true\n", true], [0, "false\n", false], [1, "", false],
     // Anything else cannot be read: fail closed, including exit 0 with output

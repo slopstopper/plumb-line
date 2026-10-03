@@ -1,5 +1,6 @@
 import os
 import sys
+import unicodedata
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import branch_guard
@@ -459,6 +460,34 @@ def test_protected_match_and_is_case_alias():
     assert branch_guard.is_case_alias("Main", ["main"]) is True
     assert branch_guard.is_case_alias("main", ["main"]) is False
     assert branch_guard.is_case_alias("feat", ["main"]) is False
+
+
+def test_protected_match_normalizes_to_nfc_before_folding_only_where_case_is_ignored():
+    # #625: é precomposed (U+00E9) and e + U+0301 are one name to APFS.
+    assert branch_guard.protected_match("café", ["café"], True) == "café"
+    assert branch_guard.protected_match("CAFÉ", ["café"], True) == "café"
+    assert branch_guard.protected_match("café", ["café"], True) == "café"
+    assert branch_guard.protected_match("café", ["café"]) is None
+    assert branch_guard.is_case_alias("café", ["café"]) is True
+    # ASCII is unchanged.
+    assert branch_guard.protected_match("MAIN", ["main"], True) == "main"
+    assert branch_guard.protected_match("feat", ["main"], True) is None
+
+
+def test_protected_match_fails_closed_on_a_character_the_runtime_does_not_know():
+    # #625. U+40000 is unassigned (Cn) in Unicode 17; if a later Unicode
+    # assigns it, this test needs another unassigned code point.
+    assert unicodedata.category("\U00040000") == "Cn"
+    assert branch_guard.protected_match("x\U00040000", ["main", "release"], True) == "main"
+    assert branch_guard.protected_match("x\U00040000", ["main"]) is None
+    assert branch_guard.is_case_alias("x\U00040000", ["main"]) is True
+    # A real fold match is named over the first protected branch.
+    assert branch_guard.protected_match("X\U00040000", ["main", "x\U00040000"], True) == "x\U00040000"
+    # With no branch protected, there is nothing for it to be.
+    assert branch_guard.protected_match("x\U00040000", [], True) is None
+    # The pair that split the twins: folded where U+A7CE is known, and
+    # protected by the rule above where it is not.
+    assert branch_guard.protected_match("x꟎", ["x꟏"], True) == "x꟏"
 
 
 @pytest.mark.parametrize("status,stdout,expected", [
