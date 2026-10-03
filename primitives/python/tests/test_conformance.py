@@ -82,9 +82,12 @@ _MISSING = object()
 
 
 def _expect_problem(out, expect):
-    """The first `expect` field the output does not hold, or None. Compared
-    with _strict, as the JS twin compares with isDeepStrictEqual (#595):
-    `==` read True as 1, and `out.get` read a missing key as None."""
+    """The first `expect` field the output does not hold, or None (#595).
+    Compared with _strict, not `==`, which read True as 1, and with a
+    sentinel, not `out.get`, which read a missing key as None. On the JSON
+    values a case can hold this agrees with the JS twin's isDeepStrictEqual.
+    It does not on values JSON cannot carry: NaN is unequal to itself here,
+    0 equals -0.0, and a str subclass is unequal to a str."""
     for k, v in expect.items():
         got = out.get(_KEY.get(k, k), _MISSING)
         if not _strict(got, v):
@@ -96,22 +99,27 @@ def setup_function():
     p.reset_step_counter()
 
 
+def _check_combine_row(c):
+    """One combine row; raises AssertionError when the output differs."""
+    p.reset_step_counter()
+    inputs = [_meta_to_snake(m) for m in c['inputs']]
+    out = p.combine_provenance(*inputs)
+    problem = _expect_problem(out, c['expect'])
+    assert problem is None, f"{c['name']}: {problem}"
+    for k in c.get('absent', []):
+        sk = _KEY.get(k, k)
+        assert sk not in out, f"{c['name']}: {sk} should be absent"
+    if 'expectLineageIds' in c:
+        assert _strict([_step_id(s) for s in out['lineage']], c['expectLineageIds']), \
+            f"{c['name']}: lineage ids {[_step_id(s) for s in out['lineage']]}"
+    if 'expectLineage' in c:
+        got = [_step_to_camel(s) for s in out['lineage']]
+        assert _strict(got, c['expectLineage']), f"{c['name']}: lineage {got!r}"
+
+
 def test_combine_cases():
     for c in CASES['combine']:
-        p.reset_step_counter()
-        inputs = [_meta_to_snake(m) for m in c['inputs']]
-        out = p.combine_provenance(*inputs)
-        problem = _expect_problem(out, c['expect'])
-        assert problem is None, f"{c['name']}: {problem}"
-        for k in c.get('absent', []):
-            sk = _KEY.get(k, k)
-            assert sk not in out, f"{c['name']}: {sk} should be absent"
-        if 'expectLineageIds' in c:
-            assert _strict([_step_id(s) for s in out['lineage']], c['expectLineageIds']), \
-                f"{c['name']}: lineage ids {[_step_id(s) for s in out['lineage']]}"
-        if 'expectLineage' in c:
-            got = [_step_to_camel(s) for s in out['lineage']]
-            assert _strict(got, c['expectLineage']), f"{c['name']}: lineage {got!r}"
+        _check_combine_row(c)
 
 
 def test_audit_cases():
@@ -196,46 +204,55 @@ def test_absent_fails_a_field_that_is_written():
         _envelope_problems('x', {'basis': 'b'}, {'expect': {}, 'absent': ['basis']})
 
 
-def test_construct_cases():
-    # What make_meta accepts and refuses (#443). A refusal raises; the case
-    # pins a substring of the message, whose prefix both languages word identically.
-    # JS twin: runConstruct in primitives/conformance/run-cases.mjs.
-    for c in CASES['construct']:
-        problem = _shape_problem('construct', c)
-        assert problem is None, f"{c['name']}: {problem}"
-        kwargs = _to_snake(c['input'])
-        if 'expectError' in c:
-            try:
-                p.make_meta(**kwargs)
-            except ValueError as e:
-                assert c['expectError'] in str(e), f"{c['name']}: error {str(e)!r}"
-            else:
-                raise AssertionError(f"{c['name']}: expected an error containing {c['expectError']!r}")
+def _check_construct_row(c, make_meta=p.make_meta):
+    """One construct row (#443). A refusal must be a ValueError (SPEC §2): any
+    other exception propagates and fails the row. The case pins a substring
+    of the message, whose prefix both languages word identically. JS twin:
+    runConstruct in primitives/conformance/run-cases.mjs."""
+    problem = _shape_problem('construct', c)
+    assert problem is None, f"{c['name']}: {problem}"
+    kwargs = _to_snake(c['input'])
+    if 'expectError' in c:
+        try:
+            make_meta(**kwargs)
+        except ValueError as e:
+            assert c['expectError'] in str(e), f"{c['name']}: error {str(e)!r}"
         else:
-            out = p.make_meta(**kwargs)
-            _envelope_problems(c['name'], out, c)
+            raise AssertionError(f"{c['name']}: expected an error containing {c['expectError']!r}")
+    else:
+        out = make_meta(**kwargs)
+        _envelope_problems(c['name'], out, c)
+
+
+def test_construct_cases():
+    for c in CASES['construct']:
+        _check_construct_row(c)
+
+
+def _check_derive_row(c, derive=m.derive):
+    """One derive row (#566): each input is marked with its `inputs` fields,
+    then derive runs a constant function with `override`. A refusal must be
+    a ValueError, as for construct. JS twin: runDerive in run-cases.mjs."""
+    problem = _shape_problem('derive', c)
+    assert problem is None, f"{c['name']}: {problem}"
+    p.reset_step_counter()
+    items = [m.mark(i, **_to_snake(fields)) for i, fields in enumerate(c['inputs'])]
+    kwargs = _to_snake(c.get('override', {}))
+    if 'expectError' in c:
+        try:
+            derive(items, lambda *_: 0, **kwargs)
+        except ValueError as e:
+            assert c['expectError'] in str(e), f"{c['name']}: error {str(e)!r}"
+        else:
+            raise AssertionError(f"{c['name']}: expected an error containing {c['expectError']!r}")
+    else:
+        out = derive(items, lambda *_: 0, **kwargs)
+        _envelope_problems(c['name'], out['meta'], c)
 
 
 def test_derive_cases():
-    # What derive writes for an override (#566): each input is marked with its
-    # `inputs` fields, then derive runs a constant function with `override`.
-    # JS twin: runDerive in primitives/conformance/run-cases.mjs.
     for c in CASES['derive']:
-        problem = _shape_problem('derive', c)
-        assert problem is None, f"{c['name']}: {problem}"
-        p.reset_step_counter()
-        items = [m.mark(i, **_to_snake(fields)) for i, fields in enumerate(c['inputs'])]
-        kwargs = _to_snake(c.get('override', {}))
-        if 'expectError' in c:
-            try:
-                m.derive(items, lambda *_: 0, **kwargs)
-            except ValueError as e:
-                assert c['expectError'] in str(e), f"{c['name']}: error {str(e)!r}"
-            else:
-                raise AssertionError(f"{c['name']}: expected an error containing {c['expectError']!r}")
-        else:
-            out = m.derive(items, lambda *_: 0, **kwargs)
-            _envelope_problems(c['name'], out['meta'], c)
+        _check_derive_row(c)
 
 
 _GUARD_OPTION = {'noMock': 'no_mock', 'minConfidence': 'min_confidence', 'minSource': 'min_source'}
@@ -262,39 +279,43 @@ def _guard_shape_problem(c):
     return None
 
 
+def _check_guard_row(c):
+    """One guard row (#120). JS twin: runGuard in
+    primitives/conformance/run-cases.mjs. A row's `meta` becomes a marked
+    value ({'value', 'meta'}, as mark() builds it); a non-dict `meta` is
+    passed as is, to pin that a value with no envelope is refused."""
+    name = c['name']
+    problem = _guard_shape_problem(c)
+    assert problem is None, f"{name}: {problem}"
+    expectations = [k for k in ('expectPass', 'expectRefused', 'expectError') if k in c]
+    raw = c['meta']
+    x = {'value': 1, 'meta': _meta_to_snake(raw)} if isinstance(raw, dict) else raw
+    kwargs = {_GUARD_OPTION.get(k, k): v for k, v in c.get('options', {}).items()}
+    try:
+        out = guard(x, **kwargs)
+    except ProvenanceRefused as e:
+        reasons = e.reasons
+        assert isinstance(reasons, list) and all(isinstance(r, str) for r in reasons), \
+            f"{name}: a refusal must carry reasons as a list of strings, got {reasons!r}"
+        assert 'expectRefused' in c, f"{name}: expected {expectations[0]}, got a refusal: {reasons}"
+        for needle in c['expectRefused']:
+            assert any(needle in r for r in reasons), f"{name}: {needle!r} not in {reasons}"
+        for needle in c.get('expectAbsent', []):
+            assert not any(needle in r for r in reasons), f"{name}: {needle!r} in {reasons}"
+    except (TypeError, ValueError) as e:
+        assert 'expectError' in c, f"{name}: expected {expectations[0]}, got an error: {e}"
+        # SPEC §5c: never the refusal's type or a supertype of it, so a
+        # catch for refusals (a ValueError) cannot swallow a bad option.
+        assert not isinstance(e, ValueError), f"{name}: a bad option raised a ValueError: {e}"
+        assert c['expectError'] in str(e), f"{name}: error {str(e)!r}"
+    else:
+        assert 'expectPass' in c, f"{name}: expected {expectations[0]}, got a pass"
+        assert out is x, f"{name}: a pass must return the marked value it was given"
+
+
 def test_guard_cases():
-    # The egress guard (#120). JS twin: runGuard in
-    # primitives/conformance/run-cases.mjs. A row's `meta` becomes a marked
-    # value ({'value', 'meta'}, as mark() builds it); a non-dict `meta` is
-    # passed as is, to pin that a value with no envelope is refused.
     for c in CASES['guard']:
-        name = c['name']
-        problem = _guard_shape_problem(c)
-        assert problem is None, f"{name}: {problem}"
-        expectations = [k for k in ('expectPass', 'expectRefused', 'expectError') if k in c]
-        raw = c['meta']
-        x = {'value': 1, 'meta': _meta_to_snake(raw)} if isinstance(raw, dict) else raw
-        kwargs = {_GUARD_OPTION.get(k, k): v for k, v in c.get('options', {}).items()}
-        try:
-            out = guard(x, **kwargs)
-        except ProvenanceRefused as e:
-            reasons = e.reasons
-            assert isinstance(reasons, list) and all(isinstance(r, str) for r in reasons), \
-                f"{name}: a refusal must carry reasons as a list of strings, got {reasons!r}"
-            assert 'expectRefused' in c, f"{name}: expected {expectations[0]}, got a refusal: {reasons}"
-            for needle in c['expectRefused']:
-                assert any(needle in r for r in reasons), f"{name}: {needle!r} not in {reasons}"
-            for needle in c.get('expectAbsent', []):
-                assert not any(needle in r for r in reasons), f"{name}: {needle!r} in {reasons}"
-        except (TypeError, ValueError) as e:
-            assert 'expectError' in c, f"{name}: expected {expectations[0]}, got an error: {e}"
-            # SPEC §5c: never the refusal's type or a supertype of it, so a
-            # catch for refusals (a ValueError) cannot swallow a bad option.
-            assert not isinstance(e, ValueError), f"{name}: a bad option raised a ValueError: {e}"
-            assert c['expectError'] in str(e), f"{name}: error {str(e)!r}"
-        else:
-            assert 'expectPass' in c, f"{name}: expected {expectations[0]}, got a pass"
-            assert out is x, f"{name}: a pass must return the marked value it was given"
+        _check_guard_row(c)
 
 
 # Every case field the tests above interpret. A field added to cases.json
@@ -311,9 +332,10 @@ _KNOWN_FIELDS = {
 
 
 def _unknown_fields(kind, c):
-    """The fields of a row this runner does not interpret, named; or None.
-    JS twin: unknownFields in run-cases.mjs."""
-    extra = sorted(set(c) - _KNOWN_FIELDS[kind])
+    """The fields of a row this runner does not interpret, named in the row's
+    order; or None. JS twin: unknownFields in run-cases.mjs, whose message
+    names that file where this one says "this runner"."""
+    extra = [k for k in c if k not in _KNOWN_FIELDS[kind]]
     return f"unknown case field(s) {', '.join(extra)}: teach this runner to interpret them" if extra else None
 
 
@@ -323,7 +345,8 @@ _META_KEYS = {'_doc', 'version'}
 
 def _kind_problems(cases):
     """What is wrong with a table's kinds, as the JS twin's runCases reports
-    it: a modelled kind missing or not a list, then any kind no test reads."""
+    it: a modelled kind missing or not a list, then any kind no test reads.
+    The last message says "this runner" where JS names run-cases.mjs."""
     problems = []
     for kind in _KNOWN_FIELDS:
         if kind not in cases:
@@ -425,11 +448,56 @@ def test_the_guard_row_shape_checks_refuse_what_the_js_runner_refuses():
         assert _guard_shape_problem(row) == expected, row
 
 
+def test_the_guard_runner_fails_a_badly_shaped_row():
+    # Through the row checker the suite runs, not only the helper.
+    import pytest
+    for row, expected in _BAD_GUARD_ROWS:
+        if expected is not None:
+            with pytest.raises(AssertionError, match=expected):
+                _check_guard_row({'name': 'x', **row})
+
+
+def test_the_row_runners_compare_expect_strictly():
+    # Through the row checkers the suite runs: a bool against a number, and
+    # null against a field that is not written, must fail the row.
+    import pytest
+    row = next(c for c in CASES['combine'] if isinstance(c['expect'].get('derivedFromMock'), bool))
+    _check_combine_row(row)
+    with pytest.raises(AssertionError, match='derivedFromMock'):
+        _check_combine_row({**row, 'expect': {**row['expect'], 'derivedFromMock': int(row['expect']['derivedFromMock'])}})
+    for expect in ({'derivedFromMock': 0}, {'basis': None}):
+        with pytest.raises(AssertionError):
+            _check_construct_row({'name': 'x', 'input': {'source': 'real'}, 'expect': expect})
+        with pytest.raises(AssertionError):
+            _check_derive_row({'name': 'x', 'inputs': [{'source': 'real'}], 'expect': expect})
+
+
+def test_a_construct_or_derive_refusal_that_is_not_a_value_error_fails_the_row():
+    # SPEC §2: Python refuses with a ValueError. A port that raises any other
+    # type, with the expected words, must not pass (#602's Python side).
+    import pytest
+
+    def raising(*_args, **_kwargs):
+        raise TypeError('source must be one of these')
+    with pytest.raises(TypeError):
+        _check_construct_row({'name': 'x', 'input': {'source': 'bogus'}, 'expectError': 'source must be one of'},
+                             make_meta=raising)
+    with pytest.raises(TypeError):
+        _check_derive_row({'name': 'x', 'inputs': [{'source': 'real'}], 'override': {'source': 'bogus'},
+                           'expectError': 'source must be one of'}, derive=raising)
+    # The reference's ValueError passes the same rows.
+    _check_construct_row({'name': 'x', 'input': {'source': 'bogus'}, 'expectError': 'source must be one of'})
+    _check_derive_row({'name': 'x', 'inputs': [{'source': 'real'}], 'override': {'source': 'bogus'},
+                       'expectError': 'source must be one of'})
+
+
 def test_an_unknown_case_field_is_named():
     row = {**CASES['combine'][0], 'expectSomethingNew': True}
     problem = _unknown_fields('combine', row)
     assert problem is not None and 'expectSomethingNew' in problem
     assert _unknown_fields('combine', CASES['combine'][0]) is None
+    # Named in the row's order, as JS's Object.keys gives them.
+    assert _unknown_fields('audit', {'name': 'x', 'zeta': 1, 'alpha': 2}).startswith('unknown case field(s) zeta, alpha:')
 
 
 def test_an_unknown_missing_or_malformed_case_kind_fails_the_table():
