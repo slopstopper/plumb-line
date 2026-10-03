@@ -110,19 +110,15 @@ names by normalizing both to NFC and folding them (upper, then lower case,
 #615), each twin with its runtime's own Unicode tables. Those tables agree on
 every character both runtimes know: checked one code point at a time on
 2026-10-03, Node 22 and 24 (Unicode 17) and Python 3.11 to 3.14 (Unicode 14
-to 16) fold none of them differently. A branch holding a character the
-runtime does not know (`Cn`) counts as protected, so where one runtime folds
-such a branch to a protected name, the other blocks it too: `x꟎` against
-protected `x꟏`, the pair that split the twins, now blocks in both. What
-remains differs only in the safe direction, and meets the waiver rule above:
-a runtime that does not know a character blocks a branch holding it that a
-newer runtime may judge, correctly, to be unprotected, and the reason may
-name a different protected branch.
-
-Still open: a *protected name* holding a character one runtime does not
-know. With protected `x꟒` (U+A7D2, Unicode 17) and branch `xꟓ`, Node folds
-the two together and blocks a code edit, while Python, which does not know
-U+A7D2, allows it.
+to 16) fold none of them differently. A character the runtime does not know
+(`Cn`) fails closed: a branch holding one counts as protected, and a
+protected name holding one is matched by every branch. So where one runtime
+folds two names together, the other blocks too: `x꟎` against protected
+`x꟏`, the pair that split the twins, and `xꟓ` against protected `x꟒`
+(U+A7D2), now block in both. What remains differs only in the safe
+direction, and meets the waiver rule above: a runtime that does not know a
+character blocks where a newer runtime may judge, correctly, that the branch
+is not protected, and the reason may name a different protected branch.
 
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |
