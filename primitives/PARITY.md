@@ -103,6 +103,26 @@ Python 3.11 (the floor), 9,998 on 3.12 and 3.13, and 87,110 on 3.14 (measured
 on macOS by the v0.11.5 dogfood self-audit; JS judged 2,000,000 levels). No
 real hook payload or config nests near even the lowest of these.
 
+**Waived (owner decision, 2026-10-03, #594):** handed envelopes' numbers.
+A number that the two JSON parsers read differently (`-0`, `1.0`, an
+integer beyond double range) is held differently by each twin when
+`combine` copies it onto a step. Separately, a guard refusal quotes the
+number it refuses in its own language's rendering. That includes `-0.0`
+against `0` and `1e-07` against `1e-7`, numbers both parsers read alike.
+The taint, the computed ids and the guard's verdict and reason all agree.
+Both twins refuse every such input, except a step `id` that is not a
+string, which both pass and neither reads. No producer writes a number in
+`source`, `confidence`, the taint flag, a lineage step or its `id`. Copying
+one parser's reading into the other twin would make an accident part of the
+contract.
+
+The same decision waives an object a guard refusal quotes (`{"a": 1}` in
+Python against `{"a":1}` in JS). That one fails the rule's first condition,
+because the spacing is the default of Python's `json.dumps`, which this repo
+chose, not a runtime's limit. It is waived because no behaviour differs, as
+ADR-0019's amendment of 2026-10-03 records. The probe's counts and the
+residue that is not waived are in "Handed envelopes" below.
+
 **Open divergence, not waived** (v0.12.0 dogfood of #617;
 [#625](https://github.com/slopstopper/plumb-line/issues/625)). Where
 `core.ignorecase` is true, the hooks compare a branch with the protected
@@ -166,7 +186,7 @@ by the `cases.json` "empty envelope" row, which requires the advisory, and by
 each language's unit test, which requires it to be the only issue
 (`audit.test.mjs`, `tests/test_audit.py`), not by this table.
 
-## Handed envelopes (#525) — no difference in outcome found; 36 inputs still differ in form, pending a decision (#594)
+## Handed envelopes (#525) — no difference in outcome found; 36 inputs still differ in form: 30 waived, 4 by design, 2 a gap being fixed (#594, #635)
 
 A handed envelope is one a caller built or parsed itself, not one `makeMeta`
 made, so it can carry anything JSON can write. A differential probe fed the
@@ -243,8 +263,8 @@ taint, the step ids `combine` computes and the guard's verdict agree. A
 handed step `id` that is not a string is copied as it is, so on the step-`id`
 inputs below the copied value differs. Against the waiver rule above (a
 runtime's limit, not a rule; both fail closed or judge correctly; no real
-input reaches it), they fall into four groups. **None is waived**: a waiver is
-the owner's decision. The draft is held on #594, pending that decision.
+input reaches it), they fall into four groups, decided by the owner on
+2026-10-03 (#594).
 
 - **A number on a field that cannot hold one** (15 `number` inputs): a
   `source`, `confidence`, taint flag, lineage step or step `id` of `-0`,
@@ -255,31 +275,35 @@ the owner's decision. The draft is held on #594, pending that decision.
   Both twins refuse all of them as `invalid envelope:`, except the step-`id`
   inputs, which both pass: the guard does not read a step's id, and the
   canon skips an id that is not a string. No producer writes a number in
-  these fields.
+  these fields. **Waived** (above).
 - **A valid score** (4 `number` inputs): a `confidenceScore` of `-0`,
   `-0.0` or `1.0`, or `-0.0` before a `0`. Python holds `0`, `0.0` or `1.0`
   where JS holds `-0`, `0` or `1`: Python's parser reads `-0` as an
   integer, Python keeps a float a float, and its `min` keeps whichever zero
-  came first. The value is the same
-  double and both twins pass it. This **fails** the third condition,
-  because a Python score of `1.0` is ordinary input. No behaviour differs.
-  The baseline paragraph above records a similar asymmetry as by design, but
-  only for the baseline library's canonical bytes, not for `combine`, and
-  not for the sign of zero.
+  came first. The value is the same double and both twins pass it. Measured
+  against the waiver rule it would fail the third condition, because a
+  Python score of `1.0` is ordinary input. But it is not waived. It is
+  **by design** (owner decision, 2026-10-03, #594): the value is equal, and
+  only its rendering differs. This is as the baseline paragraph above
+  records for the baseline library's canonical bytes, and it covers
+  `combine`'s scores, the sign of zero included.
 - **A quoted value in a refusal** (9 `quoted-value` and 6
   `number+quoted-value` inputs): both twins refuse with the same
   `invalid envelope:` reason and field, but each quotes the value in its own
-  rendering. The 6 also hold a number of the first group on the step.
-  ADR-0019 records the same rendering difference for `construct`'s
-  refusals, and the guard uses the same quoting, but that ADR covers
-  construction only. The number forms (`-0.0` against `0`, `1.0` against `1`,
-  `1e-07` against `1e-7`, 401 digits against `Infinity`) meet the rule. The 3 object inputs
-  (`{"a": 1}` against `{"a":1}`) **fail** the first condition: the spacing
-  is the default of Python's `json.dumps`, which this repo could change.
+  rendering. The 6 also hold a number of the first group on the step. The
+  guard uses the same quoting as `construct`, whose rendering difference
+  ADR-0019 records. The number forms (`-0.0` against `0`, `1.0` against
+  `1`, `1e-07` against `1e-7`, 401 digits against `Infinity`) meet the rule
+  and are **waived** (above). The 3 object inputs (`{"a": 1}` against
+  `{"a":1}`) fail the first condition, because the spacing is the default of
+  Python's `json.dumps`, which this repo could change. They are **waived**
+  too, because no behaviour differs (above; ADR-0019's amendment of
+  2026-10-03).
 - **The field's name in a message** (2 `field-name` inputs): Python's
   `taint dropped:` message, and its `laundering:` message (which `combine`'s
   output cannot reach), say `derived_from_mock`. Python's other messages say
   `derivedFromMock`, as JS's do. This **fails** the rule: the name is text
-  this repo chose, and every taint-dropped envelope reaches it. It needs a
-  code fix, not a waiver
-  ([#635](https://github.com/slopstopper/plumb-line/issues/635)).
+  this repo chose, and every taint-dropped envelope reaches it. It is a gap,
+  not waived, and is being fixed in
+  [#635](https://github.com/slopstopper/plumb-line/issues/635). The probe's
+  `field-name` count, and this table with it, fall to 0 when the fix lands.

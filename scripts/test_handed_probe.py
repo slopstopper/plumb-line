@@ -239,9 +239,16 @@ def test_parity_md_states_the_totals_and_groups_the_probe_prints():
         m = re.search(pattern, parity)
         assert m, f'PARITY.md no longer states {pattern!r}'
         return [int(g) for g in m.groups()]
-    assert stated(r'## Handed envelopes .*?; (\d+) inputs still differ') == [out['differ']]
-    assert stated(r'Out of (\d+) inputs, (\d+) still differ') == [out['inputs'], out['differ']]
     g = _groups(out)
+    # The owner's decisions of 2026-10-03 (#594): groups 1 and 3 waived, the
+    # scores by design, the field name a gap being fixed (#635).
+    assert stated(r'## Handed envelopes .*?; (\d+) inputs still differ in form: (\d+) waived, '
+                  r'(\d+) by design, (\d+) a gap being fixed') == \
+        [out['differ'], g.get('field', 0) + g.get('quoted-value', 0) + g.get('number+quoted-value', 0),
+         g.get('score', 0), g.get('field-name', 0)]
+    waiver = parity[parity.index('**When parity is waived**'):parity.index('**Open divergence, not waived**')]
+    assert 'Waived (owner decision, 2026-10-03, #594)' in waiver, 'the #594 waiver is not under "When parity is waived"'
+    assert stated(r'Out of (\d+) inputs, (\d+) still differ') == [out['inputs'], out['differ']]
     assert stated(r'cannot hold one\*\* \((\d+) `number` inputs\)') == [g.get('field', 0)]
     assert stated(r'A valid score\*\* \((\d+) `number` inputs\)') == [g.get('score', 0)]
     assert stated(r'in a refusal\*\* \((\d+) `quoted-value` and (\d+)\s+`number\+quoted-value` inputs\)') == \

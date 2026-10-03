@@ -160,3 +160,25 @@ recommendation's reasons:
 
   Recorded here rather than by editing the Decision, because this record is
   append-only.
+
+- **2026-10-03 (#594).** *Owner decision.* The Decision's "the quoted value
+  after 'got' is each language's JSON rendering and may differ in form" now
+  covers the egress guard's refusals too, because the guard quotes a value
+  the same way (Python `_json`, JS `quote`). The committed handed-envelope
+  probe (`primitives/conformance/handed_probe.py`) found the guard quoting
+  a refused `source` or `confidence` differently in the two languages. A
+  number is quoted as `-0.0` against `0`, or `1e-07` against `1e-7`. That
+  is each runtime's own number rendering, and it meets PARITY.md's waiver
+  rule. An object is quoted as `{"a": 1}` against `{"a":1}`. That one does
+  **not** meet the rule's first condition, that a divergence comes from a
+  runtime's limit rather than a rule. The spacing is the default of
+  Python's `json.dumps`, which this repo chose and could change. It is
+  waived anyway, because no behaviour differs: both twins refuse the value,
+  with the same reason class and the same field, and no producer writes an
+  object as a `source` or `confidence`. Changing Python's quoting would also
+  change `construct`'s messages, and number renderings would still differ,
+  so matching the spacing alone buys no parity anyone relies on. The waiver
+  is recorded in PARITY.md, "When parity is waived".
+
+  Recorded here rather than by editing the Decision, because this record is
+  append-only.
