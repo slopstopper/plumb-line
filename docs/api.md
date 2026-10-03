@@ -294,7 +294,11 @@ Every envelope `makeMeta` builds is stamped with `provenanceVersion` (the
 current `PROVENANCE_VERSION`); callers do not pass it.
 
 A `source` outside `STATUS` or a `confidence` outside `CONFIDENCE` is refused
-(since v0.12.0, #443). JS throws an `Error` and Python raises `ValueError`.
+(since v0.12.0, #443). JS throws a `RangeError` and Python raises `ValueError`
+(the JS type since v0.12.1, #602; before, a plain `Error`, of which
+`RangeError` is a subclass, so a catch for `Error` still catches it). The
+refusals of a missing `source` and a non-boolean `derivedFromMock`, below,
+have the same types.
 Both messages start the same way,
 `confidence must be one of none, low, medium, high; got 0` (or the `source`
 equivalent), though the quoted value can differ in form between the two. In

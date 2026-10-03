@@ -1,5 +1,6 @@
 import os
 import sys
+import unicodedata
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import branch_guard
@@ -459,6 +460,67 @@ def test_protected_match_and_is_case_alias():
     assert branch_guard.is_case_alias("Main", ["main"]) is True
     assert branch_guard.is_case_alias("main", ["main"]) is False
     assert branch_guard.is_case_alias("feat", ["main"]) is False
+
+
+def test_protected_match_normalizes_to_nfc_before_folding_only_where_case_is_ignored():
+    # #625: é precomposed (U+00E9) and e + U+0301 are one name to APFS.
+    assert branch_guard.protected_match("cafe\u0301", ["caf\u00e9"], True) == "caf\u00e9"
+    assert branch_guard.protected_match("CAFE\u0301", ["caf\u00e9"], True) == "caf\u00e9"
+    assert branch_guard.protected_match("caf\u00e9", ["cafe\u0301"], True) == "cafe\u0301"
+    assert branch_guard.protected_match("cafe\u0301", ["caf\u00e9"]) is None
+    assert branch_guard.is_case_alias("cafe\u0301", ["caf\u00e9"]) is True
+    # ASCII is unchanged.
+    assert branch_guard.protected_match("MAIN", ["main"], True) == "main"
+    assert branch_guard.protected_match("feat", ["main"], True) is None
+
+
+def test_protected_match_matches_an_unknown_character_as_any_one_character():
+    # #625. U+40000 is unassigned (Cn) in Unicode 17; if a later Unicode
+    # assigns it, these rows need another unassigned code point.
+    pm = branch_guard.protected_match
+    assert unicodedata.category("\U00040000") == "Cn"
+    # In the branch.
+    assert pm("mai\U00040000", ["main"], True) == "main"
+    assert pm("MAI\U00040000", ["main"], True) == "main"
+    assert pm("releas\U00040000", ["main", "release"], True) == "release"
+    assert pm("mai\U00040000", ["main"]) is None
+    assert branch_guard.is_case_alias("mai\U00040000", ["main"]) is True
+    # In the protected name.
+    assert pm("xy", ["main", "x\U00040000"], True) == "x\U00040000"
+    assert pm("XY", ["main", "x\U00040000"], True) == "x\U00040000"
+    assert pm("xy", ["x\U00040000"]) is None
+    # One character for one: the folded lengths must agree, and every other
+    # character must equal the one opposite it.
+    assert pm("x\U00040000", ["main"], True) is None
+    assert pm("ma\U00040000", ["main"], True) is None
+    assert pm("main\U00040000", ["main"], True) is None
+    assert pm("xai\U00040000", ["main"], True) is None
+    assert pm("feat", ["main", "x\U00040000"], True) is None
+    assert branch_guard.is_case_alias("feat", ["x\U00040000"]) is False
+    # An emoji newer than an older runtime's Unicode is no alias of main.
+    assert pm("fix-\U0001face", ["main"], True) is None
+    assert pm("fix-\U0001f6d8", ["main"], True) is None
+    # A fold match with no unknown character in it is named first.
+    assert pm("MAIN", ["mai\U00040000", "main"], True) == "main"
+    # With no branch protected, nothing matches.
+    assert pm("x\U00040000", [], True) is None
+
+
+def test_protected_match_blocks_the_pairs_that_split_the_twins():
+    # #625. Folded where the runtime knows U+A7CE and U+A7D2 (Unicode 17),
+    # and matched as any one character where it does not.
+    assert branch_guard.protected_match("x\ua7ce", ["x\ua7cf"], True) == "x\ua7cf"
+    assert branch_guard.protected_match("x\ua7d3", ["x\ua7d2"], True) == "x\ua7d2"
+
+
+def test_protected_match_pins_a_known_open_divergence_reordering_around_an_unknown_mark():
+    # #625: open, not waived (PARITY.md). U+1ADD is a combining mark in
+    # Unicode 17. Where the runtime knows it, NFC reorders U+0301 before it and
+    # composes e + U+0301, so the names match; where it does not, nothing
+    # moves, the lengths differ, and the protected name is missed.
+    known = unicodedata.category("\u1add") != "Cn"
+    got = branch_guard.protected_match("caf\u00e9\u1add", ["cafe\u1add\u0301"], True)
+    assert got == ("cafe\u1add\u0301" if known else None)
 
 
 @pytest.mark.parametrize("status,stdout,expected", [

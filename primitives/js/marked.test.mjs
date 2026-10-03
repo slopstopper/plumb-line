@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { mark, unwrap, metaOf, derive } from "./marked.mjs";
-import { combineProvenance, __resetStepCounter } from "./provenance.mjs";
+import { combineProvenance, makeMeta, __resetStepCounter } from "./provenance.mjs";
 
 beforeEach(() => __resetStepCounter());
 
@@ -228,4 +228,48 @@ describe("derive reads its inputs once, as a list (#550 review)", () => {
       expect(() => derive(inputs, () => 0)).toThrow(new TypeError("derive: inputs must be a list of marked values"));
     });
   }
+});
+
+// #602 (owner decision 2026-10-03): a refused source, confidence or taint
+// flag is a RangeError in JS, as it is a ValueError in Python, with the same
+// message as before. RangeError extends Error, so a catch for Error still
+// catches it. A wrong kind of input to derive stays a TypeError.
+describe("the constructors' refusals are RangeErrors (#602)", () => {
+  const STATUS_LIST = "unavailable, mock, inferred, fallback, semiReal, derived, real";
+  const clean = () => mark(1, { source: "real", confidence: "high" });
+  const thrown = (f) => {
+    try { f(); } catch (e) { return e; }
+    throw new Error("expected a throw");
+  };
+
+  it.each([
+    ["a missing source", {}, `source is required (one of ${STATUS_LIST})`],
+    ["an off-ladder source", { source: "bogus" }, `source must be one of ${STATUS_LIST}; got "bogus"`],
+    ["an off-ladder confidence", { source: "real", confidence: 0 }, "confidence must be one of none, low, medium, high; got 0"],
+    ["a non-boolean derivedFromMock", { source: "real", derivedFromMock: 0 }, "derivedFromMock must be a boolean; got 0"],
+  ])("makeMeta and mark refuse %s with a RangeError, message unchanged", (_label, input, message) => {
+    for (const e of [thrown(() => makeMeta(input)), thrown(() => mark(1, input))]) {
+      expect(e).toBeInstanceOf(RangeError);
+      expect(e).toBeInstanceOf(Error);
+      expect(e.message).toBe(message);
+    }
+  });
+
+  it.each([
+    ["an off-ladder source", { source: "bogus" }, `source must be one of ${STATUS_LIST}; got "bogus"`],
+    ["a null source", { source: null }, `source must be one of ${STATUS_LIST}; got null`],
+    ["an off-ladder confidence", { confidence: 0 }, "confidence must be one of none, low, medium, high; got 0"],
+    ["a null confidence", { confidence: null }, "confidence must be one of none, low, medium, high; got null"],
+    ["a non-boolean derivedFromMock", { derivedFromMock: 0 }, "derivedFromMock must be a boolean; got 0"],
+  ])("a derive override refuses %s with a RangeError, message unchanged", (_label, override, message) => {
+    const e = thrown(() => derive([clean()], () => 0, override));
+    expect(e).toBeInstanceOf(RangeError);
+    expect(e.message).toBe(message);
+  });
+
+  it("an unmarked derive input stays a TypeError", () => {
+    const e = thrown(() => derive([clean(), 5], () => 0));
+    expect(e).toBeInstanceOf(TypeError);
+    expect(e).not.toBeInstanceOf(RangeError);
+  });
 });

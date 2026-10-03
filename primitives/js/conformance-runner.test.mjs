@@ -334,3 +334,81 @@ describe("conformance runner — v0.12.0 dogfood", () => {
     expect(r.error).toMatch(/marking the inputs failed/);
   });
 });
+
+// #602: a construct or derive refusal must be a RangeError (SPEC §2, owner
+// decision 2026-10-03), as the Python runner requires a ValueError; and no
+// thrown value, on any row, may crash the run.
+describe("conformance runner — refusal type and odd throws (#602)", () => {
+  const table = (kind, rows) => ({ version: cases.version, combine: [], audit: [], validate: [], construct: [], derive: [], guard: [], [kind]: rows });
+  const refusedInput = { source: "bogus" };
+  const marked = [{ source: "real", confidence: "high" }];
+  const throwing = (make) => () => { throw make(); };
+  const NOT_RANGE = "a refusal must be a RangeError (SPEC §2), got";
+
+  it.each([
+    ["a plain Error", () => new Error("source must be one of x"), `${NOT_RANGE} an Error: source must be one of x`],
+    ["a TypeError", () => new TypeError("source must be one of x"), `${NOT_RANGE} a TypeError: source must be one of x`],
+    ["null", () => null, `${NOT_RANGE} null: undefined`],
+    ["undefined", () => undefined, `${NOT_RANGE} undefined: undefined`],
+    ["a string", () => "source must be one of", `${NOT_RANGE} a string: undefined`],
+    ["a plain object", () => ({ message: "source must be one of" }), `${NOT_RANGE} an Object: source must be one of`],
+    ["a null-prototype object", () => Object.assign(Object.create(null), { message: "source must be one of" }),
+      `${NOT_RANGE} a value with no constructor name: source must be one of`],
+  ])("fails, rather than crashes, a construct refusal that throws %s", (_label, make, message) => {
+    const odd = { ...impl, makeMeta: throwing(make) };
+    const results = runCases(odd, table("construct", [{ name: "x", input: refusedInput, expectError: "source must be one of" }]));
+    expect(results).toHaveLength(1);
+    expect(results[0].error).toBe(message);
+  });
+
+  it.each([
+    ["a plain Error", () => new Error("source must be one of x"), /must be a RangeError \(SPEC §2\), got an Error/],
+    ["a TypeError", () => new TypeError("source must be one of x"), /must be a RangeError \(SPEC §2\), got a TypeError/],
+    ["null", () => null, /must be a RangeError \(SPEC §2\), got null/],
+    ["a plain object", () => ({ message: "source must be one of" }), /must be a RangeError \(SPEC §2\), got an Object/],
+  ])("fails a derive refusal that throws %s", (_label, make, pattern) => {
+    const odd = { ...impl, derive: throwing(make) };
+    const [r] = runCases(odd, table("derive", [{ name: "x", inputs: marked, override: { source: "bogus" }, expectError: "source must be one of" }]));
+    expect(r.error).toMatch(pattern);
+  });
+
+  it("fails, rather than crashes, a construct row expecting an envelope when makeMeta throws null", () => {
+    const odd = { ...impl, makeMeta: throwing(() => null) };
+    const results = runCases(odd, table("construct", [{ name: "x", input: { source: "real" }, expect: {} }]));
+    expect(results).toHaveLength(1);
+    expect(results[0].error).toMatch(/expected an envelope, got an error/);
+  });
+
+  it("passes a refusal that is a RangeError or a subclass of one", () => {
+    class RefusalError extends RangeError {}
+    for (const make of [() => new RangeError("source must be one of x"), () => new RefusalError("source must be one of x")]) {
+      const odd = { ...impl, makeMeta: throwing(make) };
+      expect(runCases(odd, table("construct", [{ name: "x", input: refusedInput, expectError: "source must be one of" }]))[0].error)
+        .toBe(null);
+      const oddDerive = { ...impl, derive: throwing(make) };
+      expect(runCases(oddDerive, table("derive", [{ name: "x", inputs: marked, override: { source: "bogus" }, expectError: "source must be one of" }]))[0].error)
+        .toBe(null);
+    }
+  });
+
+  it.each([
+    ["combine", "combineProvenance"],
+    ["audit", "auditMeta"],
+    ["validate", "validateEnvelope"],
+  ])("fails, rather than crashes, a row of kind %s whose port throws null, and judges the next row", (kind, fn) => {
+    // Throw on the first call only, so the second row shows the run went on.
+    let calls = 0;
+    const odd = { ...impl, [fn]: (...a) => { if (calls++ === 0) throw null; return impl[fn](...a); } };
+    const row = cases[kind][0];
+    const results = runCases(odd, table(kind, [row, row]));
+    expect(results).toHaveLength(2);
+    expect(results[0].error).toMatch(/judging the row threw/);
+    expect(results[1].error).toBe(null);
+  });
+
+  it("fails, rather than crashes, a row that is not an object", () => {
+    const results = runCases(impl, table("construct", [null]));
+    expect(results).toHaveLength(1);
+    expect(results[0].error).toMatch(/judging the row threw/);
+  });
+});

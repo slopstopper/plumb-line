@@ -57,23 +57,47 @@ export function isBranchName(name) {
 }
 
 /**
- * A branch name compared without case: upper, then lower, so a letter whose
- * lowercase is not its fold still folds (U+017F long s: "maſter" is
- * "master", as APFS reads it; toLowerCase() alone kept it). Python twin: _fold.
+ * A branch name compared without case: NFC first, so an accent in decomposed
+ * form is the precomposed name, as APFS reads it (#625); then upper, then
+ * lower, so a letter whose lowercase is not its fold still folds (U+017F long
+ * s: "maſter" is "master", as APFS reads it; toLowerCase() alone kept it).
+ * Python twin: _fold.
  */
-const fold = (name) => String(name).toUpperCase().toLowerCase();
+const fold = (name) => String(name).normalize("NFC").toUpperCase().toLowerCase();
+
+/** One character this runtime's Unicode does not know (general category Cn). */
+const UNKNOWN = /^\p{Cn}$/u;
+
+/**
+ * Two folded names, equal character for character, where a character this
+ * runtime does not know matches any one character opposite it, in either
+ * name (#625): its case mapping is unknown here, and a runtime with newer
+ * Unicode may fold it to that character. The lengths, in code points, must
+ * agree. Python twin: _folds_alike.
+ */
+function foldsAlike(a, b) {
+  const x = Array.from(a);
+  const y = Array.from(b);
+  return x.length === y.length
+    && x.every((c, i) => c === y[i] || UNKNOWN.test(c) || UNKNOWN.test(y[i]));
+}
 
 /**
  * The protected branch `branch` is, or null (#615). Exact, or, when git
  * ignores case (core.ignorecase), any protected name that differs only in
- * case: on a case-insensitive filesystem `git checkout Main` is on `main`.
- * Shared by this guard, its commit hook and the pre-commit gate, so the three
- * agree. Python twin: protected_match.
+ * case or normalization (#625): on a case-insensitive filesystem
+ * `git checkout Main` is on `main`. Where case is ignored, a character this
+ * runtime does not know matches any one character (#625, foldsAlike). A
+ * protected name whose fold is equal is named first, then the first that
+ * folds alike. Shared by this guard, its commit hook and the pre-commit
+ * gate, so the three agree. Python twin: protected_match.
  */
 export function protectedMatch(branch, protectedBranches, ignoreCase = false) {
   if (protectedBranches.includes(branch)) return branch;
   if (ignoreCase) {
-    const found = protectedBranches.find((name) => fold(name) === fold(branch));
+    const folded = fold(branch);
+    const found = protectedBranches.find((name) => fold(name) === folded)
+      ?? protectedBranches.find((name) => foldsAlike(fold(name), folded));
     if (found !== undefined) return found;
   }
   return null;

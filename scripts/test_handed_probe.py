@@ -246,7 +246,7 @@ def test_parity_md_states_the_totals_and_groups_the_probe_prints():
                   r'(\d+) by design, (\d+) a gap being fixed') == \
         [out['differ'], g.get('field', 0) + g.get('quoted-value', 0) + g.get('number+quoted-value', 0),
          g.get('score', 0), g.get('field-name', 0)]
-    waiver = parity[parity.index('**When parity is waived**'):parity.index('**Open divergence, not waived**')]
+    waiver = parity[parity.index('**When parity is waived**'):parity.index('**Case folding across Unicode versions**')]
     assert 'Waived (owner decision, 2026-10-03, #594)' in waiver, 'the #594 waiver is not under "When parity is waived"'
     assert stated(r'Out of (\d+) inputs, (\d+) still differ') == [out['inputs'], out['differ']]
     assert stated(r'cannot hold one\*\* \((\d+) `number` inputs\)') == [g.get('field', 0)]

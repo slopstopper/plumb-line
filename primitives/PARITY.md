@@ -126,16 +126,50 @@ chose, not a runtime's limit. It is waived because no behaviour differs, as
 ADR-0019's amendment of 2026-10-03 records. The probe's counts and the
 residue that is not waived are in "Handed envelopes" below.
 
-**Open divergence, not waived** (v0.12.0 dogfood of #617;
-[#625](https://github.com/slopstopper/plumb-line/issues/625)). Where
+**Case folding across Unicode versions**
+([#625](https://github.com/slopstopper/plumb-line/issues/625)). Where
 `core.ignorecase` is true, the hooks compare a branch with the protected
-names by folding both (upper, then lower case, #615), and each twin takes its
-runtime's own Unicode tables. On a letter whose case mapping is newer than one
-runtime's Unicode, the twins disagree: with protected `x꟏` and branch
-`x꟎`, Node 24.15 (Unicode 17) blocks a code edit and Python 3.14.4
-(Unicode 16) allows it. One twin allows what the other blocks, so this does
-not meet the waiver rule above. It is recorded here as open until #625 ships
-one reference fold for both twins.
+names by normalizing both to NFC and folding them (upper, then lower case,
+#615), each twin with its runtime's own Unicode tables. Those tables agree on
+every character both runtimes know: checked one code point at a time on
+2026-10-03, Node 22.23.3 and 24.15.0 (Unicode 17) and Python 3.11.15,
+3.12.13, 3.13.13 and 3.14.4 (Unicode 14 to 16) fold none of them
+differently, and none of them folds to more or fewer than one character
+where the other runtime does not know it. A character the runtime does not
+know (`Cn`) matches any one character, in the branch or a protected name,
+after the fold: the names must agree character for character, with a `Cn`
+character matching whatever is opposite it. So where one runtime folds two
+names together, the other blocks too: `x꟎` against protected `x꟏`, the
+pair that split the twins, and `xꟓ` against protected `x꟒` (U+A7D2), block
+in both. A branch that differs from every protected name elsewhere, such as
+`fix-🫎` (U+1FACE, Unicode 15, unknown to Python 3.11) against `main`, is
+allowed in both.
+
+**Open divergence, safe direction, not waived** (#625). A name that differs
+from a protected name only where one runtime has an unknown character is
+over-protected by that runtime: with protected `main`, Python 3.11 blocks a
+code edit on `mai🫎` while Node 22.23.3 and 24.15.0, which fold `🫎` to
+itself, allow it, and where two protected names could match, the reason may
+name a different one. Real names can reach it (Node knows 15,104 code points
+Python 3.11 does not, and 4,803 that Python 3.14 does not), so it does not
+meet the waiver rule above.
+
+**Open divergence, fails open, not waived** (#625). Normalization can
+change a name's length on a runtime that knows a character and not on one
+that does not; the lengths then differ there, so the unknown characters
+match nothing. There are two routes. *Composition:* Node composes 20
+sequences into one character that Python 3.11 to 3.13 cannot, since a part
+of each is new in Unicode 16 (Todhri, Tulu-Tigalari, Gurung Khema, Kirat
+Rai). With protected `x` + U+105C9 and branch `x` + U+105D2 + U+0307, Node
+blocks a code edit and Python 3.11 to 3.13 allow it. *Reordering:* a
+combining mark the older runtime does not know has no combining class
+there, so canonical ordering does not move it, and a mark after it does not
+compose. With protected `cafe` + U+1ADD + U+0301 and branch `café` +
+U+1ADD, Node blocks and Python 3.11 and 3.14.4 allow. Node 24 has 18 such
+marks against Python 3.11 and 5 against 3.14 (U+1ADD, U+1AE6, U+1AEB,
+U+10EFA, U+10EFB), so this route reaches Python 3.14 too. Both names must
+hold a character the older runtime does not know. The unit tests pin the
+reordering case as a known open divergence.
 
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |

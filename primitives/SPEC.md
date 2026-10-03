@@ -96,8 +96,11 @@ NOT refuse an unknown value there; they read it as above. It does not extend to 
 or a `confidence` not in the certainty ladder, with an error whose message
 contains `source must be one of <the ladder, comma-separated>` or
 `confidence must be one of <the ladder, comma-separated>`. Refusing means the
-constructor throws (JS) or raises `ValueError` (Python); it does not return
-an envelope. A numeric `confidence` (`0`, `0.8`) is refused: the number
+constructor throws a `RangeError` (JS) or raises `ValueError` (Python); it
+does not return an envelope. Every refusal in this section, of `source`,
+`confidence` or `derivedFromMock`, has that type. Each language's
+conformance runner requires its type (#602). A `RangeError` is an `Error`,
+so a JS catch for `Error` still catches it. A numeric `confidence` (`0`, `0.8`) is refused: the number
 belongs in `confidenceScore`. Added in v0.12.0 (#443, ADR-0019). Before that, an
 off-ladder value was stored silently, and only `validateEnvelope` noticed a
 non-string.

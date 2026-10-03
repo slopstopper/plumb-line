@@ -9,6 +9,7 @@ primitives/js/vitest.test.mjs.
 Fixture behaviour is exercised in a child pytest run (pytester, in a
 subprocess), since a fixture only exists inside a session.
 """
+import json
 import os
 import subprocess
 import sys
@@ -134,16 +135,118 @@ def test_assert_no_taint_raises_an_assertion_error_not_a_refusal():
     assert e.value.__cause__ is None and e.value.__suppress_context__
 
 
-def test_the_plugin_registers_itself_under_its_module_name():
-    # pytest registers an entry-point plugin under the entry point's key and
-    # an explicit one (`pytest_plugins = [...]`, `-p ...`) under its module
-    # name. With the two different, registering it explicitly as well aborts
-    # the session ("Plugin already registered under a different name"); with
-    # them equal, pytest sees the name taken and skips it.
+# --- the plugin as installed: loaded by its entry point, turned off by -p no: --
+#
+# The README and docs/api.md say the plugin loads at every pytest start where
+# the package is installed, that `-p no:plumb_line_provenance.pytest_plugin`
+# turns it off, and that naming it in `-p` or `pytest_plugins` as well is
+# harmless (#597). These run real pytest sessions against an install of the
+# package. The install is made here, without network: the package's modules,
+# from the source dir `[tool.setuptools]` maps it to, copied under
+# `plumb_line_provenance/` beside a `.dist-info` whose entry_points.txt is
+# written from pyproject.toml's `[project.entry-points]` tables, the file
+# setuptools writes from them. pytest finds it through importlib.metadata, as
+# it finds any installed plugin. What this does not exercise is the setuptools
+# build itself: setuptools is not in requirements-test.txt, and a real install
+# in a fresh venv would fetch it from the network.
+
+_PLUGIN = "plumb_line_provenance.pytest_plugin"
+
+_REPORT = '''
+import json, sys
+from importlib.metadata import entry_points
+
+def test_report(pytestconfig):
+    pm = pytestconfig.pluginmanager
+    plugin = pm.get_plugin("plumb_line_provenance.pytest_plugin")
+    print("PLUMB " + json.dumps({
+        "registered": plugin is not None,
+        "names": sorted(n for n, p in pm.list_name_plugin()
+                        if p is sys.modules.get("plumb_line_provenance.pytest_plugin")),
+        "file": getattr(plugin, "__file__", None),
+        "dists": sorted(d.metadata["Name"] for _, d in pm.list_plugin_distinfo()),
+        "package_imported": "plumb_line_provenance" in sys.modules,
+        "visible": sorted(ep.name for ep in entry_points(group="pytest11")
+                          if ep.dist and ep.dist.metadata["Name"] == "plumb-line-provenance"),
+    }))
+'''
+
+
+def _install(site):
+    import shutil
     import tomllib
     with open(os.path.join(_PY_DIR, "pyproject.toml"), "rb") as fh:
-        entry = tomllib.load(fh)["project"]["entry-points"]["pytest11"]
-    assert entry == {"plumb_line_provenance.pytest_plugin": "plumb_line_provenance.pytest_plugin"}
+        config = tomllib.load(fh)
+    project, tools = config["project"], config["tool"]["setuptools"]
+    # The package as pyproject.toml maps it: its import name, from its source dir.
+    assert tools["packages"] == ["plumb_line_provenance"], tools["packages"]
+    src = os.path.join(_PY_DIR, tools.get("package-dir", {}).get("plumb_line_provenance", "plumb_line_provenance"))
+    pkg = site / "plumb_line_provenance"
+    pkg.mkdir(parents=True)
+    for name in os.listdir(src):
+        if name.endswith(".py"):
+            shutil.copy(os.path.join(src, name), pkg / name)
+    info = site / f"plumb_line_provenance-{project['version']}.dist-info"
+    info.mkdir()
+    (info / "METADATA").write_text(
+        f"Metadata-Version: 2.1\nName: {project['name']}\nVersion: {project['version']}\n")
+    (info / "entry_points.txt").write_text("".join(
+        f"[{group}]\n" + "".join(f"{k} = {v}\n" for k, v in eps.items()) + "\n"
+        for group, eps in project.get("entry-points", {}).items()))
+    return pkg
+
+
+def _installed_session(pytester, monkeypatch, *args, conftest=""):
+    site = pytester.path.parent / f"{pytester.path.name}-site"
+    pkg = _install(site)
+    monkeypatch.setenv("PYTHONPATH", str(site))
+    monkeypatch.delenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", raising=False)
+    if conftest:
+        pytester.makeconftest(conftest)
+    pytester.makepyfile(_REPORT)
+    result = pytester.runpytest_subprocess("-s", "-p", "no:cacheprovider", "-p", "no:randomly", *args)
+    # -s output shares the line pytest opened for the test file.
+    lines = [ln.split("PLUMB ", 1)[1] for ln in result.outlines if "PLUMB {" in ln]
+    assert len(lines) == 1, result.stdout.str() + result.stderr.str()
+    report = json.loads(lines[0])
+    return result, report, str(pkg)
+
+
+def test_the_installed_plugin_loads_through_its_entry_point_at_every_pytest_start(pytester, monkeypatch):
+    # The session's tests never import the package; only the entry point can load it.
+    result, report, pkg = _installed_session(pytester, monkeypatch)
+    result.assert_outcomes(passed=1)
+    assert report["registered"] and report["package_imported"]
+    assert report["file"].startswith(pkg)
+    assert report["visible"] == [_PLUGIN]
+    assert "plumb-line-provenance" in report["dists"]  # loaded as an installed dist's entry point
+    assert report["names"] == [_PLUGIN]  # under the module's own name
+
+
+def test_dash_p_no_with_the_module_name_turns_the_installed_plugin_off(pytester, monkeypatch):
+    result, report, _ = _installed_session(pytester, monkeypatch, "-p", f"no:{_PLUGIN}")
+    result.assert_outcomes(passed=1)
+    assert report["visible"] == [_PLUGIN]  # installed, its entry point there to load
+    assert not report["registered"]
+    assert not report["package_imported"]  # not loaded, so the package is not imported either
+    assert "plumb-line-provenance" not in report["dists"]
+
+
+@pytest.mark.parametrize("how", ["-p", "pytest_plugins"])
+def test_naming_the_installed_plugin_explicitly_as_well_is_harmless(pytester, monkeypatch, how):
+    # pytest registers an entry-point plugin under the entry point's key and
+    # an explicit one (`-p ...`, `pytest_plugins = [...]`) under its module
+    # name. Were the two different, the second registration would abort the
+    # session ("Plugin already registered under a different name"); equal,
+    # pytest sees the name taken and skips it.
+    if how == "-p":
+        result, report, _ = _installed_session(pytester, monkeypatch, "-p", _PLUGIN)
+    else:
+        result, report, _ = _installed_session(
+            pytester, monkeypatch, conftest=f"pytest_plugins = [{_PLUGIN!r}]\n")
+    assert result.ret == 0, result.stdout.str() + result.stderr.str()
+    result.assert_outcomes(passed=1)
+    assert report["names"] == [_PLUGIN]  # registered once
 
 
 def test_the_package_import_never_imports_pytest():
