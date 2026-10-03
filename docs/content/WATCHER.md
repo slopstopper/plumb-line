@@ -28,9 +28,12 @@ known environment limit (below) counts as swept, at that limit:
    agent-skill auditing (arXiv, the venues the 2026 wave publishes in).
 2. **Listings** — awesome-lists: inclusion opportunities, plus staleness or
    duplicates in existing listings of this project; status of our open
-   listing PRs. Search for venues in this order of fit, and draft from a
-   lower tier only when the tiers above it offer nothing new this week
-   (owner decision 2026-10-03):
+   listing PRs. Search for venues in this order of fit (owner decision
+   2026-10-03), and fill the week's drafted actions from the highest tier
+   first: draft from a lower tier only when no higher tier has a vetted
+   candidate that can be drafted this week, meaning one not blocked by
+   venue courtesy (*Disposition protocol*). The Denominator says which
+   tiers were searched.
    1. Claude Code and agent skills or plugins lists: the beachhead
       audience.
    2. Developer tooling: code quality, static analysis, linters, testing.
@@ -40,11 +43,13 @@ known environment limit (below) counts as swept, at that limit:
       ([`docs/threat-model.md`](../threat-model.md) states which this
       project is).
 
-   The paper vocabulary in target 1 is for finding research. Searching
-   lists by those terms is what drew W33–W40 towards security
-   lists, two of which rejected the project or parked it in a watchlist as out
-   of scope. A drafted listing action names its tier and quotes the line
-   of the list's scope it relies on.
+   The paper vocabulary in target 1 is for finding research. Lists found
+   by those terms come out security-heavy: two of W33–W40's five drafted
+   listings went to AI-security lists (W38, W40), and a security list the
+   owner submitted to before this routine started rejected the project as
+   not a defence against an adversary. A drafted listing action names its
+   tier and quotes the line of the list's scope it relies on, or says the
+   list states none.
 3. **GitHub activity** — topics and discussions around agent provenance and
    epistemic honesty; new projects adjacent to the fit map's profiles;
    name-collision neighbours ("plumbline") if confusion appears.
