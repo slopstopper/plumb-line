@@ -163,8 +163,9 @@ recommendation's reasons:
 
 - **2026-10-03 (#594).** *Owner decision.* The Decision's "the quoted value
   after 'got' is each language's JSON rendering and may differ in form" now
-  covers the egress guard's refusals too, because the guard quotes a value
-  the same way (Python `_json`, JS `quote`). The committed handed-envelope
+  covers the egress guard's refusals too. A guard refusal has no "got"
+  (`source {"a": 1} is not on the source ladder`), but it quotes the refused
+  value the same way (Python `_json`; JS a copy of `quote`). The committed handed-envelope
   probe (`primitives/conformance/handed_probe.py`) found the guard quoting
   a refused `source` or `confidence` differently in the two languages. A
   number is quoted as `-0.0` against `0`, or `1e-07` against `1e-7`. That

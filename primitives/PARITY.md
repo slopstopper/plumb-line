@@ -103,10 +103,13 @@ Python 3.11 (the floor), 9,998 on 3.12 and 3.13, and 87,110 on 3.14 (measured
 on macOS by the v0.11.5 dogfood self-audit; JS judged 2,000,000 levels). No
 real hook payload or config nests near even the lowest of these.
 
-**Waived (owner decision, 2026-10-03, #594):** handed envelopes' numbers.
-A number that the two JSON parsers read differently (`-0`, `1.0`, an
-integer beyond double range) is held differently by each twin when
-`combine` copies it onto a step. Separately, a guard refusal quotes the
+**Waived (owner decision, 2026-10-03, #594):** handed envelopes' numbers on
+a field that cannot hold one, and numbers a guard refusal quotes. A number
+that the two JSON parsers read differently (`-0`, `1.0`, an integer beyond
+double range), in a `source`, `confidence`, taint flag, lineage step or step
+`id`, is held differently by each twin when `combine` copies it onto a step.
+(A valid `confidenceScore` is not waived but by design; see "Handed
+envelopes" below.) Separately, a guard refusal quotes the
 number it refuses in its own language's rendering. That includes `-0.0`
 against `0` and `1e-07` against `1e-7`, numbers both parsers read alike.
 The taint, the computed ids and the guard's verdict and reason all agree.
@@ -280,13 +283,14 @@ input reaches it), they fall into four groups, decided by the owner on
   `-0.0` or `1.0`, or `-0.0` before a `0`. Python holds `0`, `0.0` or `1.0`
   where JS holds `-0`, `0` or `1`: Python's parser reads `-0` as an
   integer, Python keeps a float a float, and its `min` keeps whichever zero
-  came first. The value is the same double and both twins pass it. Measured
-  against the waiver rule it would fail the third condition, because a
-  Python score of `1.0` is ordinary input. But it is not waived. It is
-  **by design** (owner decision, 2026-10-03, #594): the value is equal, and
-  only its rendering differs. This is as the baseline paragraph above
-  records for the baseline library's canonical bytes, and it covers
-  `combine`'s scores, the sign of zero included.
+  came first. The values are numerically equal (`==` in both; no code path
+  reads the sign), and both twins pass them. Measured against the waiver
+  rule this would fail the third condition, because a Python score of
+  `1.0` is ordinary input. But it is not waived: it is **by design** (owner
+  decision, 2026-10-03, #594). The baseline paragraph above records the
+  same asymmetry for the baseline library's canonical bytes. This decision
+  extends that by-design asymmetry to `combine`'s scores, the sign of zero
+  included.
 - **A quoted value in a refusal** (9 `quoted-value` and 6
   `number+quoted-value` inputs): both twins refuse with the same
   `invalid envelope:` reason and field, but each quotes the value in its own
