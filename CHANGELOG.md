@@ -43,6 +43,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `None`), and plants bad guard rows as JS does. In JS, a construct or derive
   refusal must be a `RangeError`, and each row is judged in its own `try`, so a
   port that throws `null` fails its row instead of stopping the run.
+- **PARITY.md's handed-envelope counts come from a committed probe**
+  ([#594](https://github.com/slopstopper/plumb-line/issues/594); ADR-0019
+  amendment). The counts it gave ("20 of 28", "19 of 143") came from probes
+  that were never committed. `primitives/conformance/handed_probe.py` now runs
+  224 handed inputs through both twins, and a test checks every count the file
+  states. 34 differ in form and none in outcome: 30 are waived under the #505
+  rule (numbers each JSON parser reads differently, and how a guard refusal
+  quotes a value), and 4 are valid scores that compare equal, recorded as by
+  design. CI runs the probe and fails if it is skipped for want of `node`.
 - **Two tests prove what their names say**
   ([#597](https://github.com/slopstopper/plumb-line/issues/597)). The vitest
   helper is loaded where `vitest` cannot be resolved, and the pytest plugin is
