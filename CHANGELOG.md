@@ -9,6 +9,10 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.12.0] — 2026-10-03
+
 ### Breaking
 Changes that can make code, hooks, reports or tooling that worked on v0.11.5
 throw, raise, block, fail or give different output. Under this project's
@@ -94,6 +98,7 @@ an empty slot in a sparse JS lineage array.
 - **The gate's reason for a command that cannot be started changed**, with
   or without `PLUMBLINE_CFG` (#613): it names the program and the error code,
   the same in both twins (`... could not be run (nosuchprog: ENOENT)`).
+  **Do:** update anything that matches the old reason's text.
 - **May break: a case alias of a protected branch is protected**
   ([#615](https://github.com/slopstopper/plumb-line/issues/615)). Where
   `core.ignorecase` is true, a code edit or red commit on `Main` (or `maſter`)
@@ -2256,7 +2261,8 @@ These two themes were scoped to v0.5.0 but shipped narrower; v0.5.1 completes th
   enforcement adapters (ESLint / import-linter boundaries, git hooks) for
   JavaScript/TypeScript and Python.
 
-[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.11.5...HEAD
+[Unreleased]: https://github.com/slopstopper/plumb-line/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/slopstopper/plumb-line/compare/v0.11.5...v0.12.0
 [0.11.5]: https://github.com/slopstopper/plumb-line/compare/v0.11.4...v0.11.5
 [0.11.4]: https://github.com/slopstopper/plumb-line/compare/v0.11.3...v0.11.4
 [0.11.3]: https://github.com/slopstopper/plumb-line/compare/v0.11.2...v0.11.3

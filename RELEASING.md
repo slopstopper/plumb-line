@@ -98,7 +98,9 @@ fix-only release is a patch.
    merge is the publish step; no site PR is needed. Update the README's "It audits itself" and
    harness paragraphs to the new release's numbers in the same PR — both
    cite a specific release and go stale otherwise (the v0.11.0 write-up PR
-   is where this step was added, after exactly that staleness).
+   is where this step was added, after exactly that staleness). If a spike
+   round has run since the last release, also update the **Latest** line of
+   the README's "Measured on agents" note to that round.
 8. **Update your own plugin install.** The plugin version bump makes the
    release *available*; installing it is manual. Run `claude plugin list` to
    find the installed name, `plumb-line@<marketplace>`. `<marketplace>` is the
