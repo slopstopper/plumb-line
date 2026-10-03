@@ -36,6 +36,21 @@ node primitives/conformance/report.mjs --badge   # badge markdown only
 node primitives/conformance/report.mjs --json     # machine-readable result
 ```
 
+## The handed-envelope probe
+
+`handed_probe.py` (with its JS half, `handed-probe.mjs`) is a differential
+probe, not a case table. It generates handed inputs, which are envelopes a
+caller built or parsed itself. Each twin parses them with its own JSON
+parser, combines, audits and guards them, and the probe counts where the two
+differ. [PARITY.md](../PARITY.md) cites its counts, and
+`scripts/test_handed_probe.py` checks that PARITY.md states them as printed
+(#594). It exits 1 on any difference in outcome.
+
+```bash
+python3 primitives/conformance/handed_probe.py --verbose   # counts and each difference
+python3 primitives/conformance/handed_probe.py --root DIR  # probe another tree's primitives/
+```
+
 ## The badge
 
 A project that enforces provenance with plumb-line (or ships a conformant
