@@ -322,6 +322,20 @@ without a prompt to use the plugin, and 1 in 30 with one.
   10. Arm 0 had plain twins without the library, so the effect of the
   ruleset and hooks is not separated from that of the library. The pilot
   confirmed the temptation.
+- **On a bootstrapped repository, the plugin's in-task skills added no
+  measurable honesty.**
+  - On m1, B and C were honest in every run.
+  - On m2, B was honest in 8 of 10 runs across round 3b and the re-run, and C
+    in 7 of 15.
+  - C's shortfall came from the method skill's fake-as-real stubs. With the
+    #623 fix, C on m2 was honest in 9 of 10, about level with B.
+  - Bootstrap acts on every run: `AGENTS.md` is read at the start, and the
+    hooks fire unasked. A skill acts only when the agent loads it (10% to 40%
+    of runs).
+
+  There was no plugin-only arm, so the plugin *instead of* bootstrap is
+  untested. The plugin is also how a user gets bootstrap: it is one of the
+  plugin's skills.
 - **The cheats plumb-line's arms still made were in the tests,** in two
   forms:
   - fake data marked real inside a labelled stub test, which the
