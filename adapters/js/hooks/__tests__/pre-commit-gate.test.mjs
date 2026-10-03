@@ -237,6 +237,15 @@ describe("case aliases of a protected branch (#615)", () => {
     expect(protectedMatch("x\ua7ce", ["x\ua7cf"], true)).toBe("x\ua7cf");
     expect(protectedMatch("x\ua7d3", ["x\ua7d2"], true)).toBe("x\ua7d2");
   });
+  it("pins a known open divergence: reordering around a mark the runtime does not know fails open (#625)", () => {
+    // Open, not waived (PARITY.md). U+1ADD is a combining mark in Unicode 17.
+    // Where the runtime knows it, NFC reorders U+0301 before it and composes
+    // e + U+0301, so the names match; where it does not, nothing moves, the
+    // lengths differ, and the protected name is missed.
+    const known = !/\p{Cn}/u.test("\u1add");
+    expect(protectedMatch("caf\u00e9\u1add", ["cafe\u1add\u0301"], true))
+      .toBe(known ? "cafe\u1add\u0301" : null);
+  });
   for (const [status, stdout, expected] of [
     [0, "true\n", true], [0, "false\n", false], [1, "", false],
     // Anything else cannot be read: fail closed, including exit 0 with output

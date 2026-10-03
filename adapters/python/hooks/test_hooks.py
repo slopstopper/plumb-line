@@ -513,6 +513,16 @@ def test_protected_match_blocks_the_pairs_that_split_the_twins():
     assert branch_guard.protected_match("x\ua7d3", ["x\ua7d2"], True) == "x\ua7d2"
 
 
+def test_protected_match_pins_a_known_open_divergence_reordering_around_an_unknown_mark():
+    # #625: open, not waived (PARITY.md). U+1ADD is a combining mark in
+    # Unicode 17. Where the runtime knows it, NFC reorders U+0301 before it and
+    # composes e + U+0301, so the names match; where it does not, nothing
+    # moves, the lengths differ, and the protected name is missed.
+    known = unicodedata.category("\u1add") != "Cn"
+    got = branch_guard.protected_match("caf\u00e9\u1add", ["cafe\u1add\u0301"], True)
+    assert got == ("cafe\u1add\u0301" if known else None)
+
+
 @pytest.mark.parametrize("status,stdout,expected", [
     (0, b"true\n", True), (0, b"false\n", False), (1, b"", False),
     # Anything else cannot be read: fail closed (#615), including exit 0 with

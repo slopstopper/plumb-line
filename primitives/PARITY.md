@@ -133,12 +133,20 @@ meet the waiver rule above.
 
 **Open divergence, fails open, not waived** (#625). Normalization can
 change a name's length on a runtime that knows a character and not on one
-that does not. Node composes 20 pairs into one character that Python 3.11
-to 3.13 cannot, since a part of each is new in Unicode 16 (Todhri,
-Tulu-Tigalari). With protected `x` + U+105C9 and branch `x` + U+105D2 +
-U+0307, Node blocks a code edit and Python 3.11 to 3.13 allow it: the
-lengths differ there, so the unknown characters match nothing. Python 3.14
-knows them. Both names must use a script the older runtime does not know.
+that does not; the lengths then differ there, so the unknown characters
+match nothing. There are two routes. *Composition:* Node composes 20
+sequences into one character that Python 3.11 to 3.13 cannot, since a part
+of each is new in Unicode 16 (Todhri, Tulu-Tigalari, Gurung Khema, Kirat
+Rai). With protected `x` + U+105C9 and branch `x` + U+105D2 + U+0307, Node
+blocks a code edit and Python 3.11 to 3.13 allow it. *Reordering:* a
+combining mark the older runtime does not know has no combining class
+there, so canonical ordering does not move it, and a mark after it does not
+compose. With protected `cafe` + U+1ADD + U+0301 and branch `café` +
+U+1ADD, Node blocks and Python 3.11 and 3.14.4 allow. Node 24 has 18 such
+marks against Python 3.11 and 5 against 3.14 (U+1ADD, U+1AE6, U+1AEB,
+U+10EFA, U+10EFB), so this route reaches Python 3.14 too. Both names must
+hold a character the older runtime does not know. The unit tests pin the
+reordering case as a known open divergence.
 
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |
