@@ -160,3 +160,22 @@ recommendation's reasons:
 
   Recorded here rather than by editing the Decision, because this record is
   append-only.
+
+- **2026-10-03 (#602).** *Decided by the owner, relayed on the issue's PR
+  (#636):* JS refuses an off-ladder or missing `source` or `confidence` with
+  a `RangeError`, mirroring Python's `ValueError`. The message text is
+  unchanged. Before, it was a plain `Error`, so the Decision's "JS `Error`"
+  and the #177 amendment's "JS throws an `Error`" now read `RangeError`.
+  `RangeError` is a subclass of `Error`, so a caller catching `Error` is
+  unaffected. A wrong kind of input to `derive` (#550) stays a `TypeError`.
+
+  *Implementation choices, made in the PR, not by the owner:*
+  - The refusal of a non-boolean `derivedFromMock` (#555) is a `RangeError`
+    too. It is a `ValueError` in Python like the others, and every
+    `construct` and `derive` refusal row is judged by one rule.
+  - Each language's conformance runner requires its type on those rows:
+    `RangeError` in JS, `ValueError` in Python. Planted ports that throw a
+    plain `Error` or a `TypeError` fail their row.
+
+  Recorded here rather than by editing the Decision, because this record is
+  append-only.
