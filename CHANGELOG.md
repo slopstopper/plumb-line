@@ -9,7 +9,44 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+- **JS constructors refuse with a `RangeError`**
+  ([#602](https://github.com/slopstopper/plumb-line/issues/602); ADR-0019
+  amendment). `mark`, `makeMeta` and a `derive` override throw `RangeError`,
+  where they threw a plain `Error`, for an off-ladder or missing `source` or
+  `confidence` or a non-boolean `derivedFromMock`, mirroring Python's
+  `ValueError`. Every message is unchanged, and a wrong kind of input (an
+  unmarked `derive` input) is still a `TypeError`. May break: code that checks
+  `e.constructor === Error`, `e.name` or `String(e)`; a `catch` or
+  `instanceof Error` still works. **Do:** match `RangeError`, or the message.
+- **The case-alias check normalises names, and an unknown character matches
+  any one character** ([#625](https://github.com/slopstopper/plumb-line/issues/625);
+  the branch guard, its commit hook and the gate, in both twins). Where
+  `core.ignorecase` is true, names are NFC-normalised before the fold, so a
+  decomposed spelling of an accented protected name is now protected; it was
+  missed. A character a runtime does not know (Unicode `Cn`) matches any one
+  character, so the JS and Python twins agree on letters newer than one
+  runtime's Unicode, and a feature branch holding one is not blocked unless
+  it could be an alias. Not yet: a protected name holding a very new
+  character or combining mark can still be reached through normalization on
+  an older runtime ([#642](https://github.com/slopstopper/plumb-line/issues/642)).
+
+### Fixed
+- **Python's audit names the taint flag `derivedFromMock`, as JS does**
+  ([#635](https://github.com/slopstopper/plumb-line/issues/635)). The
+  `taint dropped:` and `laundering:` messages, and the guard reasons built from
+  them, said `derived_from_mock`. Pinned by four case rows.
+- **The conformance runners are stricter, and no row can crash the run**
+  ([#595](https://github.com/slopstopper/plumb-line/issues/595),
+  [#602](https://github.com/slopstopper/plumb-line/issues/602)). Python compares
+  `expect` strictly (`True` no longer equals `1`, and a missing key is not
+  `None`), and plants bad guard rows as JS does. In JS, a construct or derive
+  refusal must be a `RangeError`, and each row is judged in its own `try`, so a
+  port that throws `null` fails its row instead of stopping the run.
+- **Two tests prove what their names say**
+  ([#597](https://github.com/slopstopper/plumb-line/issues/597)). The vitest
+  helper is loaded where `vitest` cannot be resolved, and the pytest plugin is
+  loaded through its installed entry point and turned off with `-p no:`.
 
 ## [0.12.0] — 2026-10-03
 
