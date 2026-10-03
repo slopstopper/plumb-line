@@ -123,7 +123,7 @@ def audit_meta(meta):
     steps = [s for s in lineage if isinstance(s, dict)]
 
     if meta.get('source') in CLEAN_SOURCES and meta.get('derived_from_mock') is True:
-        issues.append(f"laundering: clean source '{meta.get('source')}' but derived_from_mock is true")
+        issues.append(f"laundering: clean source '{meta.get('source')}' but derivedFromMock is true")
 
     # An unknown confidence on a step is laundering, not "no signal": treat it as
     # the 'none' floor (mirroring weakest_confidence), so audit is never laxer than
@@ -159,7 +159,7 @@ def audit_meta(meta):
     # and tainted in the JS twin. A malformed step flag is not taint.
     lineage_tainted = any(taints(s) for s in steps)
     if lineage_tainted and meta.get('derived_from_mock') is False:
-        issues.append('taint dropped: lineage contains a tainted step but derived_from_mock is false')
+        issues.append('taint dropped: lineage contains a tainted step but derivedFromMock is false')
 
     if meta.get('source') == 'derived' and len(lineage) == 0:
         issues.append('unreproducible: derived value has no lineage')
