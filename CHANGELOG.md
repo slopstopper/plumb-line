@@ -94,6 +94,7 @@ an empty slot in a sparse JS lineage array.
 - **The gate's reason for a command that cannot be started changed**, with
   or without `PLUMBLINE_CFG` (#613): it names the program and the error code,
   the same in both twins (`... could not be run (nosuchprog: ENOENT)`).
+  **Do:** update anything that matches the old reason's text.
 - **May break: a case alias of a protected branch is protected**
   ([#615](https://github.com/slopstopper/plumb-line/issues/615)). Where
   `core.ignorecase` is true, a code edit or red commit on `Main` (or `maſter`)
