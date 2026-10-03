@@ -111,23 +111,34 @@ names by normalizing both to NFC and folding them (upper, then lower case,
 every character both runtimes know: checked one code point at a time on
 2026-10-03, Node 22.23.3 and 24.15.0 (Unicode 17) and Python 3.11.15,
 3.12.13, 3.13.13 and 3.14.4 (Unicode 14 to 16) fold none of them
-differently. A character the runtime does not know (`Cn`) fails closed: a
-branch holding one counts as protected, and a protected name holding one is
-matched by every branch. So where one runtime folds two names together, the
-other blocks too: `x꟎` against protected `x꟏`, the pair that split the
-twins, and `xꟓ` against protected `x꟒` (U+A7D2), now block in both.
+differently, and none of them folds to more or fewer than one character
+where the other runtime does not know it. A character the runtime does not
+know (`Cn`) matches any one character, in the branch or a protected name,
+after the fold: the names must agree character for character, with a `Cn`
+character matching whatever is opposite it. So where one runtime folds two
+names together, the other blocks too: `x꟎` against protected `x꟏`, the
+pair that split the twins, and `xꟓ` against protected `x꟒` (U+A7D2), block
+in both. A branch that differs from every protected name elsewhere, such as
+`fix-🫎` (U+1FACE, Unicode 15, unknown to Python 3.11) against `main`, is
+allowed in both.
 
-**Open divergence, safe direction, not waived** (#625). What remains differs
-only in the direction of blocking, but real names reach it, so it does not
-meet the waiver rule above. A runtime blocks a branch holding a character it
-does not know where a newer runtime, by the hooks' fold, allows it, and the
-reason may name a different protected branch. Newer emoji are such
-characters: where case is ignored, Python 3.11 blocks a code edit on
-`fix-🫎` (U+1FACE, Unicode 15), Python 3.14 one on a branch holding U+1F6D8
-(Unicode 17), and Node 22.23.3 and 24.15.0 allow both. Node knows 15,104
-code points Python 3.11 does not, and 4,803 that Python 3.14 does not. On the older
-runtime, a protected name holding such a character makes every branch
-protected.
+**Open divergence, safe direction, not waived** (#625). A name that differs
+from a protected name only where one runtime has an unknown character is
+over-protected by that runtime: with protected `main`, Python 3.11 blocks a
+code edit on `mai🫎` while Node 22.23.3 and 24.15.0, which fold `🫎` to
+itself, allow it, and where two protected names could match, the reason may
+name a different one. Real names can reach it (Node knows 15,104 code points
+Python 3.11 does not, and 4,803 that Python 3.14 does not), so it does not
+meet the waiver rule above.
+
+**Open divergence, fails open, not waived** (#625). Normalization can
+change a name's length on a runtime that knows a character and not on one
+that does not. Node composes 20 pairs into one character that Python 3.11
+to 3.13 cannot, since a part of each is new in Unicode 16 (Todhri,
+Tulu-Tigalari). With protected `x` + U+105C9 and branch `x` + U+105D2 +
+U+0307, Node blocks a code edit and Python 3.11 to 3.13 allow it: the
+lengths differ there, so the unknown characters match nothing. Python 3.14
+knows them. Both names must use a script the older runtime does not know.
 
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |

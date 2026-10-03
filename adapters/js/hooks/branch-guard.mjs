@@ -65,22 +65,31 @@ export function isBranchName(name) {
  */
 const fold = (name) => String(name).normalize("NFC").toUpperCase().toLowerCase();
 
+/** One character this runtime's Unicode does not know (general category Cn). */
+const UNKNOWN = /^\p{Cn}$/u;
+
 /**
- * A character this runtime's Unicode does not know (general category Cn).
- * Its case mapping is unknown here, so two names cannot be shown not to fold
- * together when one of them holds one (#625). Python twin: _has_unknown.
+ * Two folded names, equal character for character, where a character this
+ * runtime does not know matches any one character opposite it, in either
+ * name (#625): its case mapping is unknown here, and a runtime with newer
+ * Unicode may fold it to that character. The lengths, in code points, must
+ * agree. Python twin: _folds_alike.
  */
-const hasUnknown = (name) => /\p{Cn}/u.test(String(name));
+function foldsAlike(a, b) {
+  const x = Array.from(a);
+  const y = Array.from(b);
+  return x.length === y.length
+    && x.every((c, i) => c === y[i] || UNKNOWN.test(c) || UNKNOWN.test(y[i]));
+}
 
 /**
  * The protected branch `branch` is, or null (#615). Exact, or, when git
  * ignores case (core.ignorecase), any protected name that differs only in
  * case or normalization (#625): on a case-insensitive filesystem
  * `git checkout Main` is on `main`. Where case is ignored, a character this
- * runtime does not know fails closed (#625), since a runtime with newer
- * Unicode may fold it: a branch holding one is the first protected branch
- * (after a real fold match), and a protected name holding one is matched by
- * every branch. Shared by this guard, its commit hook and the pre-commit
+ * runtime does not know matches any one character (#625, foldsAlike). A
+ * protected name whose fold is equal is named first, then the first that
+ * folds alike. Shared by this guard, its commit hook and the pre-commit
  * gate, so the three agree. Python twin: protected_match.
  */
 export function protectedMatch(branch, protectedBranches, ignoreCase = false) {
@@ -88,7 +97,7 @@ export function protectedMatch(branch, protectedBranches, ignoreCase = false) {
   if (ignoreCase) {
     const folded = fold(branch);
     const found = protectedBranches.find((name) => fold(name) === folded)
-      ?? (hasUnknown(branch) ? protectedBranches[0] : protectedBranches.find(hasUnknown));
+      ?? protectedBranches.find((name) => foldsAlike(fold(name), folded));
     if (found !== undefined) return found;
   }
   return null;
