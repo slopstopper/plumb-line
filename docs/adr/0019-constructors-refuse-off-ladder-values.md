@@ -161,8 +161,8 @@ recommendation's reasons:
   Recorded here rather than by editing the Decision, because this record is
   append-only.
 
-- **2026-10-03 (#602).** *Decided by the owner, relayed on the issue's PR
-  (#636):* JS refuses an off-ladder or missing `source` or `confidence` with
+- **2026-10-03 (#602).** *Decided by the owner, implemented in #639:* JS
+  refuses an off-ladder or missing `source` or `confidence` with
   a `RangeError`, mirroring Python's `ValueError`. The message text is
   unchanged. Before, it was a plain `Error`, so the Decision's "JS `Error`"
   and the #177 amendment's "JS throws an `Error`" now read `RangeError`.
