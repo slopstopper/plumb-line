@@ -103,16 +103,26 @@ Python 3.11 (the floor), 9,998 on 3.12 and 3.13, and 87,110 on 3.14 (measured
 on macOS by the v0.11.5 dogfood self-audit; JS judged 2,000,000 levels). No
 real hook payload or config nests near even the lowest of these.
 
-**Open divergence, not waived** (v0.12.0 dogfood of #617;
-[#625](https://github.com/slopstopper/plumb-line/issues/625)). Where
+**Case folding across Unicode versions**
+([#625](https://github.com/slopstopper/plumb-line/issues/625)). Where
 `core.ignorecase` is true, the hooks compare a branch with the protected
-names by folding both (upper, then lower case, #615), and each twin takes its
-runtime's own Unicode tables. On a letter whose case mapping is newer than one
-runtime's Unicode, the twins disagree: with protected `x꟏` and branch
-`x꟎`, Node 24.15 (Unicode 17) blocks a code edit and Python 3.14.4
-(Unicode 16) allows it. One twin allows what the other blocks, so this does
-not meet the waiver rule above. It is recorded here as open until #625 ships
-one reference fold for both twins.
+names by normalizing both to NFC and folding them (upper, then lower case,
+#615), each twin with its runtime's own Unicode tables. Those tables agree on
+every character both runtimes know: checked one code point at a time on
+2026-10-03, Node 22 and 24 (Unicode 17) and Python 3.11 to 3.14 (Unicode 14
+to 16) fold none of them differently. A branch holding a character the
+runtime does not know (`Cn`) counts as protected, so where one runtime folds
+such a branch to a protected name, the other blocks it too: `x꟎` against
+protected `x꟏`, the pair that split the twins, now blocks in both. What
+remains differs only in the safe direction, and meets the waiver rule above:
+a runtime that does not know a character blocks a branch holding it that a
+newer runtime may judge, correctly, to be unprotected, and the reason may
+name a different protected branch.
+
+Still open: a *protected name* holding a character one runtime does not
+know. With protected `x꟒` (U+A7D2, Unicode 17) and branch `xꟓ`, Node folds
+the two together and blocks a code edit, while Python, which does not know
+U+A7D2, allows it.
 
 | Case                                                   | derivedFromMock | confidence | source       | JS   | Python |
 | ------------------------------------------------------ | --------------- | ---------- | ------------ | ---- | ------ |

@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 import sys
+import unicodedata
 
 # What counts as a blank branch: ASCII whitespace only, as in the JS twin
 # (str.strip() alone would also strip Unicode spaces that JS trim() keeps).
@@ -76,24 +77,38 @@ def _is_branch_name(name):
 
 
 def _fold(name):
-    """A branch name compared without case: upper, then lower, so a letter
-    whose lowercase is not its fold still folds (U+017F long s: "maſter" is
-    "master", as APFS reads it; lower() alone kept it). JS twin: fold."""
-    return str(name).upper().lower()
+    """A branch name compared without case: NFC first, so an accent in
+    decomposed form is the precomposed name, as APFS reads it (#625); then
+    upper, then lower, so a letter whose lowercase is not its fold still folds
+    (U+017F long s: "maſter" is "master", as APFS reads it; lower() alone kept
+    it). JS twin: fold."""
+    return unicodedata.normalize("NFC", str(name)).upper().lower()
+
+
+def _has_unknown(name):
+    """A character this runtime's Unicode does not know (general category Cn).
+    Its case mapping is unknown here, so a name holding one cannot be shown
+    not to fold to a protected name (#625). JS twin: hasUnknown."""
+    return any(unicodedata.category(c) == "Cn" for c in str(name))
 
 
 def protected_match(branch, protected_branches, ignore_case=False):
     """The protected branch `branch` is, or None (#615). Exact, or, when git
     ignores case (core.ignorecase), any protected name that differs only in
     case: on a case-insensitive filesystem `git checkout Main` is on `main`.
-    Shared by this guard, its commit hook and the pre-commit gate, so the
-    three agree. JS twin: protectedMatch."""
+    Where case is ignored, a branch holding a character this runtime does not
+    know fails closed, as the first protected branch (#625): a runtime with
+    newer Unicode may fold it to one. Shared by this guard, its commit hook
+    and the pre-commit gate, so the three agree. JS twin: protectedMatch."""
     if branch in protected_branches:
         return branch
     if ignore_case:
+        folded = _fold(branch)
         for name in protected_branches:
-            if _fold(name) == _fold(branch):
+            if _fold(name) == folded:
                 return name
+        if protected_branches and _has_unknown(branch):
+            return protected_branches[0]
     return None
 
 

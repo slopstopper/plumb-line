@@ -57,24 +57,37 @@ export function isBranchName(name) {
 }
 
 /**
- * A branch name compared without case: upper, then lower, so a letter whose
- * lowercase is not its fold still folds (U+017F long s: "maſter" is
- * "master", as APFS reads it; toLowerCase() alone kept it). Python twin: _fold.
+ * A branch name compared without case: NFC first, so an accent in decomposed
+ * form is the precomposed name, as APFS reads it (#625); then upper, then
+ * lower, so a letter whose lowercase is not its fold still folds (U+017F long
+ * s: "maſter" is "master", as APFS reads it; toLowerCase() alone kept it).
+ * Python twin: _fold.
  */
-const fold = (name) => String(name).toUpperCase().toLowerCase();
+const fold = (name) => String(name).normalize("NFC").toUpperCase().toLowerCase();
+
+/**
+ * A character this runtime's Unicode does not know (general category Cn).
+ * Its case mapping is unknown here, so a name holding one cannot be shown not
+ * to fold to a protected name (#625). Python twin: _has_unknown.
+ */
+const hasUnknown = (name) => /\p{Cn}/u.test(String(name));
 
 /**
  * The protected branch `branch` is, or null (#615). Exact, or, when git
  * ignores case (core.ignorecase), any protected name that differs only in
  * case: on a case-insensitive filesystem `git checkout Main` is on `main`.
- * Shared by this guard, its commit hook and the pre-commit gate, so the three
- * agree. Python twin: protected_match.
+ * Where case is ignored, a branch holding a character this runtime does not
+ * know fails closed, as the first protected branch (#625): a runtime with
+ * newer Unicode may fold it to one. Shared by this guard, its commit hook and
+ * the pre-commit gate, so the three agree. Python twin: protected_match.
  */
 export function protectedMatch(branch, protectedBranches, ignoreCase = false) {
   if (protectedBranches.includes(branch)) return branch;
   if (ignoreCase) {
-    const found = protectedBranches.find((name) => fold(name) === fold(branch));
+    const folded = fold(branch);
+    const found = protectedBranches.find((name) => fold(name) === folded);
     if (found !== undefined) return found;
+    if (protectedBranches.length > 0 && hasUnknown(branch)) return protectedBranches[0];
   }
   return null;
 }
