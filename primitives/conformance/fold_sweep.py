@@ -15,7 +15,9 @@ named runtimes.
 
 To measure another pair, run it with that Python, with that Node first on
 ``PATH``. It exits 1 when a premise of the hooks' rule fails on this pair
-(``foldDiffers``, ``foldNotOne`` or ``markRuleMisses`` above 0), else 0.
+(``foldDiffers`` or ``foldNotOne`` above 0), or when the JS half's class
+rule disagrees with ``unicodedata.combining`` (``markRuleMisses`` above 0),
+else 0. Without ``node`` on ``PATH`` it stops with a message.
 
 **What is counted.**
 
@@ -34,8 +36,8 @@ To measure another pair, run it with that Python, with that Node first on
   combining class other than 0, and the other does not know at all (the
   reordering route). JS has no API for the class, so the JS half finds it
   through NFD's canonical ordering, and this half checks that rule against
-  ``unicodedata.combining`` on every code point Python knows
-  (``markRuleMisses``). Each such mark can fail open, given a following mark
+  ``unicodedata.combining`` on every code point Python knows that is its
+  own NFD (``markRuleMisses``). Each such mark can fail open, given a following mark
   of a lower class that composes with the base.
 - ``reorderingMarksAcute``: those of them that PARITY.md's example reaches,
   ``e`` + mark + U+0301: a class other than 0 and 230. The figures first
@@ -123,8 +125,11 @@ def python_tables():
 
 
 def node_tables():
-    proc = subprocess.run(['node', os.path.join(_HERE, 'fold-sweep.mjs')],
-                          capture_output=True, text=True, check=False)
+    try:
+        proc = subprocess.run(['node', os.path.join(_HERE, 'fold-sweep.mjs')],
+                              capture_output=True, text=True, check=False)
+    except OSError as e:  # no node on PATH
+        raise SystemExit(f'fold-sweep.mjs could not be run: {e}')
     if proc.returncode != 0:
         raise SystemExit(f'fold-sweep.mjs failed ({proc.returncode}):\n{proc.stderr}')
     raw = json.loads(proc.stdout)

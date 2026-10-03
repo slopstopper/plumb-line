@@ -140,9 +140,9 @@ than one character where the other runtime does not know it.
 *The figures in this section are a dated measurement, not a guarantee.*
 `primitives/conformance/fold_sweep.py` compares the running Node and Python
 one code point at a time, as the hooks read them. Run on 2026-10-03 on
-macOS, it found no fold difference between Node 24.15.0 (Unicode 17) and
-each of Python 3.11.15, 3.12.13, 3.13.13 and 3.14.4 (Unicode 14 to 16), and
-it gave the counts below. The first, uncommitted check behind #625 also
+macOS at commit `810fb80`, it found no fold difference between Node
+24.15.0 (Unicode 17) and each of Python 3.11.15, 3.12.13, 3.13.13 and
+3.14.4 (Unicode 14 to 16), and it gave the counts below. The first, uncommitted check behind #625 also
 covered Node 22.23.3. That part has not been re-run with the committed
 sweep. A CI job has one Node and one Python. CI runs
 `scripts/test_fold_sweep.py` on Node 22 against each of Python 3.11 to
@@ -183,10 +183,12 @@ blocks a code edit and Python 3.11 to 3.13 allow it. *Reordering:* a
 combining mark the older runtime does not know has no combining class
 there, so canonical ordering does not move it, and a mark after it does not
 compose. With protected `cafe` + U+1ADD + U+0301 and branch `café` +
-U+1ADD, Node blocks and Python 3.11 and 3.14.4 allow. Any mark with a
-class other than 0 can do this, given a following mark of a lower class
-that composes with the base. U+1ACF has class 230, so U+0301 does not reach
-it, but protected `cafe` + U+1ACF + U+0323 against branch `caf` + `ẹ` +
+U+1ADD, Node blocks and Python 3.11 and 3.14.4 allow: U+1ADD's class is
+below U+0301's 230, so where it is known NFC composes e + U+0301 across it.
+Any mark with a class other than 0 can do this, given a following mark of a
+different class other than 0 that composes with the base. One of a lower
+class is reordered before the mark, and one of a higher class composes
+across it. U+1ACF has class 230, so U+0301 does not reach it, but protected `cafe` + U+1ACF + U+0323 against branch `caf` + `ẹ` +
 U+1ACF blocks on Node and is allowed on Python 3.14.4. Node 24.15.0 has 56
 such marks against Python 3.11.15 and 34 against 3.14.4, so this route
 reaches Python 3.14 too. Of them, 18 and 5 have a class other than 230 and
@@ -310,7 +312,8 @@ counts below against what it prints. The second column is checked only in a
 clone that has the history; CI's shallow checkout skips it. The probe's
 output names the tree's commit and the Node and Python versions it ran,
 because the `number` class comes from their JSON parsers. The `main` column
-was printed on 2026-10-03 by Node 24.15.0 and Python 3.14.4. CI re-checks it
+was printed on 2026-10-03, at commit `810fb80`, by Node 24.15.0 and Python
+3.14.4. CI re-checks it
 on Node 22 against each of Python 3.11 to 3.14.
 
 <!-- handed-probe counts -->

@@ -66,7 +66,8 @@ Node and one Python per job, so it cannot reproduce figures that pair
 others. `scripts/test_fold_sweep.py` checks on the pair it runs on that the
 folds agree. To measure another pair, run the sweep with that Python and
 with that Node first on `PATH`. It exits 1 when a premise of the hooks'
-rule fails on the pair.
+rule fails on the pair, or when its way of finding a combining class in JS
+disagrees with Python's `unicodedata.combining`.
 
 ```bash
 python3 primitives/conformance/fold_sweep.py --verbose   # counts and the code points behind them

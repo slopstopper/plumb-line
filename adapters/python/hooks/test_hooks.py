@@ -515,10 +515,10 @@ def test_protected_match_blocks_the_pairs_that_split_the_twins():
 
 def test_protected_match_pins_a_known_open_divergence_reordering_around_an_unknown_mark():
     # #625, #642: open, not waived (PARITY.md; tracked in #642). U+1ADD is a
-    # combining mark in Unicode 17. Where the runtime knows it, NFC reorders
-    # U+0301 before it and composes e + U+0301, so the names match; where it
-    # does not, nothing moves, the lengths differ, and the protected name is
-    # missed.
+    # combining mark in Unicode 17, of a class below U+0301's. Where the
+    # runtime knows it, NFC composes e + U+0301 across it, so the names match;
+    # where it does not, it blocks the composition, the lengths differ, and
+    # the protected name is missed.
     known = unicodedata.category("\u1add") != "Cn"
     got = branch_guard.protected_match("caf\u00e9\u1add", ["cafe\u1add\u0301"], True)
     assert got == ("cafe\u1add\u0301" if known else None)

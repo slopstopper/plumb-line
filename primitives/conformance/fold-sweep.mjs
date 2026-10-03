@@ -28,7 +28,7 @@ const UNKNOWN = /^\p{Cn}$/u;
 // above 0: "x" + c + U+0334 reorders when c's class is above 1, and
 // "x" + U+0345 + c when it is from 1 to 239, so either reorders exactly when
 // it is not 0. fold_sweep.py checks this rule against Python's own
-// unicodedata.combining on every code point Python knows.
+// unicodedata.combining on every code point Python knows that is its own NFD.
 const reorders = (c) =>
   ("x" + c + "\u0334").normalize("NFD") !== "x" + c + "\u0334"
   || ("x\u0345" + c).normalize("NFD") !== "x\u0345" + c;

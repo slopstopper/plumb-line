@@ -84,7 +84,8 @@ def _run_sweep():
 
 def test_on_this_pair_the_premises_parity_md_states_hold():
     code, out = _run_sweep()
-    # The JS half's class rule, checked on every code point Python knows.
+    # The JS half's class rule, checked on every code point Python knows that
+    # is its own NFD.
     assert out['markRuleMisses'] == 0, out['detail']['markRuleMisses']
     assert out['foldDiffers'] == 0, out['detail']['foldDiffers']
     assert out['foldNotOne'] == 0, out['detail']['foldNotOne']
