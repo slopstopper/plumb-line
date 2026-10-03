@@ -123,11 +123,7 @@ function runDerive(impl, c) {
   try {
     out = impl.derive(items, () => 0, c.override || {});
   } catch (e) {
-    if (c.expectError === undefined) return `expected an envelope, got an error: ${describeThrown(e)}`;
-    const message = describeThrown(e);
-    return message.includes(c.expectError)
-      ? null
-      : `expected an error containing "${c.expectError}", got "${message}"`;
+    return judgeRefusal(c, e);
   }
   if (c.expectError !== undefined) return `expected an error containing "${c.expectError}", got an envelope`;
   return envelopeProblem(out, c);
@@ -140,13 +136,30 @@ function runConstruct(impl, c) {
   try {
     out = impl.makeMeta(c.input);
   } catch (e) {
-    if (c.expectError === undefined) return `expected an envelope, got an error: ${e.message}`;
-    return String(e.message).includes(c.expectError)
-      ? null
-      : `expected an error containing "${c.expectError}", got "${e.message}"`;
+    return judgeRefusal(c, e);
   }
   if (c.expectError !== undefined) return `expected an error containing "${c.expectError}", got an envelope`;
   return envelopeProblem(out, c);
+}
+
+// What a construct or derive row makes of a thrown value (#602). A refusal
+// must be an Error of this runner's realm, judged on its prototype chain as
+// the guard's TypeError is; any subclass is accepted. The reference throws a
+// plain Error, and SPEC §2 names no subclass for JS (the Python runner
+// requires a ValueError). Never throws, whatever was thrown.
+function judgeRefusal(c, e) {
+  if (c.expectError === undefined) return `expected an envelope, got an error: ${describeThrown(e)}`;
+  let isError = false;
+  try {
+    isError = e !== null && typeof e === "object" && Object.prototype.isPrototypeOf.call(Error.prototype, e);
+  } catch {
+    // A Proxy whose getPrototypeOf trap throws is not judged an Error.
+  }
+  if (!isError) return `a refusal must be an Error, got ${thrownKind(e)}: ${describeThrown(e)}`;
+  const message = describeThrown(e);
+  return message.includes(c.expectError)
+    ? null
+    : `expected an error containing "${c.expectError}", got "${message}"`;
 }
 
 // A thrown value as text, for a failure message; never throws, whatever the
@@ -156,6 +169,21 @@ function describeThrown(e) {
     return String(e?.message);
   } catch {
     return "a value the runner cannot print";
+  }
+}
+
+// A thrown value's kind, for a failure message: null, a primitive's type, or
+// the name of its prototype's own constructor. Never throws.
+function thrownKind(e) {
+  if (e === null || e === undefined) return String(e);
+  if (typeof e !== "object" && typeof e !== "function") return `a ${typeof e}`;
+  try {
+    const proto = Object.getPrototypeOf(e);
+    const name = proto && Object.getOwnPropertyDescriptor(proto, "constructor")?.value?.name;
+    if (typeof name !== "string" || !name) return "a value with no constructor name";
+    return `${/^[AEIOU]/.test(name) ? "an" : "a"} ${name}`;
+  } catch {
+    return "a value that cannot be inspected";
   }
 }
 
@@ -233,16 +261,8 @@ function judgeGuardThrow(impl, c, e) {
   // error until the v0.12.0 dogfood audit found it. Judged against this
   // runner's realm: a TypeError made in another realm (vm.runInNewContext)
   // fails, as the implementation under test runs in this one.
-  if (proto === null || !(proto === TypeError.prototype || Object.prototype.isPrototypeOf.call(TypeError.prototype, proto))) {
-    let kind = "a value with no constructor name";
-    try {
-      const name = proto && Object.getOwnPropertyDescriptor(proto, "constructor")?.value?.name;
-      if (typeof name === "string" && name) kind = `a ${name}`;
-    } catch {
-      kind = "a value that cannot be inspected";
-    }
-    return `a bad option's error must be a TypeError (SPEC §5c), got ${kind}: ${describeThrown(e)}`;
-  }
+  if (proto === null || !(proto === TypeError.prototype || Object.prototype.isPrototypeOf.call(TypeError.prototype, proto)))
+    return `a bad option's error must be a TypeError (SPEC §5c), got ${thrownKind(e)}: ${describeThrown(e)}`;
   const message = describeThrown(e);
   return message.includes(c.expectError)
     ? null
@@ -275,6 +295,17 @@ export function describeCaseTable(cases, bytes) {
   };
 }
 
+// One row's verdict. Whatever the implementation throws, and a row that is
+// not an object, fails that row and never the run (#602): a port whose
+// combineProvenance throws null must not stop the rows after it being judged.
+function judgeRow(impl, kind, c) {
+  try {
+    return unknownFields(kind, c) ?? RUN[kind](impl, c);
+  } catch (e) {
+    return `judging the row threw: ${describeThrown(e)}`;
+  }
+}
+
 export function runCases(impl, cases) {
   const badVersion = KNOWN_TABLE_VERSIONS.has(cases.version) ? [] : [{
     kind: "(table)",
@@ -290,7 +321,7 @@ export function runCases(impl, cases) {
     ...badVersion,
     ...Object.keys(RUN).flatMap((kind) =>
       Array.isArray(cases[kind])
-        ? cases[kind].map((c) => ({ kind, name: c.name, error: unknownFields(kind, c) ?? RUN[kind](impl, c) }))
+        ? cases[kind].map((c) => ({ kind, name: c?.name, error: judgeRow(impl, kind, c) }))
         // A kind the runner models but the table lacks is a failure too: a
         // table with a kind deleted must not certify (#443 review).
         : [{ kind, name: "(whole kind)", error: kind in cases
