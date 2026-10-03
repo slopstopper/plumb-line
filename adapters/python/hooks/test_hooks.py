@@ -490,6 +490,20 @@ def test_protected_match_fails_closed_on_a_character_the_runtime_does_not_know()
     assert branch_guard.protected_match("x꟎", ["x꟏"], True) == "x꟏"
 
 
+def test_protected_match_fails_closed_on_a_protected_name_the_runtime_does_not_know():
+    # #625. Where case is ignored, every branch counts as that name: this
+    # runtime cannot say which branches a newer one would fold to it.
+    assert branch_guard.protected_match("feat", ["main", "x\U00040000"], True) == "x\U00040000"
+    assert branch_guard.protected_match("feat", ["main", "x\U00040000"]) is None
+    assert branch_guard.is_case_alias("feat", ["x\U00040000"]) is True
+    # A real fold match, and then an unknown branch, are named first.
+    assert branch_guard.protected_match("MAIN", ["x\U00040000", "main"], True) == "main"
+    assert branch_guard.protected_match("y\U00040000", ["main", "x\U00040000"], True) == "main"
+    # Folded where U+A7D2 is known (Unicode 17), protected by this rule
+    # where it is not.
+    assert branch_guard.protected_match("xꟓ", ["x꟒"], True) == "x꟒"
+
+
 @pytest.mark.parametrize("status,stdout,expected", [
     (0, b"true\n", True), (0, b"false\n", False), (1, b"", False),
     # Anything else cannot be read: fail closed (#615), including exit 0 with

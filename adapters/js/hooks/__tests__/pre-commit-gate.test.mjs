@@ -216,6 +216,19 @@ describe("case aliases of a protected branch (#615)", () => {
     // protected by the rule above where it is not.
     expect(protectedMatch("x꟎", ["x꟏"], true)).toBe("x꟏");
   });
+  it("fails closed on a protected name holding a character the runtime does not know (#625)", () => {
+    // Where case is ignored, every branch counts as that name: this runtime
+    // cannot say which branches a newer one would fold to it.
+    expect(protectedMatch("feat", ["main", "x\u{40000}"], true)).toBe("x\u{40000}");
+    expect(protectedMatch("feat", ["main", "x\u{40000}"])).toBeNull();
+    expect(isCaseAlias("feat", ["x\u{40000}"])).toBe(true);
+    // A real fold match, and then an unknown branch, are named first.
+    expect(protectedMatch("MAIN", ["x\u{40000}", "main"], true)).toBe("main");
+    expect(protectedMatch("y\u{40000}", ["main", "x\u{40000}"], true)).toBe("main");
+    // Folded where U+A7D2 is known (Unicode 17), protected by this rule
+    // where it is not.
+    expect(protectedMatch("xꟓ", ["x꟒"], true)).toBe("x꟒");
+  });
   for (const [status, stdout, expected] of [
     [0, "true\n", true], [0, "false\n", false], [1, "", false],
     // Anything else cannot be read: fail closed, including exit 0 with output
