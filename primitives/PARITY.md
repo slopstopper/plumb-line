@@ -166,11 +166,13 @@ by the `cases.json` "empty envelope" row, which requires the advisory, and by
 each language's unit test, which requires it to be the only issue
 (`audit.test.mjs`, `tests/test_audit.py`), not by this table.
 
-## Handed envelopes — resolved 2026-09-29 (#525)
+## Handed envelopes (#525) — no difference in outcome found; 40 inputs still differ in form, pending a decision (#594)
 
-A differential probe fed the same malformed, handed inputs to both
-`combine` implementations; 20 of 28 gave different results. All now match,
-each pinned by a `combine` row in `cases.json` (the rows marked #525):
+A handed envelope is one a caller built or parsed itself, not one `makeMeta`
+made, so it can carry anything JSON can write. A differential probe fed the
+same malformed, handed inputs to both `combine` implementations and found
+them giving different results. Every difference in outcome it found now
+matches, each pinned by a `combine` row in `cases.json` (the rows marked #525):
 
 - **Step ids for a non-string `confidence` or `source`.** Each language wrote
   the value with its own string conversion (`True` vs `true`, `1.0` vs `1`,
@@ -206,10 +208,67 @@ override each used their language's truthiness rather than the §3 rule. It
 also found two regressions in the first fix, fixed before merge: leaving an
 absent `source` off a step let the egress guard pass it (the guard now
 refuses a step with no `source`), and a Python `Mapping` that is not a `dict`
-had its taint cleared (any `Mapping` is now read). A re-run of the reviewer's
-143-input probe leaves 19 differences after #555, none in outcome: nine are
-the audit's field name in its message (`derivedFromMock` /
-`derived_from_mock`, as before), and ten are a `-0` or an out-of-range
-integer that each language's JSON parser already reads differently, copied
-verbatim into the step (#555's malformed flag of `-0` is the tenth); the ids
-agree and neither language reads any of them as taint.
+had its taint cleared (any `Mapping` is now read).
+
+**The counts, run (#594).** This section used to say that 20 of 28 inputs
+differed before the fix, and that the review's 143-input probe left 19
+differences after #555. Neither probe was committed, so neither count could
+be re-run. They are replaced by the counts of the committed probe,
+`primitives/conformance/handed_probe.py`. It is a reconstruction from #525's
+record with its own corpus, not either earlier probe re-run, and its counts
+do not match theirs. It parses each input with each language's own JSON
+parser, combines it, audits and guards the result in both twins, and compares
+what each twin writes. `--verbose` lists every difference, `--root DIR`
+probes another tree, and it exits 1 on any difference in outcome.
+`scripts/test_handed_probe.py` checks this table against what it prints. The
+second column is checked only in a clone that has the history; CI's shallow
+checkout skips it.
+
+<!-- handed-probe counts -->
+| Class | Inputs, `main` | Inputs, before the fix (`8cef0a2^`) | What differs |
+| --- | --- | --- | --- |
+| `agree` | 184 | 95 | nothing |
+| `outcome` | 0 | 101 | taint, an id, a verdict, the record's shape, a throw, or other message text |
+| `field-name` | 2 | 10 | a message names the field `derived_from_mock` in Python, `derivedFromMock` in JS |
+| `number` | 23 | 10 | one IEEE-754 double, written differently (`-0.0`/`0`, `1.0`/`1`, a 401-digit integer/`null`) |
+| `quoted-value` | 6 | 2 | a refusal quotes the value in each language's JSON rendering (`1e-07`/`1e-7`, `{"a": 1}`/`{"a":1}`) |
+| `number+quoted-value` | 9 | 3 | both of those |
+| `field-name+number` | 0 | 3 | both of those |
+<!-- /handed-probe counts -->
+
+Out of 224 inputs, 40 still differ on `main`. On every one of them, the ids,
+the taint and the guard's verdict agree. Against the waiver rule above (a
+runtime's limit, not a rule; both fail closed or judge correctly; no real
+input reaches it), they fall into four groups. **None is waived**: a waiver is
+the owner's decision, recorded on #594.
+
+- **A number on a field that cannot hold one** (19 `number` inputs): a
+  `source`, `confidence`, taint flag, lineage step or step `id` of `-0.0`,
+  `1.0`, `1e400` or an integer beyond double range. Each language's JSON
+  parser reads these differently before `combine` sees them, and `combine`
+  copies the value verbatim. This **meets** the rule. Both twins refuse 15
+  of them as `invalid envelope:`. Both pass the 4 step-`id` inputs, because
+  the guard does not read a step's id and the canon skips an id that is not
+  a string. No producer writes a number in these fields.
+- **A valid score** (4 `number` inputs): a `confidenceScore` of `1.0` or
+  `-0.0`, alone or beside a `0` in either order. Python writes `1.0`,
+  `-0.0` or `0.0` where JS writes `1` or `0`. The value is the same and both twins pass it. This **fails** the
+  third condition, because a Python score of `1.0` is ordinary input. No
+  behaviour differs: it is the integral-float asymmetry that the baseline
+  paragraph above records as by design.
+- **A quoted value in a refusal** (6 `quoted-value` and 9
+  `number+quoted-value` inputs): both twins refuse with the same
+  `invalid envelope:` reason and field, but each quotes the value in its own
+  rendering. The 9 also carry a number of the first group on the step.
+  ADR-0019 records the same rendering difference for
+  `construct`'s refusals; the guard uses the same quoting. The number forms
+  meet the rule. The 3 object inputs (`{"a": 1}` against `{"a":1}`) **fail**
+  the first condition: the spacing is the default of Python's `json.dumps`,
+  which this repo could change.
+- **The field's name in a message** (2 `field-name` inputs): Python's
+  `taint dropped:` message, and its `laundering:` message (which `combine`'s
+  output cannot reach), say `derived_from_mock`. Python's other messages say
+  `derivedFromMock`, as JS's do. This **fails** the rule: the name is text
+  this repo chose, and every taint-dropped envelope reaches it. It needs a
+  code fix, not a waiver
+  ([#635](https://github.com/slopstopper/plumb-line/issues/635)).
