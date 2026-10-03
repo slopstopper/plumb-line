@@ -50,10 +50,10 @@ recorded here once so digests stop restating them (owner decision
   the default trusted list. W33–W39 ran without them, so paper and Hacker
   News coverage before W40 was web-search snippets alone. The first run in
   the new environment confirms the domains resolve; if one is still
-  blocked, that is a change the digest reports. From October 2026 it
-  also allows `api.npmjs.org` and `pypistats.org`, for the monthly
-  digest's download metric; September's digest ran without them and
-  reported both as not retrievable.
+  blocked, that is a change the digest reports. It also allows
+  `api.npmjs.org` and `pypistats.org`, for the monthly digest's download
+  metric; the September 2026 digest ran without them and reported both as
+  not retrievable.
 
 A digest's Denominator mentions these limits only when one has changed: a
 domain that now resolves, or a new block. It does not count consecutive
