@@ -190,6 +190,62 @@ describe("case aliases of a protected branch (#615)", () => {
     expect(isCaseAlias("main", ["main"])).toBe(false);
     expect(isCaseAlias("feat", ["main"])).toBe(false);
   });
+  it("normalizes both names to NFC before folding, only where case is ignored (#625)", () => {
+    // é precomposed (U+00E9) and e + U+0301 are one name to APFS.
+    expect(protectedMatch("cafe\u0301", ["caf\u00e9"], true)).toBe("caf\u00e9");
+    expect(protectedMatch("CAFE\u0301", ["caf\u00e9"], true)).toBe("caf\u00e9");
+    expect(protectedMatch("caf\u00e9", ["cafe\u0301"], true)).toBe("cafe\u0301");
+    expect(protectedMatch("cafe\u0301", ["caf\u00e9"])).toBeNull();
+    expect(isCaseAlias("cafe\u0301", ["caf\u00e9"])).toBe(true);
+    // ASCII is unchanged.
+    expect(protectedMatch("MAIN", ["main"], true)).toBe("main");
+    expect(protectedMatch("feat", ["main"], true)).toBeNull();
+  });
+  it("matches a character the runtime does not know as any one character, on either name, only where case is ignored (#625)", () => {
+    // U+40000 is unassigned (Cn) in Unicode 17; if a later Unicode assigns
+    // it, these rows need another unassigned code point.
+    expect(/\p{Cn}/u.test("\u{40000}")).toBe(true);
+    // In the branch.
+    expect(protectedMatch("mai\u{40000}", ["main"], true)).toBe("main");
+    expect(protectedMatch("MAI\u{40000}", ["main"], true)).toBe("main");
+    expect(protectedMatch("releas\u{40000}", ["main", "release"], true)).toBe("release");
+    expect(protectedMatch("mai\u{40000}", ["main"])).toBeNull();
+    expect(isCaseAlias("mai\u{40000}", ["main"])).toBe(true);
+    // In the protected name.
+    expect(protectedMatch("xy", ["main", "x\u{40000}"], true)).toBe("x\u{40000}");
+    expect(protectedMatch("XY", ["main", "x\u{40000}"], true)).toBe("x\u{40000}");
+    expect(protectedMatch("xy", ["x\u{40000}"])).toBeNull();
+    // One character for one: the folded lengths must agree, and every other
+    // character must equal the one opposite it.
+    expect(protectedMatch("x\u{40000}", ["main"], true)).toBeNull();
+    expect(protectedMatch("ma\u{40000}", ["main"], true)).toBeNull();
+    expect(protectedMatch("main\u{40000}", ["main"], true)).toBeNull();
+    expect(protectedMatch("xai\u{40000}", ["main"], true)).toBeNull();
+    expect(protectedMatch("feat", ["main", "x\u{40000}"], true)).toBeNull();
+    expect(isCaseAlias("feat", ["x\u{40000}"])).toBe(false);
+    // An emoji newer than an older runtime's Unicode is no alias of main.
+    expect(protectedMatch("fix-\u{1face}", ["main"], true)).toBeNull();
+    expect(protectedMatch("fix-\u{1f6d8}", ["main"], true)).toBeNull();
+    // A fold match with no unknown character in it is named first.
+    expect(protectedMatch("MAIN", ["mai\u{40000}", "main"], true)).toBe("main");
+    // With no branch protected, nothing matches.
+    expect(protectedMatch("x\u{40000}", [], true)).toBeNull();
+  });
+  it("blocks the pairs that split the twins, on every supported runtime (#625)", () => {
+    // Folded where the runtime knows U+A7CE and U+A7D2 (Unicode 17), and
+    // matched as any one character where it does not.
+    expect(protectedMatch("x\ua7ce", ["x\ua7cf"], true)).toBe("x\ua7cf");
+    expect(protectedMatch("x\ua7d3", ["x\ua7d2"], true)).toBe("x\ua7d2");
+  });
+  it("pins a known open divergence: reordering around a mark the runtime does not know fails open (#625)", () => {
+    // Open, not waived (PARITY.md). U+1ADD is a combining mark in Unicode 17.
+    // Where the runtime knows it, NFC reorders U+0301 before it and composes
+    // e + U+0301, so the names match; where it does not, nothing moves, the
+    // lengths differ, and the protected name is missed.
+    const known = !/\p{Cn}/u.test("\u1add");
+    expect(protectedMatch("caf\u00e9\u1add", ["cafe\u1add\u0301"], true))
+      .toBe(known ? "cafe\u1add\u0301" : null);
+  });
   for (const [status, stdout, expected] of [
     [0, "true\n", true], [0, "false\n", false], [1, "", false],
     // Anything else cannot be read: fail closed, including exit 0 with output

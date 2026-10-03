@@ -532,6 +532,46 @@
       "env": {"PLUMBLINE_CFG": "{\"protectedBranches\": [\"master\"], \"docsAllowlist\": [\"README.md\"]}"},
       "expectExit": 2,
       "expectStderr": "blocked: code edit to src/a.js on protected branch master. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a commit on a branch that is a protected name but for a character the runtime does not know (U+40000, unassigned) blocks: it matches any one character (#625)",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/mai\ud8c0\udc00",
+      "config": [["core.ignorecase", "true"]],
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"README.md\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a commit on a branch holding a character the runtime does not know, and no alias of a protected name, passes (#625)",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/x\ud8c0\udc00",
+      "config": [["core.ignorecase", "true"]],
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"README.md\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git ignores case, a commit on x\ua7ce blocks where x\ua7cf is protected, on every supported runtime: folded where U+A7CE is known, matched as any one character where it is not (#625)",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/x\ua7ce",
+      "config": [["core.ignorecase", "true"]],
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"protectedBranches\": [\"x\ua7cf\"], \"docsAllowlist\": [\"README.md\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/a.js on protected branch x\ua7cf. Branch first.\n"
+    },
+    {
+      "name": "where git does not ignore case, a character the runtime does not know matches only itself (#625)",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/mai\ud8c0\udc00",
+      "config": [["core.ignorecase", "false"]],
+      "stage": ["src/a.js"],
+      "env": {"PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"README.md\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
     }
   ],
   "preCommitGate": [
@@ -977,6 +1017,16 @@
       "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"master\"]}"},
       "expectExit": 2,
       "expectStderr": "pre-commit blocked: the tests failed, and `master` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `master` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
+    },
+    {
+      "name": "where git ignores case, a branch that is a protected name but for a character the runtime does not know (U+40000, unassigned) is protected (#625)",
+      "committed": ["README.md"],
+      "headRef": "refs/heads/mai\ud8c0\udc00",
+      "config": [["core.ignorecase", "true"]],
+      "stage": ["docs/a.md"],
+      "env": {"PLUMBLINE_TEST_CMD": "false", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "expectExit": 2,
+      "expectStderr": "pre-commit blocked: the tests failed, and `main` is a protected branch. Fix the code, or commit on another branch (`git switch -c <name>`); there the tests can fail, and the work reaches `main` through review, not a local merge. Mark a test as an expected failure only if the user decides it should wait; mark it strict, with their reason.\n"
     }
   ],
   "branchGuard": [
@@ -1041,6 +1091,141 @@
       "env": {"PLUMBLINE_BRANCH": "Main", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"docs/\"]}"},
       "expectExit": 2,
       "expectStderr": "blocked: code edit to src/app.js on protected branch main. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a branch with an accent in decomposed form (e + U+0301) is the protected precomposed name: both are normalized to NFC (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "cafe\u0301", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"caf\u00e9\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch caf\u00e9. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a branch that is a protected name but for a character the runtime does not know (U+40000, unassigned) is that name: it matches any one character, and the reason names the name matched (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "releas\ud8c0\udc00", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\", \"release\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch release. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a docs edit on a branch that is a protected name but for a character the runtime does not know is still allowed (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"docs/x.md\"}",
+      "env": {"PLUMBLINE_BRANCH": "mai\ud8c0\udc00", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"], \"docsAllowlist\": [\"docs/\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git ignores case, a branch holding a character the runtime does not know is allowed when no protected name matches it character for character (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "xai\ud8c0\udc00", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git ignores case, a branch with an unknown character is no alias of a protected name of another length (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "ma\ud8c0\udc00", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git ignores case, fix-\ud83e\udece (U+1FACE, Unicode 15) is no alias of main on any supported runtime (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "fix-\ud83e\udece", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git ignores case, fix-\ud83d\uded8 (U+1F6D8, Unicode 17) is no alias of main on any supported runtime (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "fix-\ud83d\uded8", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git ignores case, x\ua7ce is protected x\ua7cf on every supported runtime: folded where U+A7CE is known, matched as any one character where it is not (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "x\ua7ce", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"x\ua7cf\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch x\ua7cf. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, x\ua7d3 is protected x\ua7d2 on every supported runtime: folded where U+A7D2 is known, matched as any one character where it is not (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "x\ua7d3", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"x\ua7d2\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch x\ua7d2. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a character the runtime does not know in a protected name matches any one character in the branch (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "XY", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\", \"x\ud8c0\udc00\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch x\ud8c0\udc00. Branch first.\n"
+    },
+    {
+      "name": "where git ignores case, a protected name holding a character the runtime does not know does not protect a branch of another length (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "feat", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\", \"x\ud8c0\udc00\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git does not ignore case, nothing is folded or normalized: a decomposed accent is another branch (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "false"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "cafe\u0301", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"caf\u00e9\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git does not ignore case, a character the runtime does not know in the branch matches only itself (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "false"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "mai\ud8c0\udc00", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git does not ignore case, a character the runtime does not know in a protected name matches only itself (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "false"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "xy", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\", \"x\ud8c0\udc00\"]}"},
+      "expectExit": 0,
+      "expectStderr": ""
+    },
+    {
+      "name": "where git ignores case, an ASCII case alias still blocks as before (#625)",
+      "committed": ["README.md"],
+      "config": [["core.ignorecase", "true"]],
+      "stdin": "{\"filePath\": \"src/app.js\"}",
+      "env": {"PLUMBLINE_BRANCH": "RELEASE", "PLUMBLINE_CFG": "{\"protectedBranches\": [\"main\", \"Release\"]}"},
+      "expectExit": 2,
+      "expectStderr": "blocked: code edit to src/app.js on protected branch Release. Branch first.\n"
     }
   ]
 }
