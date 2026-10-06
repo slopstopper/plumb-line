@@ -20,6 +20,7 @@ Newest first.
 
 | Self-audit | Date |
 | --- | --- |
+| [v0.12.1 dogfood self-audit — 2026-10-03](records/dogfood/v0.12.1.md) | 2026-10-03 |
 | [v0.12.0 dogfood self-audit — 2026-09-30](records/dogfood/v0.12.0.md) | 2026-09-30 |
 | [v0.11.5 dogfood self-audit — 2026-09-28](records/dogfood/v0.11.5.md) | 2026-09-28 |
 | [v0.11.4 dogfood self-audit — 2026-09-26](records/dogfood/v0.11.4.md) | 2026-09-26 |
