@@ -142,7 +142,7 @@ plumb-line is also tested on agents. A recurring spike gives an agent an ordinar
 
 ## It audits itself
 
-Before each of those releases, plumb-line also runs its own audit skill over its own code and publishes what it found in the [dogfooding report](docs/dogfood.md). For v0.12.0 ([the record](docs/records/dogfood/v0.12.0.md)): 23 findings in the release diff, 11 fixed before release, 11 tracked as issues and one partly each. Seven more came from the branch-aware gate, which merged after that pass: five fixed, among them a check that failed open where its own docstring said it failed closed, and two tracked ([#625](https://github.com/slopstopper/plumb-line/issues/625), [#626](https://github.com/slopstopper/plumb-line/issues/626)). "The auditor found no problem" is never treated as proof that no problem exists.
+Before each of those releases, plumb-line also runs its own audit skill over its own code and publishes what it found in the [dogfooding report](docs/dogfood.md). For v0.12.1 ([the record](docs/records/dogfood/v0.12.1.md)): eight findings, seven fixed before release and one tracked ([#642](https://github.com/slopstopper/plumb-line/issues/642)). Among them were a test that an issue said existed and did not, and counts typed into the same file this release had just fixed for that reason. "The auditor found no problem" is never treated as proof that no problem exists.
 
 ## What plumb-line does not claim
 
