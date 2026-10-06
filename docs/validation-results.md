@@ -33,6 +33,7 @@ and earlier ones not at all.
 | Run | Date | Blind validation (Part 1) | Format scoring |
 | --- | --- | --- | --- |
 | [Impossible-task spike, round 3 — 2026-10-01 to 2026-10-03 (#462)](records/validation/2026-10-03-impossible-task-spike-round3.md) | 2026-10-03 | — (a spike, not a blind validation) | — (a spike, not a blind validation) |
+| [v0.12.1 release-harness record — 2026-10-03 (pre-tag)](records/validation/v0.12.1.md) | 2026-10-03 | not re-run; v0.12.0's 9/9 PASS stands (skills unchanged) | 1/1 conform |
 | [v0.12.0 release-harness record — 2026-09-30 (pre-tag)](records/validation/v0.12.0.md) | 2026-09-30 | 9/9 PASS | 17/18 conform; the dogfood report fails, honestly stamped |
 | [v0.11.5 release-harness record — 2026-09-28 (pre-tag)](records/validation/v0.11.5.md) | 2026-09-28 | 5/6 PASS first run; py-clean FAIL, fixed and re-validated 2/2 | 8/8 conform |
 | [Impossible-task spike — 2026-09-26 (#462)](records/validation/2026-09-26-impossible-task-spike-462.md) | 2026-09-26 | — (a spike, not a blind validation) | — (a spike, not a blind validation) |
