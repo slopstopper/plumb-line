@@ -11,7 +11,7 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 _Nothing yet._
 
-## [0.12.1] — 2026-10-03
+## [0.12.1] — 2026-10-06
 
 ### Changed
 - **JS constructors refuse with a `RangeError`**
