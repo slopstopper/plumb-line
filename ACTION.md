@@ -329,7 +329,7 @@ new site**: fix it, or accept it with `ratchet.py update --because
 "renamed X to Y"`. That is the honest cost of keying on sites rather than
 counts (a count cannot tell "fixed one, added one" from "no change").
 
-The file (`ratchet-format: v1`) is a contracted output: sorted, unique
+The file (`ratchet-format: v1`) has an output contract: sorted, unique
 sites per output capability, and an append-only `history` of
 `{date, because, change}`. A capability key that is **absent** was never
 measured; an **empty list** was measured and clean. Only two commands ever

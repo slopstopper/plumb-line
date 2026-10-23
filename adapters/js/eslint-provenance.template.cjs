@@ -24,7 +24,7 @@ module.exports = [
   // starts crying wolf.
   //
   // Bootstrap replaces __OUTPUT_GLOBS__ with the trust-bearing surface the
-  // builder named (interview Q4/Q8), or REMOVES THIS WHOLE BLOCK if the builder
+  // operator named (interview Q4/Q8), or REMOVES THIS WHOLE BLOCK if the operator
   // declines. An unreplaced placeholder throws ReferenceError when ESLint loads
   // this config — it fails loudly rather than silently linting nothing, the
   // same contract as __GLOBS__ above.

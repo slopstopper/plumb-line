@@ -203,7 +203,7 @@ Version themes for the near-term releases, and the GitHub issues under each.
   slopstopper.org/plumb-line, with tests so they cannot drift (GH #439); the
   conformance verdict records its case table (GH #433); one `cases.json`
   interpreter in vitest (GH #430); the checker-version stamp (GH #432); an ADR
-  declaring plumb-line's own source-truth layer, accepted by the owner
+  declaring plumb-line's own source-of-truth layer, accepted by the owner
   (ADR-0018, GH #434); and the user-facing skills and docs that had drifted
   from the code (GH #445), with the two adapter bugs its review found. The
   harness record, including a Part 1b (remediate) run, is in
@@ -290,7 +290,8 @@ Version themes for the near-term releases, and the GitHub issues under each.
   (GH #612, pulled forward from v1.0.0), and the principles' revision 2
   (GH #593). Weighed in a brainstorm and decided by the owner as text before any
   sweep; a change to the source rung's wire value would carry a
-  `PROVENANCE_VERSION` decision and a migration window.
+  `PROVENANCE_VERSION` decision and a migration window. The decision is
+  ADR-0023.
 
 - **v0.14.0 — See the cheat** (detection) · *created 2026-10-03 (owner
   decision), from spike round 3 (GH #462).* The audit and the Action see the
@@ -673,8 +674,8 @@ Close the gap from the skill side. The first two bullets are the *offer* slice
 the third is the *bundle* slice
 ([#99](https://github.com/slopstopper/plumb-line/issues/99), v0.7.0, gated on
 wire v2):
-- **Method — introduce + suggest download:** when teaching P3 (confidence +
-  provenance) or P8 (lineage), name the runtime library as the concrete
+- **Method — introduce + suggest download:** when teaching P3 (provenance and
+  confidence) or P8 (lineage), name the runtime library as the concrete
   implementation, with the three-line `mark`/`derive` example, and suggest how to
   get it. A bounded softening of method's "takes no actions" stance — mention and
   suggest, don't install. ([#106](https://github.com/slopstopper/plumb-line/issues/106))
@@ -756,14 +757,14 @@ reusable for third-party primitives that follow the same envelope contract.
 
 The skills teach (method), set up (bootstrap), and find (audit) — but nothing
 applies a fix. `plumb-line-audit` is deliberately read-only, so after it reports
-"P3 laundered uncertainty at `foo.ts:42`" the builder is on their own. Keeping the
+"P3 laundered uncertainty at `foo.ts:42`" the operator is on their own. Keeping the
 auditor read-only is worth preserving — review you can trust does not mutate — so
 remediation belongs in a separate skill, not folded into audit.
 
 `plumb-line-remediate` consumes a machine-readable audit report (the
 `report-format: v1` from #9) and applies the mechanical fixes: wrap an untagged
 return in `mark`/`derive`, lift a magic number to injected config (P5), add a
-validator + version to an uncontracted output (P7), add lineage recording (P8),
+validator + version to an output with no contract (P7), add lineage recording (P8),
 relabel overstated maturity (P6). It shows diffs and never silently edits. The
 lightweight handoff shipped in v0.5.0 (#20) is the on-ramp to this full skill.
 
@@ -771,7 +772,7 @@ HONESTY GUARDRAIL: a remediation may never resolve a finding by making the code
 *less* honest — clearing a taint flag, deleting a null-result branch, or dropping
 a confidence field to make a check pass. That is the laundering the whole project
 exists to stop; the fixer needs the same honesty constraint bootstrap has ("if
-you cannot name a source-truth layer, that absence is the finding").
+you cannot name a source-of-truth layer, that absence is the finding").
 
 ---
 
@@ -812,7 +813,7 @@ unmodified from a non-Claude host against the worked fixtures in `examples/`.
 **Priority: medium** · Track: `track:portable` · GitHub: #60
 
 Beyond `AGENTS.md`, generate the host-specific rule file for whichever agent the
-builder uses — `.cursor/rules`, `.github/copilot-instructions.md`, `CLAUDE.md`,
+operator uses — `.cursor/rules`, `.github/copilot-instructions.md`, `CLAUDE.md`,
 `AGENTS.md`. Bootstrap already writes `AGENTS.md`; generalize that step into
 "emit the rule file for the detected host." Pairs with the agent-adapter contract
 (#12).
@@ -927,7 +928,7 @@ The Agent epistemic state track (#35) needs a ladder position to point at.
 
 **Priority: high** · Milestone: v0.11.0 · GitHub: #117 · **shipped in v0.11.0 (2026-09-15)**
 
-Principle 9 (golden baseline + explain-the-drift) is implemented on main as a
+Principle 9 (golden baselines) is implemented on main as a
 library + inspection CLI in both languages (`current`); rides the v0.11.0
 release; cross-step causality, structural value diff and float tolerance are
 `not-implemented`. The **library** pins an output *with its lineage*, diffs

@@ -71,6 +71,10 @@ Two fields draw from ordered enumerations. Order is significant: "weakest" and
 unavailable  <  mock  <  inferred  <  fallback  <  semiReal  <  derived  <  real
 ```
 
+A `mock` value is invented data, which is not real. That is the only meaning
+of `mock` here. It is not a test double, and it is not a maturity level: an
+unfinished implementation is at maturity `stub` (Principle 6).
+
 An `inferred` value (LLM/agent-produced, no external evidence behind it) ranks
 just above `mock` and below `fallback` — treated as suspect until evidenced, so
 that combining it with anything else drags trust down hard. See ADR-0010.
@@ -493,7 +497,7 @@ display, a publish). It enforces Principle 4's mock clause, "excluded from
 outputs unless explicitly opted in", at run time. A source floor the caller
 sets (`minSource`, #541) lets an output point refuse more of what Principle 4
 names, fallback data (source `fallback`) and inferred data (`inferred`), by
-opting in, where Principle 4 asks for exclusion unless opted out. The floor
+opting in, where Principle 4 asks for exclusion by default. The floor
 is off by default, by the owner's decision on #541. Approximate and
 cached data have no rung (the HTTP adapter marks a cache hit `real` with
 lower confidence), so neither can be refused specifically (#562).
@@ -502,9 +506,11 @@ lower confidence), so neither can be refused specifically (#562).
 level on the confidence ladder, default `none`) and `minSource` (a rung on
 the source ladder, default `unavailable`, which is no floor, by the owner's
 decision on #541). A default of
-true for `noMock` is normative: mock is excluded unless the caller opts in.
-With `minSource` above `unavailable`, the guard refuses, with a reason
-prefixed `source:` (`source: fallback is below the required semiReal`), when
+true for `noMock` is normative: mock is excluded unless an opt-in is
+recorded. The opt-in is recorded where the output is produced, in code or
+configuration a reviewer can see, as `noMock: false` is. Whoever owns the
+output records it. With `minSource` above `unavailable`, the guard refuses,
+with a reason prefixed `source:` (`source: fallback is below the required semiReal`), when
 the weakest source the ancestry shows is below it. The ancestry is the
 headline `source`, `weakestSource` and every lineage step's `source`,
 skipping `"derived"`, the law's own label for a computed value, so a derived

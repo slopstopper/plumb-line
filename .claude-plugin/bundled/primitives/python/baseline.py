@@ -1,4 +1,4 @@
-"""baseline — Principle 9: golden baseline + explain-the-drift. Mirror of baseline.mjs.
+"""baseline — Principle 9: golden baselines. Mirror of baseline.mjs.
 
 Pins a marked value WITH its trust state, diffs later runs against the pin,
 refuses silent drift, and requires a recorded explanation to accept a new

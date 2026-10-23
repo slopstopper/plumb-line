@@ -148,7 +148,7 @@ the envelope records what the server returned, not whether that server deserves
 trust. Its classification is documented in [`api.md`](api.md) and pinned by
 `primitives/conformance/http-cases.json`. The skills in `skills/` carry no
 runtime trust boundary of their own: `plumb-line-method`, `-audit` and `-adopt`
-are read-only; `-bootstrap` installs enforcement into the builder's repo (hook
+are read-only; `-bootstrap` installs enforcement into the operator's repo (hook
 scripts, lint rules and, if chosen, the primitive, vendored or as a package);
-and `-remediate` edits code, only when the builder asks it to apply an audit
+and `-remediate` edits code, only when the operator asks it to apply an audit
 report's findings.*

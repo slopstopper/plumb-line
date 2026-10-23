@@ -33,7 +33,7 @@ Every PR should:
 
 Changes are judged against the [portable principles](reference/portable-principles.md)
 the project enforces. If a change would have the tool launder uncertainty,
-hardcode a prior, or overstate maturity, it will not land: the rules the audit
+hardcode an assumption, or overstate maturity, it will not land: the rules the audit
 skill applies to your code apply to this repository too.
 
 ## Decisions are recorded

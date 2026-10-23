@@ -41,7 +41,7 @@ each is something an agent gets wrong by acting on a reasonable default.
    prose — fix the code or the case table.
 3. **This repo is held to its own principles.** The rules the audit skill
    applies to other people's code apply here. Don't launder uncertainty,
-   hardcode a prior, or overstate maturity; use the maturity vocabulary
+   hardcode an assumption, or overstate maturity; use the maturity vocabulary
    (`current` / `planned`), not aspirational claims.
 4. **New behaviour needs a failing test first.** Enforcement is proven by
    tests, not asserted.

@@ -47,7 +47,7 @@ these files into the target repo.
 
 ## 5b. Output-tag enforcement (declared surface)
 
-- Purpose: invert the default inside a surface the builder declares — a
+- Purpose: invert the default inside a surface the operator declares — a
   trust-bearing function that returns a provably raw computation is an error,
   rather than something review must spot (ADR-0011). Opt-in once at the
   boundary, opt-out per function; with no surface declared it is a no-op.
@@ -90,7 +90,7 @@ these files into the target repo.
   it for this), and a consumer's full `eslint.config.*` turns every
   non-plumb-line finding into `PL/unparsed`.
 - Optional top-level `ratchet.file` (#119, ADR-0017): the provenance-ratchet
-  file, itself a contracted output (`ratchet-format: v1`, validator and
+  file, which has its own output contract (`ratchet-format: v1`, validator and
   writer `adapters/sarif/ratchet.py`). The manifest validator does not
   check the file exists — `ratchet.py update` creates it; the Action fails
   on its absence. Not a capability: it changes how `<lang>.output` results
