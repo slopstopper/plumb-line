@@ -20,13 +20,16 @@ check below passes, and otherwise says which one failed:
   * clean: no tracked changes, no untracked files, no edit hidden from
     `git status` by skip-worktree or assume-unchanged, no submodule (its git
     dir lives inside the worktree's own), no rebase/merge/cherry-pick/bisect
-    in progress. `git status` is asked with the user's config overridden
+    in progress. `git status` is asked with untracked files forced on,
+    whatever the user's config says
   * HEAD is an ancestor of the base ref (default origin/main): every commit is
     already on the base. A squash-merged branch is NOT an ancestor, so it is
     kept and named, never guessed at
-  * no commit is held only by the worktree itself: per-worktree refs
-    (refs/worktree, refs/bisect), and for a detached HEAD its reflog, must not
-    reach commits that no branch, remote or tag reaches
+  * no commit is held only by the worktree itself: its per-worktree refs
+    (refs/worktree, refs/bisect, refs/rewritten) and its HEAD reflog must not
+    reach commits that no branch, remote or tag reaches. The reflog also holds
+    work abandoned on purpose (amend, reset, a deleted branch), so a worktree
+    with such history is kept until --ignore-reflog says the loss is accepted
   * ignored files a rebuild would not recreate are archived first (one
     directory per worktree; an existing archive file is never overwritten); if
     they are too large, or cannot be copied, the worktree is kept
@@ -37,19 +40,23 @@ Each worktree is judged again immediately before it is removed, from fresh
 reads of HEAD and of the processes, and HEAD is read once more after the
 archive. It is then removed without --force, so git itself refuses anything that
 appeared since. A locked worktree is unlocked first for that, and locked again
-if git refuses. The merged local branch of a removed worktree is deleted too,
-unless it is the base's own branch name (`main` for origin/main) or has gained
-commits. Nothing is fetched unless --fetch is given; a stale origin/main only
-ever makes the answer more conservative.
+if git refuses (an interrupt too; if git has already forgotten the worktree, the
+message says its lock could not be put back). The merged local branch of a
+removed worktree is deleted too, unless it is the base's own branch (`main` for
+origin/main, the branch itself for a local base) or has gained commits. Nothing
+is fetched unless --fetch is given; a stale origin/main only ever makes the
+answer more conservative.
 
 Limits: `lsof -d cwd` sees only processes whose working directory is inside the
 worktree, and only those lsof is allowed to see. An editor with the folder open
 but a different working directory is not detected. A commit made after the
 final HEAD read, in the instant before git removes a detached worktree, is not
-detected (a branch keeps it; see above). Commits a branch worktree abandoned by
-amend or reset, held only by its HEAD reflog, are not protected. A sparse
-checkout always reads as having hidden edits, so it is always kept. Pure
-stdlib; needs git >= 2.17 (`worktree remove`).
+detected (a branch keeps it; see above), and neither is an ignored file created
+in that instant (git deletes ignored files without complaint). The lock and
+branch name come from the initial listing. Deleting the merged branch also
+deletes that branch's own reflog. A sparse checkout always reads as having
+hidden edits, so it is always kept. Pure stdlib; needs git >= 2.17
+(`worktree remove`).
 
 Exit status: 0 done (a dry run, or every removal worked); 1 an --apply removal
 failed; 2 cannot run (not a repository, base ref missing, fetch failed,
@@ -82,8 +89,10 @@ IN_PROGRESS = ("rebase-merge", "rebase-apply", "MERGE_HEAD", "CHERRY_PICK_HEAD",
 PER_WORKTREE_REFS = ("refs/worktree", "refs/bisect", "refs/rewritten")
 # Variables that point git at a repository; a hook or wrapper that exports one
 # would make every call below read that repository instead of the worktree.
-_LOCATION_ENV = {"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY",
-                 "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE", "GIT_PREFIX", "GIT_IMPLICIT_WORK_TREE"}
+# Each is here because a test shows it changing the outcome; others that
+# `git rev-parse --local-env-vars` lists (GIT_NAMESPACE, GIT_PREFIX, ...) were
+# tried and changed nothing this script reads.
+_LOCATION_ENV = {"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY"}
 
 
 @dataclass
@@ -234,18 +243,19 @@ def _not_clean(wt, admin):
     return why
 
 
-def _held_only_here(wt, detached):
+def _held_only_here(wt, use_reflog):
     """How many commits only this worktree's own state keeps alive: removing
-    the worktree deletes its per-worktree refs and its reflog."""
+    the worktree deletes its per-worktree refs and its HEAD reflog."""
     tips = git(wt, "for-each-ref", "--format=%(objectname)", *PER_WORKTREE_REFS).stdout.split()
-    if detached:  # on a branch, the branch holds what the reflog would
-        tips += git(wt, "reflog", "show", "--format=%H", "HEAD", check=False).stdout.split()
+    if use_reflog:
+        tips += git(wt, "reflog", "show", "--format=%H", "HEAD").stdout.split()
+    tips = list(dict.fromkeys(tips))
     if not tips:
         return 0
     return int(git(wt, "rev-list", "--count", *tips, "--not", "--branches", "--remotes", "--tags").stdout)
 
 
-def judge(wt, base, *, cwd, cwds, min_age_hours, break_locks):
+def judge(wt, base, *, cwd, cwds, min_age_hours, break_locks, ignore_reflog):
     """(reasons to keep, ignored files to archive, HEAD that was judged). No
     reasons = removable. Everything is read fresh from git here, never taken
     from the worktree listing."""
@@ -271,9 +281,10 @@ def judge(wt, base, *, cwd, cwds, min_age_hours, break_locks):
     if git(wt.path, "merge-base", "--is-ancestor", head, base, check=False).returncode != 0:
         ahead = git(wt.path, "rev-list", "--count", f"{base}..{head}").stdout.strip()
         why.append(f"not merged into {base} ({ahead} commit(s) not on it)")
-    held = _held_only_here(wt.path, detached=wt.branch is None)
+    held = _held_only_here(wt.path, use_reflog=not ignore_reflog)
     if held:
-        why.append(f"{held} commit(s) held only by this worktree (its reflog or per-worktree refs)")
+        why.append(f"{held} commit(s) held only by this worktree's reflog or per-worktree refs "
+                   f"(see `git -C {wt.path} reflog`; --ignore-reflog accepts losing the reflog-only ones)")
     if why:
         return why, [], head
     ignored = archivable_ignored(wt.path)
@@ -299,6 +310,11 @@ def archive(wt, ignored, dest):
         shutil.copy2(wt.path / rel, dst, follow_symlinks=False)
 
 
+def _registered(repo, wt):
+    here = os.path.realpath(wt.path)
+    return any(os.path.realpath(w.path) == here for w in list_worktrees(repo))
+
+
 def remove_worktree(repo, wt, locked):
     # Never --force: git refuses modified or untracked files itself, which is
     # the last line of defence against a change that arrived after the check.
@@ -310,8 +326,13 @@ def remove_worktree(repo, wt, locked):
     git(repo, "worktree", "unlock", str(wt.path))
     try:
         git(repo, "worktree", "remove", str(wt.path))
-    except RuntimeError:
-        git(repo, "worktree", "lock", *(["--reason", wt.locked] if wt.locked else []), str(wt.path), check=False)
+    except BaseException as e:  # an interrupt must not leave the lock lifted either
+        if _registered(repo, wt):
+            git(repo, "worktree", "lock", *(["--reason", wt.locked] if wt.locked else []), str(wt.path), check=False)
+        elif isinstance(e, RuntimeError):
+            # git drops its record before it deletes the files, so it can fail
+            # having already forgotten the worktree and its lock.
+            raise RuntimeError(f"{e} (git no longer lists this worktree, so its lock could not be put back)") from e
         raise
 
 
@@ -322,6 +343,9 @@ def run(argv):
     ap.add_argument("--fetch", action="store_true", help="fetch the base ref's remote first")
     ap.add_argument("--min-age-hours", type=float, default=24.0)
     ap.add_argument("--break-locks", action="store_true", help="also remove worktrees locked by a person")
+    ap.add_argument("--ignore-reflog", action="store_true",
+                    help="do not keep a worktree for commits only its HEAD reflog holds (work abandoned by "
+                         "amend, reset or a deleted branch); per-worktree refs still count")
     ap.add_argument("--archive-dir", help="default: <git dir>/pruned-worktrees/<UTC timestamp>-<pid>")
     ap.add_argument("--repo", default=".")
     args = ap.parse_args(argv)
@@ -361,8 +385,13 @@ def run(argv):
             return 2
 
     cwd = os.path.realpath(os.getcwd())
-    opts = dict(cwd=cwd, min_age_hours=args.min_age_hours, break_locks=args.break_locks)
-    protected = args.base.split("/", 1)[-1]  # the base's own branch name: main for origin/main
+    opts = dict(cwd=cwd, min_age_hours=args.min_age_hours, break_locks=args.break_locks,
+                ignore_reflog=args.ignore_reflog)
+    # The base's own branch is never deleted: origin/main protects main, and a
+    # local base such as release/1.0 (in any spelling) protects itself.
+    base_ref = git(repo, "rev-parse", "--symbolic-full-name", args.base).stdout.strip()
+    protected = (base_ref.removeprefix("refs/heads/") if base_ref.startswith("refs/heads/")
+                 else base_ref.split("/", 3)[-1] if base_ref.startswith("refs/remotes/") else None)
 
     def inspect(wt, cwds):
         try:
@@ -399,7 +428,7 @@ def run(argv):
                 if _head(wt.path) != head:
                     raise RuntimeError("HEAD moved while the archive was being written")
             remove_worktree(repo, wt, locked=wt.locked is not None)
-            if wt.branch == protected:
+            if wt.branch and wt.branch == protected:
                 print(f"        kept branch {wt.branch}: it is the base's own branch")
             elif wt.branch:
                 # Re-checked, not assumed: a commit may have landed in the

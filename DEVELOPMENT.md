@@ -127,9 +127,10 @@ python3 scripts/prune_worktrees.py --apply    # remove them; ignored files a reb
 Its header lists every check and what it cannot see. In short: a squash-merged
 branch is kept, not guessed at; a lock a person wrote needs `--break-locks`; an
 editor that has the folder open but a different working directory is not
-detected, only processes whose working directory is inside it; commits a branch
-worktree abandoned by amend or reset, held only by its reflog, are not
-protected (#668).
+detected, only processes whose working directory is inside it; a worktree whose
+reflog holds commits nothing else does (work abandoned by amend, reset or a
+deleted branch) is kept until `--ignore-reflog` says that loss is accepted
+(#668).
 
 ## Held to its own principles
 

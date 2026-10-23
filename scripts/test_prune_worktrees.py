@@ -298,15 +298,65 @@ def test_keeps_a_worktree_whose_commit_only_a_per_worktree_ref_holds(repo, capsy
     assert wt.exists()
 
 
-def test_a_detached_worktrees_earlier_commits_are_fine_when_a_branch_holds_them(repo, capsys):
+@pytest.mark.parametrize("holder", ["branch", "tag", "remote"])
+def test_earlier_commits_are_fine_when_a_branch_tag_or_remote_holds_them(repo, capsys, holder):
     wt = repo.worktree("wandered-safely", detach=True)
     sha = repo.commit(wt)
-    git(repo.work, "branch", "keeps-it", sha)
+    ref = {"branch": "refs/heads/keeps-it", "tag": "refs/tags/keeps-it", "remote": "refs/remotes/origin/keeps-it"}[holder]
+    git(repo.work, "update-ref", ref, sha)
     git(wt, "checkout", "-q", "--detach", "origin/main")
     assert run_prune(repo, "--apply") == 0
     capsys.readouterr()
     assert not wt.exists()
-    assert git(repo.work, "rev-parse", "--verify", "-q", "keeps-it").stdout.strip() == sha
+    assert git(repo.work, "rev-parse", "--verify", "-q", ref).stdout.strip() == sha
+
+
+def test_keeps_a_worktree_that_committed_while_detached_and_was_then_switched_to_a_branch(repo, capsys):
+    # The reflog is the only thing holding the commit, and it does not matter
+    # that HEAD is attached again by the time anyone looks.
+    git(repo.work, "branch", "other", "origin/main")
+    wt = repo.worktree("switched", detach=True)
+    sha = repo.commit(wt)
+    git(wt, "switch", "-q", "other")
+    assert git(repo.work, "branch", "--contains", sha).stdout.strip() == ""  # the premise
+    assert run_prune(repo, "--apply") == 0
+    line = verdict_line(capsys.readouterr().out, "switched")
+    assert line.startswith("KEEP") and "held only by this worktree" in line
+    assert wt.exists()
+
+
+def test_keeps_a_branch_worktree_that_abandoned_a_commit_by_resetting(repo, capsys):
+    wt = repo.worktree("abandoner")
+    sha = repo.commit(wt)
+    git(wt, "reset", "-q", "--hard", "origin/main")
+    assert git(repo.work, "branch", "--contains", sha).stdout.strip() == ""  # the premise
+    assert run_prune(repo, "--apply") == 0
+    line = verdict_line(capsys.readouterr().out, "abandoner")
+    assert line.startswith("KEEP") and "held only by this worktree" in line
+    assert "--ignore-reflog" in line  # and the way to accept the loss is named
+    assert wt.exists()
+
+
+def test_ignore_reflog_accepts_losing_what_only_the_reflog_holds(repo, capsys):
+    wt = repo.worktree("abandoner")
+    repo.commit(wt)
+    git(wt, "reset", "-q", "--hard", "origin/main")
+    assert run_prune(repo, "--apply", "--ignore-reflog") == 0
+    capsys.readouterr()
+    assert not wt.exists()
+
+
+@pytest.mark.parametrize("ref", ["refs/worktree/side", "refs/bisect/bad", "refs/rewritten/step"])
+def test_ignore_reflog_still_keeps_a_commit_a_per_worktree_ref_holds(repo, capsys, ref):
+    wt = repo.worktree("sideref2")
+    sha = repo.commit(wt)
+    git(wt, "update-ref", ref, sha)
+    git(wt, "reset", "-q", "--hard", "origin/main")
+    git(wt, "reflog", "expire", "--expire=now", "--all")
+    assert run_prune(repo, "--apply", "--ignore-reflog") == 0
+    line = verdict_line(capsys.readouterr().out, "sideref2")
+    assert line.startswith("KEEP") and "held only by this worktree" in line
+    assert wt.exists()
 
 
 # --- what must never be read from the wrong repository -------------------
@@ -1030,6 +1080,75 @@ def test_the_base_branch_name_keeps_its_slashes(repo, capsys):
     assert not wt.exists()
     assert "kept branch release/1.0" in out
     assert git(repo.work, "rev-parse", "--verify", "-q", "release/1.0").stdout.strip()
+
+
+@pytest.mark.parametrize("spelling", ["release/1.0", "refs/heads/release/1.0", "heads/release/1.0"])
+def test_a_local_branch_used_as_the_base_is_never_deleted(repo, capsys, spelling):
+    # With the base *being* a local branch, "merged into the base" is trivially
+    # true of a worktree sitting on it, and deleting the branch deletes the base
+    # (and, here, the only copy of its commit).
+    wt = repo.worktree("onbase", branch="release/1.0")
+    repo.commit(wt)
+    assert run_prune(repo, "--apply", "--base", spelling) == 0
+    out = capsys.readouterr()
+    assert not wt.exists()
+    assert "kept branch release/1.0" in out.out
+    assert git(repo.work, "rev-parse", "--verify", "-q", "release/1.0").stdout.strip()
+
+
+# Spelled out here, not read from the script: a test whose cases come from the
+# code under test stops testing a name the moment the code drops it.
+@pytest.mark.parametrize("name", ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR",
+                                  "GIT_OBJECT_DIRECTORY"])
+def test_every_location_variable_is_dropped_from_gits_environment(repo, capsys, monkeypatch, name):
+    # Left in, each of these either redirects git or breaks it; either way a
+    # worktree that is clean and merged would not be judged removable.
+    wt = repo.worktree("untouched")
+    Repo.age(wt, 48)
+    monkeypatch.setenv(name, str(repo.tmp / "nowhere"))
+    assert pw.run(["--repo", str(repo.work), "--apply"]) == 0
+    capsys.readouterr()
+    assert not wt.exists()
+
+
+def test_an_interrupt_during_a_locked_removal_puts_the_lock_back(repo, monkeypatch):
+    # KeyboardInterrupt is not a RuntimeError: without a finally, the worktree
+    # would be left unlocked and its reason gone.
+    wt = repo.worktree("interrupted")
+    reason = "claude agent agent-q (pid 9)"
+    git(repo.work, "worktree", "lock", "--reason", reason, str(wt))
+    real_git = pw.git
+
+    def interrupt_on_remove(r, *args, **kw):
+        if args[:2] == ("worktree", "remove"):
+            raise KeyboardInterrupt
+        return real_git(r, *args, **kw)
+
+    monkeypatch.setattr(pw, "git", interrupt_on_remove)
+    with pytest.raises(KeyboardInterrupt):
+        run_prune(repo, "--apply")
+    monkeypatch.undo()
+    assert wt.exists()
+    assert f"locked {reason}" in git(repo.work, "worktree", "list", "--porcelain").stdout
+
+
+def test_a_removal_that_deregisters_the_worktree_before_failing_says_the_lock_is_lost(repo, capsys, monkeypatch):
+    # git can drop its record of a worktree and then fail to delete the files;
+    # there is no longer anything to lock, and the message must say so.
+    wt = repo.worktree("halfgone")
+    git(repo.work, "worktree", "lock", "--reason", "claude agent agent-r (pid 5)", str(wt))
+    real_git = pw.git
+
+    def deregister_then_fail(r, *args, **kw):
+        if args[:2] == ("worktree", "remove"):
+            shutil.rmtree(Path(admin_dir(wt)))
+            raise RuntimeError("git worktree remove: error: failed to delete")
+        return real_git(r, *args, **kw)
+
+    monkeypatch.setattr(pw, "git", deregister_then_fail)
+    assert run_prune(repo, "--apply") == 1
+    out = capsys.readouterr().out
+    assert "FAILED" in out and "no longer lists this worktree" in out
 
 
 def test_a_file_that_appears_after_the_last_check_is_not_force_removed(repo, capsys, monkeypatch):
