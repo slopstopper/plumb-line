@@ -65,9 +65,16 @@ jobs:
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
-      - name: primitives/js — install (npm publish runs prepublishOnly, i.e. vitest)
+      - name: primitives/js — install
         working-directory: primitives/js
         run: npm ci
+      # primitives/js/.npmrc sets ignore-scripts=true (supply-chain guard), and
+      # npm then skips this package's own prepublishOnly hook during publish.
+      # The pre-publish test run is therefore an explicit step, not a hook, so
+      # it cannot be silently skipped.
+      - name: primitives/js — test before publish
+        working-directory: primitives/js
+        run: npm test
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
