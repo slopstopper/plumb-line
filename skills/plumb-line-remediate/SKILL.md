@@ -1,6 +1,6 @@
 ---
 name: plumb-line-remediate
-description: Use when applying findings from a plumb-line audit report — the builder has a report (or pasted findings) and wants the fixes made. Opt-in and separate from the audit, which is read-only and never fixes.
+description: Use when applying findings from a plumb-line audit report — the operator has a report (or pasted findings) and wants the fixes made. Opt-in and separate from the audit, which is read-only and never fixes.
 ---
 
 # Remediate plumb-line audit findings
@@ -12,7 +12,7 @@ memory — the principles file is the source of truth for what a fix must honor.
 
 The audit finds; this skill fixes. The two never blur: remediation runs only on
 an explicit invitation, consumes a report the audit produced (any
-`report-format: v1`+; v4 is current), and applies nothing the builder has not
+`report-format: v1`+; v4 is current), and applies nothing the operator has not
 seen. If there is no report, offer to run `plumb-line-audit` first, or accept
 findings pasted in the findings-table shape (Path / Line / Function / Status /
 Issue / Suggested Fix / Principle; a v3 or earlier table has no Status).
@@ -29,7 +29,7 @@ python3 <plugin root>/scripts/check_report_format.py <the report>
 A violation is **not** a reason to refuse the run — it is a reason to say what is
 wrong before acting on it. Report the violations, then ask whether to proceed;
 the risk a malformed report carries is that a column means something other than
-you assume, and the builder is the one who can tell. If the checker is
+you assume, and the operator is the one who can tell. If the checker is
 unavailable, say the input was not mechanically validated rather than staying
 silent — the same honesty the audit owes its own output.
 
@@ -40,10 +40,10 @@ A remediation run produces, in order:
 1. a **fix plan** — every finding classified before any edit,
 2. **per-finding diffs** — each shown before it is considered done,
 3. a **remediation record** — the finding→change table that gives the
-   remediation itself the lineage it demands of the code (P8 — State-first lineage),
+   remediation itself the lineage it demands of the code (P8 — Recorded lineage),
 4. a **verification step** — the project's own enforcement, run, with output.
 
-Editing a file the builder never sees a diff for, or finishing without the
+Editing a file the operator never sees a diff for, or finishing without the
 record, is a failed run — regardless of whether the fixes were correct.
 
 ## Step 1 — Classify every finding before touching anything
@@ -56,7 +56,7 @@ A change to the tree is an edit, a write, a shell command that modifies a file
 in it, or a git command that writes inside it, such as `git init` or `git
 stash`; reading files, or copying them out to a snapshot elsewhere, is not. Put
 the plan file outside the code under remediation, for example
-`plumb-line-plan.md` in a temp directory, and show the table to the builder
+`plumb-line-plan.md` in a temp directory, and show the table to the operator
 too, before the first edit. Name each principle inline in the plan
 (`P2 — One-way layering`), as in the record.
 
@@ -66,7 +66,7 @@ printed or written: the order of your tool calls shows it, and a claim cannot.
 The repeat is checked with the record (see "The message is the text the
 checker passed", below).
 
-Why: the plan is what lets a builder stop an edit before it happens, so it has
+Why: the plan is what lets an operator stop an edit before it happens, so it has
 to exist before the first edit, where anyone can see it did. Four remediators
 under the release harness's pressure protocol, told to print the plan first,
 edited first; three of them then said in their final message that the plan had
@@ -76,19 +76,19 @@ a sentence about timing is not.
 
 **Mechanical** — the principle determines the fix; no epistemic value must be
 invented. Typical: remove an upward import (P2 — One-way layering); replace a
-hardcoded constant with the already-existing injected config (P5 — Injectable
-priors); add a version constant + validator to an uncontracted output (P7 —
-Contracted outputs); record lineage fields that are computable from inputs in
-scope (P8 — State-first lineage); relabel maturity to what the code already is
+hardcoded constant with the already-existing injected config (P5 — Named
+assumptions); add a version constant + validator to an output with no contract
+(P7 — Output contracts); record lineage fields that are computable from inputs in
+scope (P8 — Recorded lineage); relabel maturity to what the code already is
 (P6 — Maturity vocabulary); wrap an untagged return in `mark`/`derive` where the
-source is unambiguous (P3 — Confidence + provenance).
+source is unambiguous (P3 — Provenance and confidence).
 
-**Judgment** — the fix requires a claim only the builder can stand behind: which
+**Judgment** — the fix requires a claim only the operator can stand behind: which
 confidence a value deserves, whether a stub should stay or become a real
 integration, which layer a relocated piece of code belongs to, what a changed
-baseline's explanation is (P9 — Golden baseline + explain-the-drift). For each
+baseline's explanation is (P9 — Golden baselines). For each
 judgment finding, propose a concrete default and ask; apply only on a yes. When
-the builder is not present to answer, apply the **conservative default** (below),
+the operator is not present to answer, apply the **conservative default** (below),
 mark it `applied-conservative` in the record, and say it needs their review.
 
 **The conservative default: claim nothing the code cannot support.** Where an
@@ -109,7 +109,7 @@ claim — the floor is deterministic; optimism is not.
 Work finding by finding, smallest first if order is free. For each: make the
 edit, then show the diff (before/after or unified) labelled with the finding it
 resolves, in the conversation, as you go — not a bulk dump at the end. The
-builder must be able to stop a bad direction after finding 1, not discover it
+operator must be able to stop a bad direction after finding 1, not discover it
 after finding N.
 
 **Scope discipline.** Touch only what the finding requires. Adjacent
@@ -139,7 +139,7 @@ deadline, or a re-audit — by making the code *less* honest. Concretely, never:
 - drop a provenance, confidence, or lineage field because its honest value
   is embarrassing;
 - update a golden baseline without a recorded explanation of which input moved
-  (P9 — Golden baseline + explain-the-drift: the explanation IS the fix; a
+  (P9 — Golden baselines: the explanation IS the fix; a
   silent update is the violation).
 
 When the only change that would satisfy a finding, gate, or instruction is one
@@ -148,7 +148,7 @@ the honest paths out (implement the real thing, or obtain an explicit written
 waiver that scopes the check), and leave the code truthful. A gate failing on
 honest metadata is the gate working; the remediation's job was done when the
 metadata became honest. This mirrors bootstrap's rule: if you cannot name a
-source-truth layer, that absence is the finding — here, if you cannot fix it
+source-of-truth layer, that absence is the finding — here, if you cannot fix it
 honestly, that impossibility is the finding.
 
 When the blocked item is a failing test whose requirement cannot be met yet,
@@ -157,7 +157,7 @@ written waiver: an honest deferral, on the four conditions in
 `plumb-line-method`'s section **Mid-task: a test that cannot pass
 honestly** (a strict expected-failure marker, the assertion unchanged, the
 reason in the marker, the decision handed back). Offer it; apply it only with
-the builder's yes, record that row as `applied-judgment`, and name the
+the operator's yes, record that row as `applied-judgment`, and name the
 deferral, with its reason, in the row's line below the table. Declined, the
 row stays `blocked` and the test stays red.
 
@@ -174,7 +174,7 @@ After the last fix, run what the project already trusts, and show the output:
 Then offer — never auto-run — a re-audit scoped to the touched files, so
 find-and-fix stay separate acts with separate records. On a yes, **invoke
 `plumb-line-audit` directly** (via the host's skill mechanism) rather than
-telling the builder to run it — the baton passes by invocation, not
+telling the operator to run it — the baton passes by invocation, not
 instruction.
 
 ## Step 5 — The remediation record
@@ -194,22 +194,22 @@ commit:              <git SHA before remediation, or "working tree (uncommitted)
 
 | Finding | Path | Class | Action | Change summary |
 | ------- | ---- | ----- | ------ | -------------- |
-| *example — replace with real rows* | `src/foo.py` | Judgment | applied-conservative | tagged `derivedFromMock`, confidence at the floor — needs builder review (P3 — Confidence + provenance) |
+| *example — replace with real rows* | `src/foo.py` | Judgment | applied-conservative | tagged `derivedFromMock`, confidence at the floor — needs operator review (P3 — Provenance and confidence) |
 
 The row above is an **example**: delete it and emit your own findings. It is here
 only to show the Action cell's form — the **bare verb**, no backticks. Everywhere
 else this file names the vocabulary in prose it renders as `applied-conservative`,
 which is markdown inline-code formatting, not part of the value.
 
-- **Action** is one of: `applied-mechanical`, `applied-judgment` (builder said
+- **Action** is one of: `applied-mechanical`, `applied-judgment` (operator said
   yes), `applied-conservative` (default taken, needs review), `proposed`
   (suggested, not applied), `blocked` (honest fix impossible — reason given),
-  `skipped` (builder said no).
+  `skipped` (operator said no).
 - Below the table: the **Proposed (not applied)** list, and one line per
-  `blocked`/`applied-conservative` row saying what the builder must decide,
+  `blocked`/`applied-conservative` row saying what the operator must decide,
   and per `applied-judgment` row that applied an honest deferral, naming the
   test, the reason, and that the requirement is still not met.
-- Principle references render inline-named (`P3 — Confidence + provenance`),
+- Principle references render inline-named (`P3 — Provenance and confidence`),
   never bare codes, exactly as in the audit report.
 
 A run where every finding lands as `applied-mechanical` still emits the full
@@ -269,7 +269,7 @@ the record's *shape*, and a shape violation is fixed by fixing the shape.
 | No audit report exists | Offer `plumb-line-audit` first, or accept pasted findings |
 | Fix needs an epistemic value nobody supplied | Conservative floor, `applied-conservative`, flag for review |
 | Only a dishonest edit would satisfy the finding/gate | `blocked` + honest paths out; leave code truthful |
-| A failing test's requirement cannot be met yet | Offer an honest deferral (method skill's four conditions); builder's yes → `applied-judgment`, else `blocked` |
+| A failing test's requirement cannot be met yet | Offer an honest deferral (method skill's four conditions); operator's yes → `applied-judgment`, else `blocked` |
 | Noticed an improvement no finding asked for | Record under Proposed (not applied) |
 | Your edit made a nearby comment/doc false | Correct it within the finding's diff; note in record |
 | Two findings' fixes conflict | Stop; surface the conflict |

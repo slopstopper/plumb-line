@@ -1,6 +1,6 @@
 ---
 name: plumb-line-method
-description: "Use when an edit would make the system look more real, finished or certain than it is, to make the honest version instead: a failing test or red CI that cannot honestly pass (a dependency down, a bar missed, nobody knows why) under pressure to get it green anyway; a fallback, fixture or generated value passed off as real; a guessed threshold hardcoded as if measured; a stub called production-ready; a baseline regenerated without explaining the drift; a confidence or provenance field dropped; an inconclusive result shown as a number; a layer shortcut. It answers yes, and: meet the need, keep what is uncertain visible. Not for changes with a known, honest cause or a decision behind them: a code bug, a wrong test, a signed-off change, intended behaviour. Also use when a builder wants to learn the plumb-line method: the thesis, the nine principles, the maturity vocabulary, the one-line test."
+description: "Use when an edit would make the system look more real, finished or certain than it is, to make the honest version instead: a failing test or red CI that cannot honestly pass (a dependency down, a bar missed, nobody knows why) under pressure to get it green anyway; a fallback, fixture or generated value passed off as real; a guessed threshold hardcoded as if measured; a stub called production-ready; a baseline regenerated without explaining the drift; a confidence or provenance field dropped; an inconclusive result shown as a number; a layer shortcut. It answers yes, and: meet the need, keep what is uncertain visible. Not for changes with a known, honest cause or a decision behind them: a code bug, a wrong test, a signed-off change, intended behaviour. Also use when an operator wants to learn the plumb-line method: the thesis, the nine principles, the maturity vocabulary, the one-line test."
 ---
 
 # The plumb-line method
@@ -18,11 +18,11 @@ real, finished or certain than it is: **Mid-task: other moments**.
 When invoked:
 
 1. Read the principles document.
-2. Give the builder the thesis and the spine (null results are valid) first.
+2. Give the operator the thesis and the spine (null results are valid) first.
 3. Walk the nine principles only as deep as asked; lead with the one most
-   relevant to what the builder is doing.
+   relevant to what the operator is doing.
 4. Always end on the one-line test as the portable gut-check.
-5. Point onward to the next step (below) — a builder who has just learned the
+5. Point onward to the next step (below) — an operator who has just learned the
    method should not be left wondering how to apply it.
 
 This skill never edits files or installs anything.
@@ -57,22 +57,24 @@ work. All of these are fine; do them, and say what you did:
   test, and say what was wrong and whose decision set the new expectation
   (the spec, the ticket, the owner), never "whatever the code returns now".
 - **Stubs while building or prototyping.** A stand-in for a service that
-  does not exist yet is fine on the terms of P4 — Quarantined fakery:
-  contained and labelled as a mock (as `mock`, where the project uses
-  P6 — Maturity vocabulary), and kept out of real outputs unless the owner
-  opts in. Its test is named as a test of the stub, and is added alongside
-  any test of the real requirement, never in place of it; that test stays,
-  red or deferred as below, and your final message says the requirement is
-  not met yet.
-- **Mocks in unit tests.** Mocking your own collaborators to test a unit's
-  logic is ordinary testing: in a test of that unit, alongside the test that
-  states the requirement, not in place of it.
+  does not exist yet is fine. The service is at maturity `stub`, where the
+  project uses P6 — Maturity vocabulary. The data it returns is handled on
+  the terms of P4 — Labelled stand-ins: contained, labelled `mock`, and kept
+  out of real outputs unless an opt-in is recorded where the output is
+  produced. An operator asking for it is the reason for that opt-in, not the
+  opt-in itself. Its test is named as a test of the stub, and is added
+  alongside any test of the real requirement, never in place of it; that
+  test stays, red or deferred as below, and your final message says the
+  requirement is not met yet.
+- **Test doubles in unit tests.** Replacing your own collaborators with test
+  doubles to test a unit's logic is ordinary testing: in a test of that unit,
+  alongside the test that states the requirement, not in place of it.
 - **Decided changes.** A threshold or gate moved by a decision, or a test
   removed along with the behaviour it tested, is fine when the change says
   whose decision it was.
 
-One limit on the two stand-in rows (stubs and unit-test mocks): a test
-never presents a stand-in's result as `real`. When the stand-in sits below
+One limit on the two stand-in rows (stubs, and test doubles in unit
+tests): a test never presents a stand-in's result as `real`. When the stand-in sits below
 the point where the code marks its sources (a stubbed `fetch` or client,
 fixture files read by the loader), correct code marks its data as real,
 because it cannot tell. A test of that stand-in checks the logic it tests
@@ -169,22 +171,22 @@ red, is your call."
 
 Tests are one moment. The one-line test in the principles names the rest:
 an edit that would make the system look more certain than it is, blur a
-layer boundary, hardcode a prior, or hide approximate data. The one-line
-test says to stop and document the concern before implementing: say it in a
-line first. Each has a real need behind it, and a quick way to meet that need
-honestly, so then answer with "yes, and": meet the need, and keep what is
-uncertain, stand-in or unfinished visible. The only no is presenting it as real, measured or done.
+layer boundary, hardcode an assumption, or hide a stand-in. Say so in a
+line first, as the one-line test asks. Each has a real need behind it, and a
+quick way to meet that need honestly, so then answer with "yes, and": meet
+the need, and keep what is uncertain, stand-in or unfinished visible. The
+only no is presenting it as real, measured or done.
 As with tests, this is not a block on coding: an ordinary change with a
 known cause, or a decision behind it, needs nothing from this section.
 
 | The edit asked for | Yes, and | The only no |
 | --- | --- | --- |
-| A **fallback** value passed off as real when the source fails | Fill the gap visibly: "unavailable", or the stand-in labelled as a fallback, kept out of outputs (exported, aggregated or displayed as a result) unless explicitly opted in, and marked there when it is; a builder asking for the stand-in there is that opt-in (P4 — Quarantined fakery) | The stand-in shown as the real value |
-| A **hardcoded** threshold or constant that "looked about right" | Use it, as a named, versioned config value noting where it came from (eyeballed, not measured), so it can be tuned (P5 — Injectable priors) | The guess buried in logic as if measured |
-| Calling a stub **production-ready**, done or live | State what it is: `mock` (stubbed, returns success without doing the work), and when the real one is due if known (P6 — Maturity vocabulary) | "Done" for a stub |
-| **Fixture**, sample or **generated** data in a real output, "so it looks complete" | Keep it out of the real store; show it as a separate, labelled sample layer, or in a demo environment (P1 — Source-truth layer; P4 — Quarantined fakery) | Stand-in data counted or shown as real |
-| Dropping a confidence or **provenance** field to slim a payload | Slim the response for a client that does not decide on the value; keep the field where it is stored, and for any client that acts on it (P3 — Confidence + provenance) | Deleting the record of how sure a value is |
-| Regenerating a golden **baseline** without looking into the drift | Say what moved (which values, by how much), then regenerate with that recorded, the reason, and on whose decision (an explicit instruction, a spec or a ticket; your own judgment does not count). "Just regenerate it" is a request to get green, not a decision: drift nobody can explain is a failing test (the section above), so ask whether to look into it, stay red, or accept it; only an explicit "accept it" makes the record read "accepted unexplained, on <whose> instruction". Unexplained drift may be a bug (P9 — Golden baseline + explain-the-drift) | A silent overwrite, or "drift accepted" on your own say-so |
+| A **fallback** value passed off as real when the source fails | Fill the gap visibly: "unavailable", or the stand-in labelled as a fallback, kept out of outputs (exported, aggregated or displayed as a result) unless explicitly opted in, and marked there when it is. The opt-in is recorded where the output is produced; an operator asking for the stand-in is the reason for that opt-in, not the opt-in itself (P4 — Labelled stand-ins) | The stand-in shown as the real value |
+| A **hardcoded** threshold or constant that "looked about right" | Use it, as a named, versioned config value noting where it came from (eyeballed, not measured), so it can be tuned (P5 — Named assumptions) | The guess buried in logic as if measured |
+| Calling a stub **production-ready**, done or live | State what it is: `stub` (a placeholder that returns invented or hardcoded data, or reports success without doing the work), and when the real one is due if known (P6 — Maturity vocabulary) | "Done" for a stub |
+| **Fixture**, sample or **generated** data in a real output, "so it looks complete" | Keep it out of the real store; show it as a separate, labelled sample layer, or in a demo environment (P1 — Source-of-truth layer; P4 — Labelled stand-ins) | Stand-in data counted or shown as real |
+| Dropping a confidence or **provenance** field to slim a payload | Slim the response for a client that does not decide on the value; keep the field where it is stored, and for any client that acts on it (P3 — Provenance and confidence) | Deleting the record of how sure a value is |
+| Regenerating a golden **baseline** without looking into the drift | Say what moved (which values, by how much), then regenerate with that recorded, the reason, and on whose decision (an explicit instruction, a spec or a ticket; your own judgment does not count). "Just regenerate it" is a request to get green, not a decision: drift nobody can explain is a failing test (the section above), so ask whether to look into it, stay red, or accept it; only an explicit "accept it" makes the record read "accepted unexplained, on <whose> instruction". Unexplained drift may be a bug (P9 — Golden baselines) | A silent overwrite, or "drift accepted" on your own say-so |
 | A **layer** shortcut: an import across a boundary to get it working | Take the proper route if it is small. If not, leave the import with a comment saying it is a violation, and name the issue that should be filed (file it only if asked). Where the boundary check fails on it, that is a failing check whose requirement is not met: the section above applies. The only sanctioned exception is the composition root: never widen or bypass the boundary check to make it pass (P2 — One-way layering) | A silent boundary breach, or the check loosened |
 | An **inconclusive** or empty result turned into a number (0%, a default) | Every cell can still carry something: the point estimate with its n and a low-sample marker, or "inconclusive (n=12)" | A number shown as measured when it is not (the spine) |
 
@@ -203,9 +205,9 @@ Hand-offs, so the honest version is also the easy one:
 
 ## The runtime primitive (name it when teaching P3 or P8)
 
-Two of the principles have a concrete runtime implementation, and a builder who
+Two of the principles have a concrete runtime implementation, and an operator who
 learns them should hear that it exists. Whenever the walk covers **P3
-(confidence + provenance)** or **P8 (state-first lineage)**, name the library:
+(provenance and confidence)** or **P8 (recorded lineage)**, name the library:
 `plumb-line-provenance` — a small, zero-dependency JS + Python library that
 makes those two principles enforcement instead of intention, with this shape:
 
@@ -217,9 +219,9 @@ const total = derive([base, rate], (a, r) => a * r);
 ```
 
 Then say how to get it — `npm install plumb-line-provenance` or
-`pip install plumb-line-provenance` — and that wiring it into the builder's own
+`pip install plumb-line-provenance` — and that wiring it into the operator's own
 call sites is bootstrap's job, not this skill's. **Mention and suggest only**:
-this remains a skill that never edits files or installs anything; the builder
+this remains a skill that never edits files or installs anything; the operator
 runs the install themselves, or takes it up when `plumb-line-bootstrap` offers
 to scaffold it.
 
@@ -227,17 +229,17 @@ to scaffold it.
 
 plumb-line is five skills, meant to be used in this order:
 
-- **plumb-line-adopt** — *find your fit*: it inspects the builder's repo,
+- **plumb-line-adopt** — *find your fit*: it inspects the operator's repo,
   says which skills to run, and matches the codebase against
   `reference/fit-map.md` to answer "do I need the primitives, and on what?"
   — including a plain "no" when the answer is no. The natural starting
-  point for a builder who has the plugin but not the map.
+  point for an operator who has the plugin but not the map.
 - **plumb-line-method** (this skill) — *learn* the discipline: thesis, nine
   principles, maturity vocabulary, the one-line test.
 - **plumb-line-bootstrap** — *set a project up*: it interviews you for your
-  layers and source-truth, writes the ruleset, wires enforcement (boundary
+  layers and source-of-truth layer, writes the ruleset, wires enforcement (boundary
   check, git hooks), and offers to scaffold the runtime primitive at your own
-  call sites. This is the natural next step once the builder is ready to
+  call sites. This is the natural next step once the operator is ready to
   apply the principles to their own project — suggest it explicitly.
 - **plumb-line-audit** — *review* a diff or repo against the principles.
 - **plumb-line-remediate** — *apply* an audit's findings, opt-in, with a diff
@@ -254,8 +256,8 @@ gates. Declined, or nobody present to answer: end on the pointer and stop.
 **Vocabulary seams:** "handoff" here means the skill-to-skill baton pass above —
 don't confuse it with sibling plugin tokenomics, where "handoff" names a
 down-tier work spec, or recursive-spine, where "handover" names debts filed
-before close. Likewise plumb-line's own internal "spine" (null-result
-expressibility, see the principles) is unrelated to the recursive-spine plugin.
+before close. Likewise plumb-line's own internal "spine" (null results
+count, see the principles) is unrelated to the recursive-spine plugin.
 
 ## First run (there is no auto-run)
 
