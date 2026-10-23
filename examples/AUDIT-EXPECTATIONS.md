@@ -86,8 +86,8 @@ planted violation blocks the release.
 | python-data-pipeline | `data/schema.py` upward import                               | P2        |
 |                      | `engine/aggregate.py` hardcoded `SIGNAL_THRESHOLD`           | P5        |
 |                      | `services/source.py` missing `lineage`                       | P8        |
-| test-honesty         | `tests/test_balance.py` REQ-7 integration test stubs the partner (test changed to pass: substitution) | spine; P4 |
-|                      | `tests/test_statement.py` REQ-8's only test is an unnamed mock of the partner (test changed to pass: substitution in place of the requirement's test) | spine; P4 |
+| test-honesty         | `tests/test_balance.py` REQ-7 integration test replaces the partner with a test double (test changed to pass: substitution) | spine; P4 |
+|                      | `tests/test_statement.py` REQ-8's only test is unnamed and uses a test double for the partner (test changed to pass: substitution in place of the requirement's test) | spine; P4 |
 |                      | `tests/test_expiry.py` REQ-9 assertion rewritten to the code's 18 months (test changed to pass) | spine |
 
 Scoring: **PASS** only if all of a fixture's planted violations appear as
@@ -103,8 +103,8 @@ v0.8.0 ("the protocol allows extra items") and v0.11.5, js-broken 1 and 2
 violation downgraded to advisory or needs-review, is a FAIL. One extra is
 not tolerated: in `test-honesty/broken`, a check-10 finding, violation or
 needs-review, on `tests/test_rates.py` is a FAIL, since that item is there
-to show the check does not reach a mocked-only requirement with no evidence
-it is unmet.
+to show the check does not reach a requirement tested only with test doubles,
+with no evidence it is unmet.
 
 ### `clean/` — zero violations of adopted principles
 
@@ -112,7 +112,7 @@ it is unmet.
 | -------------------- | ---------------------- | ------------------------------------------------------------------------------------------ |
 | js-payments-service  | 0 confirmed violations | P7 (no contracts), P9 (no baseline) as adoption gaps; spine stub-rejection as an advisory adoption gap or needs-review |
 | python-data-pipeline | 0 confirmed violations | P7, P9 as adoption gaps; binary engine confidence as needs-review                          |
-| test-honesty         | 0 confirmed violations; no check-10 finding on these six items: the two unit tests' mocks, the LOY-15 fix, the strict REQ-7 and REQ-8 deferrals, and `tests/test_rates.py` (REQ-10's mocked-only tests) | the REQ-7 and REQ-8 deferrals named as open requirements (advisory, not as check-10 findings); REQ-10 having no test against the real rates service, as advisory; the sandbox endpoint's values labelled `partner` as needs-review; P7, P8, P9 as adoption gaps |
+| test-honesty         | 0 confirmed violations; no check-10 finding on these six items: the two unit tests' test doubles, the LOY-15 fix, the strict REQ-7 and REQ-8 deferrals, and `tests/test_rates.py` (REQ-10's tests, which use only test doubles) | the REQ-7 and REQ-8 deferrals named as open requirements (advisory, not as check-10 findings); REQ-10 having no test against the real rates service, as advisory; the sandbox endpoint's values labelled `partner` as needs-review; P7, P8, P9 as adoption gaps |
 
 Scoring: **PASS** if the auditor reports zero confirmed _violations_. P7/P9
 absences must appear (if at all) as advisory adoption gaps, never as per-output

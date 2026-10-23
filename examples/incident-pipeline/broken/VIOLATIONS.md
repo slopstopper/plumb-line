@@ -7,7 +7,7 @@ regressions. See `../README.md` for the incident being modeled.
 | ID | Where | Violation |
 | --- | --- | --- |
 | P8 | `conclude`, `main` | Missing lineage — conclusions are stored with no record of the inputs, code, or versions that produced them; the two contradictory results are unattributable from the artifacts |
-| P5 | `BASELINE`, `calibrate_*` | Hardcoded prior — the calibration baseline is a judgment call buried as a module constant, and the calibration convention itself (which operand is subtracted) is invisible logic rather than a named, versioned step |
+| P5 | `BASELINE`, `calibrate_*` | Hardcoded assumption — the calibration baseline is a judgment call buried as a module constant, and the calibration convention itself (which operand is subtracted) is invisible logic rather than a named, versioned step |
 | P9 | `main` | Unexplained drift — the second run's conclusion flips the first with nothing forcing an explanation; no baseline pins the derived output, so the change surfaces as silence |
 
 The `instrumented/` variant resolves the P8 finding via the provenance

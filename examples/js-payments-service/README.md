@@ -47,7 +47,7 @@ ui → services → engine → data
 
 This is a minimal **shape-demonstrator**, not a full application. It adopts only
 the principles it teaches: **P2** one-way layering, **P3** provenance +
-confidence on outputs, **P5** injectable priors, and the **P8** lineage thread
+confidence on outputs, **P5** named assumptions, and the **P8** lineage thread
 (`weightsVersion`) end-to-end.
 
 It deliberately does **not** adopt **P7** (a versioned, validated output
@@ -65,11 +65,11 @@ below is still one-way), documented in `src/ui/checkout.js`.
 
 See `broken/VIOLATIONS.md` for the answer key. In brief:
 
-| ID  | File                      | Violation                                                         |
-| --- | ------------------------- | ----------------------------------------------------------------- |
-| P2  | `src/data/rates.js`       | Upward import — data layer imports ui layer                       |
-| P5  | `src/engine/pricing.js`   | Hardcoded prior — `const FEE = 0.029` instead of reading config   |
-| P3  | `src/services/gateway.js` | Laundered mock data — no `provenance` or `confidence` on response |
+| ID  | File                      | Violation                                                                |
+| --- | ------------------------- | ------------------------------------------------------------------------ |
+| P2  | `src/data/rates.js`       | Upward import — data layer imports ui layer                              |
+| P5  | `src/engine/pricing.js`   | Hardcoded assumption — `const FEE = 0.029` instead of reading config     |
+| P3  | `src/services/gateway.js` | Laundered uncertainty — mock amount with no `provenance` or `confidence` |
 
 ---
 
