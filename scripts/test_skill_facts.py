@@ -230,7 +230,8 @@ def test_the_carve_outs_name_each_legitimate_change():
     text = _not_forbidden()
     assert "wrong" in text and "say what was wrong" in text      # a wrong test is fixed
     assert "P4" in text and "labelled" in text and "`mock`" in text  # stubs while building
-    assert "unit test" in text                                    # ordinary mocks
+    assert "`stub`" in text                                       # P6's level, not `mock` (ADR-0023)
+    assert "unit test" in text                                    # ordinary test doubles
     assert "whose decision" in text                               # thresholds, removals
     assert "not stop" in text or "not a block" in text            # the ruling itself
 
@@ -250,8 +251,10 @@ def test_the_carve_outs_close_the_loopholes_the_review_found():
     # B2, B3: stubs and unit-test mocks sit alongside the requirement's test,
     # never in place of it.
     assert text.count("in place of") >= 2
-    # A2: P4's own terms, including the owner's opt-in.
-    assert "opts in" in text
+    # A2: P4's own terms, including the opt-in, recorded at the output and
+    # not given by an operator's ask (ADR-0023, item a).
+    assert "opt-in is recorded where the output is produced" in text
+    assert "the reason for that opt-in, not the opt-in itself" in text
 
 
 def test_a_stand_in_in_a_test_never_comes_out_real():
@@ -263,7 +266,7 @@ def test_a_stand_in_in_a_test_never_comes_out_real():
     # anything fake as real is a cheat, and so is reproducing the value.
     text = _not_forbidden()
     limit = text.index("One limit on the two stand-in rows")
-    assert text.index("**Mocks in unit tests.**") < limit           # it limits the rows above it
+    assert text.index("**Test doubles in unit tests.**") < limit           # it limits the rows above it
     rule = text[limit:]
     assert "never presents a stand-in's result as `real`" in rule
     assert "below the point where the code marks its sources" in rule
@@ -277,7 +280,7 @@ def test_a_stand_in_in_a_test_never_comes_out_real():
 
 def test_the_carve_outs_name_principles_in_house_style():
     text = _not_forbidden()
-    assert "P4 — Quarantined fakery" in text and "P6 — Maturity vocabulary" in text
+    assert "P4 — Labelled stand-ins" in text and "P6 — Maturity vocabulary" in text
 
 
 # --- #487: the method skill's other moments, and its description in step ---
@@ -377,7 +380,7 @@ def test_the_layer_row_never_widens_or_bypasses_the_boundary_check():
 
 def test_the_fixture_row_keeps_stand_in_data_out_of_the_real_store():
     row = _row("fixture")
-    assert "out of the real store" in row and "p1 — source-truth layer" in row
+    assert "out of the real store" in row and "p1 — source-of-truth layer" in row
 
 
 def test_the_fallback_row_is_about_passing_a_stand_in_off_as_real():
@@ -429,7 +432,7 @@ def test_audit_catalogue_has_the_test_changed_to_pass_check():
     check = _audit_check_10().lower()
     for form in ("substitut", "skipped", "rewritten", "threshold", "retries"):
         assert form in check, f"check 10 must name the form: {form}"
-    assert "spine" in check and "p4 — quarantined fakery" in check
+    assert "spine" in check and "p4 — labelled stand-ins" in check
 
 
 def test_audit_check_10_uses_the_method_skills_line_and_carve_outs():
@@ -556,6 +559,10 @@ def test_method_fallback_row_keeps_the_stand_in_out_of_outputs_unless_opted_in()
     row = _mid_task_row("fallback")
     assert "kept out of outputs (exported, aggregated or displayed as a result) unless explicitly opted in" in row, row
     assert "marked there when it is" in row, row
+    # ADR-0023, item a: the opt-in is recorded at the output; an operator's
+    # ask is the reason for it, not the opt-in itself.
+    assert "the opt-in is recorded where the output is produced" in row, row
+    assert "the reason for that opt-in, not the opt-in itself" in row, row
 
 
 def test_method_mid_task_states_the_concern_first_as_the_one_line_test_asks():
@@ -571,7 +578,8 @@ def test_method_mid_task_states_the_concern_first_as_the_one_line_test_asks():
 def test_adopt_lightest_tracking_is_qualified_for_outputs():
     text = " ".join(SKILLS["plumb-line-adopt"].split()).lower()
     assert "the lightest tracking that fits is enough while the stand-in stays out of outputs" in text
-    assert "kept out unless the builder opts in, and marked there when they do" in text
+    assert "kept out unless an opt-in is recorded where the output is produced, and marked there when it is" in text
+    assert "the reason for that opt-in, not the opt-in itself" in text
 # --- #589: the remediation plan is printed before the first edit ------------------
 # Both v0.12.0 Part 1b remediators edited before printing any plan (their
 # transcripts show it); one never showed a plan at all. "Print the plan ...
@@ -588,7 +596,7 @@ def test_remediate_writes_the_plan_to_a_file_before_any_edit():
                    "to a file with a tool call of its own, and wait for it to complete",
                    "no edit may be in the same call or the same step as the plan write",
                    "a git command that writes inside it",
-                   "show the table to the builder too, before the first edit",
+                   "show the table to the operator too, before the first edit",
                    "outside the code under remediation",
                    "name each principle inline in the plan",
                    "repeat the same plan table in your final message, below the record",
@@ -645,3 +653,50 @@ def test_the_validating_skills_print_the_checked_text_unchanged(skill):
                    "re-run the checker on the changed text",
                    "after its last line"):
         assert phrase in text.lower(), (skill, phrase)
+
+
+# --- ADR-0023: plain words in the skills --------------------------------------
+# Revision 2 renamed the spine and seven principles, four of the audit's
+# finding classes, P6's `mock` level (now `stub`), and the person ("builder",
+# now "operator"). The skills are live guidance an agent copies from, so the
+# old words must not survive in them. The renames are read from the ADR's own
+# tables; P2 and P6 kept their names.
+_ADR_0023 = _read(_ROOT, "docs", "adr", "0023-plain-words.md")
+_RENAMED = {m.group(2): m.group(3) for m in re.finditer(
+    r"^\| (P[1-9]|spine) \| ([^|]+?) \| ([^|]+?) \|$", _ADR_0023, re.M)
+    if m.group(2) != m.group(3)}
+_RENAMED_CLASSES = dict(re.findall(
+    r"^\| \d+ \| ([^|]+?) \| \*\*([^|*]+)\*\* \|", _ADR_0023, re.M))
+
+
+def test_the_renames_are_read_from_adr_0023():
+    assert len(_RENAMED) == 8, _RENAMED                  # the spine and seven principles
+    assert _RENAMED["Quarantined fakery"] == "Labelled stand-ins"
+    assert _RENAMED_CLASSES == {"Boundary leak": "Layer violation",
+                                "Hardcoded prior": "Hardcoded assumption",
+                                "Escaped fakery": "Escaped stand-in",
+                                "Uncontracted output": "Missing contract"}
+
+
+@pytest.mark.parametrize("skill", sorted(SKILLS))
+def test_skills_use_no_revision_1_principle_name(skill):
+    # The body only. The `description:` front matter drives triggering, and
+    # the skills sweep changed only the person word there (#612).
+    body = SKILLS[skill].split("\n---", 1)[1]
+    text = " ".join(body.split()).lower()
+    for old in _RENAMED:
+        assert old.lower() not in text, (skill, old)
+
+
+@pytest.mark.parametrize("skill", sorted(SKILLS))
+def test_skills_call_the_person_the_operator(skill):
+    assert not re.search(r"\bbuilders?\b", SKILLS[skill], re.I), skill
+
+
+def test_audit_catalogue_uses_the_revision_2_class_names():
+    text = SKILLS["plumb-line-audit"]
+    catalogue = text[text.index("## Check catalogue"):text.index("\n## Method")]
+    classes = re.findall(r"^\d+\. ([^(]+?) \(", catalogue, re.M)
+    for old, new in _RENAMED_CLASSES.items():
+        assert old not in classes and new in classes, (old, new, classes)
+    assert "partial/stub/planned" in catalogue           # P6's level, not `mock`

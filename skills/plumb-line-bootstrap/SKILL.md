@@ -1,6 +1,6 @@
 ---
 name: plumb-line-bootstrap
-description: Use when setting up a project with the plumb-line discipline — interviews the builder to find their source-truth layer and layering, generates a domain-neutral ruleset, and installs parameterized enforcement (boundary check, test gate, pre-commit gate, branch guard) for the project's language. Ships no default layers and invents no answers.
+description: Use when setting up a project with the plumb-line discipline — interviews the operator to find their source-truth layer and layering, generates a domain-neutral ruleset, and installs parameterized enforcement (boundary check, test gate, pre-commit gate, branch guard) for the project's language. Ships no default layers and invents no answers.
 ---
 
 # Bootstrap a project with plumb-line
@@ -15,12 +15,12 @@ If either file cannot be read, stop immediately and report which file is missing
 
 ## Two entries: full bootstrap vs. declaration-only (mid-audit)
 
-This skill has two entry modes. **Full bootstrap** — the builder asked for
+This skill has two entry modes. **Full bootstrap** — the operator asked for
 setup — runs every step below. **Declaration-only** — `plumb-line-audit`
 invoked this skill because the project declares no architecture and the audit
 needs that context before proceeding — runs a deliberately two-minute detour:
 
-- Ask ONLY interview questions 1–3 (layers + direction; source-truth layer;
+- Ask ONLY interview questions 1–3 (layers + direction; source-of-truth layer;
   composition root). The audit needs the declaration, not the ceremony.
 - Write the ruleset from those answers (Step 3), marking every section the
   interview did not reach as `planned` — an un-asked question must not read as
@@ -33,26 +33,26 @@ needs that context before proceeding — runs a deliberately two-minute detour:
   — then return the baton: the calling audit resumes with the freshly declared
   architecture (do not start a second audit).
 
-The honesty constraint applies in both modes: if the builder cannot name a
-source-truth layer, stop and say so — in declaration-only mode that answer goes
+The honesty constraint applies in both modes: if the operator cannot name a
+source-of-truth layer, stop and say so — in declaration-only mode that answer goes
 back to the audit, which then proceeds calibrated with the gap on record.
 
 ## Step 1 — Detect language, pick the adapter
 
 - Look for `package.json` -> JS adapter (`adapters/js`).
 - Look for `pyproject.toml` / `setup.py` / `requirements.txt` -> Python adapter (`adapters/python`).
-- If both or neither, ASK the builder which to use. Never guess silently.
+- If both or neither, ASK the operator which to use. Never guess silently.
 
 ## Step 2 — Interview (one question at a time)
 
 Ask the find-your-version prompts from the principles, in this order (ask one, wait for the answer, then proceed). Do NOT
-supply defaults; these answers are the builder's, not yours:
+supply defaults; these answers are the operator's, not yours:
 
 1. Layers, top to bottom, and the one-way direction.
-2. The source-truth layer, and what must never leak into it.
+2. The source-of-truth layer, and what must never leak into it.
 3. The one allowed exception (composition root), if any.
 4. What flows downstream (gets provenance + confidence).
-5. Where non-real (mock/fallback/cached) data is used.
+5. Where stand-ins (mock, approximate, fallback or cached data) are used.
 6. Which constants encode judgment calls (priors to lift to config).
 7. Public output shapes that need a versioned contract.
 8. For each key output, the inputs needed to reproduce it.
@@ -65,7 +65,7 @@ supply defaults; these answers are the builder's, not yours:
     them before review. Write the answer into `branch-guard.json` as
     `testsOnOtherBranches` (Step 4).
 
-HONESTY CONSTRAINT: if the builder cannot name a source-truth layer, stop and
+HONESTY CONSTRAINT: if the operator cannot name a source-of-truth layer, stop and
 say so — that absence is the finding. Do not fabricate one.
 
 ## Step 3 — Generate the ruleset
@@ -76,7 +76,7 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
 ## Step 4 — Install enforcement (from the chosen adapter)
 
 - Copy the boundary config template, replacing layer placeholders with the
-  builder's layers/direction. (JS: eslint zones; Python: import-linter layers.)
+  operator's layers/direction. (JS: eslint zones; Python: import-linter layers.)
 - Copy the guard hook scripts into the target repo's `.claude/guards/` (or
   hooks dir): the branch guard, its commit-hook wrapper
   (`branch-guard-commit.mjs` / `branch_guard_commit.py`, which imports the
@@ -89,7 +89,7 @@ the target repo as `AGENTS.md` (or append if one exists — never overwrite sile
   `testsOnOtherBranches` `"run"`. Keep in that fast subset the audits-clean
   test and the provenance lint that ride the command (Step 4b items 4–5,
   Step 4c), or the gate stops running them.
-- Tell the builder exactly what was written and how to enable the hooks, and
+- Tell the operator exactly what was written and how to enable the hooks, and
   what the gate does not guard: a commit allowed on another branch, unchecked
   or red, can still reach a protected branch by a local fast-forward or a
   clean merge, which runs no pre-commit hook. CI and branch protection guard
@@ -198,7 +198,7 @@ gate runs the tests on every branch and blocks on failure. The branch guard runs
 reads the branch from git (a detached HEAD is an unknown branch, so a code
 commit there blocks, except during a rebase, when the branch is the one
 being rebased and any it will move) and judges every staged path, a rename
-as both of its paths. Keep the builder's protected branches, docs allowlist and
+as both of its paths. Keep the operator's protected branches, docs allowlist and
 `testsOnOtherBranches` answer in one
 committed file, such as `.claude/guards/branch-guard.json`, and read it into
 `PLUMBLINE_CFG` in every wiring (this hook and the PreToolUse hook below), so
@@ -279,10 +279,10 @@ call sites — and act only on an explicit yes:
 
 - **Declined → the project is untouched.** Record the offer as declined in the
   report and move on; no library, no marking, no new dependency appears.
-- **Accepted →** ask which route the builder wants, then act on their answer —
+- **Accepted →** ask which route the operator wants, then act on their answer —
   don't default to one silently:
   - **Install the published package** (`plumb-line-provenance` on npm / PyPI).
-    Check it's importable first; if absent, tell the builder the one-line
+    Check it's importable first; if absent, tell the operator the one-line
     install and pause.
   - **Vendor the bundled source instead (no npm/pip, no network install).**
     This plugin ships the same v2 primitive under its own payload at
@@ -290,20 +290,20 @@ call sites — and act only on an explicit yes:
     `marked.mjs`, `guard.mjs`, `index.mjs`, `baseline.mjs`) and
     `.claude-plugin/bundled/primitives/python/` (`provenance.py`, `audit.py`,
     `marked.py`, `guard.py`, `__init__.py`, `baseline.py`) — copy every file in the
-    builder's language's directory straight into the target repo (e.g.
-    a `provenance/` dir next to the source-truth layer named in the
+    operator's language's directory straight into the target repo (e.g.
+    a `provenance/` dir next to the source-of-truth layer named in the
     interview), unmodified. They carry a dual-import shim, so they work
     copied flat with no `package.json`/`pyproject.toml` entry required. State
-    plainly that this is a vendored copy the builder now owns and updates
+    plainly that this is a vendored copy the operator now owns and updates
     manually (no auto-sync) — the published-package route is what stays
     current automatically.
-  This adds no mandatory step: a builder who never accepts never needs it.
+  This adds no mandatory step: an operator who never accepts never needs it.
 
 When scaffolding, **teach the pattern at the first site rather than carpeting
-all of them** — the goal is a builder who can extend it, not a wrapped codebase:
+all of them** — the goal is an operator who can extend it, not a wrapped codebase:
 
 1. At a Q4 site: wrap the value's origin in `mark(value, { source, confidence })`
-   — the builder supplies `source`/`confidence` per site (their answers, not
+   — the operator supplies `source`/`confidence` per site (their answers, not
    your defaults; the interview's honesty rule applies here too).
 2. At a derivation: `derive([inputs], fn)` (JS) / the Python equivalent —
    show that the output inherits `derivedFromMock` and the weakest confidence
@@ -315,7 +315,7 @@ all of them** — the goal is a builder who can extend it, not a wrapped codebas
    — in JS compare the length or use a deep-equal matcher, since `===` compares
    array identity, never contents), and
    wire it into the test command the pre-commit gate already runs (Step 4) — so
-   an unmarked or laundered return is caught by the gate the builder just
+   an unmarked or laundered return is caught by the gate the operator just
    installed: before a commit to a protected branch (a local fast-forward or
    clean merge is not such a commit, and runs no hook), and on other branches
    only with `testsOnOtherBranches` `"run"` (where it is reported, not
@@ -352,7 +352,7 @@ goes in the report as `planned`, so the coverage claim stays honest.
 
 Step 4b scaffolds `mark`/`derive` at the trust-bearing sites. This step offers
 the gate that keeps them tagged: `require-provenance-output` flags a function
-that returns a *provably raw* computation, inside a surface the builder declares
+that returns a *provably raw* computation, inside a surface the operator declares
 (ADR-0011).
 
 **Only offer this if Step 4b was accepted.** With no primitive in the project,
@@ -373,7 +373,7 @@ starts from.
 The surface is **not** the same as the bypass-lint globs. Those cover "files
 that use the primitive"; this covers "files whose outputs must carry
 provenance". Propose the surface from the interview's own answers — the Q4
-downstream values and Q8 lineage-bearing outputs — and let the builder correct
+downstream values and Q8 lineage-bearing outputs — and let the operator correct
 it. Do not widen it for them: a surface drawn too broad is how this rule earns a
 blanket disable, after which it catches nothing.
 
@@ -381,7 +381,7 @@ blanket disable, after which it catches nothing.
 ratchet is for (`current` since 0.11.0; ADR-0017, ACTION.md "Ratchet mode"):
 instead of narrowing the surface until it is empty, offer to pin the existing
 sites so the Action fails only on *new* untagged outputs. Here, only record the
-builder's choice. The pin itself runs in Step 4d, because the ratchet reads the
+operator's choice. The pin itself runs in Step 4d, because the ratchet reads the
 enforcement manifest that step writes.
 
 - **Declined → remove the `__OUTPUT_GLOBS__` block from the installed config
@@ -392,7 +392,7 @@ enforcement manifest that step writes.
   placeholder throws `ReferenceError` when ESLint loads the config, and a
   disabled rule is a claim the project enforces something it doesn't. Record
   the decline in the report.
-- **Accepted →** wire it for the builder's language:
+- **Accepted →** wire it for the operator's language:
   - **JS:** in the installed config, replace exactly `files: __OUTPUT_GLOBS__`
     (the code line — the same never-the-comments rule as `__GLOBS__`) with
     the agreed surface. The rule is already registered in that block.
@@ -454,18 +454,18 @@ would surface as a `PL/unparsed` warning.
   "python": { "boundary": { "config": "<the import-linter config from Step 4>" },
               "provenance": { "globs": <the files 4b scaffolded>,
                               "outputGlobs": <the declared surface from 4c, only if accepted> } },
-  "baselines": { "dir": ".plumb-line/baselines" },  // only if the builder recorded a baseline
+  "baselines": { "dir": ".plumb-line/baselines" },  // only if the operator recorded a baseline
   "ratchet": { "file": ".plumb-line/ratchet.json" }  // only if 4c pinned existing sites
 }
 ```
 
 Omit a language section the project does not have; omit `provenance` if 4b
 was declined; omit `outputGlobs` if 4c was declined; omit `baselines` unless
-a baseline exists; omit `ratchet` unless the builder chose the ratchet in
+a baseline exists; omit `ratchet` unless the operator chose the ratchet in
 4c. Then, from the consumer root, run
 `python3 <plugin root>/scripts/check_enforcement_manifest.py .plumb-line/enforcement.json`
 (the validator lives in the plugin, the manifest in the project) and show
-its output. If the builder chose the ratchet, pin the existing sites now,
+its output. If the operator chose the ratchet, pin the existing sites now,
 from the consumer root:
 `python3 <plugin root>/adapters/sarif/ratchet.py update --because "<why>"`.
 It writes `.plumb-line/ratchet.json`; commit it with the manifest. The manifest is what the GitHub Action reads (`ACTION.md`); a
@@ -486,7 +486,7 @@ Bootstrap shares only the v4 **header block**; the glossary, findings table, and
 coverage map are audit-specific and are not part of a bootstrap report.
 
 Then list every file created/modified and any unanswered prompt left as a TODO
-for the builder. Label anything not done as `planned`. (The adapter is recorded
+for the operator. Label anything not done as `planned`. (The adapter is recorded
 in the header's `adapter:` line above.) Record the Step 4b outcome explicitly —
 `accepted` (with the scaffolded sites and the `planned` remainder) or
 `declined` — so the report says whether runtime provenance exists in this
@@ -497,7 +497,7 @@ project or was offered and turned down.
 The project is now declared and enforced; the natural next step is a first
 audit against the freshly written ruleset. Offer it — "want me to run
 `plumb-line-audit` now for a baseline read?" — and on a yes, **invoke the skill
-directly** (via the host's skill mechanism) rather than telling the builder to
+directly** (via the host's skill mechanism) rather than telling the operator to
 run it. If bootstrap was itself invoked mid-audit (the audit stops when no
 architecture is declared and hands here for the interview), return the baton
 instead: the calling audit resumes with the now-declared architecture — do not
