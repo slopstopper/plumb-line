@@ -257,6 +257,17 @@ def test_publish_job_fetches_nothing_unlocked():
         "setuptools (the --no-isolation build backend) must be pinned with hashes in requirements-test.txt"
 
 
+def test_js_installs_are_signature_verified():
+    # A tampered or substituted tarball installs cleanly from a lockfile whose
+    # integrity hash was regenerated alongside it; the registry signature is
+    # the independent check. Both published-path JS packages must verify it.
+    js = _job(read(CI_WORKFLOW), "javascript")
+    for pkg in ("primitives/js", "adapters/js"):
+        step = js[js.index(f"working-directory: {pkg}"):]
+        step = step[:step.find("\n      - ")] if "\n      - " in step else step
+        assert "npm audit signatures" in step, f"{pkg}: npm ci must be followed by npm audit signatures"
+
+
 # --- test-honesty fixture (#486): tests changed so an unmet requirement reads as met ---
 
 TH = EXAMPLES / "test-honesty"
