@@ -65,7 +65,12 @@ jobs:
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
-      - name: primitives/js — install (npm publish runs prepublishOnly, i.e. vitest)
+      # Tests are NOT run here: this job needs [guard, ci], and the ci job runs
+      # the whole of ci.yml (incl. the primitives/js test suite) on this commit. That
+      # is the only pre-publish test gate. primitives/js/.npmrc sets
+      # ignore-scripts=true, so npm would skip a prepublishOnly hook anyway;
+      # the hook was removed rather than left implying a gate that never runs.
+      - name: primitives/js — install
         working-directory: primitives/js
         run: npm ci
 

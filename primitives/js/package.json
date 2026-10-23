@@ -24,8 +24,7 @@
   ],
   "scripts": {
     "test": "vitest run",
-    "lint": "eslint .",
-    "prepublishOnly": "vitest run"
+    "lint": "eslint ."
   },
   "keywords": [
     "provenance",
