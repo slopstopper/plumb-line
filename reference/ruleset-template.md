@@ -12,7 +12,8 @@
 ## Source-of-truth layer
 
 - {{SOURCE_TRUTH_LAYER}} holds measured/ground-truth data only.
-- Forbidden inside it: derived, symbolic, mock, or hardcoded-prior logic.
+- Forbidden inside it: derived or symbolic logic, invented (`mock`) data, and
+  hardcoded assumptions.
 
 ## Provenance and confidence
 

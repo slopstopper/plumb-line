@@ -77,9 +77,12 @@ def _check(text):
 # The revision-1 names, read from the table in ADR-0023 that records the
 # rename. A stored report scored under revision 1 is a record as delivered: it
 # is judged against the ruleset it was scored under, not re-scored.
+# Only the section that holds the table is read, so a later table in the ADR
+# cannot overwrite a name.
 _ADR_0023 = open(os.path.join(_ROOT, "docs", "adr", "0023-plain-words.md"), encoding="utf-8").read()
+_ADR_0023_NAMES = _ADR_0023.split("### 2. ", 1)[1].split("\n### ", 1)[0]
 REVISION_1_PRINCIPLES = {m.group(1): m.group(2) for m in re.finditer(
-    r"^\| (P[1-9]) \| ([^|]+?) \| ([^|]+?) \|$", _ADR_0023, re.M)}
+    r"^\| (P[1-9]) \| ([^|]+?) \| ([^|]+?) \|$", _ADR_0023_NAMES, re.M)}
 
 
 def _stated_revision(text):

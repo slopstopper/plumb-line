@@ -118,7 +118,7 @@ OMISSION_FIRST_COLUMN = "Output"
 OMISSION_QUESTIONS = ["Provenance", "Confidence", "Lineage", "Contract", "Null-expressible", "Baseline"]
 NO_OUTPUT_UNITS = "No output-producing units in scope."
 
-# The ruleset's own revision line: `**Principles revision:** 2`.
+# The ruleset's own revision line: `**Principles revision:** N`.
 _RULESET_REVISION = re.compile(r"^\*\*Principles revision:\*\*\s*([0-9]+)\s*$", re.M)
 
 # [0-9] not \d, and an explicit ASCII test rather than str.isdigit(): Python's

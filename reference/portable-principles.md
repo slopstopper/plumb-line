@@ -3,7 +3,8 @@
 **Principles revision:** 2
 
 Revision 2 renamed the spine and seven of the nine principles; the P-numbers
-did not change. To map a revision-1 name in an older report, see the table in
+did not change. It also changed three rules: P6's level `mock` became `stub`,
+P4's opt-in is recorded at the output, and the one-line test was reworded. To map a revision-1 name in an older report, see the table in
 [ADR-0023](../docs/adr/0023-plain-words.md).
 
 The single source of the discipline. The five skills (`plumb-line-method`,
@@ -237,9 +238,9 @@ produced, by whoever owns the output (Principle 4).
 It is not a test double, and it is not a maturity level: an unfinished
 implementation is at maturity `stub` (Principle 6).
 
-**Test double** — a stand-in for a collaborator in a test, as Meszaros names
-them: a stub, mock, fake, spy or dummy. This is ordinary testing practice, and
-not the `mock` source rung.
+**Test double** — a substitute for a collaborator in a test, as Meszaros names
+them: a stub, mock, fake, spy or dummy. This is ordinary testing practice. It
+is not a stand-in in Principle 4's sense, and not the `mock` source rung.
 
 **Prior** — a named assumption: an assumption or tunable constant that encodes
 a judgment call about the system's behavior. Priors must be injectable config
