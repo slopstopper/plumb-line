@@ -1,6 +1,6 @@
 # ADR-0023: Plain words: one meaning for "mock", revision-2 principle names, and "operator" for the person
 
-**Status:** Proposed · 2026-10-13 (drafted from the owner's decisions recorded on GH #612, #593 and #643)
+**Status:** Accepted · 2026-10-23 (drafted from the owner's decisions recorded on GH #612, #593 and #643; text approved by the owner, recorded on #612)
 
 ## Context
 
@@ -27,8 +27,9 @@ Three changes to plumb-line's words are scheduled together in v0.13.0,
 
 ## Decision
 
-The owner, 2026-10-03, on #612 and #593, and 2026-10-06, on #643. The
-history rule was first confirmed on 2026-10-03, on tokenomics#34.
+The owner, 2026-10-03, on #612 and #593; 2026-10-06, on #643; and
+2026-10-23, on the finding classes (section 5). The history rule was first
+confirmed on 2026-10-03, on tokenomics#34.
 
 ### 1. One meaning per word for stand-ins
 
@@ -87,6 +88,34 @@ that sense changes, so every hit is read rather than replaced.
   `docs/content/`. This ADR records the rename once, in the table above,
   for anyone reading them.
 
+### 5. The audit's finding classes
+
+Each class reads with the revision-2 principle it cites.
+
+| # | Revision 1 | Revision 2 | Cites |
+| --- | --- | --- | --- |
+| 1 | Laundered uncertainty | Laundered uncertainty | P3 |
+| 2 | Boundary leak | **Layer violation** | P2, P1 |
+| 3 | Hardcoded prior | **Hardcoded assumption** | P5 |
+| 4 | Overstated maturity | Overstated maturity | P6 |
+| 5 | Missing lineage | Missing lineage | P8 |
+| 6 | Unexplained drift | Unexplained drift | P9 |
+| 7 | Suppressed null result | Suppressed null result | spine |
+| 8 | Escaped fakery | **Escaped stand-in** | P4 |
+| 9 | Uncontracted output | **Missing contract** | P7 |
+| 10 | Test changed to pass | Test changed to pass | spine, P4 |
+
+- **Kept:** "Laundered uncertainty" matches the runtime audit's
+  "Laundering" (SPEC, finding 1) and the provenance lint's
+  `LaunderedMeta` pattern.
+  The other five kept names already read plainly with their principles.
+- **The descriptions follow the new vocabulary,** for example
+  "partial/mock/planned" becomes "partial/stub/planned".
+- **The answer keys in `examples/*/broken/VIOLATIONS.md` use the class
+  names,** replacing their own variants ("Laundered data", "Unquarantined
+  fakery"). Blind validation scores findings by P-code, so no score
+  depends on a class's name.
+
 ## Drafted with this ADR
 
 These follow from the decisions above but are not in the owner's words.
@@ -112,13 +141,8 @@ Approving this ADR's text approves them.
 - **(c) The glossary gains "Test double" and "Stand-in",** and "Quarantined
   data" becomes "Stand-in". "Prior" stays as a glossary term, defined as a
   named assumption.
-- **(d) The audit's finding classes keep their names** ("Escaped fakery",
-  "Hardcoded prior" and the rest). Each class names a failure, not a
-  practice: an escaped stand-in presented as real is fakery. Blind
-  validation scores findings by P-code, so no score depends on a class's
-  name. The classes' descriptions follow the new vocabulary (for example,
-  "partial/mock/planned" becomes "partial/stub/planned"), as do the
-  principles they cite.
+- **(d)** Replaced by the owner's decision on the finding classes, in
+  section 5.
 - **(e) The one-line test reads:**
 
   > Use this as a gut-check before any change. If the change would make
