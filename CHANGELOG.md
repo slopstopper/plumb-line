@@ -9,7 +9,15 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Security
+- **The release job fetches nothing unlocked.** The publish job holds the
+  OIDC publishing credential, and two of its steps downloaded code that no
+  lock covered: an isolated `python -m build` fetched `setuptools` from PyPI
+  unpinned, and an `npm install -g` fetched a newer npm. The Python package now
+  builds with `--no-isolation` against a `setuptools` pinned with hashes in
+  `requirements-test.txt`, and the job uses the npm bundled with Node 24,
+  asserting the >= 11.5.1 trusted-publishing floor. A test
+  (`test_publish_job_fetches_nothing_unlocked`) holds all three.
 
 ## [0.12.1] — 2026-10-06
 

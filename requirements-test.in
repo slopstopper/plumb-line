@@ -9,6 +9,9 @@ pytest-cov==7.1.0
 ruff==0.17.1
 import-linter==2.15
 build==1.6.1
+# Build backend for `python -m build --no-isolation` in release.yml: locked
+# and hashed here so the release job never fetches it from PyPI unpinned.
+setuptools
 requests
 httpx
 pandas
