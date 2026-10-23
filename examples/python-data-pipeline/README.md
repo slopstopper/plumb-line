@@ -47,9 +47,9 @@ ui → services → engine → data
 ## Scope — what this fixture adopts
 
 This is a minimal **shape-demonstrator**, not a full application. It adopts only
-the principles it teaches: **P2** one-way layering, **P3** provenance +
+the principles it teaches: **P2** one-way layering, **P3** provenance and
 confidence on outputs, **P5** named assumptions, **P8** recorded lineage, and
-the **null-result spine**.
+the **spine**, null results count.
 
 The **service layer is the lineage-bearing output**: `services/source.py` records
 the full lineage (source, record count, field names, config version). The

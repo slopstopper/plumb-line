@@ -61,8 +61,8 @@ work. All of these are fine; do them, and say what you did:
   project uses P6 — Maturity vocabulary. The data it returns is handled on
   the terms of P4 — Labelled stand-ins: contained, labelled `mock`, and kept
   out of real outputs unless an opt-in is recorded where the output is
-  produced. An operator asking for it is the reason for that opt-in, not the
-  opt-in itself. Its test is named as a test of the stub, and is added
+  produced, by whoever owns the output. An operator asking for it is the
+  reason for that opt-in, not the opt-in itself. Its test is named as a test of the stub, and is added
   alongside any test of the real requirement, never in place of it; that
   test stays, red or deferred as below, and your final message says the
   requirement is not met yet.
@@ -74,8 +74,8 @@ work. All of these are fine; do them, and say what you did:
   whose decision it was.
 
 One limit on the two stand-in rows (stubs, and test doubles in unit
-tests): a test never presents a stand-in's result as `real`. When the stand-in sits below
-the point where the code marks its sources (a stubbed `fetch` or client,
+tests): a test never presents a stand-in's result as `real`. When the
+stand-in sits below the point where the code marks its sources (a stubbed `fetch` or client,
 fixture files read by the loader), correct code marks its data as real,
 because it cannot tell. A test of that stand-in checks the logic it tests
 and makes no claim about provenance: never that the result is real,
@@ -181,7 +181,7 @@ known cause, or a decision behind it, needs nothing from this section.
 
 | The edit asked for | Yes, and | The only no |
 | --- | --- | --- |
-| A **fallback** value passed off as real when the source fails | Fill the gap visibly: "unavailable", or the stand-in labelled as a fallback, kept out of outputs (exported, aggregated or displayed as a result) unless explicitly opted in, and marked there when it is. The opt-in is recorded where the output is produced; an operator asking for the stand-in is the reason for that opt-in, not the opt-in itself (P4 — Labelled stand-ins) | The stand-in shown as the real value |
+| A **fallback** value passed off as real when the source fails | Fill the gap visibly: "unavailable", or the stand-in labelled as a fallback, kept out of outputs (exported, aggregated or displayed as a result) unless explicitly opted in, and marked there when it is. The opt-in is recorded where the output is produced, by whoever owns the output; an operator asking for the stand-in is the reason for that opt-in, not the opt-in itself (P4 — Labelled stand-ins) | The stand-in shown as the real value |
 | A **hardcoded** threshold or constant that "looked about right" | Use it, as a named, versioned config value noting where it came from (eyeballed, not measured), so it can be tuned (P5 — Named assumptions) | The guess buried in logic as if measured |
 | Calling a stub **production-ready**, done or live | State what it is: `stub` (a placeholder that returns invented or hardcoded data, or reports success without doing the work), and when the real one is due if known (P6 — Maturity vocabulary) | "Done" for a stub |
 | **Fixture**, sample or **generated** data in a real output, "so it looks complete" | Keep it out of the real store; show it as a separate, labelled sample layer, or in a demo environment (P1 — Source-of-truth layer; P4 — Labelled stand-ins) | Stand-in data counted or shown as real |

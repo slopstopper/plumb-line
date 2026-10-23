@@ -563,6 +563,18 @@ def test_method_fallback_row_keeps_the_stand_in_out_of_outputs_unless_opted_in()
     # ask is the reason for it, not the opt-in itself.
     assert "the opt-in is recorded where the output is produced" in row, row
     assert "the reason for that opt-in, not the opt-in itself" in row, row
+    # Whoever owns the output records it: when the operator owns it, the ask
+    # is answered by recording the opt-in, not by declining.
+    assert "by whoever owns the output" in row, row
+
+
+def test_method_production_ready_row_names_the_maturity_level_stub():
+    # ADR-0023: P6's level for an unfinished implementation is `stub`; the
+    # `mock` level must not survive in the row an agent learns it from.
+    row = next(ln for ln in SKILLS["plumb-line-method"].splitlines()
+               if ln.startswith("| Calling a stub **production-ready**"))
+    assert "`stub`" in row, row
+    assert "`mock`" not in row, row
 
 
 def test_method_mid_task_states_the_concern_first_as_the_one_line_test_asks():
@@ -578,7 +590,7 @@ def test_method_mid_task_states_the_concern_first_as_the_one_line_test_asks():
 def test_adopt_lightest_tracking_is_qualified_for_outputs():
     text = " ".join(SKILLS["plumb-line-adopt"].split()).lower()
     assert "the lightest tracking that fits is enough while the stand-in stays out of outputs" in text
-    assert "kept out unless an opt-in is recorded where the output is produced, and marked there when it is" in text
+    assert "kept out unless an opt-in is recorded where the output is produced, by whoever owns the output, and marked there when it is" in text
     assert "the reason for that opt-in, not the opt-in itself" in text
 # --- #589: the remediation plan is printed before the first edit ------------------
 # Both v0.12.0 Part 1b remediators edited before printing any plan (their
@@ -661,12 +673,20 @@ def test_the_validating_skills_print_the_checked_text_unchanged(skill):
 # now "operator"). The skills are live guidance an agent copies from, so the
 # old words must not survive in them. The renames are read from the ADR's own
 # tables; P2 and P6 kept their names.
+# Each table is read only from its own section, so a later table in the ADR
+# cannot change a rename.
 _ADR_0023 = _read(_ROOT, "docs", "adr", "0023-plain-words.md")
+
+
+def _adr_section(heading):
+    return _ADR_0023.split(heading, 1)[1].split("\n### ", 1)[0]
+
+
 _RENAMED = {m.group(2): m.group(3) for m in re.finditer(
-    r"^\| (P[1-9]|spine) \| ([^|]+?) \| ([^|]+?) \|$", _ADR_0023, re.M)
+    r"^\| (P[1-9]|spine) \| ([^|]+?) \| ([^|]+?) \|$", _adr_section("### 2. "), re.M)
     if m.group(2) != m.group(3)}
 _RENAMED_CLASSES = dict(re.findall(
-    r"^\| \d+ \| ([^|]+?) \| \*\*([^|*]+)\*\* \|", _ADR_0023, re.M))
+    r"^\| \d+ \| ([^|]+?) \| \*\*([^|*]+)\*\* \|", _adr_section("### 5. "), re.M))
 
 
 def test_the_renames_are_read_from_adr_0023():

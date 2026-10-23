@@ -204,7 +204,7 @@ outputs: a label on the value or the screen ("sample", "generated", a "last
 updated" marker on stale data), a flag on the row, the stub named as a stub.
 Where it would reach an output (exported, aggregated or displayed as a
 result), it is kept out unless an opt-in is recorded where the output is
-produced, and marked there when it is. An operator asking for it is the
+produced, by whoever owns the output, and marked there when it is. An operator asking for it is the
 reason for that opt-in, not the opt-in itself. Offer the provenance primitive
 where the stand-in flows into other values, so its `mock` or `fallback`
 source stays marked in everything derived from it. If the aim is to make
