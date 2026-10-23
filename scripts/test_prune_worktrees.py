@@ -7,18 +7,23 @@ Run from the repo root:
 
 Every test drives a real throwaway repository (a bare "origin", a clone, and
 real `git worktree add` checkouts), because the script's whole job is to be
-right about what git says. Mirrors scripts/test_content_language.py: the
-script is loaded by path under a private module name.
+right about what git says. Needs git >= 2.32 (`GIT_CONFIG_GLOBAL`, which keeps
+the user's config out of the tests). Mirrors scripts/test_content_language.py:
+the script is loaded by path under a private module name.
 
 The cases are the ones the 2026-10-23 manual cleanup (44 of 45 worktrees) had
-to handle by hand: locked worktrees, a local `main` behind `origin/main`,
-ignored files that exist nowhere else, and branches that only look merged.
+to handle by hand — a local `main` behind `origin/main`, ignored files that
+exist nowhere else, branches that only look merged, agent locks — plus the
+ways "clean" can be wrong that an independent review of the first version found
+(edits git is told not to see, config that hides untracked files, submodules,
+a change landing after the check, two worktrees with one name).
 """
 import importlib.util
 import os
 import shutil
 import subprocess
 import time
+from pathlib import Path
 
 import pytest
 
@@ -27,6 +32,7 @@ _SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 _spec = importlib.util.spec_from_file_location("_prune_worktrees", _SCRIPT)
 pw = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pw)
+_REAL_PROCESS_CWDS = pw.process_cwds
 
 _GIT_ENV = {
     "GIT_CONFIG_GLOBAL": os.devnull,
@@ -50,6 +56,10 @@ def git(cwd, *args, check=True):
                           capture_output=True, text=True)
 
 
+def admin_dir(path):
+    return git(path, "rev-parse", "--absolute-git-dir").stdout.strip()
+
+
 class Repo:
     def __init__(self, tmp_path):
         self.tmp = tmp_path
@@ -59,15 +69,17 @@ class Repo:
         subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.origin)], check=True)
         subprocess.run(["git", "clone", "-q", str(self.origin), str(self.work)],
                        check=True, capture_output=True)
-        (self.work / ".gitignore").write_text("node_modules/\ndocs/plans/\n")
+        (self.work / ".gitignore").write_text("node_modules/\ndocs/plans/\n*.log\n")
         (self.work / "README.md").write_text("base\n")
         git(self.work, "add", "-A")
         git(self.work, "commit", "-q", "-m", "base")
         git(self.work, "push", "-q", "-u", "origin", "main")
 
-    def worktree(self, name, branch=None, detach=False, age_hours=48):
-        path = self.tmp / "wts" / name
-        if detach:
+    def worktree(self, name, branch=None, detach=False, age_hours=48, where="wts", checkout=None):
+        path = self.tmp / where / name
+        if checkout:
+            git(self.work, "worktree", "add", "-q", str(path), checkout)
+        elif detach:
             git(self.work, "worktree", "add", "-q", "--detach", str(path), "origin/main")
         else:
             git(self.work, "worktree", "add", "-q", "-b", branch or f"b-{name}",
@@ -78,10 +90,9 @@ class Repo:
     @staticmethod
     def age(path, hours):
         """Make the worktree look untouched for `hours` hours."""
-        admin = git(path, "rev-parse", "--absolute-git-dir").stdout.strip()
         t = time.time() - hours * 3600
         for f in ("index", "HEAD"):
-            p = os.path.join(admin, f)
+            p = os.path.join(admin_dir(path), f)
             if os.path.exists(p):
                 os.utime(p, (t, t))
 
@@ -121,6 +132,13 @@ def verdict_line(out, name):
     return lines[0]
 
 
+def archived(arch, name):
+    """The one archive directory for worktree `name` (named <name>-<hash>)."""
+    found = [d for d in Path(arch).iterdir() if d.name.startswith(f"{name}-")]
+    assert len(found) == 1, f"expected one archive for {name!r} in {arch}, got {found}"
+    return found[0]
+
+
 # --- the safe case -------------------------------------------------------
 
 def test_dry_run_reports_a_merged_clean_worktree_and_changes_nothing(repo, capsys):
@@ -158,7 +176,7 @@ def test_a_fresh_worktree_with_no_commits_of_its_own_is_removable_once_old(repo,
     assert not wt.exists()
 
 
-# --- what must never be removed -----------------------------------------
+# --- what must never be removed: "clean" ---------------------------------
 
 def test_keeps_a_worktree_with_tracked_changes(repo, capsys):
     wt = repo.worktree("dirty")
@@ -179,6 +197,68 @@ def test_keeps_a_worktree_with_untracked_files(repo, capsys):
     assert "untracked files" in verdict_line(out, "scratch")
     assert (wt / "notes.png").exists()
 
+
+@pytest.mark.parametrize("flag", ["--skip-worktree", "--assume-unchanged"])
+def test_keeps_a_worktree_whose_edits_git_is_told_not_to_see(repo, capsys, flag):
+    # `git status` is blind to both flags (skip-worktree is what sparse
+    # checkout sets), so an edit under either looks clean.
+    wt = repo.worktree("hidden")
+    git(wt, "update-index", flag, "README.md")
+    (wt / "README.md").write_text("precious edit\n")
+    assert git(wt, "status", "--porcelain").stdout == ""  # the premise
+    assert run_prune(repo, "--apply") == 0
+    line = verdict_line(capsys.readouterr().out, "hidden")
+    assert line.startswith("KEEP") and "hidden from status" in line
+    assert (wt / "README.md").read_text() == "precious edit\n"
+
+
+def test_untracked_files_are_seen_even_when_config_says_to_hide_them(repo, capsys):
+    wt = repo.worktree("cfg")
+    git(repo.work, "config", "status.showUntrackedFiles", "no")
+    (wt / "precious.txt").write_text("only copy\n")
+    assert git(wt, "status", "--porcelain").stdout == ""  # the premise
+    assert run_prune(repo, "--apply") == 0
+    line = verdict_line(capsys.readouterr().out, "cfg")
+    assert line.startswith("KEEP") and "untracked files" in line
+    assert (wt / "precious.txt").exists()
+
+
+def test_keeps_a_worktree_with_an_initialised_submodule(repo, capsys, tmp_path):
+    # A submodule's git dir lives inside the worktree's admin dir, so removing
+    # the worktree takes its local commits with it; superproject status is clean.
+    sub = tmp_path / "sub-src"
+    subprocess.run(["git", "init", "-q", "-b", "main", str(sub)], check=True)
+    (sub / "f.txt").write_text("f\n")
+    git(sub, "add", "-A")
+    git(sub, "commit", "-q", "-m", "sub")
+    git(repo.work, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(sub), "sm")
+    git(repo.work, "commit", "-q", "-m", "add submodule")
+    git(repo.work, "push", "-q", "origin", "main")
+
+    wt = repo.worktree("withsub")
+    git(wt, "-c", "protocol.file.allow=always", "submodule", "update", "--init", "-q")
+    assert run_prune(repo, "--apply") == 0
+    line = verdict_line(capsys.readouterr().out, "withsub")
+    assert line.startswith("KEEP") and "submodule" in line
+    assert wt.exists()
+
+
+@pytest.mark.parametrize("marker", ["rebase-merge", "rebase-apply", "sequencer", "MERGE_HEAD",
+                                    "CHERRY_PICK_HEAD", "REVERT_HEAD", "BISECT_LOG"])
+def test_keeps_a_worktree_with_an_operation_in_progress(repo, capsys, marker):
+    wt = repo.worktree("midway")
+    target = Path(admin_dir(wt)) / marker
+    if marker in ("rebase-merge", "rebase-apply", "sequencer"):
+        target.mkdir()
+    else:
+        target.write_text("x\n")
+    assert run_prune(repo, "--apply") == 0
+    line = verdict_line(capsys.readouterr().out, "midway")
+    assert line.startswith("KEEP") and "operation in progress" in line
+    assert wt.exists()
+
+
+# --- what must never be removed: "merged" --------------------------------
 
 def test_keeps_a_worktree_with_commits_not_in_origin_main(repo, capsys):
     wt = repo.worktree("wip")
@@ -224,6 +304,30 @@ def test_merged_is_judged_against_origin_main_not_local_main(repo, capsys):
     assert local_only.exists()
 
 
+def test_a_local_base_ref_is_allowed_but_says_it_is_not_a_remote_ref(repo, capsys):
+    repo.worktree("x")
+    assert run_prune(repo, "--base", "main") == 0
+    assert "not a remote-tracking ref" in capsys.readouterr().err
+
+
+def test_a_detached_worktree_with_unpushed_commits_is_kept(repo, capsys):
+    wt = repo.worktree("detached-wip", detach=True)
+    repo.commit(wt)
+    assert run_prune(repo, "--apply") == 0
+    out = capsys.readouterr().out
+    assert verdict_line(out, "detached-wip").startswith("KEEP")
+    assert wt.exists()
+
+
+def test_removes_a_merged_detached_worktree(repo, capsys):
+    wt = repo.worktree("detached", detach=True)
+    assert run_prune(repo, "--apply") == 0
+    capsys.readouterr()
+    assert not wt.exists()
+
+
+# --- what must never be removed: in use, recent, special -----------------
+
 def test_keeps_the_worktree_this_command_is_run_from(repo, capsys, monkeypatch):
     wt = repo.worktree("me")
     monkeypatch.chdir(wt / ".")
@@ -248,17 +352,43 @@ def test_keeps_a_recently_touched_worktree(repo, capsys):
     assert not wt.exists()
 
 
+@pytest.mark.parametrize("old", ["index", "HEAD"])
+def test_the_age_is_the_newest_of_index_and_head(repo, capsys, old):
+    # Either file alone being recent is enough: one of them is rewritten by
+    # `git add`/`checkout`, the other by `git commit`/`reset`.
+    wt = repo.worktree("mixed")
+    admin = Path(admin_dir(wt))
+    long_ago, just_now = time.time() - 48 * 3600, time.time() - 3600
+    for f in ("index", "HEAD"):
+        t = long_ago if f == old else just_now
+        os.utime(admin / f, (t, t))
+    assert pw.run(["--repo", str(repo.work), "--apply"]) == 0
+    assert verdict_line(capsys.readouterr().out, "mixed").startswith("KEEP")
+    assert wt.exists()
+
+
+def test_a_worktree_touched_exactly_the_window_ago_is_old_enough(repo, capsys, monkeypatch):
+    wt = repo.worktree("edge")
+    admin = Path(admin_dir(wt))
+    now = 2_000_000_000.0
+    monkeypatch.setattr(pw, "_now", lambda: now)
+    for f in ("index", "HEAD"):
+        os.utime(admin / f, (now - 24 * 3600, now - 24 * 3600))
+    assert pw.run(["--repo", str(repo.work), "--min-age-hours", "24"]) == 0
+    assert verdict_line(capsys.readouterr().out, "edge").startswith("REMOVE")
+
+
 def test_a_dry_run_does_not_make_a_worktree_look_recently_touched(repo, capsys):
     # `git status` may rewrite a stale index, which would refresh the very mtime
     # the age guard reads and make every later run refuse for 24 hours.
     wt = repo.worktree("quiet")
     os.utime(wt / "README.md", None)  # stat-dirty, content unchanged
     Repo.age(wt, 48)
-    admin = git(wt, "rev-parse", "--absolute-git-dir").stdout.strip()
-    before = os.path.getmtime(os.path.join(admin, "index"))
+    admin = admin_dir(wt)
+    before = {f: os.path.getmtime(os.path.join(admin, f)) for f in ("index", "HEAD")}
     pw.run(["--repo", str(repo.work)])
     capsys.readouterr()
-    assert os.path.getmtime(os.path.join(admin, "index")) == before
+    assert {f: os.path.getmtime(os.path.join(admin, f)) for f in before} == before
 
 
 def test_never_offers_the_main_checkout(repo, capsys):
@@ -278,6 +408,20 @@ def test_keeps_a_worktree_whose_directory_is_missing_and_says_how_to_clear_it(re
     assert "git worktree prune" in verdict_line(out, "gone")
 
 
+def test_a_worktree_git_cannot_inspect_is_kept_and_the_rest_still_go(repo, capsys):
+    bad = repo.worktree("bad")
+    good = repo.worktree("good")
+    Repo.age(bad, 48)
+    Repo.age(good, 48)
+    (bad / ".git").write_text("gitdir: /nonexistent/nowhere\n")
+    assert pw.run(["--repo", str(repo.work), "--apply"]) == 0  # run_prune would age `bad` through git
+    out = capsys.readouterr().out
+    assert verdict_line(out, "bad").startswith("KEEP")
+    assert "could not inspect" in verdict_line(out, "bad")
+    assert bad.exists()
+    assert not good.exists()
+
+
 # --- processes -----------------------------------------------------------
 
 def test_keeps_a_worktree_with_a_process_running_inside_it(repo, capsys, monkeypatch):
@@ -290,6 +434,21 @@ def test_keeps_a_worktree_with_a_process_running_inside_it(repo, capsys, monkeyp
     assert verdict_line(out, "busy").startswith("KEEP")
     assert "process running inside" in verdict_line(out, "busy")
     assert wt.exists()
+
+
+def test_a_process_inside_a_worktree_whose_parent_became_a_symlink_still_counts(repo, capsys, monkeypatch):
+    # git resolves symlinks when a worktree is added but keeps listing that
+    # path afterwards; a parent directory moved and replaced by a link leaves
+    # git saying ".../moved/x" while a process's cwd reads ".../moved-real/x".
+    wt = repo.worktree("viasymlink", where="moved")
+    os.rename(repo.tmp / "moved", repo.tmp / "moved-real")
+    os.symlink(repo.tmp / "moved-real", repo.tmp / "moved", target_is_directory=True)
+    assert git(repo.work, "worktree", "list", "--porcelain").stdout.count(str(wt)) == 1  # the premise
+    monkeypatch.setattr(pw, "process_cwds", lambda: [os.path.realpath(wt)])
+    assert run_prune(repo, "--apply") == 0
+    out = capsys.readouterr().out
+    assert verdict_line(out, "viasymlink").startswith("KEEP")
+    assert "process running inside" in verdict_line(out, "viasymlink")
 
 
 def test_a_process_in_a_sibling_directory_with_a_shared_prefix_does_not_count(repo, capsys, monkeypatch):
@@ -314,11 +473,46 @@ def test_keeps_everything_when_the_process_check_cannot_run(repo, capsys, monkey
     assert wt.exists()
 
 
-@pytest.mark.skipif(shutil.which("lsof") is None, reason="needs lsof")
+def _fake_lsof(monkeypatch, stdout="", returncode=0, raises=None):
+    def run(cmd, **kw):
+        if raises:
+            raise raises
+        return subprocess.CompletedProcess(cmd, returncode, stdout, "")
+    monkeypatch.setattr(pw.subprocess, "run", run)
+
+
+def _listing(*dirs):
+    return "".join(f"p{i}\nn{d}\n" for i, d in enumerate(dirs, 100))
+
+
+def test_process_cwds_reads_lsof_and_requires_its_own_cwd_in_the_listing(monkeypatch):
+    me = os.path.realpath(os.getcwd())
+    _fake_lsof(monkeypatch, _listing(me, "/somewhere/else"))
+    assert _REAL_PROCESS_CWDS() == [me, os.path.realpath("/somewhere/else")]
+    # A listing that lacks our own cwd cannot be trusted to be complete.
+    _fake_lsof(monkeypatch, _listing("/somewhere/else"))
+    assert _REAL_PROCESS_CWDS() is None
+
+
+def test_process_cwds_accepts_lsofs_partial_listing_status_but_not_a_failure(monkeypatch):
+    me = os.path.realpath(os.getcwd())
+    _fake_lsof(monkeypatch, _listing(me), returncode=1)  # lsof exits 1 when some files were unreadable
+    assert _REAL_PROCESS_CWDS() == [me]
+    _fake_lsof(monkeypatch, _listing(me), returncode=2)
+    assert _REAL_PROCESS_CWDS() is None
+
+
+def test_process_cwds_is_none_without_lsof_or_when_it_hangs(monkeypatch):
+    _fake_lsof(monkeypatch, raises=FileNotFoundError("lsof"))
+    assert _REAL_PROCESS_CWDS() is None
+    _fake_lsof(monkeypatch, raises=subprocess.TimeoutExpired("lsof", 60))
+    assert _REAL_PROCESS_CWDS() is None
+
+
 def test_a_real_process_inside_a_worktree_keeps_it(repo, capsys, monkeypatch):
-    monkeypatch.undo()  # restore the real process_cwds
-    for k, v in _GIT_ENV.items():
-        monkeypatch.setenv(k, v)
+    monkeypatch.setattr(pw, "process_cwds", _REAL_PROCESS_CWDS)
+    if _REAL_PROCESS_CWDS() is None:
+        pytest.skip("lsof is missing or cannot list this process's cwd")
     wt = repo.worktree("real")
     proc = subprocess.Popen(["sleep", "30"], cwd=wt)
     try:
@@ -335,15 +529,29 @@ def test_a_real_process_inside_a_worktree_keeps_it(repo, capsys, monkeypatch):
 
 # --- locks ---------------------------------------------------------------
 
-def test_removes_a_stale_locked_worktree_and_reports_the_lock(repo, capsys):
+def test_removes_a_stale_agent_lock_and_reports_it(repo, capsys):
     wt = repo.worktree("locked")
-    git(repo.work, "worktree", "lock", "--reason", "claude agent x (pid 1)", str(wt))
+    git(repo.work, "worktree", "lock", "--reason", "claude agent agent-x (pid 1)", str(wt))
     assert run_prune(repo) == 0
     line = verdict_line(capsys.readouterr().out, "locked")
     assert line.startswith("REMOVE")
-    assert "locked: claude agent x (pid 1)" in line
+    assert "locked: claude agent agent-x (pid 1)" in line
 
     assert run_prune(repo, "--apply") == 0
+    capsys.readouterr()
+    assert not wt.exists()
+
+
+@pytest.mark.parametrize("reason", [["--reason", "do not delete"], []])
+def test_a_lock_someone_wrote_is_respected_unless_told_otherwise(repo, capsys, reason):
+    wt = repo.worktree("human")
+    git(repo.work, "worktree", "lock", *reason, str(wt))
+    assert run_prune(repo, "--apply") == 0
+    line = verdict_line(capsys.readouterr().out, "human")
+    assert line.startswith("KEEP") and "--break-locks" in line
+    assert wt.exists()
+
+    assert run_prune(repo, "--apply", "--break-locks") == 0
     capsys.readouterr()
     assert not wt.exists()
 
@@ -351,8 +559,8 @@ def test_removes_a_stale_locked_worktree_and_reports_the_lock(repo, capsys):
 def test_a_lock_does_not_override_the_other_checks(repo, capsys):
     wt = repo.worktree("locked-wip")
     repo.commit(wt)
-    git(repo.work, "worktree", "lock", str(wt))
-    assert run_prune(repo, "--apply") == 0
+    git(repo.work, "worktree", "lock", "--reason", "claude agent agent-y (pid 2)", str(wt))
+    assert run_prune(repo, "--apply", "--break-locks") == 0
     out = capsys.readouterr().out
     assert verdict_line(out, "locked-wip").startswith("KEEP")
     assert wt.exists()
@@ -360,7 +568,7 @@ def test_a_lock_does_not_override_the_other_checks(repo, capsys):
 
 # --- ignored files -------------------------------------------------------
 
-def test_archives_ignored_files_that_exist_nowhere_else_before_removing(repo, capsys, tmp_path):
+def test_archives_ignored_files_a_rebuild_would_not_recreate_before_removing(repo, capsys, tmp_path):
     wt = repo.worktree("plans")
     (wt / "docs" / "plans").mkdir(parents=True)
     (wt / "docs" / "plans" / "p.md").write_text("the only copy\n")
@@ -372,8 +580,9 @@ def test_archives_ignored_files_that_exist_nowhere_else_before_removing(repo, ca
     out = capsys.readouterr().out
 
     assert not wt.exists()
-    assert (arch / "plans" / "docs" / "plans" / "p.md").read_text() == "the only copy\n"
-    assert not (arch / "plans" / "node_modules").exists()
+    here = archived(arch, "plans")
+    assert (here / "docs" / "plans" / "p.md").read_text() == "the only copy\n"
+    assert not (here / "node_modules").exists()
     assert str(arch) in out
 
 
@@ -388,18 +597,45 @@ def test_a_regenerable_directory_inside_an_ignored_one_is_not_archived(repo, cap
     arch = tmp_path / "arch"
     assert run_prune(repo, "--apply", "--archive-dir", str(arch)) == 0
     capsys.readouterr()
-    assert (arch / "nested" / "docs" / "plans" / "keep.md").read_text() == "only copy\n"
-    assert not (arch / "nested" / "docs" / "plans" / "node_modules").exists()
+    here = archived(arch, "nested")
+    assert (here / "docs" / "plans" / "keep.md").read_text() == "only copy\n"
+    assert not (here / "docs" / "plans" / "node_modules").exists()
+
+
+def test_only_unambiguous_caches_are_skipped_never_a_name_that_could_hold_work(repo, capsys, tmp_path):
+    # `build`, `dist` and `coverage` are not always output; a file called
+    # `dist` never is. An *.egg-info directory always is.
+    wt = repo.worktree("names")
+    plans = wt / "docs" / "plans"
+    (plans / "build").mkdir(parents=True)
+    (plans / "build" / "notes.md").write_text("notes\n")
+    (plans / "dist").write_text("a file, not a directory\n")
+    (plans / "pkg.egg-info").mkdir()
+    (plans / "pkg.egg-info" / "PKG-INFO").write_text("rebuilt\n")
+    arch = tmp_path / "arch"
+    assert run_prune(repo, "--apply", "--archive-dir", str(arch)) == 0
+    capsys.readouterr()
+    here = archived(arch, "names") / "docs" / "plans"
+    assert (here / "build" / "notes.md").exists()
+    assert (here / "dist").read_text() == "a file, not a directory\n"
+    assert not (here / "pkg.egg-info").exists()
 
 
 def test_a_symlink_in_an_ignored_directory_is_archived_as_a_link(repo, capsys, tmp_path):
     wt = repo.worktree("linked")
-    (wt / "docs" / "plans").mkdir(parents=True)
-    os.symlink("/nonexistent/target", wt / "docs" / "plans" / "dangling")
+    plans = wt / "docs" / "plans"
+    plans.mkdir(parents=True)
+    os.symlink("/nonexistent/target", plans / "dangling")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    (elsewhere / "big.bin").write_text("not part of this worktree\n")
+    os.symlink(elsewhere, plans / "dirlink", target_is_directory=True)
     arch = tmp_path / "arch"
     assert run_prune(repo, "--apply", "--archive-dir", str(arch)) == 0
     capsys.readouterr()
-    assert os.readlink(arch / "linked" / "docs" / "plans" / "dangling") == "/nonexistent/target"
+    here = archived(arch, "linked") / "docs" / "plans"
+    assert os.readlink(here / "dangling") == "/nonexistent/target"
+    assert os.path.islink(here / "dirlink")  # the link, not a copy of what it points at
 
 
 def test_dry_run_names_what_would_be_archived_and_writes_nothing(repo, capsys, tmp_path):
@@ -432,27 +668,33 @@ def test_the_default_archive_lives_inside_the_repos_git_dir(repo, capsys):
     (wt / "docs" / "plans" / "p.md").write_text("x\n")
     assert run_prune(repo, "--apply") == 0
     capsys.readouterr()
-    found = list((repo.work / ".git" / "pruned-worktrees").glob("*/plans/docs/plans/p.md"))
+    found = list((repo.work / ".git" / "pruned-worktrees").glob("*/plans-*/docs/plans/p.md"))
     assert len(found) == 1
 
 
-# --- detached HEAD, branches, base ---------------------------------------
-
-def test_removes_a_merged_detached_worktree(repo, capsys):
-    wt = repo.worktree("detached", detach=True)
-    assert run_prune(repo, "--apply") == 0
+def test_two_worktrees_with_the_same_name_do_not_overwrite_each_others_archive(repo, capsys, tmp_path):
+    first = repo.worktree("feat", branch="b-feat-1", where="a")
+    second = repo.worktree("feat", branch="b-feat-2", where="b")
+    for wt, text in ((first, "FIRST only copy\n"), (second, "SECOND only copy\n")):
+        (wt / "docs" / "plans").mkdir(parents=True)
+        (wt / "docs" / "plans" / "p.md").write_text(text)
+    arch = tmp_path / "arch"
+    assert run_prune(repo, "--apply", "--archive-dir", str(arch)) == 0
     capsys.readouterr()
-    assert not wt.exists()
+    assert not first.exists() and not second.exists()
+    texts = sorted(p.read_text() for p in arch.glob("feat-*/docs/plans/p.md"))
+    assert texts == ["FIRST only copy\n", "SECOND only copy\n"]
 
 
-def test_a_detached_worktree_with_unpushed_commits_is_kept(repo, capsys):
-    wt = repo.worktree("detached-wip", detach=True)
-    repo.commit(wt)
-    assert run_prune(repo, "--apply") == 0
-    out = capsys.readouterr().out
-    assert verdict_line(out, "detached-wip").startswith("KEEP")
-    assert wt.exists()
+def test_an_archive_dir_inside_a_worktree_is_refused_before_anything_is_removed(repo, capsys):
+    wt = repo.worktree("victim")
+    other = repo.worktree("other")
+    assert run_prune(repo, "--apply", "--archive-dir", str(wt / "arch")) == 2
+    assert "inside" in capsys.readouterr().err
+    assert wt.exists() and other.exists()
 
+
+# --- branches ------------------------------------------------------------
 
 def test_only_the_removed_worktrees_merged_branch_is_deleted(repo, capsys):
     wt = repo.worktree("done")
@@ -471,6 +713,18 @@ def test_only_the_removed_worktrees_merged_branch_is_deleted(repo, capsys):
     assert "main" in branches
 
 
+def test_a_linked_worktree_on_main_is_removed_but_the_branch_main_stays(repo, capsys):
+    # main is trivially an ancestor of origin/main; deleting it would lose its
+    # upstream configuration and break the next `git checkout main`.
+    git(repo.work, "checkout", "-q", "-b", "feature")
+    wt = repo.worktree("onmain", checkout="main")
+    assert run_prune(repo, "--apply") == 0
+    out = capsys.readouterr().out
+    assert not wt.exists()
+    assert git(repo.work, "rev-parse", "--verify", "-q", "main").stdout.strip()
+    assert "kept branch main" in out
+
+
 def test_a_branch_that_gains_a_commit_after_the_check_is_not_deleted(repo, capsys, monkeypatch):
     wt = repo.worktree("racy")
     real = pw.remove_worktree
@@ -486,6 +740,61 @@ def test_a_branch_that_gains_a_commit_after_the_check_is_not_deleted(repo, capsy
     assert git(repo.work, "rev-parse", "--verify", "-q", "b-racy").stdout.strip()
     assert not wt.exists()
 
+
+# --- changes between the check and the removal ---------------------------
+
+def test_each_worktree_is_judged_again_immediately_before_removal(repo, capsys, monkeypatch):
+    wt = repo.worktree("changed")
+    real_judge, calls = pw.judge, []
+
+    def judge_then_dirty(w, *a, **k):
+        calls.append(w.path.name)
+        if len(calls) == 2:  # the re-check made just before removing
+            (w.path / "README.md").write_text("edited after the first check\n")
+        return real_judge(w, *a, **k)
+
+    monkeypatch.setattr(pw, "judge", judge_then_dirty)
+    assert run_prune(repo, "--apply") == 0
+    out = capsys.readouterr().out
+    assert "changed since the check" in out
+    assert (wt / "README.md").read_text() == "edited after the first check\n"
+
+
+def test_a_file_that_appears_after_the_last_check_is_not_force_removed(repo, capsys, monkeypatch):
+    # Only a lock needs --force; a plain removal makes git itself refuse.
+    wt = repo.worktree("latefile")
+    real = pw.remove_worktree
+
+    def drop_file_then_remove(repo_path, w, force_lock):
+        (w.path / "late.txt").write_text("precious\n")
+        return real(repo_path, w, force_lock)
+
+    monkeypatch.setattr(pw, "remove_worktree", drop_file_then_remove)
+    assert run_prune(repo, "--apply") == 1
+    out = capsys.readouterr().out
+    assert "FAILED" in out
+    assert (wt / "late.txt").read_text() == "precious\n"
+
+
+def test_one_failed_removal_is_reported_and_does_not_stop_the_rest(repo, capsys, monkeypatch):
+    a = repo.worktree("a")
+    b = repo.worktree("b")
+    real = pw.remove_worktree
+
+    def flaky(repo_path, wt, force_lock):
+        if wt.path.name == "a":
+            raise RuntimeError("boom")
+        return real(repo_path, wt, force_lock)
+
+    monkeypatch.setattr(pw, "remove_worktree", flaky)
+    assert run_prune(repo, "--apply") == 1
+    out = capsys.readouterr()
+    assert "FAILED" in out.out and "boom" in out.out
+    assert a.exists()
+    assert not b.exists()
+
+
+# --- base ref and fetch --------------------------------------------------
 
 def test_a_missing_base_ref_is_an_error_and_changes_nothing(repo, capsys):
     wt = repo.worktree("done")
@@ -513,24 +822,19 @@ def test_without_fetch_a_stale_origin_main_is_the_conservative_answer(repo, caps
     assert not wt.exists()
 
 
-# --- failure handling ----------------------------------------------------
+def test_a_failed_fetch_is_an_error_and_changes_nothing(repo, capsys):
+    wt = repo.worktree("done")
+    git(repo.work, "remote", "set-url", "origin", str(repo.tmp / "no-such-remote.git"))
+    assert run_prune(repo, "--apply", "--fetch") == 2
+    assert "could not fetch" in capsys.readouterr().err
+    assert wt.exists()
 
-def test_one_failed_removal_is_reported_and_does_not_stop_the_rest(repo, capsys, monkeypatch):
-    a = repo.worktree("a")
-    b = repo.worktree("b")
-    real = pw.remove_worktree
 
-    def flaky(repo_path, wt, force_lock):
-        if wt.path.name == "a":
-            raise RuntimeError("boom")
-        return real(repo_path, wt, force_lock)
-
-    monkeypatch.setattr(pw, "remove_worktree", flaky)
-    assert run_prune(repo, "--apply") == 1
-    out = capsys.readouterr()
-    assert "FAILED" in out.out and "boom" in out.out
-    assert a.exists()
-    assert not b.exists()
+def test_fetch_needs_a_base_that_names_a_configured_remote(repo, capsys):
+    wt = repo.worktree("done")
+    assert run_prune(repo, "--apply", "--fetch", "--base", "main") == 2
+    assert "not a configured remote" in capsys.readouterr().err
+    assert wt.exists()
 
 
 def test_not_a_git_repository_is_an_error(tmp_path, capsys):

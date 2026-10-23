@@ -120,11 +120,13 @@ to remove (clean, nothing running inside, every commit already on
 
 ```bash
 python3 scripts/prune_worktrees.py            # dry run: what would go, and why the rest stays
-python3 scripts/prune_worktrees.py --apply    # remove them; ignored files that exist nowhere else are archived first
+python3 scripts/prune_worktrees.py --apply    # remove them; ignored files a rebuild would not recreate are archived first
 ```
 
-Its header says what it checks and what it cannot see. A squash-merged branch is
-kept, not guessed at (#668).
+Its header lists every check and what it cannot see. In short: a squash-merged
+branch is kept, not guessed at; a lock a person wrote needs `--break-locks`; an
+editor that has the folder open but a different working directory is not
+detected, only processes whose working directory is inside it (#668).
 
 ## Held to its own principles
 

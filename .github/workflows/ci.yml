@@ -217,6 +217,12 @@ jobs:
           if grep -qE 'SKIPPED.*test_(handed_probe|fold_sweep)\.py.*node is not on PATH' /tmp/scripts-pytest.txt; then
             echo "::error::the handed-envelope probe or case-fold sweep tests skipped in CI — node is missing"; exit 1
           fi
+          # The worktree pruner's only test with a real process inside a
+          # worktree (#668). Everything else about its lsof check is injected;
+          # a skip here means the real path went unproven.
+          if grep -q 'SKIPPED.*test_prune_worktrees\.py' /tmp/scripts-pytest.txt; then
+            echo "::error::the worktree pruner's real-process test skipped in CI — lsof is missing or cannot list this process's cwd"; exit 1
+          fi
 
   action:
     name: Action (uses ./ against the fixtures)

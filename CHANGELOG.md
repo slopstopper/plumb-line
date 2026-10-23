@@ -14,11 +14,14 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   safe to remove**
   ([#668](https://github.com/slopstopper/plumb-line/issues/668)). Repo tooling
   outside the packages and the plugin. A dry run by default; `--apply`
-  removes a worktree only when it is clean, no process is running inside it, and
-  every commit is already on `origin/main`, and archives ignored files that
-  exist nowhere else first. It clears a stale lock only after those checks, and
-  names the check that failed for each worktree it keeps. Not yet: it does not
-  run by itself, and a squash-merged branch is kept rather than judged merged.
+  removes a worktree only when it is clean (including edits `git status` is told
+  not to show, and no submodule), no process has its working directory inside
+  it, and every commit is already on `origin/main`. It archives the ignored
+  files a rebuild would not recreate first, clears a lock only if an agent
+  wrote it, and names the check that failed for each worktree it keeps. Not
+  yet: it does not run by itself, a squash-merged branch is kept rather than
+  judged merged, and an editor with the folder open from elsewhere is not
+  detected.
 
 ## [0.12.1] — 2026-10-06
 

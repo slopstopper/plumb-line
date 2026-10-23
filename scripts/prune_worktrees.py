@@ -15,24 +15,37 @@ check below passes, and otherwise says which one failed:
     cannot run, nothing is removed, because not knowing is not the same as free)
   * not touched within --min-age-hours (a just-created worktree at origin/main
     looks exactly like a finished one)
-  * no tracked changes and no untracked files
+  * clean: no tracked changes, no untracked files, no edit hidden from
+    `git status` by skip-worktree or assume-unchanged, no submodule (its git
+    dir lives inside the worktree's own), no rebase/merge/cherry-pick/bisect
+    in progress. `git status` is asked with the user's config overridden
   * HEAD is an ancestor of the base ref (default origin/main): every commit is
     already on the base. A squash-merged branch is NOT an ancestor, so it is
     kept and named, never guessed at
-  * ignored files that may exist nowhere else are archived first; if they
-    cannot be (too large), the worktree is kept
+  * ignored files a rebuild would not recreate are archived first; if they are
+    too large to archive, the worktree is kept
+  * a lock is cleared only if the agent that made it wrote it ("claude agent
+    ..."); any other lock is a person's and needs --break-locks
 
-A lock is cleared only after all of that. The merged local branch of a removed
-worktree is deleted too. Nothing is pushed or fetched unless --fetch is given;
-a stale origin/main only ever makes the answer more conservative.
+Each worktree is judged again immediately before it is removed, and removed
+without --force (git itself then refuses anything that appeared since) unless
+it is locked. The merged local branch of a removed worktree is deleted too,
+unless it is the base's own branch name (`main` for origin/main) or has gained
+commits. Nothing is fetched unless --fetch is given; a stale origin/main only
+ever makes the answer more conservative.
 
-Limits: `lsof` shows only the processes it is allowed to see (other users'
-processes need privileges). Pure stdlib.
+Limits: `lsof -d cwd` sees only processes whose working directory is inside the
+worktree, and only those lsof is allowed to see. An editor with the folder open
+but a different working directory is not detected. A commit made in the
+milliseconds between the last check and the removal is not detected on a
+detached HEAD (a branch keeps it; see above). Pure stdlib; needs git >= 2.5.
 
 Exit status: 0 done (a dry run, or every removal worked); 1 an --apply removal
-failed; 2 cannot run (not a repository, base ref missing, fetch failed).
+failed; 2 cannot run (not a repository, base ref missing, fetch failed,
+archive dir inside a worktree).
 """
 import argparse
+import hashlib
 import os
 import shutil
 import subprocess
@@ -42,14 +55,19 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Ignored paths a fresh checkout/install rebuilds; everything else ignored is
-# archived before removal (plans, specs, settings.local.json, ...).
+# Ignored directories a fresh checkout or install rebuilds. Only names that are
+# always a cache: `build`, `dist` and `coverage` are sometimes real output, so
+# they are archived (or the worktree is kept if that is too large), and a file
+# is never skipped by its name.
 REGENERABLE = {
     "node_modules", ".venv", "venv", "__pycache__", ".pytest_cache", ".ruff_cache",
-    ".mypy_cache", ".import_linter_cache", ".vitest", ".tox", "coverage", "dist", "build",
+    ".mypy_cache", ".import_linter_cache", ".vitest", ".tox",
 }
 MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
 LISTED = 3  # names shown in a reason before "..."
+AGENT_LOCK = "claude agent "  # how Claude Code words the lock it puts on its worktrees
+IN_PROGRESS = ("rebase-merge", "rebase-apply", "MERGE_HEAD", "CHERRY_PICK_HEAD",
+               "REVERT_HEAD", "BISECT_LOG", "sequencer")
 
 
 @dataclass
@@ -58,7 +76,6 @@ class Worktree:
     head: str
     branch: str | None  # None when detached
     locked: str | None  # None unlocked; "" locked without a reason
-    prunable: bool
 
 
 def git(repo, *args, check=True):
@@ -88,7 +105,6 @@ def list_worktrees(repo):
             head=fields.get("HEAD", ""),
             branch=branch.removeprefix("refs/heads/") if branch else None,
             locked=fields.get("locked") if "locked" in fields else None,
-            prunable="prunable" in fields,
         ))
     return found
 
@@ -97,16 +113,18 @@ def process_cwds():
     """Working directories of the processes `lsof` can see, or None when that
     cannot be established. Our own cwd must be in the answer; if it is not, the
     listing is not trustworthy."""
-    if shutil.which("lsof") is None:
-        return None
     try:
         p = subprocess.run(["lsof", "-a", "-d", "cwd", "-Fn"], capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.TimeoutExpired):
         return None
-    if p.returncode > 1:
+    if p.returncode > 1:  # 1 is lsof's "some files were not listable"
         return None
     cwds = [os.path.realpath(ln[1:]) for ln in p.stdout.splitlines() if ln.startswith("n/")]
     return cwds if os.path.realpath(os.getcwd()) in cwds else None
+
+
+def _now():
+    return time.time()
 
 
 def _inside(path, root):
@@ -119,11 +137,14 @@ def _listed(names):
     return shown + (", ..." if len(names) > LISTED else "")
 
 
-def _touched_age_hours(wt):
-    admin = git(wt, "rev-parse", "--absolute-git-dir").stdout.strip()
+def _admin(wt):
+    return git(wt, "rev-parse", "--absolute-git-dir").stdout.strip()
+
+
+def _touched_age_hours(admin):
     mtimes = [os.path.getmtime(os.path.join(admin, f)) for f in ("index", "HEAD")
               if os.path.exists(os.path.join(admin, f))]
-    return (time.time() - max(mtimes)) / 3600 if mtimes else float("inf")
+    return (_now() - max(mtimes)) / 3600 if mtimes else float("inf")
 
 
 def _regenerable(name):
@@ -131,7 +152,7 @@ def _regenerable(name):
 
 
 def archivable_ignored(wt):
-    """Relative paths of the ignored files a rebuild would not bring back.
+    """Relative paths of the ignored files a rebuild would not recreate.
 
     `ls-files --directory` collapses directories but also lists a wholly-ignored
     directory and its children separately, so the directories are walked here
@@ -139,17 +160,19 @@ def archivable_ignored(wt):
     out = git(wt, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z").stdout
     files = set()
     for rel in filter(None, out.split("\0")):
-        if any(_regenerable(p) for p in rel.rstrip("/").split("/")):
+        parts = rel.rstrip("/").split("/")
+        is_dir = rel.endswith("/")
+        if any(_regenerable(p) for p in (parts if is_dir else parts[:-1])):
             continue
-        top = Path(wt) / rel
-        if not rel.endswith("/"):
+        if not is_dir:
             files.add(rel)
             continue
-        for d, dirs, names in os.walk(top):
-            # A symlink to a directory is listed in `dirs` but not descended into.
-            names += [x for x in dirs if os.path.islink(os.path.join(d, x))]
-            dirs[:] = [x for x in dirs if not _regenerable(x) and not os.path.islink(os.path.join(d, x))]
-            files.update(os.path.relpath(os.path.join(d, n), wt) for n in names if not _regenerable(n))
+        for d, dirs, names in os.walk(Path(wt) / rel):
+            # os.walk lists a symlink to a directory in `dirs` but never descends
+            # into it, so it has to be archived as the link it is.
+            names += [x for x in dirs if os.path.islink(os.path.join(d, x)) and not _regenerable(x)]
+            dirs[:] = [x for x in dirs if not _regenerable(x)]
+            files.update(os.path.relpath(os.path.join(d, n), wt) for n in names)
     return sorted(files)
 
 
@@ -158,11 +181,35 @@ def _groups(files):
     return dict.fromkeys("/".join(f.split("/")[:2]) for f in files)
 
 
-def judge(wt, base, *, cwd, cwds, min_age_hours):
-    """(reasons to keep, ignored paths to archive). No reasons = removable."""
-    if wt.prunable or not wt.path.is_dir():
+def _not_clean(wt, admin):
+    """Reasons the worktree is not provably clean."""
+    why = []
+    # The explicit flag beats the user's config (status.showUntrackedFiles=no
+    # would otherwise hide untracked files).
+    status = git(wt, "status", "--porcelain", "--untracked-files=all").stdout.splitlines()
+    if any(not ln.startswith("??") for ln in status):
+        why.append("tracked changes")
+    untracked = [ln[3:] for ln in status if ln.startswith("??")]
+    if untracked:
+        why.append(f"untracked files ({_listed(untracked)})")
+    # skip-worktree (sparse checkout) is tagged `S`; assume-unchanged is lowercase.
+    hidden = [ln[2:] for ln in git(wt, "ls-files", "-v").stdout.splitlines() if ln[0] == "S" or ln[0].islower()]
+    if hidden:
+        why.append(f"edits hidden from status (skip-worktree or assume-unchanged: {_listed(hidden)})")
+    if os.path.isdir(os.path.join(admin, "modules")):
+        why.append("has submodules (their git dirs live inside this worktree's)")
+    pending = [m for m in IN_PROGRESS if os.path.exists(os.path.join(admin, m))]
+    if pending:
+        why.append(f"operation in progress ({', '.join(pending)})")
+    return why
+
+
+def judge(wt, base, *, cwd, cwds, min_age_hours, break_locks):
+    """(reasons to keep, ignored files to archive). No reasons = removable."""
+    if not wt.path.is_dir():
         return ["directory missing (run `git worktree prune`)"], []
     root = os.path.realpath(wt.path)
+    admin = _admin(wt.path)
     why = []
     if _inside(cwd, root):
         why.append("current worktree")
@@ -170,14 +217,11 @@ def judge(wt, base, *, cwd, cwds, min_age_hours):
         why.append("process check unavailable (lsof)")
     elif any(_inside(c, root) for c in cwds):
         why.append("process running inside")
-    age = _touched_age_hours(wt.path)
-    if age < min_age_hours:
+    if _touched_age_hours(admin) < min_age_hours:
         why.append(f"touched within {min_age_hours:g}h")
-    if git(wt.path, "status", "--porcelain", "--untracked-files=no").stdout.strip():
-        why.append("tracked changes")
-    untracked = [ln[3:] for ln in git(wt.path, "status", "--porcelain").stdout.splitlines() if ln.startswith("??")]
-    if untracked:
-        why.append(f"untracked files ({_listed(untracked)})")
+    if wt.locked is not None and not wt.locked.startswith(AGENT_LOCK) and not break_locks:
+        why.append(f"locked: {wt.locked or '(no reason)'} (pass --break-locks to remove anyway)")
+    why += _not_clean(wt.path, admin)
     if git(wt.path, "merge-base", "--is-ancestor", wt.head, base, check=False).returncode != 0:
         ahead = git(wt.path, "rev-list", "--count", f"{base}..{wt.head}").stdout.strip()
         why.append(f"not merged into {base} ({ahead} commit(s) not on it)")
@@ -189,15 +233,23 @@ def judge(wt, base, *, cwd, cwds, min_age_hours):
     return [], ignored
 
 
+def archive_path(dest, wt):
+    """One directory per worktree: two worktrees may share a name."""
+    tag = hashlib.sha1(os.path.realpath(wt.path).encode()).hexdigest()[:8]
+    return Path(dest) / f"{wt.path.name}-{tag}"
+
+
 def archive(wt, ignored, dest):
     for rel in ignored:
-        src, dst = wt.path / rel, dest / wt.path.name / rel
+        src, dst = wt.path / rel, archive_path(dest, wt) / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst, follow_symlinks=False)
 
 
 def remove_worktree(repo, wt, force_lock):
-    flags = ["--force", "--force"] if force_lock else ["--force"]
+    # Only a lock needs force. Without it git refuses modified or untracked
+    # files itself, which is the last line of defence against a late change.
+    flags = ["--force", "--force"] if force_lock else []
     git(repo, "worktree", "remove", *flags, str(wt.path))
 
 
@@ -207,7 +259,8 @@ def run(argv):
     ap.add_argument("--base", default="origin/main", help="ref a worktree's HEAD must already be on")
     ap.add_argument("--fetch", action="store_true", help="fetch the base ref's remote first")
     ap.add_argument("--min-age-hours", type=float, default=24.0)
-    ap.add_argument("--archive-dir", help="default: <git dir>/pruned-worktrees/<UTC timestamp>")
+    ap.add_argument("--break-locks", action="store_true", help="also remove worktrees locked by a person")
+    ap.add_argument("--archive-dir", help="default: <git dir>/pruned-worktrees/<UTC timestamp>-<pid>")
     ap.add_argument("--repo", default=".")
     args = ap.parse_args(argv)
 
@@ -216,26 +269,45 @@ def run(argv):
         print(f"prune_worktrees: not a git repository: {args.repo}", file=sys.stderr)
         return 2
     common = Path(args.repo, probe.stdout.strip()).resolve()
-    repo = list_worktrees(args.repo)[0].path
+    everything = list_worktrees(args.repo)
+    repo, linked = everything[0].path, everything[1:]
 
     if args.fetch:
         remote = args.base.split("/")[0]
+        if remote not in git(repo, "remote").stdout.split():
+            print(f"prune_worktrees: --fetch needs a base like <remote>/<branch>; {remote!r} is not a configured remote",
+                  file=sys.stderr)
+            return 2
         if git(repo, "fetch", "--quiet", remote, check=False).returncode != 0:
             print(f"prune_worktrees: could not fetch {remote!r}", file=sys.stderr)
             return 2
     if git(repo, "rev-parse", "--verify", "-q", f"{args.base}^{{commit}}", check=False).returncode != 0:
         print(f"prune_worktrees: base ref {args.base!r} not found (fetch it, or pass --base)", file=sys.stderr)
         return 2
+    if git(repo, "show-ref", "--verify", "-q", f"refs/remotes/{args.base}", check=False).returncode != 0:
+        print(f"prune_worktrees: note: {args.base!r} is not a remote-tracking ref; "
+              "a branch merged only locally counts as merged", file=sys.stderr)
     base_sha = git(repo, "rev-parse", "--short", args.base).stdout.strip()
 
-    cwd = os.path.realpath(os.getcwd())
-    cwds = process_cwds()
-    dest = Path(args.archive_dir) if args.archive_dir else \
-        common / "pruned-worktrees" / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    dest = Path(args.archive_dir) if args.archive_dir else common / "pruned-worktrees" / f"{stamp}-{os.getpid()}"
+    real_dest = os.path.realpath(dest)
+    for wt in linked:
+        if _inside(real_dest, os.path.realpath(wt.path)):
+            print(f"prune_worktrees: the archive dir {str(dest)!r} is inside worktree {wt.path.name!r}, "
+                  "which would delete it", file=sys.stderr)
+            return 2
+
+    cwd, cwds = os.path.realpath(os.getcwd()), process_cwds()
+    opts = dict(cwd=cwd, cwds=cwds, min_age_hours=args.min_age_hours, break_locks=args.break_locks)
+    protected = args.base.split("/")[-1]  # the base's own branch name: main for origin/main
 
     verdicts = []
-    for wt in list_worktrees(repo)[1:]:
-        why, ignored = judge(wt, args.base, cwd=cwd, cwds=cwds, min_age_hours=args.min_age_hours)
+    for wt in linked:
+        try:
+            why, ignored = judge(wt, args.base, **opts)
+        except (RuntimeError, OSError) as e:
+            why, ignored = [f"could not inspect: {e}"], []
         verdicts.append((wt, why, ignored))
 
     failed = removed = 0
@@ -248,15 +320,22 @@ def run(argv):
         if wt.locked is not None:
             notes.append(f"locked: {wt.locked}" if wt.locked else "locked")
         if ignored:
-            notes.append(f"archives {_listed(_groups(ignored))} to {dest}")
+            notes.append(f"archives {_listed(_groups(ignored))} to {archive_path(dest, wt)}")
         print(f"REMOVE  {wt.path.name} {label}  {'; '.join(notes)}")
         if not args.apply:
             continue
         try:
+            # Judged again, not trusted: this is the last look before deleting.
+            why, ignored = judge(wt, args.base, **opts)
+            if why:
+                print(f"        kept: changed since the check: {'; '.join(why)}")
+                continue
             if ignored:
                 archive(wt, ignored, dest)
             remove_worktree(repo, wt, force_lock=wt.locked is not None)
-            if wt.branch:
+            if wt.branch == protected:
+                print(f"        kept branch {wt.branch}: it is the base's own branch")
+            elif wt.branch:
                 # Re-checked, not assumed: a commit may have landed in the
                 # worktree after it was judged, and -D would orphan it.
                 if git(repo, "merge-base", "--is-ancestor", wt.branch, args.base, check=False).returncode == 0:
