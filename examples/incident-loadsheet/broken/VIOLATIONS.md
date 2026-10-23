@@ -6,8 +6,8 @@ regressions. See `../README.md` for the incident being modeled.
 
 | ID | Where | Violation |
 | --- | --- | --- |
-| P5 | `STANDARD_WEIGHT_KG`, `TITLE_CATEGORY` | Hardcoded priors — the standard weights and the honorific→category convention are judgment calls buried as module constants, invisible to every consumer of the total and changeable only by editing logic |
-| P3 | `categorize`, `main` | No provenance or confidence — a category guessed from a title is indistinguishable from one read from the booking record, and the total carries no signal that any input was inferred |
+| P5 | `STANDARD_WEIGHT_KG`, `TITLE_CATEGORY` | Hardcoded assumptions — the standard weights and the honorific→category convention are judgment calls buried as module constants, invisible to every consumer of the total and changeable only by editing logic |
+| P3 | `categorize`, `main` | Laundered uncertainty — no provenance or confidence, so a category guessed from a title is indistinguishable from one read from the booking record, and the total carries no signal that any input was inferred |
 | P1 | `main` | Inferred values enter the calculation stream mixed with recorded ones — the guessed category sits in the same data path as booked ground truth with nothing separating them |
 
 The `instrumented/` variant resolves the P3/P1 findings via the provenance

@@ -37,7 +37,8 @@ Not a deferral: `pytest.mark.skip`, `skipif`, `xfail` without `strict=True`
 (unless the project's pytest config makes xfail strict by default),
 `xfail(run=False)`, an
 imperative `pytest.xfail()`, `it.skip`, `it.todo`, a commented-out test, a
-rewritten assertion, or a mock of the carrier in the requirement's test.
+rewritten assertion, or a test double for the carrier in the requirement's
+test.
 Each makes CI green by making it stop checking.
 
 ## The proof

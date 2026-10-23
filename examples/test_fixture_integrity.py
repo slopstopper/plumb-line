@@ -27,7 +27,7 @@ def read(*parts):
 # --- JS payments fixture -----------------------------------------------------
 
 
-def test_js_p2_boundary_leak_present_in_broken_absent_in_clean():
+def test_js_p2_layer_violation_present_in_broken_absent_in_clean():
     # data layer must not import from the ui layer (upward import).
     ui_import = re.compile(r"""import[^;]*from\s+['"][^'"]*ui/""")
     assert ui_import.search(read(JS, "broken/src/data/rates.js")), \
@@ -36,7 +36,7 @@ def test_js_p2_boundary_leak_present_in_broken_absent_in_clean():
         "clean JS data/rates.js must not import from ui"
 
 
-def test_js_p5_hardcoded_prior_present_in_broken_absent_in_clean():
+def test_js_p5_hardcoded_assumption_present_in_broken_absent_in_clean():
     broken = read(JS, "broken/src/engine/pricing.js")
     clean = read(JS, "clean/src/engine/pricing.js")
     # Match actual code (an assignment), not a JSDoc/comment mention of the name.
@@ -83,7 +83,7 @@ def test_py_clean_ui_propagates_weights_version_structurally():
 # --- Python data-pipeline fixture -------------------------------------------
 
 
-def test_py_p2_boundary_leak_present_in_broken_absent_in_clean():
+def test_py_p2_layer_violation_present_in_broken_absent_in_clean():
     ui_import = re.compile(r"from\s+src\.ui")
     assert ui_import.search(read(PY, "broken/src/data/schema.py")), \
         "broken PY data/schema.py should contain the planted upward ui import (P2)"
@@ -91,7 +91,7 @@ def test_py_p2_boundary_leak_present_in_broken_absent_in_clean():
         "clean PY data/schema.py must not import from src.ui"
 
 
-def test_py_p5_hardcoded_prior_present_in_broken_absent_in_clean():
+def test_py_p5_hardcoded_assumption_present_in_broken_absent_in_clean():
     broken = read(PY, "broken/src/engine/aggregate.py")
     clean = read(PY, "clean/src/engine/aggregate.py")
     assert "SIGNAL_THRESHOLD" in broken, \
@@ -248,8 +248,8 @@ TH = EXAMPLES / "test-honesty"
 
 
 def test_th_substitution_present_in_broken_absent_in_clean():
-    # broken/: the integration test states the partner requirement but stubs
-    # the partner call, so it passes against a stand-in.
+    # broken/: the integration test states the partner requirement but replaces
+    # the partner call with a test double, so it passes against a stand-in.
     broken = read(TH, "broken/tests/test_balance.py")
     assert "runs against the partner sandbox" in broken
     assert 'monkeypatch.setattr(partner, "fetch_points"' in broken
@@ -270,7 +270,7 @@ def test_th_rewritten_assertion_present_in_broken_absent_in_clean():
 
 def test_th_clean_carries_the_carve_outs_the_audit_must_not_flag():
     clean = read(TH, "clean/tests/test_balance.py")
-    assert "def test_unit_" in clean and "monkeypatch" in clean   # a unit test's own mock
+    assert "def test_unit_" in clean and "monkeypatch" in clean   # a unit test's own test double
     assert "LOY-15" in read(TH, "clean/tests/test_expiry.py")      # a wrong test fixed, reason stated
 
 
@@ -282,8 +282,9 @@ def test_th_answer_key_names_every_planted_violation():
 
 def test_th_unnamed_only_test_substitution_present_in_broken_absent_in_clean():
     # #486 narrow review: the case nothing exercised. REQ-8's only test in
-    # broken/ is an unnamed, uncited mock; clean/ keeps a real-call test for
-    # REQ-8 (strictly deferred) and the unit mock beside it.
+    # broken/ is unnamed, uncited and uses a test double; clean/ keeps a
+    # real-call test for REQ-8 (strictly deferred) and a unit test with a test
+    # double beside it.
     broken = read(TH, "broken/tests/test_statement.py")
     assert "REQ" not in broken and "integration" not in broken
     assert 'monkeypatch.setattr(partner, "fetch_points"' in broken
@@ -293,8 +294,8 @@ def test_th_unnamed_only_test_substitution_present_in_broken_absent_in_clean():
 
 
 def test_th_both_trees_carry_a_unit_only_requirement_with_nothing_unmet():
-    # Final review (#486), defect B: a requirement whose only test is a mocked
-    # unit test, with no sign it is unmet. The audit must not flag it.
+    # Final review (#486), defect B: a requirement whose only test is a unit
+    # test with a test double, with no sign it is unmet. The audit must not flag it.
     for tree in ("broken", "clean"):
         assert "REQ-10" in read(TH, f"{tree}/docs/SPEC.md")
         test = read(TH, f"{tree}/tests/test_rates.py")

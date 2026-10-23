@@ -4,7 +4,7 @@ This file is the answer key for the audit of `broken/`. There are exactly three 
 
 ---
 
-## P2 — Boundary leak (upward import)
+## P2 — Layer violation (upward import)
 
 **File:** `src/data/rates.js`
 
@@ -12,7 +12,7 @@ This file is the answer key for the audit of `broken/`. There are exactly three 
 
 ---
 
-## P5 — Hardcoded prior
+## P5 — Hardcoded assumption
 
 **File:** `src/engine/pricing.js`
 
@@ -20,7 +20,7 @@ This file is the answer key for the audit of `broken/`. There are exactly three 
 
 ---
 
-## P3 — Laundered data (missing provenance and confidence)
+## P3 — Laundered uncertainty (missing provenance and confidence)
 
 **File:** `src/services/gateway.js`
 

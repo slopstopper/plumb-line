@@ -48,7 +48,7 @@ ui → services → engine → data
 
 This is a minimal **shape-demonstrator**, not a full application. It adopts only
 the principles it teaches: **P2** one-way layering, **P3** provenance +
-confidence on outputs, **P5** injectable priors, **P8** recorded lineage, and
+confidence on outputs, **P5** named assumptions, **P8** recorded lineage, and
 the **null-result spine**.
 
 The **service layer is the lineage-bearing output**: `services/source.py` records
@@ -70,11 +70,11 @@ violations of the adopted principles above.
 
 See `broken/VIOLATIONS.md` for the answer key. In brief:
 
-| ID  | File                      | Violation                                                             |
-| --- | ------------------------- | --------------------------------------------------------------------- |
-| P2  | `src/data/schema.py`      | Upward import — data layer imports ui layer                           |
-| P5  | `src/engine/aggregate.py` | Hardcoded prior — `SIGNAL_THRESHOLD = 0.65` instead of reading config |
-| P8  | `src/services/source.py`  | Missing lineage — result returned without recording the inputs used   |
+| ID  | File                      | Violation                                                                  |
+| --- | ------------------------- | -------------------------------------------------------------------------- |
+| P2  | `src/data/schema.py`      | Upward import — data layer imports ui layer                                |
+| P5  | `src/engine/aggregate.py` | Hardcoded assumption — `SIGNAL_THRESHOLD = 0.65` instead of reading config |
+| P8  | `src/services/source.py`  | Missing lineage — result returned without recording the inputs used        |
 
 ---
 

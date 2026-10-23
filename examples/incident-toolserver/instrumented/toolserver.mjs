@@ -1,8 +1,8 @@
 // instrumented/toolserver.mjs — the same server, same tools, same report, with
 // one change: every tool result is marked with its honest source at the moment
-// it is produced. The stubs still return success-shaped payloads — quarantine
-// does not mean deleting them — but the report derived from them can no longer
-// forget what it was built from. Run: node instrumented/toolserver.mjs
+// it is produced. The stubs still return success-shaped payloads — labelling
+// them does not mean deleting them — but the report derived from them can no
+// longer forget what it was built from. Run: node instrumented/toolserver.mjs
 
 import { createHash } from "node:crypto";
 import { mark, derive, metaOf, auditMeta } from "../../../primitives/js/index.mjs";
