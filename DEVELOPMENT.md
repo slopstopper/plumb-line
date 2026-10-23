@@ -116,7 +116,8 @@ Agent and branch worktrees under `.claude/worktrees/` are never tidied by
 anything that made them, and a stale lock makes a plain `git worktree remove`
 refuse. `scripts/prune_worktrees.py` removes only the ones it can show are safe
 to remove (clean, nothing running inside, every commit already on
-`origin/main`), and names the check that failed for the rest:
+`origin/main` and none held only by the worktree itself), and names the check
+that failed for the rest:
 
 ```bash
 python3 scripts/prune_worktrees.py            # dry run: what would go, and why the rest stays
@@ -126,7 +127,9 @@ python3 scripts/prune_worktrees.py --apply    # remove them; ignored files a reb
 Its header lists every check and what it cannot see. In short: a squash-merged
 branch is kept, not guessed at; a lock a person wrote needs `--break-locks`; an
 editor that has the folder open but a different working directory is not
-detected, only processes whose working directory is inside it (#668).
+detected, only processes whose working directory is inside it; commits a branch
+worktree abandoned by amend or reset, held only by its reflog, are not
+protected (#668).
 
 ## Held to its own principles
 
