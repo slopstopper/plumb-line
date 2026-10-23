@@ -63,7 +63,11 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v6
         with:
-          node-version: "22"
+          # Node 24 bundles an npm that meets the trusted-publishing floor, so
+          # no npm is fetched from the registry inside this credential-bearing
+          # job (it used to install a newer npm globally, unlocked). The floor is
+          # asserted below, so a too-old bundle fails loudly, never silently.
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
       # Tests are NOT run here: this job needs [guard, ci], and the ci job runs
       # the whole of ci.yml (incl. the primitives/js test suite) on this commit. That
@@ -84,10 +88,11 @@ jobs:
 
       # --- publish npm via OIDC trusted publishing (requires npm >= 11.5.1;
       #     publishes provenance attestations by default) ---
-      - name: Update npm (trusted publishing needs >= 11.5.1)
-        # Pinned (not @latest) so the release toolchain is deterministic; bump
-        # deliberately. 11.18.0 satisfies the >= 11.5.1 trusted-publishing floor.
-        run: npm install -g npm@11.18.0
+      - name: npm meets the trusted-publishing floor (>= 11.5.1)
+        run: |
+          v="$(npm --version)"; echo "bundled npm $v"
+          node -e 'const [a, b, c] = process.argv[1].split(".").map(Number); process.exit(a > 11 || (a === 11 && (b > 5 || (b === 5 && c >= 1))) ? 0 : 1)' "$v" \
+            || { echo "::error::bundled npm $v is below 11.5.1; trusted publishing would fail"; exit 1; }
       - name: Publish to npm
         working-directory: primitives/js
         run: npm publish --provenance
@@ -95,7 +100,10 @@ jobs:
       # --- publish PyPI via OIDC trusted publishing (no password input) ---
       - name: Build Python package
         working-directory: primitives/python
-        run: python -m build
+        # --no-isolation: build with the setuptools already installed from the
+        # hashed lock above. Isolated builds fetch the build backend from PyPI,
+        # unpinned and unhashed, inside this credential-bearing job.
+        run: python -m build --no-isolation
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # release/v1
         with:
