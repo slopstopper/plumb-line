@@ -9,7 +9,16 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **`scripts/prune_worktrees.py` removes stale git worktrees that are provably
+  safe to remove**
+  ([#668](https://github.com/slopstopper/plumb-line/issues/668)). Repo tooling
+  outside the packages and the plugin. A dry run by default; `--apply`
+  removes a worktree only when it is clean, no process is running inside it, and
+  every commit is already on `origin/main`, and archives ignored files that
+  exist nowhere else first. It clears a stale lock only after those checks, and
+  names the check that failed for each worktree it keeps. Not yet: it does not
+  run by itself, and a squash-merged branch is kept rather than judged merged.
 
 ## [0.12.1] — 2026-10-06
 

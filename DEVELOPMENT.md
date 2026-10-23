@@ -110,6 +110,22 @@ environment that has them it fails by design.
 
 The SARIF text parser is tested against the import-linter pinned in `requirements-test.in`. The Node and Python floors and the versions CI tests are in [`docs/constraints.md`](docs/constraints.md); the Python EOL policy is in [SUPPORT.md](SUPPORT.md).
 
+## Stale worktrees
+
+Agent and branch worktrees under `.claude/worktrees/` are never tidied by
+anything that made them, and a stale lock makes a plain `git worktree remove`
+refuse. `scripts/prune_worktrees.py` removes only the ones it can show are safe
+to remove (clean, nothing running inside, every commit already on
+`origin/main`), and names the check that failed for the rest:
+
+```bash
+python3 scripts/prune_worktrees.py            # dry run: what would go, and why the rest stays
+python3 scripts/prune_worktrees.py --apply    # remove them; ignored files that exist nowhere else are archived first
+```
+
+Its header says what it checks and what it cannot see. A squash-merged branch is
+kept, not guessed at (#668).
+
 ## Held to its own principles
 
 This repository is audited by its own `plumb-line-audit` skill before method-surface releases. The audit applies the same portable principles to plumb-line's code that it applies to yours. See [docs/release-harness.md](docs/release-harness.md) and [docs/dogfood.md](docs/dogfood.md) for how findings are recorded and resolved.
