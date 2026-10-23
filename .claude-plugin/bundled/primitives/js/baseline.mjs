@@ -1,4 +1,4 @@
-// primitives/js/baseline.mjs — Principle 9: golden baseline + explain-the-drift.
+// primitives/js/baseline.mjs — Principle 9: golden baselines.
 //
 // Pins a marked value WITH its trust state, diffs later runs against the pin,
 // refuses silent drift, and requires a recorded explanation to accept a new

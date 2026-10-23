@@ -30,7 +30,7 @@ module.exports = [
 version of this config. It carries two placeholders: `__GLOBS__` for the
 bypass-lint globs above, and `__OUTPUT_GLOBS__` for the separate declared
 surface `require-provenance-output` watches (ADR-0011). Bootstrap removes the
-output block entirely when the builder declines it — an unreplaced placeholder
+output block entirely when the operator declines it — an unreplaced placeholder
 throws `ReferenceError` when ESLint loads the config, so a half-installed
 template fails loudly instead of silently linting nothing.
 
