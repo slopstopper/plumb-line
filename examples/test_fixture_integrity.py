@@ -242,6 +242,21 @@ def test_release_publishes_only_after_the_whole_of_ci_passes():
         assert step not in publish, f"test step {step!r} copied into the publish job; CI owns tests"
 
 
+def test_publish_job_fetches_nothing_unlocked():
+    # The publish job holds id-token: write. Anything it downloads that is not
+    # hash-locked runs next to the publishing credential (the LiteLLM 1.107.0
+    # pattern, 2026-10). Isolated `python -m build` fetched setuptools from
+    # PyPI unpinned, and `npm install -g npm@…` fetched npm without a lock.
+    publish = _job(read(RELEASE_WORKFLOW), "release")
+    assert "python -m build --no-isolation" in publish, \
+        "build the Python package against the hashed lock, not an isolated env"
+    assert "npm install -g" not in publish, \
+        "use the npm bundled with setup-node; no registry fetch in the publish job"
+    lock = read(EXAMPLES.parent / "requirements-test.txt")
+    assert re.search(r"^setuptools==\S+ \\\n\s+--hash=sha256:", lock, re.M), \
+        "setuptools (the --no-isolation build backend) must be pinned with hashes in requirements-test.txt"
+
+
 # --- test-honesty fixture (#486): tests changed so an unmet requirement reads as met ---
 
 TH = EXAMPLES / "test-honesty"
