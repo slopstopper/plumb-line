@@ -286,12 +286,12 @@ Version themes for the near-term releases, and the GitHub issues under each.
 - **v0.13.0 — Plain words** · *created 2026-10-03 (owner decision).* The
   vocabulary and the principles' names, made clear to users and consistent with
   standard practice, before more text is written in today's words and before
-  1.0 freezes the envelope: "mock" means both a test double and non-real data
-  (GH #612, pulled forward from v1.0.0), and the principles' revision 2
+  1.0 freezes the envelope: "mock" means a test double, non-real data and an
+  unfinished implementation (GH #612, pulled forward from v1.0.0), and the principles' revision 2
   (GH #593). Weighed in a brainstorm and decided by the owner as text before any
   sweep; a change to the source rung's wire value would carry a
-  `PROVENANCE_VERSION` decision and a migration window. The decision is
-  ADR-0023.
+  `PROVENANCE_VERSION` decision and a migration window. ADR-0023 records the
+  decision; the rung keeps its wire value.
 
 - **v0.14.0 — See the cheat** (detection) · *created 2026-10-03 (owner
   decision), from spike round 3 (GH #462).* The audit and the Action see the

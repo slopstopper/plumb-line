@@ -496,8 +496,8 @@ of reasons, at the point where a value leaves the system (an export, a
 display, a publish). It enforces Principle 4's mock clause, "excluded from
 outputs unless explicitly opted in", at run time. A source floor the caller
 sets (`minSource`, #541) lets an output point refuse more of what Principle 4
-names, fallback data (source `fallback`) and inferred data (`inferred`), by
-opting in, where Principle 4 asks for exclusion by default. The floor
+names, fallback data (source `fallback`) and inferred data (`inferred`),
+where Principle 4 asks for exclusion by default. The floor
 is off by default, by the owner's decision on #541. Approximate and
 cached data have no rung (the HTTP adapter marks a cache hit `real` with
 lower confidence), so neither can be refused specifically (#562).
@@ -506,10 +506,10 @@ lower confidence), so neither can be refused specifically (#562).
 level on the confidence ladder, default `none`) and `minSource` (a rung on
 the source ladder, default `unavailable`, which is no floor, by the owner's
 decision on #541). A default of
-true for `noMock` is normative: mock is excluded unless an opt-in is
-recorded. The opt-in is recorded where the output is produced, in code or
-configuration a reviewer can see, as `noMock: false` is. Whoever owns the
-output records it. With `minSource` above `unavailable`, the guard refuses,
+true for `noMock` is normative: mock is excluded unless the call passes
+`noMock: false` (Python `no_mock=False`). That argument is Principle 4's
+recorded opt-in: it sits where the output is produced, in code or
+configuration a reviewer can see, and whoever owns the output records it. With `minSource` above `unavailable`, the guard refuses,
 with a reason prefixed `source:` (`source: fallback is below the required semiReal`), when
 the weakest source the ancestry shows is below it. The ancestry is the
 headline `source`, `weakestSource` and every lineage step's `source`,
