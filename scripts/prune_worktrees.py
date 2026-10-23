@@ -23,8 +23,12 @@ check below passes, and otherwise says which one failed:
     in progress. `git status` is asked with untracked files forced on,
     whatever the user's config says
   * HEAD is an ancestor of the base ref (default origin/main): every commit is
-    already on the base. A squash-merged branch is NOT an ancestor, so it is
-    kept and named, never guessed at
+    already on the base. A squash-merged or rebase-merged branch is NOT an
+    ancestor (its commits are different commits), so it is kept and named,
+    never guessed at; only merge-commit and fast-forward merges are removable.
+    --base must name a branch, a remote-tracking branch or a tag, and is
+    resolved once to a full ref name; a SHA or an expression such as HEAD~1 is
+    refused, because no ref would hold the commits once a branch is deleted
   * no commit is held only by the worktree itself: its per-worktree refs
     (refs/worktree, refs/bisect, refs/rewritten) and its HEAD reflog must not
     reach commits that no branch, remote or tag reaches. The reflog also holds
@@ -40,8 +44,9 @@ Each worktree is judged again immediately before it is removed, from fresh
 reads of HEAD and of the processes, and HEAD is read once more after the
 archive. It is then removed without --force, so git itself refuses anything that
 appeared since. A locked worktree is unlocked first for that, and locked again
-if git refuses (an interrupt too; if git has already forgotten the worktree, the
-message says its lock could not be put back). The merged local branch of a
+if git refuses (Ctrl-C too; if git has already forgotten the worktree, the
+message says its lock could not be put back; SIGTERM and SIGKILL are not
+handled, so a kill at that moment leaves the lock lifted). The merged local branch of a
 removed worktree is deleted too, unless it is the base's own branch (`main` for
 origin/main, the branch itself for a local base) or has gained commits. Nothing
 is fetched unless --fetch is given; a stale origin/main only ever makes the
@@ -65,6 +70,7 @@ archive dir inside a worktree).
 import argparse
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -87,6 +93,7 @@ AGENT_LOCK = "claude agent "  # how Claude Code words the lock it puts on its wo
 IN_PROGRESS = ("rebase-merge", "rebase-apply", "MERGE_HEAD", "CHERRY_PICK_HEAD",
                "REVERT_HEAD", "BISECT_LOG", "sequencer")
 PER_WORKTREE_REFS = ("refs/worktree", "refs/bisect", "refs/rewritten")
+_REFLOG_LINE = re.compile(r"[0-9a-f]{40} [0-9a-f]{40}[ \t]")
 # Variables that point git at a repository; a hook or wrapper that exports one
 # would make every call below read that repository instead of the worktree.
 # Each is here because a test shows it changing the outcome; others that
@@ -243,22 +250,40 @@ def _not_clean(wt, admin):
     return why
 
 
-def _held_only_here(wt, use_reflog):
+def _reflog_tips(wt, admin):
+    """The commits in the worktree's HEAD reflog. `git reflog show` quietly
+    falls back to the current commit when the log file is garbled or empty, so
+    its answer cannot be trusted alone: the file that removal deletes is also
+    read, and a line that does not parse is an error rather than "nothing
+    there". (Its entries are the ones git already reported; only the check is new.)"""
+    tips = git(wt, "reflog", "show", "--format=%H", "HEAD").stdout.split()
+    log = os.path.join(admin, "logs", "HEAD")
+    if os.path.exists(log):
+        with open(log) as f:
+            for line in f:
+                if line.strip() and not _REFLOG_LINE.match(line):
+                    raise RuntimeError(f"cannot parse a line of {log}: {line.strip()[:60]!r}")
+    return tips
+
+
+def _held_only_here(wt, admin, use_reflog):
     """How many commits only this worktree's own state keeps alive: removing
     the worktree deletes its per-worktree refs and its HEAD reflog."""
     tips = git(wt, "for-each-ref", "--format=%(objectname)", *PER_WORKTREE_REFS).stdout.split()
     if use_reflog:
-        tips += git(wt, "reflog", "show", "--format=%H", "HEAD").stdout.split()
+        tips += _reflog_tips(wt, admin)
     tips = list(dict.fromkeys(tips))
     if not tips:
         return 0
     return int(git(wt, "rev-list", "--count", *tips, "--not", "--branches", "--remotes", "--tags").stdout)
 
 
-def judge(wt, base, *, cwd, cwds, min_age_hours, break_locks, ignore_reflog):
+def judge(wt, base, *, base_name, cwd, cwds, min_age_hours, break_locks, ignore_reflog):
     """(reasons to keep, ignored files to archive, HEAD that was judged). No
     reasons = removable. Everything is read fresh from git here, never taken
-    from the worktree listing."""
+    from the worktree listing. `base` is a full ref name (refs/remotes/origin/
+    main), which means the same thing in every worktree; `base_name` is only
+    what the user typed, for messages."""
     if not wt.path.is_dir():
         return ["directory missing (run `git worktree prune`)"], [], None
     root = os.path.realpath(wt.path)
@@ -280,8 +305,8 @@ def judge(wt, base, *, cwd, cwds, min_age_hours, break_locks, ignore_reflog):
     why += _not_clean(wt.path, admin)
     if git(wt.path, "merge-base", "--is-ancestor", head, base, check=False).returncode != 0:
         ahead = git(wt.path, "rev-list", "--count", f"{base}..{head}").stdout.strip()
-        why.append(f"not merged into {base} ({ahead} commit(s) not on it)")
-    held = _held_only_here(wt.path, use_reflog=not ignore_reflog)
+        why.append(f"not merged into {base_name} ({ahead} commit(s) not on it)")
+    held = _held_only_here(wt.path, admin, use_reflog=not ignore_reflog)
     if held:
         why.append(f"{held} commit(s) held only by this worktree's reflog or per-worktree refs "
                    f"(see `git -C {wt.path} reflog`; --ignore-reflog accepts losing the reflog-only ones)")
@@ -326,9 +351,17 @@ def remove_worktree(repo, wt, locked):
     git(repo, "worktree", "unlock", str(wt.path))
     try:
         git(repo, "worktree", "remove", str(wt.path))
-    except BaseException as e:  # an interrupt must not leave the lock lifted either
-        if _registered(repo, wt):
-            git(repo, "worktree", "lock", *(["--reason", wt.locked] if wt.locked else []), str(wt.path), check=False)
+    except BaseException as e:  # Ctrl-C must not leave the lock lifted either
+        try:
+            still_listed = _registered(repo, wt)
+        except Exception:  # cannot tell: try to put it back, and keep the original error
+            still_listed = True
+        if still_listed:
+            try:
+                git(repo, "worktree", "lock", *(["--reason", wt.locked] if wt.locked else []), str(wt.path),
+                    check=False)
+            except OSError:
+                pass
         elif isinstance(e, RuntimeError):
             # git drops its record before it deletes the files, so it can fail
             # having already forgotten the worktree and its lock.
@@ -358,11 +391,18 @@ def run(argv):
     everything = list_worktrees(args.repo)
     repo, linked = everything[0].path, everything[1:]
 
+    remotes = git(repo, "remote").stdout.split()
+
+    def remote_of(name):
+        """The configured remote a ref name sits under; remote names may contain
+        slashes, so the longest match wins."""
+        return max((r for r in remotes if name.startswith(r + "/")), key=len, default=None)
+
     if args.fetch:
-        remote = args.base.split("/")[0]
-        if remote not in git(repo, "remote").stdout.split():
-            print(f"prune_worktrees: --fetch needs a base like <remote>/<branch>; {remote!r} is not a configured remote",
-                  file=sys.stderr)
+        remote = remote_of(args.base.removeprefix("refs/remotes/"))
+        if remote is None:
+            print(f"prune_worktrees: --fetch needs a base like <remote>/<branch>; {args.base!r} is not under a "
+                  "configured remote", file=sys.stderr)
             return 2
         if git(repo, "fetch", "--quiet", remote, check=False).returncode != 0:
             print(f"prune_worktrees: could not fetch {remote!r}", file=sys.stderr)
@@ -370,10 +410,19 @@ def run(argv):
     if git(repo, "rev-parse", "--verify", "-q", f"{args.base}^{{commit}}", check=False).returncode != 0:
         print(f"prune_worktrees: base ref {args.base!r} not found (fetch it, or pass --base)", file=sys.stderr)
         return 2
-    if git(repo, "show-ref", "--verify", "-q", f"refs/remotes/{args.base}", check=False).returncode != 0:
+    # Resolved once, here, to a full ref name. Typed as HEAD it would mean each
+    # worktree's own HEAD; typed as a bare name a tag can shadow a branch; as a
+    # SHA it is no ref at all, so deleting a branch "merged into" it would leave
+    # the commit held by nothing.
+    base = git(repo, "rev-parse", "--symbolic-full-name", args.base).stdout.strip()
+    if not base.startswith(("refs/heads/", "refs/remotes/", "refs/tags/")):
+        print(f"prune_worktrees: --base must name a branch, a remote-tracking branch or a tag, not {args.base!r}",
+              file=sys.stderr)
+        return 2
+    if not base.startswith("refs/remotes/"):
         print(f"prune_worktrees: note: {args.base!r} is not a remote-tracking ref; "
               "a branch merged only locally counts as merged", file=sys.stderr)
-    base_sha = git(repo, "rev-parse", "--short", args.base).stdout.strip()
+    base_sha = git(repo, "rev-parse", "--short", base).stdout.strip()
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     dest = Path(args.archive_dir) if args.archive_dir else common / "pruned-worktrees" / f"{stamp}-{os.getpid()}"
@@ -386,16 +435,20 @@ def run(argv):
 
     cwd = os.path.realpath(os.getcwd())
     opts = dict(cwd=cwd, min_age_hours=args.min_age_hours, break_locks=args.break_locks,
-                ignore_reflog=args.ignore_reflog)
+                ignore_reflog=args.ignore_reflog, base_name=args.base)
     # The base's own branch is never deleted: origin/main protects main, and a
-    # local base such as release/1.0 (in any spelling) protects itself.
-    base_ref = git(repo, "rev-parse", "--symbolic-full-name", args.base).stdout.strip()
-    protected = (base_ref.removeprefix("refs/heads/") if base_ref.startswith("refs/heads/")
-                 else base_ref.split("/", 3)[-1] if base_ref.startswith("refs/remotes/") else None)
+    # local base such as release/1.0 protects itself.
+    if base.startswith("refs/heads/"):
+        protected = base.removeprefix("refs/heads/")
+    elif base.startswith("refs/remotes/"):
+        under = base.removeprefix("refs/remotes/")
+        protected = under.removeprefix(remote_of(under) + "/") if remote_of(under) else None
+    else:
+        protected = None
 
     def inspect(wt, cwds):
         try:
-            return judge(wt, args.base, cwds=cwds, **opts)
+            return judge(wt, base, cwds=cwds, **opts)
         except (RuntimeError, OSError) as e:
             return [f"could not inspect: {e}"], [], None
 
@@ -433,7 +486,9 @@ def run(argv):
             elif wt.branch:
                 # Re-checked, not assumed: a commit may have landed in the
                 # worktree after it was judged, and -D would orphan it.
-                if git(repo, "merge-base", "--is-ancestor", wt.branch, args.base, check=False).returncode == 0:
+                # Full ref names: a tag called like the branch must not answer.
+                if git(repo, "merge-base", "--is-ancestor", f"refs/heads/{wt.branch}", base,
+                       check=False).returncode == 0:
                     git(repo, "branch", "-D", wt.branch)
                 else:
                     print(f"        kept branch {wt.branch}: it gained commits not on {args.base} after the check")

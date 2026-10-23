@@ -1132,6 +1132,28 @@ def test_an_interrupt_during_a_locked_removal_puts_the_lock_back(repo, monkeypat
     assert f"locked {reason}" in git(repo.work, "worktree", "list", "--porcelain").stdout
 
 
+def test_a_failure_while_checking_registration_does_not_mask_the_original_error(repo, monkeypatch):
+    wt = repo.worktree("masked")
+    reason = "claude agent agent-s (pid 7)"
+    git(repo.work, "worktree", "lock", "--reason", reason, str(wt))
+    real_git = pw.git
+
+    def interrupt_on_remove(r, *args, **kw):
+        if args[:2] == ("worktree", "remove"):
+            raise KeyboardInterrupt
+        return real_git(r, *args, **kw)
+
+    def listing_fails(*a, **k):
+        raise RuntimeError("could not list worktrees")
+
+    monkeypatch.setattr(pw, "git", interrupt_on_remove)
+    monkeypatch.setattr(pw, "_registered", listing_fails)
+    with pytest.raises(KeyboardInterrupt):  # not RuntimeError("could not list worktrees")
+        run_prune(repo, "--apply")
+    monkeypatch.undo()
+    assert f"locked {reason}" in git(repo.work, "worktree", "list", "--porcelain").stdout
+
+
 def test_a_removal_that_deregisters_the_worktree_before_failing_says_the_lock_is_lost(repo, capsys, monkeypatch):
     # git can drop its record of a worktree and then fail to delete the files;
     # there is no longer anything to lock, and the message must say so.
@@ -1188,6 +1210,84 @@ def test_one_failed_removal_is_reported_and_does_not_stop_the_rest(repo, capsys,
 
 # --- base ref and fetch --------------------------------------------------
 
+@pytest.mark.parametrize("spelling", ["full-sha", "short-sha", "expression"])
+def test_a_base_that_is_not_a_ref_is_refused_before_anything_is_removed(repo, capsys, spelling):
+    # "Merged into a SHA" is trivially true of a branch at that SHA, and no ref
+    # holds the commit once the branch is deleted.
+    wt = repo.worktree("feat", branch="feat")
+    sha = repo.commit(wt)
+    base = {"full-sha": sha, "short-sha": sha[:7], "expression": "feat~0"}[spelling]
+    assert run_prune(repo, "--apply", "--base", base) == 2
+    assert "must name a branch" in capsys.readouterr().err
+    assert wt.exists()
+    assert git(repo.work, "rev-parse", "--verify", "-q", "refs/heads/feat").stdout.strip() == sha
+
+
+@pytest.mark.parametrize("spelling", ["HEAD", "@"])
+def test_head_as_the_base_means_the_main_checkouts_branch_not_each_worktrees_own(repo, capsys, spelling):
+    # Resolved inside each worktree, HEAD is that worktree's own HEAD and
+    # everything is "merged" into it.
+    attached = repo.worktree("attached")
+    repo.commit(attached)
+    detached = repo.worktree("detached", detach=True)
+    repo.commit(detached)
+    assert run_prune(repo, "--apply", "--ignore-reflog", "--base", spelling) == 0
+    out = capsys.readouterr().out
+    for name in ("attached", "detached"):
+        assert verdict_line(out, name).startswith("KEEP") and "not merged into" in verdict_line(out, name)
+    assert attached.exists() and detached.exists()
+
+
+def test_a_tag_named_like_the_branch_does_not_fool_the_late_commit_check(repo, capsys, monkeypatch):
+    repo.worktree("onfeat", branch="feat")
+    git(repo.work, "tag", "feat", "origin/main")  # ambiguous: the name now means a tag too
+    real = pw.remove_worktree
+
+    def late_commit_then_remove(repo_path, w, locked):
+        repo.commit(w.path)
+        return real(repo_path, w, locked)
+
+    monkeypatch.setattr(pw, "remove_worktree", late_commit_then_remove)
+    assert run_prune(repo, "--apply") == 0
+    assert "kept branch feat" in capsys.readouterr().out
+    assert git(repo.work, "rev-parse", "--verify", "-q", "refs/heads/feat").stdout.strip()
+
+
+def test_a_remote_whose_name_contains_a_slash_protects_the_right_branch(repo, capsys):
+    git(repo.work, "remote", "add", "a/b", str(repo.origin))
+    git(repo.work, "fetch", "-q", "a/b")
+    git(repo.work, "checkout", "-q", "-b", "feature")
+    wt = repo.worktree("onmain", checkout="main")
+    assert run_prune(repo, "--apply", "--fetch", "--base", "a/b/main") == 0
+    out = capsys.readouterr().out
+    assert not wt.exists()
+    assert "kept branch main" in out
+    assert git(repo.work, "rev-parse", "--verify", "-q", "refs/heads/main").stdout.strip()
+
+
+def test_a_tag_as_the_base_is_allowed_and_a_detached_worktree_never_reports_a_kept_branch(repo, capsys):
+    detached = repo.worktree("loose", detach=True)
+    tagged = repo.worktree("tagged")
+    sha = repo.commit(tagged)
+    git(repo.work, "tag", "release-x", sha)  # the tag holds the commit once the branch is gone
+    assert run_prune(repo, "--apply", "--base", "release-x") == 0
+    out = capsys.readouterr().out
+    assert "kept branch None" not in out
+    assert not detached.exists()
+    assert git(repo.work, "rev-parse", "--verify", "-q", "refs/heads/b-tagged", check=False).returncode != 0
+    assert git(repo.work, "rev-parse", "refs/tags/release-x").stdout.strip() == sha
+
+
+def test_a_reflog_git_cannot_read_keeps_the_worktree(repo, capsys):
+    # Not being able to read the reflog is not the same as it being empty.
+    wt = repo.worktree("garbled")
+    log = Path(admin_dir(wt)) / "logs" / "HEAD"
+    log.write_text("not a reflog entry\n")
+    assert run_prune(repo, "--apply") == 0
+    assert verdict_line(capsys.readouterr().out, "garbled").startswith("KEEP")
+    assert wt.exists()
+
+
 def test_a_missing_base_ref_is_an_error_and_changes_nothing(repo, capsys):
     wt = repo.worktree("done")
     assert run_prune(repo, "--apply", "--base", "origin/nope") == 2
@@ -1225,7 +1325,7 @@ def test_a_failed_fetch_is_an_error_and_changes_nothing(repo, capsys):
 def test_fetch_needs_a_base_that_names_a_configured_remote(repo, capsys):
     wt = repo.worktree("done")
     assert run_prune(repo, "--apply", "--fetch", "--base", "main") == 2
-    assert "not a configured remote" in capsys.readouterr().err
+    assert "not under a configured remote" in capsys.readouterr().err
     assert wt.exists()
 
 

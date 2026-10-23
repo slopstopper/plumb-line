@@ -124,8 +124,10 @@ python3 scripts/prune_worktrees.py            # dry run: what would go, and why 
 python3 scripts/prune_worktrees.py --apply    # remove them; ignored files a rebuild would not recreate are archived first
 ```
 
-Its header lists every check and what it cannot see. In short: a squash-merged
-branch is kept, not guessed at; a lock a person wrote needs `--break-locks`; an
+Its header lists every check and what it cannot see. In short: only a
+merge-commit or fast-forward merge makes a branch removable, so squash-merged
+and rebase-merged branches are kept, not guessed at; `--base` must name a ref,
+not a SHA; a lock a person wrote needs `--break-locks`; an
 editor that has the folder open but a different working directory is not
 detected, only processes whose working directory is inside it; a worktree whose
 reflog holds commits nothing else does (work abandoned by amend, reset or a

@@ -19,10 +19,13 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   it, every commit is already on `origin/main`, and no commit is held only by
   the worktree's own reflog or refs. It archives the ignored
   files a rebuild would not recreate first, clears a lock only if an agent
-  wrote it, and names the check that failed for each worktree it keeps. Not
-  yet: it does not run by itself, a squash-merged branch is kept rather than
-  judged merged, and an editor with the folder open from elsewhere is not
-  detected.
+  wrote it, and names the check that failed for each worktree it keeps. Only a
+  merge-commit or fast-forward merge makes a branch removable: a squash or
+  rebase merge makes different commits, so those branches are kept. A worktree
+  whose reflog holds commits nothing else does (amend, reset, a deleted branch)
+  is kept until `--ignore-reflog`. `--base` must name a branch, a
+  remote-tracking branch or a tag. Not yet: it does not run by itself, and an
+  editor with the folder open from elsewhere is not detected.
 
 ### Security
 - **The release job fetches nothing unlocked.** The publish job holds the
