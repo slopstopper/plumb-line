@@ -135,12 +135,13 @@ def test_bare_code_scan_catches_the_forms_it_must():
     assert _bare_codes("P3 — Confidence and provenance")           # wrong name
     assert _bare_codes("P9 — the explanation IS the fix")          # wrong name
     assert _bare_codes("a `stray tick\n\nthen P3 in the next paragraph")
-    assert not _bare_codes("P3 — Confidence + provenance")
+    assert _bare_codes("P3 — Confidence + provenance")             # the revision-1 name
+    assert not _bare_codes("P3 — Provenance and confidence")
     assert not _bare_codes("P1–P9")
     assert not _bare_codes("never `Provenance (P3)`")
-    assert not _bare_codes("a header (`Provenance (P3 —\nConfidence + provenance)`, not `Provenance (P3)`)")
-    assert not _bare_codes("cite P3 —\nConfidence + provenance")
-    assert not _bare_codes("P8 — State-first\n  lineage")                # wrapped, indented
+    assert not _bare_codes("a header (`Provenance (P3 —\nProvenance and confidence)`, not `Provenance (P3)`)")
+    assert not _bare_codes("cite P3 —\nProvenance and confidence")
+    assert not _bare_codes("P8 — Recorded\n  lineage")                   # wrapped, indented
     assert _bare_codes("```\na fenced example citing P3 bare\n```")   # examples get copied too
 
 
@@ -562,9 +563,9 @@ def test_method_mid_task_states_the_concern_first_as_the_one_line_test_asks():
     section = method[method.index("## Mid-task: other moments"):]
     section = section[:section.index("\n## ", 3)] if "\n## " in section[3:] else section
     text = " ".join(section.split()).lower()
-    assert "stop and document the concern before implementing" in text
+    assert "say so in a line first" in text
     principles = " ".join(_read(_ROOT, "reference", "portable-principles.md").split()).lower()
-    assert "stop and document the concern before implementing" in principles
+    assert "say so in a line first" in principles
 
 
 def test_adopt_lightest_tracking_is_qualified_for_outputs():

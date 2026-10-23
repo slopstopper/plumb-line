@@ -138,7 +138,7 @@ off by default, so an output that must not show a fallback sets it.
 **What the audit catches afterwards.** A fallback branch that hand-builds
 a `real` source; a render path that drops the envelope before the output
 boundary; a `derivedFromMock` value exported with no opt-in; a fallback
-reaching an output that should exclude it (the audit's escaped-fakery
+reaching an output that should exclude it (the audit's escaped-stand-in
 check).
 
 ## Profile 2 — agent-generated data pipeline

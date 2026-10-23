@@ -4,7 +4,7 @@ Run from the repo root:
 
     python3 -m pytest -q scripts/test_report_format.py
 
-P7 (Contracted outputs) names three parts: a version constant, a canonical key
+P7 (Output contracts) names three parts: a version constant, a canonical key
 list, and a VALIDATOR. The first two shipped with report-format v1; this is the
 third (#139). Until it existed, "no format FAILs" in docs/validation-results.md
 was a human judgement repeated across six release runs.
@@ -28,16 +28,16 @@ PRINCIPLES = crf.load_principles(
 
 VALID_REPORT = """report-format: v4
 scope:               src/
-principles-revision: 1
+principles-revision: 2
 date:                2026-08-11
 commit:              abab68d
 
-P3 — Confidence + provenance  P7 — Contracted outputs
+P3 — Provenance and confidence  P7 — Output contracts
 
 | Path | Line | Function | Status | Issue | Suggested Fix | Principle |
 | ---- | ---- | -------- | ------ | ----- | ------------- | --------- |
-| `src/foo.py` | 42 | `load_scores` | violation | mock given a real source | tag via derive | P3 — Confidence + provenance |
-| `src/bar.py` | — | — | violation | output has no contract | add a version constant | P7 — Contracted outputs |
+| `src/foo.py` | 42 | `load_scores` | violation | mock given a real source | tag via derive | P3 — Provenance and confidence |
+| `src/bar.py` | — | — | violation | output has no contract | add a version constant | P7 — Output contracts |
 
 | Output | Provenance | Confidence | Lineage | Contract | Null-expressible | Baseline |
 | ------ | ---------- | ---------- | ------- | -------- | ---------------- | -------- |
@@ -54,14 +54,14 @@ finding is not a clean file. This audit does not claim completeness.
 VALID_REMEDIATION = """remediation-format: v1
 source-report:       plumb-line-audit.md
 source-report-format: v3
-principles-revision: 1
+principles-revision: 2
 date:                2026-08-11
 commit:              working tree (uncommitted)
 
 | Finding | Path | Class | Action | Change summary |
 | ------- | ---- | ----- | ------ | -------------- |
 | 1 | `src/foo.py` | mechanical | applied-mechanical | tagged via derive |
-| 2 | `src/bar.py` | judgment | blocked | needs a source decision (P3 — Confidence + provenance) |
+| 2 | `src/bar.py` | judgment | blocked | needs a source decision (P3 — Provenance and confidence) |
 """
 
 
@@ -74,11 +74,30 @@ def _check(text):
     return crf.check(text, PRINCIPLES, REVISION)
 
 
+# The revision-1 names, read from the table in ADR-0023 that records the
+# rename. A stored report scored under revision 1 is a record as delivered: it
+# is judged against the ruleset it was scored under, not re-scored.
+_ADR_0023 = open(os.path.join(_ROOT, "docs", "adr", "0023-plain-words.md"), encoding="utf-8").read()
+REVISION_1_PRINCIPLES = {m.group(1): m.group(2) for m in re.finditer(
+    r"^\| (P[1-9]) \| ([^|]+?) \| ([^|]+?) \|$", _ADR_0023, re.M)}
+
+
+def _stated_revision(text):
+    m = re.search(r"^principles-revision:\s*([0-9]+)\s*$", text, re.M)
+    return int(m.group(1)) if m else None
+
+
+def test_revision_1_names_are_read_from_adr_0023():
+    assert len(REVISION_1_PRINCIPLES) == 9
+    assert REVISION_1_PRINCIPLES["P3"] == "Confidence + provenance"
+    assert REVISION_1_PRINCIPLES["P9"] == "Golden baseline + explain-the-drift"
+
+
 # --- principle table is read from the ruleset, never hardcoded -------------
 
 def test_principles_are_loaded_from_the_ruleset():
-    assert PRINCIPLES["P3"] == "Confidence + provenance"
-    assert PRINCIPLES["P9"] == "Golden baseline + explain-the-drift"
+    assert PRINCIPLES["P3"] == "Provenance and confidence"
+    assert PRINCIPLES["P9"] == "Golden baselines"
     assert len(PRINCIPLES) == 9
 
 
@@ -118,8 +137,8 @@ def test_missing_header_key_is_flagged():
 
 def test_header_keys_out_of_order_are_flagged():
     text = VALID_REPORT.replace(
-        "scope:               src/\nprinciples-revision: 1\n",
-        "principles-revision: 1\nscope:               src/\n")
+        "scope:               src/\nprinciples-revision: 2\n",
+        "principles-revision: 2\nscope:               src/\n")
     assert any("header keys out of order" in i for i in issues_of(text))
 
 
@@ -163,20 +182,20 @@ def test_missing_findings_table_and_no_findings_line_is_flagged():
 # --- glossary + inline naming ---------------------------------------------
 
 def test_bare_principle_reference_is_flagged():
-    text = VALID_REPORT.replace("(P3 — Confidence + provenance)", "(P3)")
-    text = text.replace("| P7 — Contracted outputs |", "| P7 |")
+    text = VALID_REPORT.replace("(P3 — Provenance and confidence)", "(P3)")
+    text = text.replace("| P7 — Output contracts |", "| P7 |")
     assert any("not inline-named" in i for i in issues_of(text))
 
 
 def test_wrong_principle_name_is_flagged():
-    text = VALID_REPORT.replace("P3 — Confidence + provenance",
+    text = VALID_REPORT.replace("P3 — Provenance and confidence",
                                 "P3 — Confidence and provenance")
     assert any("wrong name" in i for i in issues_of(text))
 
 
 def test_cited_principle_missing_from_glossary_is_flagged():
-    text = VALID_REPORT.replace("P3 — Confidence + provenance  P7 — Contracted outputs",
-                                "P3 — Confidence + provenance")
+    text = VALID_REPORT.replace("P3 — Provenance and confidence  P7 — Output contracts",
+                                "P3 — Provenance and confidence")
     assert any("not in the glossary" in i for i in issues_of(text))
 
 
@@ -224,7 +243,7 @@ def test_principle_cited_inline_named_mid_sentence_is_accepted():
     usage the format mandates."""
     text = VALID_REPORT.replace(
         "\n| Path |",
-        "\nThis run leaned on P3 — Confidence + provenance throughout.\n\n| Path |")
+        "\nThis run leaned on P3 — Provenance and confidence throughout.\n\n| Path |")
     assert _check(text) == []
 
 
@@ -245,12 +264,12 @@ def test_extra_optional_header_key_after_the_required_ones_is_accepted():
 
 def test_hard_wrapped_inline_name_is_accepted():
     """#397: a writer hard-wrapping prose at a column limit splits the em-dash
-    name across two physical lines — '(P7 — Contracted' / 'outputs)'. The
+    name across two physical lines — '(P7 — Output' / 'contracts)'. The
     content is correct and the wrap is legal markdown; the checker must join
     soft-wrapped prose lines before matching the inline name."""
     text = VALID_REPORT.replace(
         "\n| Path |",
-        "\nThis leaned on (P7 — Contracted\noutputs) throughout.\n\n| Path |")
+        "\nThis leaned on (P7 — Output\ncontracts) throughout.\n\n| Path |")
     assert _check(text) == []
 
 
@@ -264,7 +283,7 @@ def test_hard_wrapped_wrong_name_is_still_flagged():
 
 
 def test_repeated_bare_citation_reports_the_problem_once():
-    text = VALID_REPORT.replace("P3 — Confidence + provenance", "P3")
+    text = VALID_REPORT.replace("P3 — Provenance and confidence", "P3")
     bare = [i for i in _check(text) if "not inline-named" in i]
     assert len(bare) == 1, bare
 
@@ -274,7 +293,7 @@ def test_repeated_bare_citation_reports_the_problem_once():
 ALIGNED_RECORD = """remediation-format: v1
 source-report:       r.md
 source-report-format: v3
-principles-revision: 1
+principles-revision: 2
 date:                2026-08-11
 commit:              abab68d
 
@@ -307,7 +326,7 @@ def test_bootstrap_report_is_header_only_by_design():
     harness runs it on every report."""
     text = """report-format: v3
 scope:               my-project
-principles-revision: 1
+principles-revision: 2
 date:                2026-08-11
 commit:              abab68d
 adapter:             js
@@ -323,7 +342,7 @@ def test_v1_report_is_not_judged_by_v3_rules():
     v3. A stored v1 report must not fail for lacking parts it never had."""
     text = """report-format: v1
 scope:               src/
-principles-revision: 1
+principles-revision: 2
 date:                2026-08-11
 commit:              abab68d
 
@@ -337,7 +356,7 @@ def test_non_ascii_digits_are_rejected_in_date_and_revision():
     are Unicode-aware, so both accepted values int() cannot parse."""
     text = VALID_REPORT.replace("2026-08-11", "٢٠٢٦-٠٨-١١")
     assert any("date" in i for i in _check(text))
-    text = VALID_REPORT.replace("principles-revision: 1", "principles-revision: ²")
+    text = VALID_REPORT.replace("principles-revision: 2", "principles-revision: ²")
     assert any("principles-revision" in i for i in _check(text))
 
 
@@ -404,13 +423,13 @@ def test_unreadable_path_fails_cleanly_without_a_traceback():
 
 ALIGNED_REPORT = """report-format: v4
 scope:               src/
-principles-revision: 1
+principles-revision: 2
 date:                2026-08-11
 commit:              abab68d
 
 | Path        | Line | Function | Status       | Issue | Suggested Fix | Principle              |
 | ----------- | ---- | -------- | ------------ | ----- | ------------- | ---------------------- |
-| `src/a.py`  | 42   | `f`      | needs-review | issue | fix           | P5 — Injectable priors |
+| `src/a.py`  | 42   | `f`      | needs-review | issue | fix           | P5 — Named assumptions |
 
 | Output | Provenance | Confidence | Lineage | Contract | Null-expressible | Baseline |
 | ------ | ---------- | ---------- | ------- | -------- | ---------------- | -------- |
@@ -442,7 +461,7 @@ def test_no_findings_phrase_in_prose_does_not_excuse_a_bad_table():
 
 def test_findings_row_missing_the_principle_cell_is_flagged():
     text = VALID_REPORT.replace(
-        "| `src/bar.py` | — | — | violation | output has no contract | add a version constant | P7 — Contracted outputs |",
+        "| `src/bar.py` | — | — | violation | output has no contract | add a version constant | P7 — Output contracts |",
         "| `src/bar.py` | — | — | violation | output has no contract | add a version constant |")
     assert any("findings row" in i and "cells" in i for i in _check(text))
 
@@ -563,7 +582,7 @@ def test_valid_routing_report_passes():
 def test_routing_declined_handoff_is_valid():
     assert _check(VALID_ROUTING.replace(
         "handoff: run plumb-line-audit now",
-        "handoff: none (no builder present)")) == []
+        "handoff: none (no operator present)")) == []
 
 
 def test_routing_missing_fit_line_is_flagged():
@@ -669,23 +688,23 @@ def _table_header_row(text, first_cell):
 def test_ruleset_revision_is_read_from_the_ruleset():
     assert crf.load_ruleset_revision("x\n**Principles revision:** 4\n") == 4
     assert crf.load_ruleset_revision("no revision line") is None
-    assert REVISION == 1
+    assert REVISION == 2
 
 
 def test_principles_revision_ahead_of_the_ruleset_is_flagged():
-    text = VALID_REPORT.replace("principles-revision: 1", "principles-revision: 7")
+    text = VALID_REPORT.replace("principles-revision: 2", "principles-revision: 7")
     issues = _check(text)
-    assert any("principles-revision" in i and "7" in i and "1" in i for i in issues), issues
+    assert any("principles-revision" in i and "7" in i and "2" in i for i in issues), issues
 
 
 def test_principles_revision_behind_the_ruleset_is_flagged():
-    text = VALID_REMEDIATION.replace("principles-revision: 1", "principles-revision: 0")
+    text = VALID_REMEDIATION.replace("principles-revision: 2", "principles-revision: 1")
     issues = _check(text)
     assert any("principles-revision" in i and "older" in i for i in issues), issues
 
 
 def test_revision_comparison_is_skipped_only_when_the_ruleset_revision_is_unknown():
-    text = VALID_REPORT.replace("principles-revision: 1", "principles-revision: 7")
+    text = VALID_REPORT.replace("principles-revision: 2", "principles-revision: 7")
     assert crf.check(text, PRINCIPLES, None) == []
 
 
@@ -697,7 +716,7 @@ def test_run_output_states_checker_version_and_ruleset_revision(tmp_path, capsys
     assert crf.main([str(p)]) == 0
     first = capsys.readouterr().out.split("\n")[0]
     assert "check_report_format v%s" % crf.CHECKER_VERSION in first, first
-    assert "principles-revision 1" in first, first
+    assert "principles-revision 2" in first, first
     assert "report-format" in first and "v3" in first, first
 
 
@@ -815,7 +834,18 @@ def test_committed_reports_are_listed():
                          ids=[os.path.relpath(p, _ROOT) for p in _COMMITTED_REPORTS])
 def test_committed_report_conforms(path):
     text = open(path, encoding="utf-8").read()
-    assert _check(text) == []
+    stated = _stated_revision(text)
+    if stated == REVISION:
+        assert _check(text) == []
+        return
+    # A stored report scored under an earlier ruleset (ADR-0023): the current
+    # checker fails it as behind the ruleset and does not accuse its stamp
+    # (#581). Against the ruleset it was scored under, it still conforms.
+    assert stated == 1, f"no names on record for principles-revision {stated}"
+    issues = _check(text)
+    assert any(crf._REVISION_BEHIND_ISSUE.match(i) for i in issues), issues
+    assert _unearned(issues) == [], issues
+    assert crf.check(text, REVISION_1_PRINCIPLES, 1) == []
 
 
 # --- #411: the omission-pass table is a checked part of a v3 audit report ---
@@ -858,10 +888,10 @@ def test_collapsed_provenance_and_lineage_column_fails():
 def test_omission_headers_may_carry_inline_named_principles():
     text = VALID_REPORT.replace(
         _OMISSION_HEADER,
-        "| Output | Provenance (P3 — Confidence + provenance) | Confidence | "
-        "Lineage (P8 — State-first lineage) | Contract (P7 — Contracted outputs) | Null-expressible | Baseline |"
-    ).replace("P3 — Confidence + provenance  P7 — Contracted outputs",
-              "P3 — Confidence + provenance  P7 — Contracted outputs  P8 — State-first lineage")
+        "| Output | Provenance (P3 — Provenance and confidence) | Confidence | "
+        "Lineage (P8 — Recorded lineage) | Contract (P7 — Output contracts) | Null-expressible | Baseline |"
+    ).replace("P3 — Provenance and confidence  P7 — Output contracts",
+              "P3 — Provenance and confidence  P7 — Output contracts  P8 — Recorded lineage")
     assert _check(text) == []
 
 
@@ -935,14 +965,14 @@ def test_fenced_glossary_as_the_skill_shows_it_is_read():
     # and a second mask blanked it — every glossary-only code then read as
     # "cited but not in the glossary". 6/6 blind auditors hit it (v0.11.2).
     text = VALID_REPORT.replace(
-        "P3 — Confidence + provenance  P7 — Contracted outputs\n",
-        "```\nP3 — Confidence + provenance  P7 — Contracted outputs\n```\n")
+        "P3 — Provenance and confidence  P7 — Output contracts\n",
+        "```\nP3 — Provenance and confidence  P7 — Output contracts\n```\n")
     # Cite P7 only in the glossary + table cell so the glossary must be read.
     assert _check(text) == []
     multi = VALID_REPORT.replace(
-        "P3 — Confidence + provenance  P7 — Contracted outputs\n",
-        "```\nP3 — Confidence + provenance\nP7 — Contracted outputs\nP8 — State-first lineage\n```\n"
-    ).replace("| no | no | yes | no |", "| no — P8 — State-first lineage | no | yes | no |", 1)
+        "P3 — Provenance and confidence  P7 — Output contracts\n",
+        "```\nP3 — Provenance and confidence\nP7 — Output contracts\nP8 — Recorded lineage\n```\n"
+    ).replace("| no | no | yes | no |", "| no — P8 — Recorded lineage | no | yes | no |", 1)
     assert _check(multi) == []
 
 
@@ -954,9 +984,9 @@ def test_citation_wrapped_inside_a_fenced_block_is_one_citation():
         "coverage: 12/47 files read",
         "```\ncoverage: 12/47 files read").replace(
         "finding is not a clean file. This audit does not claim completeness.\n",
-        "finding is not a clean file. P7 — Contracted\noutputs coverage is partial.\n"
+        "finding is not a clean file. P7 — Output\ncontracts coverage is partial.\n"
         "This audit does not claim completeness.\n```\n")
-    assert "```\ncoverage:" in text and "P7 — Contracted\noutputs" in text
+    assert "```\ncoverage:" in text and "P7 — Output\ncontracts" in text
     assert _check(text) == []
 
 
@@ -1134,7 +1164,7 @@ def _unearned(issues):
 
 
 def _revision(text, n):
-    return text.replace("principles-revision: 1\n", f"principles-revision: {n}\n")
+    return text.replace("principles-revision: 2\n", f"principles-revision: {n}\n")
 
 
 @pytest.mark.parametrize("text", [
@@ -1216,7 +1246,8 @@ _EVAL_REPORTS = os.path.join(_ROOT, "docs", "records", "evals", "2026-09-30")
 def test_the_delivered_eval_reports_are_judged_as_recorded(name, unearned):
     # The messages the 2026-09-30 run delivered, committed unchanged: the
     # checker names exactly the two stamps the record found false by hand.
+    # They were scored under revision 1, so they are judged against it.
     with open(os.path.join(_EVAL_REPORTS, name), encoding="utf-8") as fh:
-        issues = _check(fh.read())
+        issues = crf.check(fh.read(), REVISION_1_PRINCIPLES, 1)
     assert bool(_unearned(issues)) is unearned, (name, issues)
     assert bool(issues) is unearned, (name, issues)

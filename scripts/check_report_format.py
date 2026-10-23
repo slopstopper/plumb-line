@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validator for plumb-line's own report contracts (#139).
 
-P7 (Contracted outputs) names three parts: a version constant, a canonical key
+P7 (Output contracts) names three parts: a version constant, a canonical key
 list, and a validator. `report-format` and `remediation-format` shipped the
 first two and not the third — so "no format FAILs" in
 docs/validation-results.md was a human judgement, repeated across six release
@@ -111,14 +111,14 @@ _VALIDATION_CLEAN = re.compile(
 # The audit skill's omission-pass table: first column `Output`, then one column
 # per question in this order, each header being the word below, optionally
 # followed by a space and an inline-named principle (e.g.
-# `Lineage (P8 — State-first lineage)`). One column per question is the point:
+# `Lineage (P8 — Recorded lineage)`). One column per question is the point:
 # a collapsed provenance/lineage column is how the most common omission gets
 # missed.
 OMISSION_FIRST_COLUMN = "Output"
 OMISSION_QUESTIONS = ["Provenance", "Confidence", "Lineage", "Contract", "Null-expressible", "Baseline"]
 NO_OUTPUT_UNITS = "No output-producing units in scope."
 
-# The ruleset's own revision line: `**Principles revision:** 1`.
+# The ruleset's own revision line: `**Principles revision:** 2`.
 _RULESET_REVISION = re.compile(r"^\*\*Principles revision:\*\*\s*([0-9]+)\s*$", re.M)
 
 # [0-9] not \d, and an explicit ASCII test rather than str.isdigit(): Python's
@@ -233,7 +233,7 @@ def _join_soft_wraps(text):
 
 
 def load_principles(text):
-    """{"P3": "Confidence + provenance", ...} from the ruleset's own headings."""
+    """{"P3": "Provenance and confidence", ...} from the ruleset's own headings."""
     out = {}
     for m in re.finditer(r"^##\s*Principle\s+([1-9])\s+—\s+(.+?)\s*$", text, re.M):
         out["P" + m.group(1)] = m.group(2)
@@ -482,7 +482,7 @@ def _check_principles(text, principles, glossary_required, issues):
 
     The canonical name is matched as a PREFIX of what follows the em-dash, not
     as the whole remainder. The format explicitly allows a citation mid-sentence
-    ("this run leaned on P3 — Confidence + provenance throughout"), and the
+    ("this run leaned on P3 — Provenance and confidence throughout"), and the
     glossary packs several per line — so comparing against everything up to the
     line end rejects the format's own documented usage. A false positive in a
     format checker is the fastest way to get the checker disabled.
@@ -706,7 +706,7 @@ def check_routing(text, principles, ruleset_revision=None):
                       "followed by '— cited: <what was seen>'")
     if not re.search(r"^handoff:\s*\S", body, re.M | re.I):
         issues.append("missing 'handoff:' line — the one offered next step, or "
-                      "'none (<reason>)' when declined or no builder is present")
+                      "'none (<reason>)' when declined or no operator is present")
     return issues
 
 

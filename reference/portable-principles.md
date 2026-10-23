@@ -1,6 +1,10 @@
 # plumb-line — portable principles
 
-**Principles revision:** 1
+**Principles revision:** 2
+
+Revision 2 renamed the spine and seven of the nine principles; the P-numbers
+did not change. To map a revision-1 name in an older report, see the table in
+[ADR-0023](../docs/adr/0023-plain-words.md).
 
 The single source of the discipline. The five skills (`plumb-line-method`,
 `plumb-line-bootstrap`, `plumb-line-audit`, `plumb-line-remediate`,
@@ -21,7 +25,7 @@ and preserved across time, not vibes.
 
 ---
 
-## The spine: a null result is a first-class outcome
+## The spine: null results count
 
 "No structure found" / "no effect" / "inconclusive" must be expressible and
 honored — not collapsed into a default, a zero, or a silence. A system that
@@ -35,21 +39,23 @@ from noise dressed as signal.
 
 _"What state produced this output, and are we preserving it honestly?"_
 
-Use this as a gut-check before any change: if the change makes the system look
-more certain than it is, blurs a layer boundary, hardcodes a prior, or hides
-approximate data — stop and document the concern before implementing.
+Use this as a gut-check before any change. If the change would make the system
+look more certain than it is, blur a layer boundary, hardcode an assumption, or
+hide a stand-in, say so in a line first. Then meet the need honestly, and keep
+what is uncertain, stand-in or unfinished visible. The only no is presenting it
+as real, measured or done.
 
 ---
 
-## Principle 1 — Source-truth layer
+## Principle 1 — Source-of-truth layer
 
 **Statement:** Every system has a layer where measured or ground-truth data
 lives. Name it explicitly and forbid derived, synthesized, or fake logic inside
 it.
 
-**Why:** When the source-truth layer is unnamed, derived values and real values
-mix silently. Once mixed, you cannot tell which outputs are downstream of a
-measurement and which are downstream of an assumption. The only fix is a hard
+**Why:** When the source-of-truth layer is unnamed, derived values and real
+values mix silently. Once mixed, you cannot tell which outputs are downstream of
+a measurement and which are downstream of an assumption. The only fix is a hard
 boundary: this layer receives ground truth; everything else is built on top of
 it, never inside it.
 
@@ -75,7 +81,7 @@ allowed exception?"
 
 ---
 
-## Principle 3 — Confidence + provenance
+## Principle 3 — Provenance and confidence
 
 **Statement:** Anything that influences a downstream decision carries where it
 came from and how sure you are.
@@ -91,16 +97,20 @@ confidence."
 
 ---
 
-## Principle 4 — Quarantined fakery
+## Principle 4 — Labelled stand-ins
 
-**Statement:** Mock, approximate, fallback, and cached data is contained,
-labelled, and excluded from outputs unless explicitly opted in.
+**Statement:** Mock, approximate, fallback, and cached data are stand-ins for
+real data. A stand-in is contained, labelled, and excluded from outputs unless
+explicitly opted in. The opt-in is recorded where the output is produced, in
+code or configuration a reviewer can see, as the egress guard's `noMock: false`
+is. Whoever owns the output records it. An operator asking for the stand-in is
+the reason for the opt-in, not the opt-in itself.
 
-**Why:** Fake data that escapes its container and enters a real output path
-launders approximation into apparent truth. Once a fake value reaches an
+**Why:** A stand-in that escapes its container and enters a real output path
+launders approximation into apparent truth. Once a stand-in value reaches an
 aggregate, an export, or a displayed result, the system has made a claim it
-cannot support. Containment and labelling make the fakery visible to logic,
-diagnostics, and the builder — rather than hiding it behind a clean-looking
+cannot support. Containment and labelling make the stand-in visible to logic,
+diagnostics, and the operator — rather than hiding it behind a clean-looking
 number.
 
 **Find your version:** "Where do you use non-real data? How is it marked and
@@ -108,7 +118,7 @@ kept out of exports?"
 
 ---
 
-## Principle 5 — Injectable priors
+## Principle 5 — Named assumptions
 
 **Statement:** Assumptions and tunable constants are injected config with
 versioned defaults — never magic numbers buried in logic.
@@ -132,7 +142,7 @@ your system currently is vs. what it will become.
 
 **Why:** Undifferentiated code makes it impossible to know at a glance whether a
 module is production-ready or a placeholder. When the vocabulary is shared and
-consistent, any reader — including the builder six months later — can immediately
+consistent, any reader — including the operator six months later — can immediately
 see the maturity of each part without reading the implementation. The system
 applies this vocabulary to itself.
 
@@ -140,7 +150,8 @@ applies this vocabulary to itself.
 
 - **current** — implemented, tested, and actively maintained
 - **partial** — implemented but incomplete or not fully tested
-- **mock** — placeholder returning fake or hardcoded data
+- **stub** — placeholder that returns invented or hardcoded data, or reports
+  success without doing the work
 - **planned** — intended for a future version; not yet started
 - **not-implemented** — identified as needed but explicitly deferred
 
@@ -149,7 +160,7 @@ as-is and adopted without modification._
 
 ---
 
-## Principle 7 — Contracted outputs
+## Principle 7 — Output contracts
 
 **Statement:** Public outputs have a versioned, validated, named shape.
 
@@ -165,14 +176,14 @@ validator + version."
 
 ---
 
-## Principle 8 — State-first lineage
+## Principle 8 — Recorded lineage
 
 **Statement:** Store the conditions that produced an output, not just the
 conclusion. An output you cannot regenerate from recorded inputs is a claim you
 cannot audit.
 
 **Why:** Storing only the result means losing the ability to verify it, explain
-it, or compare it against a future run with different inputs. State-first lineage
+it, or compare it against a future run with different inputs. Recorded lineage
 makes outputs reproducible, debuggable, and comparable over time — and it makes
 it impossible to mistake a stale result for a fresh one, because the recorded
 conditions tell you exactly what was true when the output was produced.
@@ -182,7 +193,7 @@ to reproduce it?"
 
 ---
 
-## Principle 9 — Golden baseline + explain-the-drift
+## Principle 9 — Golden baselines
 
 **Statement:** Pin derived outputs in a baseline; any change forces an
 explanation of which input moved. Honesty enforced over time.
@@ -190,7 +201,7 @@ explanation of which input moved. Honesty enforced over time.
 **Why:** Without a pinned baseline, derived outputs can drift silently. A
 change to a weight, a constant, or an upstream value shifts every downstream
 result — and without a before-after comparison no one notices. A golden baseline
-makes drift visible and forces the builder to account for it: either the new
+makes drift visible and forces the operator to account for it: either the new
 output is correct and the baseline needs updating with an explanation, or the
 drift is a bug. Either way, the system cannot pretend nothing changed.
 
@@ -201,12 +212,12 @@ justified?"
 
 ## Glossary
 
-**Source-truth layer** — the named layer of a system where measured or
+**Source-of-truth layer** — the named layer of a system where measured or
 ground-truth data lives. Derived, synthesized, and fake logic are forbidden
 inside it (Principle 1).
 
 **Derived layer** — any layer that produces values by transforming, combining,
-or interpreting source-truth inputs. Results here are only as trustworthy as
+or interpreting source-of-truth inputs. Results here are only as trustworthy as
 the inputs they were built from, and should propagate that uncertainty.
 
 **Provenance** — the recorded origin of a value: where it came from, when it
@@ -217,13 +228,22 @@ a source (Principle 3).
 measured, estimated, imputed, or assumed. Confidence must travel with the value
 downstream rather than being silently discarded (Principle 3).
 
-**Quarantined data** — mock, approximate, fallback, or cached data that has been
-explicitly labelled and kept separate from real data paths so it cannot enter
-an output unless the consumer has opted in (Principle 4).
+**Stand-in** — mock, approximate, fallback, or cached data that takes the place
+of real data. It is labelled and kept separate from real data paths, so it
+cannot enter an output unless an opt-in is recorded where that output is
+produced, by whoever owns the output (Principle 4).
 
-**Prior** — an assumption or tunable constant that encodes a judgment call about
-the system's behavior. Priors must be injectable config with versioned defaults,
-not magic numbers buried in logic (Principle 5).
+**`mock`** — the source rung for invented data, which is not real (Principle 4).
+It is not a test double, and it is not a maturity level: an unfinished
+implementation is at maturity `stub` (Principle 6).
+
+**Test double** — a stand-in for a collaborator in a test, as Meszaros names
+them: a stub, mock, fake, spy or dummy. This is ordinary testing practice, and
+not the `mock` source rung.
+
+**Prior** — a named assumption: an assumption or tunable constant that encodes
+a judgment call about the system's behavior. Priors must be injectable config
+with versioned defaults, not magic numbers buried in logic (Principle 5).
 
 **Contract** — the versioned, validated, named shape of a public output.
 A contract includes a version constant, a validator function, and a canonical

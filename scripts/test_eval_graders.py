@@ -62,15 +62,15 @@ PRINCIPLES = crf.load_principles(
     open(os.path.join(_ROOT, "reference", "portable-principles.md"), encoding="utf-8").read())
 _REPORT = """report-format: v4
 scope:               src/
-principles-revision: 1
+principles-revision: 2
 date:                2026-08-11
 commit:              abab68d
 
-P3 — Confidence + provenance
+P3 — Provenance and confidence
 
 | Path | Line | Function | Status | Issue | Suggested Fix | Principle |
 | ---- | ---- | -------- | ------ | ----- | ------------- | --------- |
-| `src/foo.py` | 42 | `f` | STATUS | an issue | a fix | P3 — Confidence + provenance |
+| `src/foo.py` | 42 | `f` | STATUS | an issue | a fix | P3 — Provenance and confidence |
 
 | Output | Provenance | Confidence | Lineage | Contract | Null-expressible | Baseline |
 | ------ | ---------- | ---------- | ------- | -------- | ---------------- | -------- |
@@ -106,6 +106,14 @@ def test_a_grader_matches_every_confirmed_spelling_the_checker_accepts(path):
     p = _pattern(path)
     for status in CONFIRMED:
         assert _matches(p, "text\n" + _row(p, status) + "\nmore\n"), status
+
+
+@pytest.mark.parametrize("path", GRADERS, ids=os.path.basename)
+def test_a_grader_names_its_principle_as_the_ruleset_does(path):
+    # A grader that quotes a name the ruleset no longer has can never match a
+    # report that passes the checker (#593: revision 2 renamed most of them).
+    code, name = _row(_pattern(path), "violation").split(" | ")[-1].strip(" |").split(" — ", 1)
+    assert PRINCIPLES[code] == name, (path, code, name)
 
 
 @pytest.mark.parametrize("path", GRADERS, ids=os.path.basename)
@@ -250,7 +258,7 @@ def _front(path):
     return dict(re.findall(r"^(\w+): (.*)$", text.split("---")[1], re.M))
 
 
-def _clean_row(status, principle="P3 — Confidence + provenance", indent="", issue="an issue"):
+def _clean_row(status, principle="P3 — Provenance and confidence", indent="", issue="an issue"):
     return f"{indent}| `src/foo.py` | 42 | `f` | {status} | {issue} | a fix | {principle} |"
 
 
@@ -293,8 +301,8 @@ def test_any_other_status_fails_the_case(status):
     _clean_row("violation", indent="\t"),
     _clean_row("violation", issue="C:\\\\|x"),               # `\\|` inside a cell: not a split
     _clean_row("violation", issue="a \\| b"),                # an escaped pipe: not a split
-    _clean_row("violation", principle="`P3 — Confidence + provenance`"),
-    _clean_row("violation", principle="spine — null-result expressibility"),
+    _clean_row("violation", principle="`P3 — Provenance and confidence`"),
+    _clean_row("violation", principle="spine — Null results count"),
     _clean_row("violation") + "\r",                          # CRLF
 ])
 def test_the_review_probes_are_caught(row):
@@ -302,11 +310,11 @@ def test_the_review_probes_are_caught(row):
 
 
 @pytest.mark.parametrize("row", [
-    _clean_row("violation", principle="`P3` — Confidence + provenance"),     # code in backticks
-    _clean_row("violation", principle="(P3 — Confidence + provenance)"),
-    _clean_row("violation", principle="Spine — null-result expressibility"),
-    _clean_row("violation", principle="spine – null-result expressibility"),  # en dash
-    _clean_row("violation", principle="P3 - Confidence + provenance"),       # hyphen
+    _clean_row("violation", principle="`P3` — Provenance and confidence"),     # code in backticks
+    _clean_row("violation", principle="(P3 — Provenance and confidence)"),
+    _clean_row("violation", principle="Spine — Null results count"),
+    _clean_row("violation", principle="spine – Null results count"),  # en dash
+    _clean_row("violation", principle="P3 - Provenance and confidence"),       # hyphen
     "|" + _clean_row("violation"),                                          # doubled leading pipe
     _clean_row("violation") + "|",                                          # doubled trailing pipe
     _clean_row("violation")[:-1] + "\\|",                                 # escaped final pipe
@@ -318,11 +326,11 @@ def test_the_round_two_probes_are_caught(row):
 @pytest.mark.parametrize("row", [
     _clean_row("violation", principle=""),
     _clean_row("violation", principle="n/a"),
-    _clean_row("violation", principle="Confidence + provenance"),
-    _clean_row("violation", principle="_P3 — Confidence + provenance_"),
-    _clean_row("violation", principle="[P3 — Confidence + provenance](x.md)"),
-    _clean_row("violation", principle="“P3 — Confidence + provenance”"),
-    _clean_row("violation", principle="see P3 — Confidence + provenance"),
+    _clean_row("violation", principle="Provenance and confidence"),
+    _clean_row("violation", principle="_P3 — Provenance and confidence_"),
+    _clean_row("violation", principle="[P3 — Provenance and confidence](x.md)"),
+    _clean_row("violation", principle="“P3 — Provenance and confidence”"),
+    _clean_row("violation", principle="see P3 — Provenance and confidence"),
 ])
 def test_known_residual_a_principle_cell_without_a_code_is_not_seen(row):
     # Documented in the grader and the README: a findings row is known by its
@@ -333,16 +341,16 @@ def test_known_residual_a_principle_cell_without_a_code_is_not_seen(row):
 
 def test_known_residual_an_omission_row_opening_its_last_cell_with_a_code_fails_the_case():
     # The safe-side residual: a false FAIL, never a false PASS. Documented.
-    row = "| `f` | yes | yes | no | no | yes | P9 — Golden baseline + explain-the-drift: none |"
+    row = "| `f` | yes | yes | no | no | yes | P9 — Golden baselines: none |"
     assert _matches(_pattern(CLEAN[0]), "text\n" + row + "\nmore\n")
 
 
 @pytest.mark.parametrize("line", [
     "| Path | Line | Function | Status | Issue | Suggested Fix | Principle |",
     "| ---- | ---- | -------- | ------ | ----- | ------------- | --------- |",
-    "| `f` | yes | NO — violation (P3 — Confidence + provenance) | no | no | yes | no |",
+    "| `f` | yes | NO — violation (P3 — Provenance and confidence) | no | no | yes | no |",
     "| Output | Provenance | Confidence | Lineage | Contract | Null-expressible | Baseline |",
-    "| `src/foo.py` | 42 | `f` | violation: an issue | a fix | P3 — Confidence + provenance |",   # v3, six cells
+    "| `src/foo.py` | 42 | `f` | violation: an issue | a fix | P3 — Provenance and confidence |",   # v3, six cells
     "coverage: 1/1 files read | violation | x",
 ])
 def test_no_non_findings_line_fails_the_case(line):

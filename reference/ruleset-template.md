@@ -9,36 +9,37 @@
 
 - The one allowed exception (composition root): {{COMPOSITION_ROOT}}
 
-## Source-truth layer
+## Source-of-truth layer
 
 - {{SOURCE_TRUTH_LAYER}} holds measured/ground-truth data only.
 - Forbidden inside it: derived, symbolic, mock, or hardcoded-prior logic.
 
-## Provenance + confidence
+## Provenance and confidence
 
 - Anything flowing downstream carries origin + confidence: {{DOWNSTREAM_ITEMS}}
 
-## Quarantined data
+## Labelled stand-ins
 
-- Non-real data ({{MOCK_SOURCES}}) is labelled and excluded from outputs unless explicitly opted in.
+- Stand-ins for real data ({{MOCK_SOURCES}}) are labelled and excluded from outputs unless explicitly opted in.
+- The opt-in is recorded where the output is produced, in code or configuration a reviewer can see.
 
-## Injectable priors
+## Named assumptions
 
 - Tunable constants are versioned config, never magic numbers: {{PRIORS}}
 
-## Contracted outputs
+## Output contracts
 
 - Public outputs have a versioned, validated shape: {{OUTPUT_CONTRACTS}}
 
-## State-first lineage
+## Recorded lineage
 
 - For each output, record the inputs needed to reproduce it: {{LINEAGE}}
 
-## Golden baseline
+## Golden baselines
 
 - These derived outputs are frozen; drift must be explained: {{BASELINE}}
 
-## Null results
+## Null results count
 
 - "{{NULL_RESULT_PHRASING}}" is a valid, expressible outcome.
 
