@@ -72,10 +72,14 @@ jobs:
           node-version: ${{ matrix.node }}
       - name: primitives/js — provenance primitive
         working-directory: primitives/js
-        run: npm ci && npm test
+        # audit signatures: every installed package must carry a valid npm
+        # registry signature, so a tampered or substituted tarball fails here.
+        run: npm ci && npm audit signatures && npm test
       - name: adapters/js — enforcement adapters
         working-directory: adapters/js
-        run: npm ci && npm test
+        # audit signatures: every installed package must carry a valid npm
+        # registry signature, so a tampered or substituted tarball fails here.
+        run: npm ci && npm audit signatures && npm test
       - name: conformance report (envelope schema)
         run: node primitives/conformance/report.mjs
       - name: conformance against the plugin-bundled copy
