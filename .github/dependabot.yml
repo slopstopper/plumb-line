@@ -5,6 +5,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Hold new releases 7 days before proposing them (hijacked releases are
+    # usually caught within hours to days). Security updates skip the hold.
+    cooldown:
+      default-days: 7
     # Bundle all action bumps into one PR. codeql-action's init/analyze steps
     # must move in lockstep (analyze rejects a config written by a different
     # init version); ungrouped, Dependabot split them into two PRs that each
@@ -19,6 +23,10 @@ updates:
     directory: "/primitives/js"
     schedule:
       interval: "weekly"
+    # Hold new releases 7 days before proposing them (hijacked releases are
+    # usually caught within hours to days). Security updates skip the hold.
+    cooldown:
+      default-days: 7
     # vitest and @vitest/coverage-v8 pin each other exactly (coverage-v8's
     # peer is `vitest@<same version>`); ungrouped, Dependabot split the 4->5
     # major into one PR per package and every PR failed `npm ci` with
@@ -35,6 +43,10 @@ updates:
     directory: "/adapters/js"
     schedule:
       interval: "weekly"
+    # Hold new releases 7 days before proposing them (hijacked releases are
+    # usually caught within hours to days). Security updates skip the hold.
+    cooldown:
+      default-days: 7
     # vitest and @vitest/coverage-v8 pin each other exactly (coverage-v8's
     # peer is `vitest@<same version>`); ungrouped, Dependabot split the 4->5
     # major into one PR per package and every PR failed `npm ci` with
@@ -54,6 +66,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Hold new releases 7 days before proposing them (hijacked releases are
+    # usually caught within hours to days). Security updates skip the hold.
+    cooldown:
+      default-days: 7
     # numpy >=2.5 requires Python >=3.12; our floor is 3.11 (SUPPORT.md), and
     # 3.11 is not EOL until 2027-10 — so this is a dependency running ahead of
     # the EOL calendar, exactly the case the support policy says to hold on.

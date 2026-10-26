@@ -18,6 +18,20 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
   `requirements-test.txt`, and the job uses the npm bundled with Node 24,
   asserting the >= 11.5.1 trusted-publishing floor. A test
   (`test_publish_job_fetches_nothing_unlocked`) holds all three.
+- **Installed npm packages are signature-verified in CI.** The `javascript`
+  job runs `npm audit signatures` after `npm ci` for `primitives/js` and
+  `adapters/js`, so a tampered or substituted tarball fails even when its
+  lockfile integrity hash was regenerated alongside it. Held by
+  `test_js_installs_are_signature_verified`.
+- **Dependency install scripts never run in the JS packages**
+  ([#667](https://github.com/slopstopper/plumb-line/pull/667)).
+  `primitives/js/.npmrc` and `adapters/js/.npmrc` set `ignore-scripts=true`,
+  closing the install-time vector the 2026 Shai-Hulud npm worm used. npm then
+  skips the package's own hooks too, so the `prepublishOnly` hook was removed:
+  the pre-publish test gate is the `ci` job the release workflow requires.
+- **Dependabot holds new releases for 7 days** before proposing them (was
+  GitHub's 3-day default), across all four ecosystems. Security updates are
+  exempt from the hold.
 
 ## [0.12.1] — 2026-10-06
 
