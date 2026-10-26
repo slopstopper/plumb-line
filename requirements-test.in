@@ -6,7 +6,7 @@
 # every supported runtime — no universal marker split, no manual reconciliation.
 pytest==9.1.1
 pytest-cov==7.1.0
-ruff==0.17.1
+ruff==0.17.2
 import-linter==2.15
 build==1.6.1
 # Build backend for `python -m build --no-isolation` in release.yml: locked
