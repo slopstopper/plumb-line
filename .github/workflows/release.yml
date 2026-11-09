@@ -84,7 +84,11 @@ jobs:
       - name: install build deps
         # --require-hashes: every dep (incl. transitive) must match a hash in
         # the lock, so a compromised index cannot swap in a tampered wheel.
-        run: pip install --require-hashes -r requirements-test.txt
+        run: |
+          pip install --require-hashes -r requirements-test.txt
+          # The --no-isolation build backend lives in its own hashed file: see
+          # requirements-build.txt for why it is not in the compiled lock.
+          pip install --require-hashes -r requirements-build.txt
 
       # --- publish npm via OIDC trusted publishing (requires npm >= 11.5.1;
       #     publishes provenance attestations by default) ---
