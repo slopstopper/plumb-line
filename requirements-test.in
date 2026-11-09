@@ -4,7 +4,7 @@
 #       --python-version 3.11 -o requirements-test.txt
 # The floor is Python 3.11 (see SUPPORT.md), so a single flat resolution covers
 # every supported runtime — no universal marker split, no manual reconciliation.
-pytest==9.1.1
+pytest==9.2.0
 pytest-cov==7.1.0
 ruff==0.17.1
 import-linter==2.15
