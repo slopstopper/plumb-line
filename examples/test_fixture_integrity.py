@@ -252,9 +252,13 @@ def test_publish_job_fetches_nothing_unlocked():
         "build the Python package against the hashed lock, not an isolated env"
     assert "npm install -g" not in publish, \
         "use the npm bundled with setup-node; no registry fetch in the publish job"
-    lock = read(EXAMPLES.parent / "requirements-test.txt")
-    assert re.search(r"^setuptools==\S+ \\\n\s+--hash=sha256:", lock, re.M), \
-        "setuptools (the --no-isolation build backend) must be pinned with hashes in requirements-test.txt"
+    # The build backend is pinned in its own hashed file, not the compiled
+    # lock: Dependabot drops setuptools whenever it recompiles that lock.
+    assert "pip install --require-hashes -r requirements-build.txt" in publish, \
+        "the publish job must install the hashed build backend before building"
+    build = read(EXAMPLES.parent / "requirements-build.txt")
+    assert re.search(r"^setuptools==\S+ \\\n\s+--hash=sha256:", build, re.M), \
+        "setuptools (the --no-isolation build backend) must be pinned with hashes in requirements-build.txt"
 
 
 def test_js_installs_are_signature_verified():
