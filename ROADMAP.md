@@ -34,7 +34,7 @@ hang:
 - **Parallel tracks** are GitHub *labels* (`track:portable`,
   `track:boundaries`, `track:agent-state`, `track:ecosystem`,
   `track:skills`, `track:runtime`, `track:distribution`,
-  `track:benchmarks`). They have no version and no due date by
+  `track:benchmarks`, `track:housekeeping`). They have no version and no due date by
   design. They were previously modelled as milestones, which made them
   permanently "stalled" by construction and trained the eye to ignore the
   stalled signal.
@@ -459,6 +459,11 @@ Version themes for the near-term releases, and the GitHub issues under each.
   follows and the candidate benchmarks are on the umbrella, GH #489. The
   first external one is
   ImpossibleBench (GH #490), sequenced after spike round 3.
+
+- **Housekeeping** (label `track:housekeeping`; added 2026-10-23, owner
+  decision, GH #668). Keeping the repo's own working state clean: stale
+  worktrees and their branches, and the scratch they leave behind. Not a
+  product direction, so it has no version.
 
 - **Backlog** (unversioned, no issue filed yet). IDE integration (#3); Go and
   Rust ports (#7); relocate `provenance-lint` to `primitives/` (#8).

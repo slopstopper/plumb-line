@@ -9,6 +9,24 @@ format is versioned separately as `PROVENANCE_VERSION` (currently `2`).
 
 ## [Unreleased]
 
+### Added
+- **`scripts/prune_worktrees.py` removes stale git worktrees that are provably
+  safe to remove**
+  ([#668](https://github.com/slopstopper/plumb-line/issues/668)). Repo tooling
+  outside the packages and the plugin. A dry run by default; `--apply`
+  removes a worktree only when it is clean (including edits `git status` is told
+  not to show, and no submodule), no process has its working directory inside
+  it, every commit is already on `origin/main`, and no commit is held only by
+  the worktree's own reflog or refs. It archives the ignored
+  files a rebuild would not recreate first, clears a lock only if an agent
+  wrote it, and names the check that failed for each worktree it keeps. Only a
+  merge-commit or fast-forward merge makes a branch removable: a squash or
+  rebase merge makes different commits, so those branches are kept. A worktree
+  whose reflog holds commits nothing else does (amend, reset, a deleted branch)
+  is kept until `--ignore-reflog`. `--base` must name a branch, a
+  remote-tracking branch or a tag. Not yet: it does not run by itself, and an
+  editor with the folder open from elsewhere is not detected.
+
 ### Security
 - **The release job fetches nothing unlocked.** The publish job holds the
   OIDC publishing credential, and two of its steps downloaded code that no
