@@ -1,2 +1,2 @@
 { "name": "ratchet-adoption-js-fixture", "private": true, "type": "module",
-  "devDependencies": { "eslint": "^10.10.0" } }
+  "devDependencies": { "eslint": "^10.15.0" } }
